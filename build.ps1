@@ -96,9 +96,11 @@ $apkDir = "app\build\outputs\apk\$variant"
 $apk = Get-ChildItem -Path $apkDir -Filter "*.apk" -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($apk) {
+    $outApk = Join-Path $scriptDir "jotty-android.apk"
+    Copy-Item -LiteralPath $apk.FullName -Destination $outApk -Force
     Write-Host ""
     Write-Host "Build succeeded." -ForegroundColor Green
-    Write-Host "APK: $($apk.FullName)" -ForegroundColor Green
+    Write-Host "APK: $outApk" -ForegroundColor Green
 } else {
     Write-Host "Build completed but APK not found under $apkDir" -ForegroundColor Yellow
 }

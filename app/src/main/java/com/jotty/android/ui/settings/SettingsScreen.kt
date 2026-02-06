@@ -4,12 +4,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
+import com.jotty.android.BuildConfig
 import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.SummaryData
@@ -30,6 +34,7 @@ fun SettingsScreen(
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
+    var showAboutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(api) {
         if (api == null) return@LaunchedEffect
@@ -176,12 +181,45 @@ fun SettingsScreen(
             }
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // About
+        SettingsSectionTitle("About")
+        OutlinedCard(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { showAboutDialog = true },
+        ) {
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Icon(Icons.Default.Info, contentDescription = null)
+                Column {
+                    Text("About", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Version, source code, and more",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
             "Jotty Android • Connects to self-hosted Jotty servers",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    if (showAboutDialog) {
+        AboutDialog(
+            onDismiss = { showAboutDialog = false },
+            versionName = BuildConfig.VERSION_NAME ?: "—",
+            versionCode = BuildConfig.VERSION_CODE,
         )
     }
 }
@@ -267,5 +305,53 @@ private fun SettingsSectionTitle(title: String) {
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(bottom = 8.dp),
+    )
+}
+
+private const val GITHUB_REPO_URL = "https://github.com/fccview/jotty-android"
+
+@Composable
+private fun AboutDialog(
+    onDismiss: () -> Unit,
+    versionName: String,
+    versionCode: Int,
+) {
+    val uriHandler = LocalUriHandler.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("About Jotty Android") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Android client for Jotty — self-hosted checklists and notes.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Version", style = MaterialTheme.typography.bodyMedium)
+                    Text("$versionName ($versionCode)", style = MaterialTheme.typography.bodyMedium)
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                TextButton(
+                    onClick = { uriHandler.openUri(GITHUB_REPO_URL) },
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Link,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("View source on GitHub")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
     )
 }

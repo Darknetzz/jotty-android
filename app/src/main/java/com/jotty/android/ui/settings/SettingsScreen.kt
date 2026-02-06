@@ -19,7 +19,7 @@ fun SettingsScreen(
     onDisconnect: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val serverUrl by settingsRepository.serverUrl.collectAsState(initial = null)
+    val currentInstance by settingsRepository.currentInstance.collectAsState(initial = null)
     val theme by settingsRepository.theme.collectAsState(initial = null)
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
 
@@ -44,8 +44,8 @@ fun SettingsScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             ListItem(
-                headlineContent = { Text("Server") },
-                supportingContent = { Text(serverUrl ?: "—", maxLines = 2) },
+                headlineContent = { Text(currentInstance?.name ?: "Instance") },
+                supportingContent = { Text(currentInstance?.serverUrl ?: "—", maxLines = 2) },
                 leadingContent = { Icon(Icons.Default.Link, contentDescription = null) },
             )
         }
@@ -123,7 +123,7 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth(),
             onClick = {
                 scope.launch {
-                    settingsRepository.clear()
+                    settingsRepository.disconnect()
                     onDisconnect()
                 }
             },
@@ -134,7 +134,14 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Icon(Icons.Default.Logout, contentDescription = null)
-                Text("Disconnect", style = MaterialTheme.typography.bodyLarge)
+                Column {
+                    Text("Disconnect", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Switch to another instance (this one is saved)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 

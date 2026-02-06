@@ -19,6 +19,7 @@ fun JottyApp(settingsRepository: SettingsRepository) {
     var isConfigured by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) {
+        settingsRepository.migrateFromLegacyIfNeeded()
         isConfigured = settingsRepository.isConfigured.first()
     }
 

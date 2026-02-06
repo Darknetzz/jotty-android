@@ -31,10 +31,10 @@ if (-not (Test-Path $wrapperJar)) {
 function Get-JavaVersion {
     param([string]$JavaHome)
     $env:JAVA_HOME = $JavaHome
-    $out = & "$JavaHome\bin\java.exe" -version 2>&1
-    if ($out -match '"(\d+)\.(\d+)') {
-        $major = [int]$matches[1]
-        $minor = [int]$matches[2]
+    $out = (& "$JavaHome\bin\java.exe" -version 2>&1) | Out-String
+    if ($out -match '"(\d+)(?:\.(\d+))?') {
+        $major = [int]$Matches[1]
+        $minor = if ($Matches[2]) { [int]$Matches[2] } else { 0 }
         if ($major -eq 1) { return $minor }  # 1.8 -> 8
         return $major
     }

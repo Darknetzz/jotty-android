@@ -116,16 +116,33 @@ fun ChecklistsScreen(api: JottyApi) {
 
     if (showCreateDialog) {
         var title by remember { mutableStateOf("") }
+        var isProjectType by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             title = { Text("New checklist") },
             text = {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Title") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        label = { Text("Title") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Checkbox(
+                            checked = isProjectType,
+                            onCheckedChange = { isProjectType = it },
+                        )
+                        Text(
+                            "Task project (sub-tasks)",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
             },
             confirmButton = {
                 TextButton(
@@ -135,6 +152,7 @@ fun ChecklistsScreen(api: JottyApi) {
                                 val created = api.createChecklist(
                                     com.jotty.android.data.api.CreateChecklistRequest(
                                         title = title.ifBlank { "Untitled" },
+                                        type = if (isProjectType) "project" else "simple",
                                     ),
                                 )
                                 if (created.success) {
@@ -167,17 +185,32 @@ private fun ChecklistCard(
     val total = checklist.items.size
     val progress = if (total > 0) completed.toFloat() / total else 0f
 
+    val isProject = checklist.type.equals("project", ignoreCase = true)
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = checklist.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = checklist.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (isProject) {
+                    Text(
+                        "Project",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
+            }
             if (checklist.items.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
@@ -267,17 +300,29 @@ private fun ChecklistDetailScreen(
             }
         }
 
+        val isProject = checklist.type.equals("project", ignoreCase = true)
+        val flatItems = remember(items, isProject) {
+            if (isProject) flattenWithDepth(items) else items.map { it to 0 }
+        }
+        val toDo = flatItems.filter { !it.first.completed }
+        val completed = flatItems.filter { it.first.completed }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            items(items, key = { "${it.index}-${it.text}" }) { item ->
+            item(key = "header-todo") {
+                SectionHeader(title = "To Do", count = toDo.size)
+            }
+            items(toDo, key = { "todo-${it.first.index}-${it.first.text}" }) { (item, depth) ->
                 ChecklistItemRow(
                     item = item,
+                    depth = depth,
+                    isProject = isProject,
                     onCheck = {
                         scope.launch {
                             try {
-                                api.checkItem(checklist.id, "${item.index}")
+                                api.checkItem(checklist.id, itemIndexForApi(item))
                                 refresh()
                             } catch (_: Exception) {}
                         }
@@ -285,7 +330,7 @@ private fun ChecklistDetailScreen(
                     onUncheck = {
                         scope.launch {
                             try {
-                                api.uncheckItem(checklist.id, "${item.index}")
+                                api.uncheckItem(checklist.id, itemIndexForApi(item))
                                 refresh()
                             } catch (_: Exception) {}
                         }
@@ -293,25 +338,100 @@ private fun ChecklistDetailScreen(
                     onDelete = {
                         scope.launch {
                             try {
-                                api.deleteItem(checklist.id, "${item.index}")
+                                api.deleteItem(checklist.id, itemIndexForApi(item))
                                 refresh()
                             } catch (_: Exception) {}
                         }
                     },
+                    onAddSubItem = if (isProject) {
+                        {
+                            scope.launch {
+                                try {
+                                    api.addChecklistItem(
+                                        checklist.id,
+                                        com.jotty.android.data.api.AddItemRequest(
+                                            text = "",
+                                            parentIndex = "${item.index}",
+                                        ),
+                                    )
+                                    refresh()
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    } else null,
+                )
+            }
+            item(key = "header-completed") {
+                SectionHeader(title = "Completed", count = completed.size)
+            }
+            items(completed, key = { "done-${it.first.index}-${it.first.text}" }) { (item, depth) ->
+                ChecklistItemRow(
+                    item = item,
+                    depth = depth,
+                    isProject = isProject,
+                    onCheck = {
+                        scope.launch {
+                            try {
+                                api.checkItem(checklist.id, itemIndexForApi(item))
+                                refresh()
+                            } catch (_: Exception) {}
+                        }
+                    },
+                    onUncheck = {
+                        scope.launch {
+                            try {
+                                api.uncheckItem(checklist.id, itemIndexForApi(item))
+                                refresh()
+                            } catch (_: Exception) {}
+                        }
+                    },
+                    onDelete = {
+                        scope.launch {
+                            try {
+                                api.deleteItem(checklist.id, itemIndexForApi(item))
+                                refresh()
+                            } catch (_: Exception) {}
+                        }
+                    },
+                    onAddSubItem = null,
                 )
             }
         }
     }
 }
 
+/** Flatten checklist items with depth (0 = top-level, 1 = child, ...) for project type. */
+private fun flattenWithDepth(items: List<ChecklistItem>, depth: Int = 0): List<Pair<ChecklistItem, Int>> {
+    return items.flatMap { item ->
+        listOf(item to depth) + flattenWithDepth(item.children.orEmpty(), depth + 1)
+    }
+}
+
+/** API expects item index as string; for children might be "parent.child". */
+private fun itemIndexForApi(item: ChecklistItem): String = "${item.index}"
+
+@Composable
+private fun SectionHeader(title: String, count: Int) {
+    Text(
+        text = "• $title ($count)",
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+    )
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChecklistItemRow(
     item: ChecklistItem,
+    depth: Int = 0,
+    isProject: Boolean = false,
     onCheck: () -> Unit,
     onUncheck: () -> Unit,
     onDelete: () -> Unit,
+    onAddSubItem: (() -> Unit)? = null,
 ) {
+    val indent = (depth * 20).dp
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -322,17 +442,30 @@ private fun ChecklistItemRow(
             ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Spacer(modifier = Modifier.width(indent))
         Checkbox(
             checked = item.completed,
             onCheckedChange = { if (it) onCheck() else onUncheck() },
         )
         Text(
-            text = item.text,
+            text = item.text.ifBlank { "..." },
             style = MaterialTheme.typography.bodyLarge,
             textDecoration = if (item.completed) TextDecoration.LineThrough else null,
             color = if (item.completed) MaterialTheme.colorScheme.onSurfaceVariant
             else MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
+        if (isProject && depth == 0 && onAddSubItem != null) {
+            IconButton(
+                onClick = onAddSubItem,
+                modifier = Modifier.size(32.dp),
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = "Add sub-task",
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
     }
 }

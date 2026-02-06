@@ -304,6 +304,7 @@ private fun ChecklistDetailScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChecklistItemRow(
     item: ChecklistItem,

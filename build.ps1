@@ -27,6 +27,60 @@ if (-not (Test-Path $wrapperJar)) {
     }
 }
 
+# Android Gradle Plugin requires Java 11+. Ensure we use a suitable JVM.
+function Get-JavaVersion {
+    param([string]$JavaHome)
+    $env:JAVA_HOME = $JavaHome
+    $out = & "$JavaHome\bin\java.exe" -version 2>&1
+    if ($out -match '"(\d+)\.(\d+)') {
+        $major = [int]$matches[1]
+        $minor = [int]$matches[2]
+        if ($major -eq 1) { return $minor }  # 1.8 -> 8
+        return $major
+    }
+    return 0
+}
+
+$minJava = 11
+$needJava = $true
+if ($env:JAVA_HOME -and (Test-Path "$env:JAVA_HOME\bin\java.exe")) {
+    $v = Get-JavaVersion -JavaHome $env:JAVA_HOME
+    if ($v -ge $minJava) { $needJava = $false }
+}
+
+if ($needJava) {
+    $candidates = @(
+        "${env:LOCALAPPDATA}\Programs\Android Studio\jbr",
+        "C:\Program Files\Android\Android Studio\jbr",
+        "${env:ProgramFiles}\Android\Android Studio\jbr",
+        "${env:ProgramFiles(x86)}\Android\Android Studio\jbr",
+        "${env:LOCALAPPDATA}\Microsoft\jbr-17",
+        "C:\Program Files\Microsoft\jdk-17*",
+        "C:\Program Files\Eclipse Adoptium\jdk-17*",
+        "C:\Program Files\Java\jdk-17*",
+        "C:\Program Files\Java\jdk-21*",
+        "C:\Program Files\Java\jdk-11*"
+    )
+    foreach ($c in $candidates) {
+        $dir = $null
+        if ($c -match '\*') { $dir = Get-Item $c -ErrorAction SilentlyContinue | Select-Object -First 1 }
+        else { $dir = Get-Item $c -ErrorAction SilentlyContinue }
+        if ($dir -and $dir.PSIsContainer -and (Test-Path "$($dir.FullName)\bin\java.exe")) {
+            $v = Get-JavaVersion -JavaHome $dir.FullName
+            if ($v -ge $minJava) {
+                $env:JAVA_HOME = $dir.FullName
+                Write-Host "Using Java $v from: $($dir.FullName)" -ForegroundColor Green
+                break
+            }
+        }
+    }
+    if (-not $env:JAVA_HOME -or (Get-JavaVersion -JavaHome $env:JAVA_HOME) -lt $minJava) {
+        Write-Host "This build requires Java $minJava or newer. Current Java is too old or not set." -ForegroundColor Red
+        Write-Host "Set JAVA_HOME to a JDK 11+ installation, or install one (e.g. Android Studio or winget install Microsoft.OpenJDK.17)." -ForegroundColor Red
+        exit 1
+    }
+}
+
 $task = if ($Release) { "assembleRelease" } else { "assembleDebug" }
 $variant = if ($Release) { "release" } else { "debug" }
 

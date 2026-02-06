@@ -308,7 +308,7 @@ private fun SettingsSectionTitle(title: String) {
     )
 }
 
-private const val GITHUB_REPO_URL = "https://github.com/fccview/jotty-android"
+private const val GITHUB_REPO_URL = "https://github.com/Darknetzz/jotty-android"
 
 @Composable
 private fun AboutDialog(

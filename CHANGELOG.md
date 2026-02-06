@@ -33,5 +33,5 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
-[1.0.1]: https://github.com/fccview/jotty-android/releases/tag/v1.0.1
-[1.0.0]: https://github.com/fccview/jotty-android/releases/tag/v1.0.0
+[1.0.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.1
+[1.0.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.0

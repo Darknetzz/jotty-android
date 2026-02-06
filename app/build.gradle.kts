@@ -65,6 +65,9 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
+    // Markdown rendering for notes
+    implementation("com.github.jeziellago:compose-markdown:0.5.8")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

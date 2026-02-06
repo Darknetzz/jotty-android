@@ -3,6 +3,9 @@ package com.jotty.android.ui.notes
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
+import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
 
 @Composable
@@ -190,58 +194,153 @@ private fun NoteDetailScreen(
 ) {
     var title by remember { mutableStateOf(note.title) }
     var content by remember { mutableStateOf(note.content) }
+    var isEditing by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-            }
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(
-                onClick = {
-                    scope.launch {
-                        saving = true
-                        try {
-                            val updated = api.updateNote(
-                                note.id,
-                                com.jotty.android.data.api.UpdateNoteRequest(
-                                    title = title,
-                                    content = content,
-                                    originalCategory = note.category,
-                                ),
-                            )
-                            if (updated.success) onUpdate(updated.data)
-                        } catch (_: Exception) {}
-                        saving = false
-                    }
-                },
-            ) {
-                if (saving) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                } else {
-                    Icon(Icons.Default.Save, contentDescription = "Save")
-                }
-            }
-        }
+    LaunchedEffect(note) {
+        title = note.title
+        content = note.content
+    }
 
+    Column(Modifier.fillMaxSize()) {
+        TopAppBar(
+            title = { },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+            },
+            actions = {
+                if (isEditing) {
+                    if (saving) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(12.dp))
+                    } else {
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    saving = true
+                                    try {
+                                        val updated = api.updateNote(
+                                            note.id,
+                                            com.jotty.android.data.api.UpdateNoteRequest(
+                                                title = title,
+                                                content = content,
+                                                originalCategory = note.category,
+                                            ),
+                                        )
+                                        if (updated.success) {
+                                            onUpdate(updated.data)
+                                            isEditing = false
+                                        }
+                                    } catch (_: Exception) {}
+                                    saving = false
+                                }
+                            },
+                        ) {
+                            Icon(Icons.Default.Save, contentDescription = "Save")
+                        }
+                    }
+                } else {
+                    IconButton(onClick = { isEditing = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit")
+                    }
+                }
+            },
+        )
+
+        if (isEditing) {
+            NoteEditor(
+                title = title,
+                onTitleChange = { title = it },
+                content = content,
+                onContentChange = { content = it },
+            )
+        } else {
+            NoteView(
+                title = title,
+                content = content,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NoteView(
+    title: String,
+    content: String,
+) {
+    val scrollState = rememberScrollState()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(horizontal = 16.dp),
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
+        if (content.isNotBlank()) {
+            MarkdownText(
+                markdown = content,
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                ),
+            )
+        } else {
+            Text(
+                text = "No content",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun NoteEditor(
+    title: String,
+    onTitleChange: (String) -> Unit,
+    content: String,
+    onContentChange: (String) -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        OutlinedTextField(
+            value = title,
+            onValueChange = onTitleChange,
+            label = { Text("Title") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+        )
         OutlinedTextField(
             value = content,
-            onValueChange = { content = it },
+            onValueChange = onContentChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 16.dp),
+                .heightIn(min = 200.dp),
             placeholder = { Text("Write your note...") },
-            minLines = 10,
+            supportingText = {
+                Text(
+                    "Supports **bold**, *italic*, # headings, lists, [links](url)",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            },
+            minLines = 12,
+            shape = RoundedCornerShape(12.dp),
         )
     }
 }

@@ -5,12 +5,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import kotlinx.coroutines.flow.first
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
@@ -31,6 +33,10 @@ fun MainScreen(
     onDisconnect: () -> Unit = {},
 ) {
     val navController = rememberNavController()
+    var startDestination by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        startDestination = settingsRepository.startTab.first() ?: MainRoute.Checklists.route
+    }
     val serverUrl = settingsRepository.serverUrl.collectAsState(initial = null).value
     val apiKey = settingsRepository.apiKey.collectAsState(initial = null).value
 
@@ -74,17 +80,21 @@ fun MainScreen(
             }
         },
     ) { padding ->
-        api?.let { jottyApi ->
-            NavHost(
+        when {
+            api == null -> Box(Modifier.fillMaxSize()) { Text("Loading…") }
+            startDestination == null -> Box(Modifier.fillMaxSize()) {
+                CircularProgressIndicator(Modifier.align(Alignment.Center))
+            }
+            else -> NavHost(
                 navController = navController,
-                startDestination = MainRoute.Checklists.route,
+                startDestination = startDestination!!,
                 modifier = Modifier.padding(padding),
             ) {
                 composable(MainRoute.Checklists.route) {
-                    ChecklistsScreen(api = jottyApi)
+                    ChecklistsScreen(api = api!!)
                 }
                 composable(MainRoute.Notes.route) {
-                    NotesScreen(api = jottyApi)
+                    NotesScreen(api = api!!)
                 }
                 composable(MainRoute.Settings.route) {
                     SettingsScreen(
@@ -92,10 +102,6 @@ fun MainScreen(
                         onDisconnect = onDisconnect,
                     )
                 }
-            }
-        } ?: run {
-            Box(Modifier.fillMaxSize()) {
-                Text("Loading...")
             }
         }
     }

@@ -24,6 +24,15 @@ An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-bas
 3. Enter your API key.
 4. Tap **Connect**.
 
+## Releasing
+
+Version is defined in **`gradle.properties`** (single source of truth):
+
+- `VERSION_NAME` — user-visible version (e.g. `1.0.1`)
+- `VERSION_CODE` — integer, must increase each release (e.g. `2`)
+
+To cut a new release: update both in `gradle.properties`, add an entry to **`CHANGELOG.md`**, then build and tag (e.g. `v1.0.1`).
+
 ## Building
 
 ### Requirements

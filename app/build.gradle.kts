@@ -12,8 +12,8 @@ android {
         applicationId = "com.jotty.android"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = (rootProject.findProperty("VERSION_CODE")?.toString()?.toIntOrNull() ?: 1)
+        versionName = rootProject.findProperty("VERSION_NAME")?.toString() ?: "1.0.0"
     }
 
     buildTypes {

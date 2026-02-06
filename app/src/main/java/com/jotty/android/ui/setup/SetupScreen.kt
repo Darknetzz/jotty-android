@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -56,10 +57,21 @@ fun SetupScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        if (showAddForm) {
-            AddInstanceForm(
+        var instanceToEdit by remember { mutableStateOf<JottyInstance?>(null) }
+        if (instanceToEdit != null) {
+            InstanceForm(
+                initialInstance = instanceToEdit,
                 settingsRepository = settingsRepository,
                 onDone = onConfigured,
+                onSaved = { instanceToEdit = null },
+                onCancel = { instanceToEdit = null },
+            )
+        } else if (showAddForm) {
+            InstanceForm(
+                initialInstance = null,
+                settingsRepository = settingsRepository,
+                onDone = onConfigured,
+                onSaved = null,
                 onCancel = { if (instances.isNotEmpty()) showAddForm = false },
             )
         } else {
@@ -75,6 +87,7 @@ fun SetupScreen(
                                     onConfigured()
                                 }
                             },
+                            onEdit = { instanceToEdit = instance },
                             onDelete = { instanceToDelete = instance },
                         )
                     }
@@ -119,9 +132,11 @@ fun SetupScreen(
                     )
                 }
             } else {
-                AddInstanceForm(
+                InstanceForm(
+                    initialInstance = null,
                     settingsRepository = settingsRepository,
                     onDone = onConfigured,
+                    onSaved = null,
                     onCancel = null,
                 )
             }
@@ -133,6 +148,7 @@ fun SetupScreen(
 private fun InstanceCard(
     instance: JottyInstance,
     onClick: () -> Unit,
+    onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     Card(
@@ -143,7 +159,7 @@ private fun InstanceCard(
         Row(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(Icons.Default.Link, contentDescription = null)
             Column(modifier = Modifier.weight(1f)) {
@@ -160,6 +176,12 @@ private fun InstanceCard(
                 )
             }
             IconButton(
+                onClick = onEdit,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(Icons.Default.Edit, contentDescription = "Edit instance")
+            }
+            IconButton(
                 onClick = onDelete,
                 modifier = Modifier.size(40.dp),
             ) {
@@ -174,20 +196,31 @@ private fun InstanceCard(
 }
 
 @Composable
-private fun AddInstanceForm(
+private fun InstanceForm(
+    initialInstance: JottyInstance?,
     settingsRepository: SettingsRepository,
     onDone: () -> Unit,
+    onSaved: (() -> Unit)?,
     onCancel: (() -> Unit)?,
 ) {
-    var name by remember { mutableStateOf("") }
-    var serverUrl by remember { mutableStateOf("") }
-    var apiKey by remember { mutableStateOf("") }
+    var name by remember(initialInstance) { mutableStateOf(initialInstance?.name ?: "") }
+    var serverUrl by remember(initialInstance) { mutableStateOf(initialInstance?.serverUrl ?: "") }
+    var apiKey by remember(initialInstance) { mutableStateOf(initialInstance?.apiKey ?: "") }
     var apiKeyVisible by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val isEdit = initialInstance != null
 
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        if (isEdit) {
+            Text(
+                text = "Edit instance",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
+        }
         OutlinedTextField(
             value = name,
             onValueChange = { name = it; error = null },
@@ -263,13 +296,13 @@ private fun AddInstanceForm(
                             api.health()
 
                             val instance = JottyInstance(
-                                id = UUID.randomUUID().toString(),
+                                id = initialInstance?.id ?: UUID.randomUUID().toString(),
                                 name = name.ifBlank { url.replace(Regex("^https?://"), "").split("/").firstOrNull() ?: "Jotty" },
                                 serverUrl = url,
                                 apiKey = key,
                             )
                             settingsRepository.addInstance(instance)
-                            onDone()
+                            if (isEdit) onSaved?.invoke() else onDone()
                         } catch (e: Exception) {
                             error = "Connection failed: ${e.message ?: "Unknown error"}"
                         } finally {
@@ -289,7 +322,7 @@ private fun AddInstanceForm(
                 } else {
                     Icon(Icons.Default.Check, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Connect")
+                    Text(if (isEdit) "Save" else "Connect")
                 }
             }
         }

@@ -97,12 +97,41 @@ data class CategoryInfo(
     val level: Int,
 )
 
-// ─── Admin ──────────────────────────────────────────────────────────────────
+// ─── Admin / Summary ───────────────────────────────────────────────────────
 
-/** Admin dashboard overview (only returned for admin users). */
+/** Admin dashboard overview (only returned for admin users). May not exist on all servers. */
 data class AdminOverviewResponse(
     val users: Int? = null,
     val checklists: Int? = null,
     val notes: Int? = null,
     val version: String? = null,
+)
+
+/** GET api/summary – user summary (notes, checklists, items). Used for dashboard overview. */
+data class SummaryResponse(
+    val summary: SummaryData? = null,
+)
+
+data class SummaryData(
+    val username: String? = null,
+    val notes: SummaryNotes? = null,
+    val checklists: SummaryChecklists? = null,
+    val items: SummaryItems? = null,
+    val tasks: SummaryTasks? = null,
+)
+
+data class SummaryNotes(val total: Int? = null)
+data class SummaryChecklists(val total: Int? = null)
+data class SummaryItems(
+    val total: Int? = null,
+    val completed: Int? = null,
+    val pending: Int? = null,
+    val completionRate: Int? = null,
+)
+data class SummaryTasks(
+    val total: Int? = null,
+    val completed: Int? = null,
+    val inProgress: Int? = null,
+    val todo: Int? = null,
+    val completionRate: Int? = null,
 )

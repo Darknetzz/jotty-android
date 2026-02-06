@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.api.SummaryData
+import com.jotty.android.data.api.SummaryResponse
 import com.jotty.android.data.preferences.SettingsRepository
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -27,9 +29,15 @@ fun SettingsScreen(
     val theme by settingsRepository.theme.collectAsState(initial = null)
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
+    var summary by remember { mutableStateOf<SummaryData?>(null) }
 
     LaunchedEffect(api) {
         if (api == null) return@LaunchedEffect
+        try {
+            summary = api.getSummary().summary
+        } catch (_: Exception) {
+            summary = null
+        }
         try {
             adminOverview = api.getAdminOverview()
         } catch (e: HttpException) {
@@ -66,10 +74,11 @@ fun SettingsScreen(
             )
         }
 
-        if (adminOverview != null) {
+        if (summary != null || adminOverview != null) {
             Spacer(modifier = Modifier.height(24.dp))
-            SettingsSectionTitle("Admin Dashboard Overview")
-            AdminOverviewCard(adminOverview!!)
+            SettingsSectionTitle("Dashboard Overview")
+            summary?.let { DashboardSummaryCard(it) }
+            adminOverview?.let { AdminOverviewCard(it) }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -174,6 +183,41 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun DashboardSummaryCard(summary: SummaryData) {
+    val notesTotal = summary.notes?.total ?: 0
+    val listsTotal = summary.checklists?.total ?: 0
+    val completionRate = summary.items?.completionRate
+    val hasAny = notesTotal > 0 || listsTotal > 0 || completionRate != null
+
+    if (!hasAny) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            summary.username?.let { u ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("User", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(u, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                if (notesTotal > 0 || summary.notes != null) StatChip("Notes", notesTotal)
+                if (listsTotal > 0 || summary.checklists != null) StatChip("Checklists", listsTotal)
+                completionRate?.let { StatChip("Done %", it) }
+            }
+        }
     }
 }
 

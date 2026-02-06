@@ -8,6 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -63,6 +64,7 @@ fun SetupScreen(
             )
         } else {
             if (instances.isNotEmpty()) {
+                var instanceToDelete by remember { mutableStateOf<JottyInstance?>(null) }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(instances, key = { it.id }) { instance ->
                         InstanceCard(
@@ -73,6 +75,7 @@ fun SetupScreen(
                                     onConfigured()
                                 }
                             },
+                            onDelete = { instanceToDelete = instance },
                         )
                     }
                     item {
@@ -91,6 +94,30 @@ fun SetupScreen(
                         }
                     }
                 }
+                instanceToDelete?.let { instance ->
+                    AlertDialog(
+                        onDismissRequest = { instanceToDelete = null },
+                        title = { Text("Remove instance?") },
+                        text = { Text("\"${instance.name}\" will be removed from saved connections. You can add it again later.") },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        settingsRepository.removeInstance(instance.id)
+                                        instanceToDelete = null
+                                    }
+                                },
+                            ) {
+                                Text("Remove", color = MaterialTheme.colorScheme.error)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { instanceToDelete = null }) {
+                                Text("Cancel")
+                            }
+                        },
+                    )
+                }
             } else {
                 AddInstanceForm(
                     settingsRepository = settingsRepository,
@@ -106,6 +133,7 @@ fun SetupScreen(
 private fun InstanceCard(
     instance: JottyInstance,
     onClick: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -113,7 +141,7 @@ private fun InstanceCard(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -129,6 +157,16 @@ private fun InstanceCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                )
+            }
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = "Remove instance",
+                    tint = MaterialTheme.colorScheme.error,
                 )
             }
         }

@@ -30,3 +30,5 @@ local.properties
 
 # Kotlin
 *.kotlin_module
+
+RELEASE_*.md

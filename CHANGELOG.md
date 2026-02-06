@@ -2,6 +2,15 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.2] - 2026-02-06
+
+### Added
+
+- **Encrypted notes** — Notes encrypted with Jotty (XChaCha20-Poly1305) are detected and show a lock in the list. Open an encrypted note to decrypt with your passphrase; decrypted content is shown in-session only. PGP-encrypted notes are detected but decryption is not supported in-app (use the Jotty web app).
+- **AGENTS.md** — Guide for AI agents and contributors (codebase layout, conventions, versioning, build).
+
+---
+
 ## [1.0.1] - 2025-02-06
 
 ### Added
@@ -33,5 +42,6 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.0.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.0

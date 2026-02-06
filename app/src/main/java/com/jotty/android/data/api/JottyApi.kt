@@ -46,6 +46,13 @@ interface JottyApi {
         @Path("itemIndex") itemIndex: String,
     ): SuccessResponse
 
+    @PUT("api/checklists/{listId}/items/{itemIndex}")
+    suspend fun updateItem(
+        @Path("listId") listId: String,
+        @Path("itemIndex") itemIndex: String,
+        @Body body: UpdateItemRequest,
+    ): SuccessResponse
+
     @DELETE("api/checklists/{listId}/items/{itemIndex}")
     suspend fun deleteItem(
         @Path("listId") listId: String,

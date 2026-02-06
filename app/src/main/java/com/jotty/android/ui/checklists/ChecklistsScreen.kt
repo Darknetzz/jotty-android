@@ -1,16 +1,26 @@
 package com.jotty.android.ui.checklists
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.jotty.android.data.api.Checklist
@@ -152,7 +162,7 @@ fun ChecklistsScreen(api: JottyApi) {
                                 val created = api.createChecklist(
                                     com.jotty.android.data.api.CreateChecklistRequest(
                                         title = title.ifBlank { "Untitled" },
-                                        type = if (isProjectType) "project" else "simple",
+                                        type = if (isProjectType) "task" else "simple",
                                     ),
                                 )
                                 if (created.success) {
@@ -185,7 +195,8 @@ private fun ChecklistCard(
     val total = checklist.items.size
     val progress = if (total > 0) completed.toFloat() / total else 0f
 
-    val isProject = checklist.type.equals("project", ignoreCase = true)
+    val isProject = checklist.type.equals("project", ignoreCase = true) ||
+            checklist.type.equals("task", ignoreCase = true)
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -300,12 +311,13 @@ private fun ChecklistDetailScreen(
             }
         }
 
-        val isProject = checklist.type.equals("project", ignoreCase = true)
+        val isProject = checklist.type.equals("project", ignoreCase = true) ||
+                checklist.type.equals("task", ignoreCase = true)
         val flatItems = remember(items, isProject) {
-            if (isProject) flattenWithDepth(items) else items.map { it to 0 }
+            if (isProject) flattenWithDepth(items) else items.mapIndexed { index, item -> FlatItem(item, 0, "$index") }
         }
-        val toDo = flatItems.filter { !it.first.completed }
-        val completed = flatItems.filter { it.first.completed }
+        val toDo = flatItems.filter { !it.item.completed }
+        val completed = flatItems.filter { it.item.completed }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -314,15 +326,15 @@ private fun ChecklistDetailScreen(
             item(key = "header-todo") {
                 SectionHeader(title = "To Do", count = toDo.size)
             }
-            items(toDo, key = { "todo-${it.first.index}-${it.first.text}" }) { (item, depth) ->
+            items(toDo, key = { "todo-${it.apiPath}-${it.item.text}" }) { flat ->
                 ChecklistItemRow(
-                    item = item,
-                    depth = depth,
+                    item = flat.item,
+                    depth = flat.depth,
                     isProject = isProject,
                     onCheck = {
                         scope.launch {
                             try {
-                                api.checkItem(checklist.id, itemIndexForApi(item))
+                                api.checkItem(checklist.id, flat.apiPath)
                                 refresh()
                             } catch (_: Exception) {}
                         }
@@ -330,7 +342,7 @@ private fun ChecklistDetailScreen(
                     onUncheck = {
                         scope.launch {
                             try {
-                                api.uncheckItem(checklist.id, itemIndexForApi(item))
+                                api.uncheckItem(checklist.id, flat.apiPath)
                                 refresh()
                             } catch (_: Exception) {}
                         }
@@ -338,12 +350,24 @@ private fun ChecklistDetailScreen(
                     onDelete = {
                         scope.launch {
                             try {
-                                api.deleteItem(checklist.id, itemIndexForApi(item))
+                                api.deleteItem(checklist.id, flat.apiPath)
                                 refresh()
                             } catch (_: Exception) {}
                         }
                     },
-                    onAddSubItem = if (isProject) {
+                    onUpdate = {
+                        scope.launch {
+                            try {
+                                api.updateItem(
+                                    checklist.id,
+                                    flat.apiPath,
+                                    com.jotty.android.data.api.UpdateItemRequest(text = it),
+                                )
+                                refresh()
+                            } catch (_: Exception) {}
+                        }
+                    },
+                    onAddSubItem = if (isProject && flat.depth == 0) {
                         {
                             scope.launch {
                                 try {
@@ -351,7 +375,7 @@ private fun ChecklistDetailScreen(
                                         checklist.id,
                                         com.jotty.android.data.api.AddItemRequest(
                                             text = "",
-                                            parentIndex = "${item.index}",
+                                            parentIndex = flat.apiPath,
                                         ),
                                     )
                                     refresh()
@@ -364,15 +388,15 @@ private fun ChecklistDetailScreen(
             item(key = "header-completed") {
                 SectionHeader(title = "Completed", count = completed.size)
             }
-            items(completed, key = { "done-${it.first.index}-${it.first.text}" }) { (item, depth) ->
+            items(completed, key = { "done-${it.apiPath}-${it.item.text}" }) { flat ->
                 ChecklistItemRow(
-                    item = item,
-                    depth = depth,
+                    item = flat.item,
+                    depth = flat.depth,
                     isProject = isProject,
                     onCheck = {
                         scope.launch {
                             try {
-                                api.checkItem(checklist.id, itemIndexForApi(item))
+                                api.checkItem(checklist.id, flat.apiPath)
                                 refresh()
                             } catch (_: Exception) {}
                         }
@@ -380,7 +404,7 @@ private fun ChecklistDetailScreen(
                     onUncheck = {
                         scope.launch {
                             try {
-                                api.uncheckItem(checklist.id, itemIndexForApi(item))
+                                api.uncheckItem(checklist.id, flat.apiPath)
                                 refresh()
                             } catch (_: Exception) {}
                         }
@@ -388,7 +412,19 @@ private fun ChecklistDetailScreen(
                     onDelete = {
                         scope.launch {
                             try {
-                                api.deleteItem(checklist.id, itemIndexForApi(item))
+                                api.deleteItem(checklist.id, flat.apiPath)
+                                refresh()
+                            } catch (_: Exception) {}
+                        }
+                    },
+                    onUpdate = {
+                        scope.launch {
+                            try {
+                                api.updateItem(
+                                    checklist.id,
+                                    flat.apiPath,
+                                    com.jotty.android.data.api.UpdateItemRequest(text = it),
+                                )
                                 refresh()
                             } catch (_: Exception) {}
                         }
@@ -400,15 +436,16 @@ private fun ChecklistDetailScreen(
     }
 }
 
-/** Flatten checklist items with depth (0 = top-level, 1 = child, ...) for project type. */
-private fun flattenWithDepth(items: List<ChecklistItem>, depth: Int = 0): List<Pair<ChecklistItem, Int>> {
-    return items.flatMap { item ->
-        listOf(item to depth) + flattenWithDepth(item.children.orEmpty(), depth + 1)
+/** Item with display depth and API path (e.g. "0" or "0.0" for nested). */
+private data class FlatItem(val item: ChecklistItem, val depth: Int, val apiPath: String)
+
+/** Flatten checklist items with depth and API path for project/task type. */
+private fun flattenWithDepth(items: List<ChecklistItem>, depth: Int = 0, parentPath: String = ""): List<FlatItem> {
+    return items.flatMapIndexed { index, item ->
+        val path = if (parentPath.isEmpty()) "$index" else "$parentPath.$index"
+        listOf(FlatItem(item, depth, path)) + flattenWithDepth(item.children.orEmpty(), depth + 1, path)
     }
 }
-
-/** API expects item index as string; for children might be "parent.child". */
-private fun itemIndexForApi(item: ChecklistItem): String = "${item.index}"
 
 @Composable
 private fun SectionHeader(title: String, count: Int) {
@@ -429,17 +466,21 @@ private fun ChecklistItemRow(
     onCheck: () -> Unit,
     onUncheck: () -> Unit,
     onDelete: () -> Unit,
+    onUpdate: (String) -> Unit,
     onAddSubItem: (() -> Unit)? = null,
 ) {
     val indent = (depth * 20).dp
+    var isEditing by remember { mutableStateOf(false) }
+    var editText by remember(item.text) { mutableStateOf(item.text) }
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(isEditing) {
+        if (isEditing) focusRequester.requestFocus()
+    }
+
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = {
-                    if (item.completed) onUncheck() else onCheck()
-                },
-            ),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Spacer(modifier = Modifier.width(indent))
@@ -447,14 +488,37 @@ private fun ChecklistItemRow(
             checked = item.completed,
             onCheckedChange = { if (it) onCheck() else onUncheck() },
         )
-        Text(
-            text = item.text.ifBlank { "..." },
-            style = MaterialTheme.typography.bodyLarge,
-            textDecoration = if (item.completed) TextDecoration.LineThrough else null,
-            color = if (item.completed) MaterialTheme.colorScheme.onSurfaceVariant
-            else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f),
-        )
+        if (isEditing) {
+            OutlinedTextField(
+                value = editText,
+                onValueChange = { editText = it },
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(
+                    onDone = {
+                        focusManager.clearFocus()
+                        val trimmed = editText.trim()
+                        if (trimmed.isNotBlank()) onUpdate(trimmed)
+                        isEditing = false
+                    },
+                ),
+            )
+        } else {
+            Text(
+                text = item.text.ifBlank { "..." },
+                style = MaterialTheme.typography.bodyLarge,
+                textDecoration = if (item.completed) TextDecoration.LineThrough else null,
+                color = if (item.completed) MaterialTheme.colorScheme.onSurfaceVariant
+                else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { isEditing = true; editText = item.text },
+            )
+        }
         if (isProject && depth == 0 && onAddSubItem != null) {
             IconButton(
                 onClick = onAddSubItem,
@@ -466,6 +530,16 @@ private fun ChecklistItemRow(
                     modifier = Modifier.size(18.dp),
                 )
             }
+        }
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.size(32.dp),
+        ) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "Delete task",
+                tint = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }

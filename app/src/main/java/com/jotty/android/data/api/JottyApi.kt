@@ -72,4 +72,8 @@ interface JottyApi {
 
     @GET("api/categories")
     suspend fun getCategories(): CategoriesResponse
+
+    /** Admin-only: dashboard overview. Returns 403 if not admin. */
+    @GET("api/admin/overview")
+    suspend fun getAdminOverview(): AdminOverviewResponse
 }

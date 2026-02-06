@@ -10,11 +10,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.jotty.android.data.api.AdminOverviewResponse
+import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 @Composable
 fun SettingsScreen(
+    api: JottyApi?,
     settingsRepository: SettingsRepository,
     onDisconnect: () -> Unit,
 ) {
@@ -22,6 +26,18 @@ fun SettingsScreen(
     val currentInstance by settingsRepository.currentInstance.collectAsState(initial = null)
     val theme by settingsRepository.theme.collectAsState(initial = null)
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
+    var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
+
+    LaunchedEffect(api) {
+        if (api == null) return@LaunchedEffect
+        try {
+            adminOverview = api.getAdminOverview()
+        } catch (e: HttpException) {
+            if (e.code() != 403) adminOverview = null
+        } catch (_: Exception) {
+            adminOverview = null
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -48,6 +64,12 @@ fun SettingsScreen(
                 supportingContent = { Text(currentInstance?.serverUrl ?: "—", maxLines = 2) },
                 leadingContent = { Icon(Icons.Default.Link, contentDescription = null) },
             )
+        }
+
+        if (adminOverview != null) {
+            Spacer(modifier = Modifier.height(24.dp))
+            SettingsSectionTitle("Admin Dashboard Overview")
+            AdminOverviewCard(adminOverview!!)
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -152,6 +174,45 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+    }
+}
+
+@Composable
+private fun AdminOverviewCard(overview: AdminOverviewResponse) {
+    val hasAny = overview.users != null || overview.checklists != null || overview.notes != null || overview.version != null
+    if (!hasAny) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            overview.version?.let { v ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Server version", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(v, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                overview.users?.let { StatChip("Users", it) }
+                overview.checklists?.let { StatChip("Checklists", it) }
+                overview.notes?.let { StatChip("Notes", it) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatChip(label: String, value: Int) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("$value", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
     }
 }
 

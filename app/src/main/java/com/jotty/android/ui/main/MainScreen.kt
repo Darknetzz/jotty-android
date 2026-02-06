@@ -98,6 +98,7 @@ fun MainScreen(
                 }
                 composable(MainRoute.Settings.route) {
                     SettingsScreen(
+                        api = api,
                         settingsRepository = settingsRepository,
                         onDisconnect = onDisconnect,
                     )

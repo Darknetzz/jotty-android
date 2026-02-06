@@ -96,3 +96,13 @@ data class CategoryInfo(
     val count: Int,
     val level: Int,
 )
+
+// ─── Admin ──────────────────────────────────────────────────────────────────
+
+/** Admin dashboard overview (only returned for admin users). */
+data class AdminOverviewResponse(
+    val users: Int? = null,
+    val checklists: Int? = null,
+    val notes: Int? = null,
+    val version: String? = null,
+)

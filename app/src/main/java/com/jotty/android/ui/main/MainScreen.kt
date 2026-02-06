@@ -1,0 +1,102 @@
+package com.jotty.android.ui.main
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.jotty.android.data.api.ApiClient
+import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.checklists.ChecklistsScreen
+import com.jotty.android.ui.notes.NotesScreen
+import com.jotty.android.ui.settings.SettingsScreen
+
+sealed class MainRoute(val route: String, val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    data object Checklists : MainRoute("checklists", "Checklists", Icons.Default.Checklist)
+    data object Notes : MainRoute("notes", "Notes", Icons.Default.Note)
+    data object Settings : MainRoute("settings", "Settings", Icons.Default.Settings)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(
+    settingsRepository: SettingsRepository,
+    onDisconnect: () -> Unit = {},
+) {
+    val navController = rememberNavController()
+    val serverUrl = settingsRepository.serverUrl.collectAsState(initial = null).value
+    val apiKey = settingsRepository.apiKey.collectAsState(initial = null).value
+
+    val api = remember(serverUrl, apiKey) {
+        if (!serverUrl.isNullOrBlank() && !apiKey.isNullOrBlank()) {
+            ApiClient.create(serverUrl, apiKey)
+        } else null
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Jotty") },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                ),
+            )
+        },
+        bottomBar = {
+            NavigationBar {
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentRoute = navBackStackEntry?.destination?.route
+
+                listOf(MainRoute.Checklists, MainRoute.Notes, MainRoute.Settings).forEach { route ->
+                    NavigationBarItem(
+                        selected = currentRoute == route.route,
+                        onClick = {
+                            if (currentRoute != route.route) {
+                                navController.navigate(route.route) {
+                                    popUpTo(MainRoute.Checklists.route) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
+                        icon = { Icon(route.icon, contentDescription = route.title) },
+                        label = { Text(route.title) },
+                    )
+                }
+            }
+        },
+    ) { padding ->
+        api?.let { jottyApi ->
+            NavHost(
+                navController = navController,
+                startDestination = MainRoute.Checklists.route,
+                modifier = Modifier.padding(padding),
+            ) {
+                composable(MainRoute.Checklists.route) {
+                    ChecklistsScreen(api = jottyApi)
+                }
+                composable(MainRoute.Notes.route) {
+                    NotesScreen(api = jottyApi)
+                }
+                composable(MainRoute.Settings.route) {
+                    SettingsScreen(
+                        settingsRepository = settingsRepository,
+                        onDisconnect = onDisconnect,
+                    )
+                }
+            }
+        } ?: run {
+            Box(Modifier.fillMaxSize()) {
+                Text("Loading...")
+            }
+        }
+    }
+}

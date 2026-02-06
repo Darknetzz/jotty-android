@@ -1,0 +1,337 @@
+package com.jotty.android.ui.checklists
+
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.dp
+import com.jotty.android.data.api.Checklist
+import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.JottyApi
+import kotlinx.coroutines.launch
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ChecklistsScreen(api: JottyApi) {
+    var checklists by remember { mutableStateOf<List<Checklist>>(emptyList()) }
+    var selectedList by remember { mutableStateOf<Checklist?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var showCreateDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    fun loadChecklists() {
+        scope.launch {
+            loading = true
+            error = null
+            try {
+                checklists = api.getChecklists().checklists
+            } catch (e: Exception) {
+                error = e.message ?: "Failed to load"
+            } finally {
+                loading = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) { loadChecklists() }
+
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        if (selectedList != null) {
+            ChecklistDetailScreen(
+                checklist = selectedList!!,
+                api = api,
+                onBack = { selectedList = null },
+                onUpdate = { loadChecklists(); selectedList = it },
+                onDelete = { loadChecklists(); selectedList = null },
+            )
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "Checklists",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                IconButton(onClick = { showCreateDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "New checklist")
+                }
+            }
+
+            when {
+                loading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                error != null -> {
+                    Text(
+                        text = error!!,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(16.dp),
+                    )
+                }
+                checklists.isEmpty() -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Default.Checklist,
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = MaterialTheme.colorScheme.outline,
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                "No checklists yet",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(checklists, key = { it.id }) { list ->
+                            ChecklistCard(
+                                checklist = list,
+                                onClick = { selectedList = list },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showCreateDialog) {
+        var title by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showCreateDialog = false },
+            title = { Text("New checklist") },
+            text = {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title") },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        scope.launch {
+                            try {
+                                val created = api.createChecklist(
+                                    com.jotty.android.data.api.CreateChecklistRequest(
+                                        title = title.ifBlank { "Untitled" },
+                                    ),
+                                )
+                                if (created.success) {
+                                    loadChecklists()
+                                    selectedList = created.data
+                                    showCreateDialog = false
+                                }
+                            } catch (_: Exception) {}
+                        }
+                    },
+                ) {
+                    Text("Create")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun ChecklistCard(
+    checklist: Checklist,
+    onClick: () -> Unit,
+) {
+    val completed = checklist.items.count { it.completed }
+    val total = checklist.items.size
+    val progress = if (total > 0) completed.toFloat() / total else 0f
+
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = checklist.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            if (checklist.items.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                )
+                Text(
+                    text = "$completed / $total",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ChecklistDetailScreen(
+    checklist: Checklist,
+    api: JottyApi,
+    onBack: () -> Unit,
+    onUpdate: (Checklist) -> Unit,
+    onDelete: () -> Unit,
+) {
+    var items by remember { mutableStateOf(checklist.items) }
+    var newItemText by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
+    fun refresh() {
+        scope.launch {
+            try {
+                val updated = api.getChecklists().checklists.find { it.id == checklist.id }
+                if (updated != null) {
+                    items = updated.items
+                    onUpdate(updated)
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+            Text(
+                checklist.title,
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f),
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = newItemText,
+                onValueChange = { newItemText = it },
+                placeholder = { Text("Add item...") },
+                modifier = Modifier.weight(1f),
+            )
+            IconButton(
+                onClick = {
+                    if (newItemText.isNotBlank()) {
+                        scope.launch {
+                            try {
+                                api.addChecklistItem(
+                                    checklist.id,
+                                    com.jotty.android.data.api.AddItemRequest(text = newItemText),
+                                )
+                                newItemText = ""
+                                refresh()
+                            } catch (_: Exception) {}
+                        }
+                    }
+                },
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Add")
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            items(items, key = { "${it.index}-${it.text}" }) { item ->
+                ChecklistItemRow(
+                    item = item,
+                    onCheck = {
+                        scope.launch {
+                            try {
+                                api.checkItem(checklist.id, "${item.index}")
+                                refresh()
+                            } catch (_: Exception) {}
+                        }
+                    },
+                    onUncheck = {
+                        scope.launch {
+                            try {
+                                api.uncheckItem(checklist.id, "${item.index}")
+                                refresh()
+                            } catch (_: Exception) {}
+                        }
+                    },
+                    onDelete = {
+                        scope.launch {
+                            try {
+                                api.deleteItem(checklist.id, "${item.index}")
+                                refresh()
+                            } catch (_: Exception) {}
+                        }
+                    },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChecklistItemRow(
+    item: ChecklistItem,
+    onCheck: () -> Unit,
+    onUncheck: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = {
+                    if (item.completed) onUncheck() else onCheck()
+                },
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = item.completed,
+            onCheckedChange = { if (it) onCheck() else onUncheck() },
+        )
+        Text(
+            text = item.text,
+            style = MaterialTheme.typography.bodyLarge,
+            textDecoration = if (item.completed) TextDecoration.LineThrough else null,
+            color = if (item.completed) MaterialTheme.colorScheme.onSurfaceVariant
+            else MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}

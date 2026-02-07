@@ -27,14 +27,15 @@ object XChaCha20Decryptor {
      * @return decrypted plaintext or null on failure (wrong passphrase, bad format, etc.)
      */
     fun decrypt(encryptedBodyJson: String, passphrase: String): String? {
-        val (salt, nonce, data) = parseEncryptedBody(encryptedBodyJson) ?: return null
+        val json = encryptedBodyJson.trim().trimStart('\uFEFF')
+        val (salt, nonce, data) = parseEncryptedBody(json) ?: return null
         val key = deriveKey(passphrase.trim(), salt) ?: return null
         return decryptXChaCha20Poly1305(key, nonce, data)
     }
 
     private fun parseEncryptedBody(json: String): Triple<ByteArray, ByteArray, ByteArray>? {
         return try {
-            val body = GSON.fromJson(json.trim(), EncryptedBodyJson::class.java)
+            val body = GSON.fromJson(json, EncryptedBodyJson::class.java)
                 ?: return null
             val saltB64 = body.salt?.takeIf { it.isNotBlank() } ?: return null
             val nonceB64 = body.nonce?.takeIf { it.isNotBlank() } ?: return null
@@ -49,11 +50,18 @@ object XChaCha20Decryptor {
         }
     }
 
-    /** Decodes base64 string; accepts both standard and URL-safe base64 (e.g. from Jotty web). */
+    /** Decodes base64 string; accepts standard and URL-safe base64, with or without padding. */
     private fun decodeBase64(s: String): ByteArray? {
-        val normalized = s.replace('-', '+').replace('_', '/')
+        val stripped = s.replace("\\s".toRegex(), "")
+        val normalized = stripped.replace('-', '+').replace('_', '/')
+        val padded = when (normalized.length % 4) {
+            0 -> normalized
+            2 -> normalized + "=="
+            3 -> normalized + "="
+            else -> normalized
+        }
         return try {
-            Base64.getDecoder().decode(normalized)
+            Base64.getDecoder().decode(padded)
         } catch (_: IllegalArgumentException) {
             null
         }

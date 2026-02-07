@@ -31,18 +31,18 @@ object XChaCha20Decryptor {
         val json = encryptedBodyJson.trim().trimStart('\uFEFF')
         val parsed = parseEncryptedBody(json)
         if (parsed == null) {
-            AppLog.d("encryption", "Decrypt: parse failed (invalid JSON or missing/invalid base64 fields)")
+            AppLog.d("encryption", "Decrypt: parse failed (invalid JSON or missing/invalid base64 fields) — check encrypted body format")
             return null
         }
         val (salt, nonce, data) = parsed
         val key = deriveKey(passphrase.trim(), salt)
         if (key == null) {
-            AppLog.d("encryption", "Decrypt: key derivation failed (empty passphrase or Argon2 error)")
+            AppLog.d("encryption", "Decrypt: key derivation failed (empty passphrase or Argon2 params mismatch)")
             return null
         }
         val result = decryptXChaCha20Poly1305(key, nonce, data)
         if (result == null) {
-            AppLog.d("encryption", "Decrypt: auth failed (wrong passphrase or corrupted data)")
+            AppLog.d("encryption", "Decrypt: auth failed (wrong passphrase or corrupted data) — Poly1305 tag mismatch")
             return null
         }
         return result

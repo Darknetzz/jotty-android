@@ -17,6 +17,7 @@ object AppLog {
 
     fun setDebugEnabled(enabled: Boolean) {
         debugEnabled = enabled
+        if (enabled) Log.i(PREFIX, "Debug logging enabled — filter logcat by '$PREFIX' to see decryption diagnostics")
     }
 
     fun d(tag: String, message: String) {

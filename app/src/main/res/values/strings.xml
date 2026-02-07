@@ -144,7 +144,7 @@
     <string name="content_padding_comfortable">Comfortable</string>
     <string name="content_padding_compact">Compact</string>
     <string name="debug_logging">Debug logging</string>
-    <string name="debug_logging_description">Log extra details to logcat (e.g. decryption failure step). Use for troubleshooting.</string>
+    <string name="debug_logging_description">Log extra details to logcat (e.g. decryption failure step). Filter by \'Jotty\' in Android Studio Logcat or adb logcat -s Jotty. Use for troubleshooting.</string>
     <string name="account">Account</string>
     <string name="manage_instances">Manage instances</string>
     <string name="manage_instances_description">Add, edit, or remove saved Jotty servers</string>

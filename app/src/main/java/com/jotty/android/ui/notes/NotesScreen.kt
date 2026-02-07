@@ -1,6 +1,7 @@
 package com.jotty.android.ui.notes
 
 import android.content.Intent
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -368,6 +369,17 @@ private fun NoteDetailScreen(
         title = note.title
         content = note.content
         decryptedContent = NoteDecryptionSession.get(note.id)
+    }
+
+    LaunchedEffect(note.encrypted, content, parsed) {
+        if (note.encrypted == true || parsed is ParsedNoteContent.Encrypted) {
+            Log.i(
+                "Jotty/encryption",
+                "Note detail: note.encrypted=${note.encrypted}, contentLength=${content.length}, " +
+                    "parsedAsEncrypted=${parsed is ParsedNoteContent.Encrypted}, " +
+                    "contentStart=${content.take(60).replace("\n", " ")}"
+            )
+        }
     }
 
     Column(Modifier.fillMaxSize()) {

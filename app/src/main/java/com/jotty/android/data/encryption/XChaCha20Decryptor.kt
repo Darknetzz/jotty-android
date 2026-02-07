@@ -1,5 +1,6 @@
 package com.jotty.android.data.encryption
 
+import android.util.Log
 import com.google.gson.annotations.SerializedName
 import com.jotty.android.util.AppLog
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
@@ -16,6 +17,8 @@ import java.util.Base64
  */
 object XChaCha20Decryptor {
 
+    private const val LOG_TAG = "Jotty/encryption"
+
     private const val ARGON2_ITERATIONS = 2
     private const val ARGON2_MEMORY_KB = 65536
     private const val ARGON2_PARALLELISM = 1
@@ -29,38 +32,78 @@ object XChaCha20Decryptor {
      */
     fun decrypt(encryptedBodyJson: String, passphrase: String): String? {
         val json = encryptedBodyJson.trim().trimStart('\uFEFF')
+        Log.i(LOG_TAG, "Decrypt attempt: jsonLength=${json.length}, passphraseLength=${passphrase.length}, jsonStart=${json.take(80).replace("\n", " ")}")
         val parsed = parseEncryptedBody(json)
         if (parsed == null) {
-            AppLog.d("encryption", "Decrypt: parse failed (invalid JSON or missing/invalid base64 fields) — check encrypted body format")
+            Log.w(LOG_TAG, "Decrypt: parse failed (invalid JSON or missing/invalid base64 fields)")
+            AppLog.d("encryption", "Decrypt: parse failed — check encrypted body format")
             return null
         }
         val (salt, nonce, data) = parsed
         val key = deriveKey(passphrase.trim(), salt)
         if (key == null) {
-            AppLog.d("encryption", "Decrypt: key derivation failed (empty passphrase or Argon2 params mismatch)")
+            Log.w(LOG_TAG, "Decrypt: key derivation failed (empty passphrase or Argon2 error)")
+            AppLog.d("encryption", "Decrypt: key derivation failed")
             return null
         }
         val result = decryptXChaCha20Poly1305(key, nonce, data)
         if (result == null) {
-            AppLog.d("encryption", "Decrypt: auth failed (wrong passphrase or corrupted data) — Poly1305 tag mismatch")
+            Log.w(LOG_TAG, "Decrypt: auth failed (wrong passphrase or corrupted data — Poly1305 tag mismatch)")
+            AppLog.d("encryption", "Decrypt: auth failed")
             return null
         }
+        Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
         return result
     }
 
     private fun parseEncryptedBody(json: String): Triple<ByteArray, ByteArray, ByteArray>? {
         return try {
             val body = GSON.fromJson(json, EncryptedBodyJson::class.java)
-                ?: return null
-            val saltB64 = body.salt?.takeIf { it.isNotBlank() } ?: return null
-            val nonceB64 = body.nonce?.takeIf { it.isNotBlank() } ?: return null
-            val dataB64 = body.data?.takeIf { it.isNotBlank() } ?: return null
-            val salt = decodeBase64(saltB64) ?: return null
-            val nonce = decodeBase64(nonceB64) ?: return null
-            val data = decodeBase64(dataB64) ?: return null
-            if (nonce.size != 24 || data.size < TAG_BYTES) return null
+            if (body == null) {
+                Log.w(LOG_TAG, "Parse: GSON returned null")
+                return null
+            }
+            val saltB64 = body.salt?.takeIf { it.isNotBlank() }
+            if (saltB64 == null) {
+                Log.w(LOG_TAG, "Parse: missing or blank salt")
+                return null
+            }
+            val nonceB64 = body.nonce?.takeIf { it.isNotBlank() }
+            if (nonceB64 == null) {
+                Log.w(LOG_TAG, "Parse: missing or blank nonce")
+                return null
+            }
+            val dataB64 = body.data?.takeIf { it.isNotBlank() }
+            if (dataB64 == null) {
+                Log.w(LOG_TAG, "Parse: missing or blank data")
+                return null
+            }
+            val salt = decodeBase64(saltB64)
+            if (salt == null) {
+                Log.w(LOG_TAG, "Parse: salt base64 decode failed (length=${saltB64.length})")
+                return null
+            }
+            val nonce = decodeBase64(nonceB64)
+            if (nonce == null) {
+                Log.w(LOG_TAG, "Parse: nonce base64 decode failed (length=${nonceB64.length})")
+                return null
+            }
+            val data = decodeBase64(dataB64)
+            if (data == null) {
+                Log.w(LOG_TAG, "Parse: data base64 decode failed (length=${dataB64.length})")
+                return null
+            }
+            if (nonce.size != 24) {
+                Log.w(LOG_TAG, "Parse: nonce size ${nonce.size} != 24")
+                return null
+            }
+            if (data.size < TAG_BYTES) {
+                Log.w(LOG_TAG, "Parse: data size ${data.size} < TAG_BYTES ($TAG_BYTES)")
+                return null
+            }
             Triple(salt, nonce, data)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(LOG_TAG, "Parse: exception", e)
             null
         }
     }

@@ -200,14 +200,18 @@ fun NotesScreen(
                     },
                 )
             }
-            else -> NoteDetailScreen(
-                note = note,
-                api = api,
-                onBack = { selectedNote = null },
-                onUpdate = { selectedNote = it; loadNotes() },
-                onDelete = { selectedNote = null; loadNotes() },
-                onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
-            )
+            else -> {
+                val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsState(initial = false)
+                NoteDetailScreen(
+                    note = note,
+                    api = api,
+                    onBack = { selectedNote = null },
+                    onUpdate = { selectedNote = it; loadNotes() },
+                    onDelete = { selectedNote = null; loadNotes() },
+                    onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
+                    debugLoggingEnabled = debugLoggingEnabled,
+                )
+            }
         }
     }
     }
@@ -344,6 +348,7 @@ private fun NoteDetailScreen(
     onUpdate: (Note) -> Unit,
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit = {},
+    debugLoggingEnabled: Boolean = false,
 ) {
     var title by remember { mutableStateOf(note.title) }
     var content by remember { mutableStateOf(note.content) }
@@ -355,6 +360,7 @@ private fun NoteDetailScreen(
     var isEncrypting by remember { mutableStateOf(false) }
     var encryptError by remember { mutableStateOf<String?>(null) }
     var decryptError by remember { mutableStateOf<String?>(null) }
+    var decryptErrorDetail by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val parsed = remember(content) { NoteEncryption.parse(content) }
     val isEncryptedByContent = parsed is ParsedNoteContent.Encrypted
@@ -519,15 +525,22 @@ private fun NoteDetailScreen(
             onDismiss = {
                 showDecryptDialog = false
                 decryptError = null
+                decryptErrorDetail = null
             },
             onDecrypted = {
                 decryptedContent = it
                 NoteDecryptionSession.put(note.id, it)
                 showDecryptDialog = false
                 decryptError = null
+                decryptErrorDetail = null
             },
             decryptError = decryptError,
-            onDecryptError = { decryptError = it },
+            decryptErrorDetail = decryptErrorDetail,
+            onDecryptError = { main, detail ->
+                decryptError = main
+                decryptErrorDetail = detail
+            },
+            debugLoggingEnabled = debugLoggingEnabled,
         )
     }
 }
@@ -651,7 +664,9 @@ private fun DecryptNoteDialog(
     onDismiss: () -> Unit,
     onDecrypted: (String) -> Unit,
     decryptError: String?,
-    onDecryptError: (String?) -> Unit,
+    decryptErrorDetail: String?,
+    onDecryptError: (mainMessage: String?, detail: String?) -> Unit,
+    debugLoggingEnabled: Boolean = false,
 ) {
     var passphrase by remember { mutableStateOf("") }
     var isDecrypting by remember { mutableStateOf(false) }
@@ -680,14 +695,27 @@ private fun DecryptNoteDialog(
                     value = passphrase,
                     onValueChange = {
                         passphrase = it
-                        onDecryptError(null)
+                        onDecryptError(null, null)
                     },
                     label = { Text(stringResource(R.string.passphrase)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     isError = decryptError != null,
-                    supportingText = decryptError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    supportingText = {
+                        if (decryptError != null) {
+                            Column {
+                                Text(decryptError, color = MaterialTheme.colorScheme.error)
+                                if (decryptErrorDetail != null) {
+                                    Text(
+                                        decryptErrorDetail,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
+                            }
+                        }
+                    },
                     enabled = !isDecrypting,
                 )
             }
@@ -697,18 +725,22 @@ private fun DecryptNoteDialog(
                 onClick = {
                     if (isDecrypting) return@TextButton
                     isDecrypting = true
-                    onDecryptError(null)
+                    onDecryptError(null, null)
                     val pass = passphrase
+                    val showDetail = debugLoggingEnabled
                     scope.launch {
-                        val decrypted = withContext(Dispatchers.Default) {
-                            XChaCha20Decryptor.decrypt(encryptedBody, pass)
+                        val result = withContext(Dispatchers.Default) {
+                            XChaCha20Decryptor.decryptWithReason(encryptedBody, pass)
                         }
                         withContext(Dispatchers.Main) {
                             isDecrypting = false
-                            if (decrypted != null) {
-                                onDecrypted(decrypted)
+                            if (result.isSuccess) {
+                                onDecrypted(result.plaintext!!)
                             } else {
-                                onDecryptError(decryptFailedMsg)
+                                onDecryptError(
+                                    decryptFailedMsg,
+                                    if (showDetail) result.failureReason else null,
+                                )
                             }
                         }
                     }

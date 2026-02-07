@@ -11,6 +11,16 @@ import org.bouncycastle.crypto.params.ParametersWithIV
 import java.util.Base64
 
 /**
+ * Result of a decrypt attempt. When [plaintext] is null, [failureReason] describes why (for UI when debug is on).
+ */
+data class DecryptResult(
+    val plaintext: String?,
+    val failureReason: String?,
+) {
+    val isSuccess: Boolean get() = plaintext != null
+}
+
+/**
  * Decrypts Jotty XChaCha20-Poly1305 encrypted note body.
  * Format: JSON with "alg","salt","nonce","data" (base64). Key derived with Argon2id.
  * Compatible with Jotty web app encryption (see howto/ENCRYPTION.md).
@@ -25,36 +35,48 @@ object XChaCha20Decryptor {
     private const val KEY_BYTES = 32
     private const val TAG_BYTES = 16
 
+    /** Failure reason strings for UI (shown when Settings → Debug logging is on). */
+    const val FAILURE_PARSE = "Parse failed (invalid JSON or base64)"
+    const val FAILURE_KEY_DERIVATION = "Key derivation failed"
+    const val FAILURE_AUTH = "Auth failed (wrong passphrase or tag mismatch)"
+
     /**
-     * Decrypts [encryptedBodyJson] (JSON with salt, nonce, data in base64) using [passphrase].
-     * Passphrase is trimmed. Accepts standard and URL-safe base64 in the JSON.
-     * @return decrypted plaintext or null on failure (wrong passphrase, bad format, etc.)
+     * Decrypts and returns a [DecryptResult] with optional [failureReason] for diagnostics.
+     * Use [decrypt] when only the plaintext is needed.
      */
-    fun decrypt(encryptedBodyJson: String, passphrase: String): String? {
+    fun decryptWithReason(encryptedBodyJson: String, passphrase: String): DecryptResult {
         val json = encryptedBodyJson.trim().trimStart('\uFEFF')
         Log.i(LOG_TAG, "Decrypt attempt: jsonLength=${json.length}, passphraseLength=${passphrase.length}, jsonStart=${json.take(80).replace("\n", " ")}")
         val parsed = parseEncryptedBody(json)
         if (parsed == null) {
             Log.w(LOG_TAG, "Decrypt: parse failed (invalid JSON or missing/invalid base64 fields)")
             AppLog.d("encryption", "Decrypt: parse failed — check encrypted body format")
-            return null
+            return DecryptResult(null, FAILURE_PARSE)
         }
         val (salt, nonce, data) = parsed
         val key = deriveKey(passphrase.trim(), salt)
         if (key == null) {
             Log.w(LOG_TAG, "Decrypt: key derivation failed (empty passphrase or Argon2 error)")
             AppLog.d("encryption", "Decrypt: key derivation failed")
-            return null
+            return DecryptResult(null, FAILURE_KEY_DERIVATION)
         }
         val result = decryptXChaCha20Poly1305(key, nonce, data)
         if (result == null) {
             Log.w(LOG_TAG, "Decrypt: auth failed (wrong passphrase or corrupted data — Poly1305 tag mismatch)")
             AppLog.d("encryption", "Decrypt: auth failed")
-            return null
+            return DecryptResult(null, FAILURE_AUTH)
         }
         Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
-        return result
+        return DecryptResult(result, null)
     }
+
+    /**
+     * Decrypts [encryptedBodyJson] (JSON with salt, nonce, data in base64) using [passphrase].
+     * Passphrase is trimmed. Accepts standard and URL-safe base64 in the JSON.
+     * @return decrypted plaintext or null on failure (wrong passphrase, bad format, etc.)
+     */
+    fun decrypt(encryptedBodyJson: String, passphrase: String): String? =
+        decryptWithReason(encryptedBodyJson, passphrase).plaintext
 
     private fun parseEncryptedBody(json: String): Triple<ByteArray, ByteArray, ByteArray>? {
         return try {

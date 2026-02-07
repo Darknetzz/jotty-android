@@ -1,5 +1,8 @@
 package com.jotty.android.data.api
 
+/** Category value used by the API for uncategorized items; use when comparing or sending category. */
+const val API_CATEGORY_UNCATEGORIZED = "Uncategorized"
+
 // ─── Common ─────────────────────────────────────────────────────────────────
 
 data class HealthResponse(
@@ -19,7 +22,7 @@ data class ChecklistsResponse(val checklists: List<Checklist>)
 data class Checklist(
     val id: String,
     val title: String,
-    val category: String = "Uncategorized",
+    val category: String = API_CATEGORY_UNCATEGORIZED,
     val type: String = "regular",
     val items: List<ChecklistItem> = emptyList(),
     val createdAt: String,
@@ -38,7 +41,7 @@ data class ChecklistItem(
 
 data class CreateChecklistRequest(
     val title: String,
-    val category: String? = "Uncategorized",
+    val category: String? = API_CATEGORY_UNCATEGORIZED,
     val type: String = "simple",
 )
 
@@ -64,7 +67,7 @@ data class NotesResponse(val notes: List<Note>)
 data class Note(
     val id: String,
     val title: String,
-    val category: String = "Uncategorized",
+    val category: String = API_CATEGORY_UNCATEGORIZED,
     val content: String = "",
     val createdAt: String,
     val updatedAt: String,
@@ -75,7 +78,7 @@ data class Note(
 data class CreateNoteRequest(
     val title: String,
     val content: String? = "",
-    val category: String? = "Uncategorized",
+    val category: String? = API_CATEGORY_UNCATEGORIZED,
 )
 
 data class UpdateNoteRequest(

@@ -27,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
+import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteDecryptionSession
@@ -297,7 +298,7 @@ private fun NoteCard(note: Note, onClick: () -> Unit) {
                 modifier = Modifier.padding(top = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (note.category.isNotBlank() && note.category != "Uncategorized") {
+                if (note.category.isNotBlank() && note.category != API_CATEGORY_UNCATEGORIZED) {
                     Text(
                         text = note.category,
                         style = MaterialTheme.typography.labelSmall,

@@ -6,6 +6,18 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.1.5] - 2026-02-07
+
+### Fixed
+
+- **Markdown code in dark mode** — Inline and block code in markdown (e.g. in About release notes and in note content) now use theme-aware colors so code text stays readable in dark mode.
+
+### Changed
+
+- **DRY** — Centralized API category constant for "Uncategorized" in `data/api/models.kt`; note list uses it when hiding the category chip.
+
+---
+
 ## [1.1.4] - 2026-02-07
 
 ### Added

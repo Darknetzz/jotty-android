@@ -68,6 +68,11 @@ class SettingsRepository(private val context: Context) {
         prefs[KEY_SWIPE_TO_DELETE] ?: false
     }.catch { emit(false) }
 
+    /** Content padding: "compact" (8dp vertical) or "comfortable" (16dp vertical). Default "comfortable". */
+    val contentPaddingMode: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_CONTENT_PADDING].takeIf { !it.isNullOrBlank() } ?: "comfortable"
+    }.catch { emit("comfortable") }
+
     /**
      * Adds or updates an instance. When [setAsCurrent] is true, also sets it as the current instance.
      */
@@ -134,6 +139,12 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setSwipeToDeleteEnabled(value: Boolean) {
         context.dataStore.edit { it[KEY_SWIPE_TO_DELETE] = value }
+    }
+
+    suspend fun setContentPaddingMode(value: String) {
+        context.dataStore.edit {
+            if (value == "comfortable") it.remove(KEY_CONTENT_PADDING) else it[KEY_CONTENT_PADDING] = value
+        }
     }
 
     /** Clear all data (instances + app preferences). */
@@ -217,6 +228,7 @@ class SettingsRepository(private val context: Context) {
         }
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
+        private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
 
         private fun parseInstances(json: String?): List<JottyInstance>? {
             if (json.isNullOrBlank()) return null

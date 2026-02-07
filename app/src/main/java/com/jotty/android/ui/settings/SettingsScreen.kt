@@ -48,6 +48,7 @@ fun SettingsScreen(
     val themeColor by settingsRepository.themeColor.collectAsState(initial = "default")
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false)
+    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
@@ -95,10 +96,11 @@ fun SettingsScreen(
         onRefresh = { refreshOverview(showRefreshingIndicator = true) },
         state = pullRefreshState,
     ) {
+        val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = contentVerticalDp.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
         Text(
@@ -246,6 +248,31 @@ fun SettingsScreen(
                                 onClick = {
                                     scope.launch {
                                         settingsRepository.setThemeColor(value)
+                                    }
+                                },
+                                label = { Text(stringResource(labelRes)) },
+                            )
+                        }
+                    }
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.content_padding)) },
+                supportingContent = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf(
+                            "comfortable" to R.string.content_padding_comfortable,
+                            "compact" to R.string.content_padding_compact,
+                        ).forEach { (value, labelRes) ->
+                            FilterChip(
+                                selected = contentPaddingMode == value,
+                                onClick = {
+                                    scope.launch {
+                                        settingsRepository.setContentPaddingMode(value)
                                     }
                                 },
                                 label = { Text(stringResource(labelRes)) },

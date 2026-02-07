@@ -112,11 +112,16 @@ fun MainScreen(
                 modifier = Modifier.padding(padding),
             ) {
                 composable(MainRoute.Checklists.route) {
-                    ChecklistsScreen(api = currentApi, swipeToDeleteEnabled = swipeToDeleteEnabled)
+                    ChecklistsScreen(
+                        api = currentApi,
+                        settingsRepository = settingsRepository,
+                        swipeToDeleteEnabled = swipeToDeleteEnabled,
+                    )
                 }
                 composable(MainRoute.Notes.route) {
                     NotesScreen(
                         api = currentApi,
+                        settingsRepository = settingsRepository,
                         initialNoteId = deepLinkNoteId?.value,
                         onDeepLinkConsumed = { deepLinkNoteId?.value = null },
                         swipeToDeleteEnabled = swipeToDeleteEnabled,

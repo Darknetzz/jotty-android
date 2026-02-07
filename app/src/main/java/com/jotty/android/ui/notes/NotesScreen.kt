@@ -31,6 +31,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
@@ -47,10 +48,13 @@ import kotlinx.coroutines.launch
 @Composable
 fun NotesScreen(
     api: JottyApi,
+    settingsRepository: SettingsRepository,
     initialNoteId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
 ) {
+    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
+    val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     var notes by remember { mutableStateOf<List<Note>>(emptyList()) }
     var selectedNote by remember { mutableStateOf<Note?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -103,7 +107,7 @@ fun NotesScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-    Column(Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = contentVerticalDp.dp)) {
         when (val note = selectedNote) {
             null -> {
                 Row(

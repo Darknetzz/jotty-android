@@ -32,6 +32,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
@@ -39,7 +40,13 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
+fun ChecklistsScreen(
+    api: JottyApi,
+    settingsRepository: SettingsRepository,
+    swipeToDeleteEnabled: Boolean = false,
+) {
+    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
+    val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     var checklists by remember { mutableStateOf<List<Checklist>>(emptyList()) }
     var selectedList by remember { mutableStateOf<Checklist?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -74,7 +81,7 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-    Column(Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = contentVerticalDp.dp)) {
         val currentList = selectedList
         if (currentList != null) {
             ChecklistDetailScreen(

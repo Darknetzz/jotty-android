@@ -45,6 +45,8 @@ fun SetupScreen(
 ) {
     val instances by settingsRepository.instances.collectAsState(initial = emptyList())
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
+    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
+    val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     var showAddForm by remember { mutableStateOf(instances.isEmpty()) }
     val scope = rememberCoroutineScope()
 
@@ -55,7 +57,7 @@ fun SetupScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(horizontal = 24.dp, vertical = contentVerticalDp.dp),
     ) {
         if (standaloneMode && onBack != null) {
             Row(

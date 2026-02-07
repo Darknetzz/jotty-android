@@ -126,6 +126,13 @@
     <string name="version">Version</string>
     <string name="version_format">%1$s (%2$d)</string>
     <string name="view_source_github">View source on GitHub</string>
+    <string name="check_for_updates">Check for updates</string>
+    <string name="checking_for_updates">Checking for updates…</string>
+    <string name="update_available">Version %1$s is available</string>
+    <string name="download_and_install">Download and install</string>
+    <string name="you_are_up_to_date">You\'re on the latest version</string>
+    <string name="update_check_error">Could not check for updates: %1$s</string>
+    <string name="downloading">Downloading…</string>
 
     <!-- Dashboard -->
     <string name="user_label">User</string>

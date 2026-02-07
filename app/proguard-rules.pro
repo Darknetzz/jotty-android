@@ -32,3 +32,7 @@
 
 # Jotty preferences models
 -keep class com.jotty.android.data.preferences.JottyInstance { *; }
+
+# GitHub release (update check) DTOs for Gson
+-keep class com.jotty.android.data.updates.GitHubReleaseResponse { *; }
+-keep class com.jotty.android.data.updates.GitHubAsset { *; }

@@ -5,20 +5,26 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.BuildConfig
 import com.jotty.android.R
+import com.jotty.android.data.updates.UpdateCheckResult
+import com.jotty.android.data.updates.UpdateChecker
 import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.SummaryData
@@ -314,6 +320,13 @@ fun SettingsScreen(
     }
 }
 
+private sealed class UpdateUiState {
+    data object Idle : UpdateUiState()
+    data object Checking : UpdateUiState()
+    data object Downloading : UpdateUiState()
+    data class Result(val value: UpdateCheckResult) : UpdateUiState()
+}
+
 @Composable
 private fun DashboardSummaryCard(summary: SummaryData) {
     val notesTotal = summary.notes?.total ?: 0
@@ -407,6 +420,10 @@ private fun AboutDialog(
     versionCode: Int,
 ) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Idle) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.about_jotty_android)) },
@@ -437,6 +454,102 @@ private fun AboutDialog(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.view_source_github))
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                when (val state = updateState) {
+                    UpdateUiState.Idle -> {
+                        TextButton(
+                            onClick = {
+                                scope.launch {
+                                    updateState = UpdateUiState.Checking
+                                    updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate())
+                                }
+                            },
+                            contentPadding = PaddingValues(0.dp),
+                        ) {
+                            Icon(
+                                Icons.Default.Update,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(stringResource(R.string.check_for_updates))
+                        }
+                    }
+                    is UpdateUiState.Checking, is UpdateUiState.Downloading -> {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            Text(
+                                if (state is UpdateUiState.Downloading) stringResource(R.string.downloading)
+                                else stringResource(R.string.checking_for_updates),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    is UpdateUiState.Result -> when (val r = state.value) {
+                        is UpdateCheckResult.UpdateAvailable -> {
+                            Text(
+                                stringResource(R.string.update_available, r.versionName),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        updateState = UpdateUiState.Downloading
+                                        UpdateChecker.downloadAndInstall(context, r.downloadUrl)
+                                        updateState = UpdateUiState.Idle
+                                    }
+                                },
+                                contentPadding = PaddingValues(0.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.Download,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(stringResource(R.string.download_and_install))
+                            }
+                        }
+                        is UpdateCheckResult.UpToDate -> {
+                            Text(
+                                stringResource(R.string.you_are_up_to_date),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            TextButton(
+                                onClick = { updateState = UpdateUiState.Idle },
+                                contentPadding = PaddingValues(0.dp),
+                            ) {
+                                Text(stringResource(R.string.check_for_updates))
+                            }
+                        }
+                        is UpdateCheckResult.Error -> {
+                            Text(
+                                stringResource(R.string.update_check_error, r.message),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        updateState = UpdateUiState.Checking
+                                        updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate())
+                                    }
+                                },
+                                contentPadding = PaddingValues(0.dp),
+                            ) {
+                                Text(stringResource(R.string.retry))
+                            }
+                        }
+                    }
                 }
             }
         },

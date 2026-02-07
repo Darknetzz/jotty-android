@@ -2,6 +2,28 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.3] - 2026-02-07
+
+### Added
+
+- **Check for updates** — Settings → About → "Check for updates" compares the app version with the latest GitHub release.
+- **In-app update** — When a newer version is available, "Download and install" downloads the APK and opens the system installer (no need to leave the app).
+- **Download progress** — Progress bar during APK download (determinate when size is known, indeterminate otherwise).
+- **Release notes** — "What's new" section in the update dialog shows the GitHub release notes (markdown).
+- **Install fallback** — If download or install fails, the dialog shows the error and an "Open release page" button to install from the browser.
+- **Update-check caching** — Successful check results are cached for 5 minutes; errors are not cached so Retry always hits the API.
+
+### Changed
+
+- **User-friendly update errors** — Update check and install failures show short messages (e.g. "No internet connection", "Connection timed out") instead of raw errors.
+
+### Technical
+
+- **GitHub API** — User-Agent header; separate HTTP client for downloads with longer read timeout.
+- **Install intent** — `FLAG_ACTIVITY_CLEAR_TOP` and `FLAG_ACTIVITY_NO_HISTORY` for more reliable install flow on Android 7+.
+
+---
+
 ## [1.1.2] - 2026-02-07
 
 ### Added

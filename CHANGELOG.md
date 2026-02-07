@@ -21,6 +21,8 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 - New string resources: `unknown_error`, `no_internet_connection`, `connection_timed_out`, `network_error`, `server_error`, `request_failed`, `save_failed`, `delete_failed`, `install_failed_fallback`, `no_apk_in_release`.
 - `ApiClient.normalizeBaseUrl()` extracted for testability.
+- **Dependencies** — Bumped to latest stable: Kotlin 2.2.21, Compose BOM 2025.12.00, Material3 (from BOM), lifecycle 2.8.7, activity-compose 1.11.0, navigation-compose 2.9.7, Retrofit 2.12.0, Bouncy Castle 1.79; removed redundant material3 version pin.
+- **Code** — Removed redundant import in SettingsScreen.
 
 ---
 

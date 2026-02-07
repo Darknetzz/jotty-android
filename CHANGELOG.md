@@ -6,6 +6,24 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.2.4] - 2026-02-07
+
+### Fixed
+
+- **Note decryption (Jotty web)** — Notes encrypted in the Jotty web app now decrypt correctly. The web app uses libsodium secretbox format (tag then ciphertext); the app now tries both tag orderings (BC/IETF: ciphertext then tag; libsodium: tag then ciphertext) so both Android-encrypted and web-encrypted notes work.
+
+### Added
+
+- **Decrypt dialog debug info** — When Settings → Debug logging is on, a failed decryption shows the specific reason in the dialog (e.g. "Parse failed", "Key derivation failed", "Auth failed") below the main message, so you can see why it failed without using logcat.
+
+### Technical
+
+- XChaCha20Decryptor: `DecryptResult` and `decryptWithReason()`; try BC order then libsodium order for ciphertext/tag; `tryDecrypt()` helper; failure reason constants for UI.
+- NotesScreen: `decryptWithReason()` in Decrypt dialog; pass `debugLoggingEnabled` into NoteDetailScreen and DecryptNoteDialog; show `decryptErrorDetail` when debug is on.
+- Unit test: decrypt accepts libsodium secretbox format (tag then ciphertext).
+
+---
+
 ## [1.2.3] - 2026-02-07
 
 ### Added
@@ -304,6 +322,8 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.2.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.4
+[1.2.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.3
 [1.1.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.0

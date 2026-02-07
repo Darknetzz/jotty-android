@@ -436,6 +436,9 @@ private fun AboutDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+        },
         title = { Text(stringResource(R.string.about_jotty_android)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -593,11 +596,7 @@ private fun AboutDialog(
                 }
             }
         },
-    },
-    confirmButton = {
-        TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
-    },
-)
+    )
 }
 
 @Composable

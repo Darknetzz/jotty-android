@@ -44,7 +44,9 @@ object UpdateChecker {
 
     private const val GITHUB_API_BASE = "https://api.github.com/"
     private const val TAG = "UpdateChecker"
-    private const val USER_AGENT = "Jotty-Android/${BuildConfig.VERSION_NAME ?: "0"}"
+
+    private val userAgent: String
+        get() = "Jotty-Android/${BuildConfig.VERSION_NAME ?: "0"}"
     private const val CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes; errors are not cached
 
     @Volatile
@@ -56,7 +58,7 @@ object UpdateChecker {
         .addInterceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()
-                    .addHeader("User-Agent", USER_AGENT)
+                    .addHeader("User-Agent", userAgent)
                     .build()
             )
         }
@@ -68,7 +70,7 @@ object UpdateChecker {
         .addInterceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()
-                    .addHeader("User-Agent", USER_AGENT)
+                    .addHeader("User-Agent", userAgent)
                     .build()
             )
         }

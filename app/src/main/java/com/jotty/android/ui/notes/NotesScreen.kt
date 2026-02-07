@@ -170,7 +170,7 @@ fun NotesScreen(api: JottyApi) {
 
 @Composable
 private fun NoteCard(note: Note, onClick: () -> Unit) {
-    val isEncrypted = NoteEncryption.isEncrypted(note.content)
+    val isEncrypted = note.encrypted == true || NoteEncryption.isEncrypted(note.content)
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -238,7 +238,8 @@ private fun NoteDetailScreen(
     var decryptError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val parsed = remember(content) { NoteEncryption.parse(content) }
-    val isEncrypted = parsed is ParsedNoteContent.Encrypted
+    val isEncryptedByContent = parsed is ParsedNoteContent.Encrypted
+    val isEncrypted = note.encrypted == true || isEncryptedByContent
     val displayContent = when {
         isEncrypted && decryptedContent != null -> decryptedContent!!
         isEncrypted -> null
@@ -260,7 +261,7 @@ private fun NoteDetailScreen(
                 }
             },
             actions = {
-                if (isEncrypted && decryptedContent == null) {
+                if (isEncrypted && decryptedContent == null && isEncryptedByContent) {
                     IconButton(onClick = { showDecryptDialog = true }) {
                         Icon(Icons.Default.Lock, contentDescription = "Decrypt")
                     }
@@ -304,6 +305,7 @@ private fun NoteDetailScreen(
         when {
             isEncrypted && decryptedContent == null -> EncryptedNotePlaceholder(
                 encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
+                canDecryptInApp = isEncryptedByContent,
                 onDecryptClick = { showDecryptDialog = true },
             )
             isEditing -> NoteEditor(
@@ -341,6 +343,7 @@ private fun NoteDetailScreen(
 @Composable
 private fun EncryptedNotePlaceholder(
     encryptionMethod: String,
+    canDecryptInApp: Boolean,
     onDecryptClick: () -> Unit,
 ) {
     Column(
@@ -364,16 +367,16 @@ private fun EncryptedNotePlaceholder(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = if (encryptionMethod == "pgp") {
-                "PGP decryption is not supported in the app. Use the Jotty web app to decrypt."
-            } else {
-                "Enter your passphrase to view the content."
+            text = when {
+                encryptionMethod == "pgp" -> "PGP decryption is not supported in the app. Use the Jotty web app to decrypt."
+                canDecryptInApp -> "Enter your passphrase to view the content."
+                else -> "Use the Jotty web app to decrypt this note."
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(modifier = Modifier.height(24.dp))
-        if (encryptionMethod == "xchacha") {
+        if (canDecryptInApp && encryptionMethod == "xchacha") {
             Button(onClick = onDecryptClick) {
                 Text("Decrypt note")
             }

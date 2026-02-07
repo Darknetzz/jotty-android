@@ -68,6 +68,8 @@ data class Note(
     val content: String = "",
     val createdAt: String,
     val updatedAt: String,
+    /** Set by API when the note is stored encrypted (Jotty server may send this). */
+    val encrypted: Boolean? = null,
 )
 
 data class CreateNoteRequest(

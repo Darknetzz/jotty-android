@@ -6,6 +6,26 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.1.7] - 2026-02-07
+
+### Added
+
+- **Settings pull-to-refresh** — Swipe down on Settings to refresh connection status, dashboard summary, and admin overview.
+- **Theme: mode + color** — Separate "Light / Dark" (System, Light, Dark) and "Color" (Default, AMOLED, Sepia, Midnight, Rose, Ocean, Forest). Combinations like "Forest Dark" or "Rose Light". Dark variants added for Rose, Ocean, Forest. Legacy single-theme preference is migrated on first launch.
+- **Back from detail** — System back button from checklist or note detail returns to the list instead of exiting the app.
+
+### Changed
+
+- **Checklist overview** — Delete is no longer on the list row or swipe; long-press on the checklist title opens a menu with Edit (open) and Delete.
+- **JottyTheme** — Now takes `themeMode: String?` and `themeColor: String`; status bar follows resolved dark/light.
+
+### Technical
+
+- SettingsRepository: `themeMode`, `themeColor`, `setThemeMode`, `setThemeColor`; `migrateThemeToModeAndColorIfNeeded()`.
+- Checklist list: SwipeToDeleteContainer removed; ChecklistCard has long-press menu and `onDelete`.
+
+---
+
 ## [1.1.6] - 2026-02-07
 
 ### Added

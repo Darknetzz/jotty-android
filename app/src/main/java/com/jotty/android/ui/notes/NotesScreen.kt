@@ -1,6 +1,7 @@
 package com.jotty.android.ui.notes
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -96,6 +97,8 @@ fun NotesScreen(
             onDeepLinkConsumed()
         }
     }
+
+    BackHandler(enabled = selectedNote != null) { selectedNote = null }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

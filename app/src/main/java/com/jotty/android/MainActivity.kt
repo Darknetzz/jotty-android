@@ -26,8 +26,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val settingsRepository = (applicationContext as JottyApp).settingsRepository
-            val themePref by settingsRepository.theme.collectAsState(initial = null)
-            JottyTheme(themePreference = themePref) {
+            val themeMode by settingsRepository.themeMode.collectAsState(initial = null)
+            val themeColor by settingsRepository.themeColor.collectAsState(initial = "default")
+            JottyTheme(themeMode = themeMode, themeColor = themeColor) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,

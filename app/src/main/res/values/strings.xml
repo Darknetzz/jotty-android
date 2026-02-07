@@ -117,9 +117,12 @@
     <string name="dashboard_overview">Dashboard Overview</string>
     <string name="appearance">Appearance</string>
     <string name="theme">Theme</string>
+    <string name="theme_mode_label">Light / Dark</string>
+    <string name="theme_color_label">Color</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="theme_color_default">Default</string>
     <string name="theme_amoled">AMOLED</string>
     <string name="theme_sepia">Sepia</string>
     <string name="theme_midnight">Midnight</string>

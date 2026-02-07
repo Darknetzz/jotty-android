@@ -1,5 +1,6 @@
 package com.jotty.android.ui.checklists
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -66,6 +67,8 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
     }
 
     LaunchedEffect(Unit) { loadChecklists() }
+
+    BackHandler(enabled = selectedList != null) { selectedList = null }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },

@@ -45,10 +45,18 @@ class SettingsRepository(private val context: Context) {
 
     val isConfigured: Flow<Boolean> = currentInstance.map { it != null }
 
-    /** Theme: null/"system" = follow system; "light", "dark", "amoled", "sepia", "midnight", "rose", "ocean", "forest" */
-    val theme: Flow<String?> = context.dataStore.data.map { prefs ->
-        prefs[KEY_THEME].takeIf { !it.isNullOrBlank() }
+    /** Theme mode: null/"system" = follow system; "light"; "dark". */
+    val themeMode: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_THEME_MODE].takeIf { !it.isNullOrBlank() }
+            ?: migrateThemeModeFromLegacy(prefs[KEY_THEME])
     }.catch { emit(null) }
+
+    /** Theme color: "default", "amoled", "sepia", "midnight", "rose", "ocean", "forest". Default "default". */
+    val themeColor: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_THEME_COLOR].takeIf { !it.isNullOrBlank() }
+            ?: migrateThemeColorFromLegacy(prefs[KEY_THEME])
+            ?: "default"
+    }.catch { emit("default") }
 
     /** Start tab: "checklists", "notes", "settings". Default checklists. */
     val startTab: Flow<String?> = context.dataStore.data.map { prefs ->
@@ -106,9 +114,15 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { it.remove(KEY_CURRENT_INSTANCE_ID) }
     }
 
-    suspend fun setTheme(value: String?) {
+    suspend fun setThemeMode(value: String?) {
         context.dataStore.edit {
-            if (value.isNullOrBlank()) it.remove(KEY_THEME) else it[KEY_THEME] = value
+            if (value.isNullOrBlank()) it.remove(KEY_THEME_MODE) else it[KEY_THEME_MODE] = value
+        }
+    }
+
+    suspend fun setThemeColor(value: String) {
+        context.dataStore.edit {
+            if (value == "default") it.remove(KEY_THEME_COLOR) else it[KEY_THEME_COLOR] = value
         }
     }
 
@@ -146,6 +160,28 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
+    /** One-time migration: split legacy KEY_THEME into KEY_THEME_MODE and KEY_THEME_COLOR. */
+    suspend fun migrateThemeToModeAndColorIfNeeded() {
+        context.dataStore.edit { prefs ->
+            val old = prefs[KEY_THEME]?.takeIf { it.isNotBlank() } ?: return@edit
+            if (prefs[KEY_THEME_MODE] != null) return@edit
+            val (mode, color) = when (old) {
+                "light" -> "light" to "default"
+                "dark" -> "dark" to "default"
+                "amoled" -> "dark" to "amoled"
+                "sepia" -> "light" to "sepia"
+                "midnight" -> "dark" to "midnight"
+                "rose" -> "light" to "rose"
+                "ocean" -> "light" to "ocean"
+                "forest" -> "light" to "forest"
+                else -> null to "default"
+            }
+            if (mode != null) prefs[KEY_THEME_MODE] = mode
+            if (color != "default") prefs[KEY_THEME_COLOR] = color
+            prefs.remove(KEY_THEME)
+        }
+    }
+
     companion object {
         private val KEY_INSTANCES = stringPreferencesKey("instances")
         private val KEY_CURRENT_INSTANCE_ID = stringPreferencesKey("current_instance_id")
@@ -153,6 +189,32 @@ class SettingsRepository(private val context: Context) {
         private val KEY_SERVER_URL = stringPreferencesKey("server_url")
         private val KEY_API_KEY = stringPreferencesKey("api_key")
         private val KEY_THEME = stringPreferencesKey("theme")
+        private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+        private val KEY_THEME_COLOR = stringPreferencesKey("theme_color")
+
+        private fun migrateThemeModeFromLegacy(oldTheme: String?): String? {
+            if (oldTheme.isNullOrBlank()) return null
+            return when (oldTheme) {
+                "light" -> "light"
+                "dark", "amoled", "midnight" -> "dark"
+                "sepia", "rose", "ocean", "forest" -> "light"
+                else -> null
+            }
+        }
+
+        private fun migrateThemeColorFromLegacy(oldTheme: String?): String? {
+            if (oldTheme.isNullOrBlank()) return null
+            return when (oldTheme) {
+                "light", "dark" -> "default"
+                "amoled" -> "amoled"
+                "sepia" -> "sepia"
+                "midnight" -> "midnight"
+                "rose" -> "rose"
+                "ocean" -> "ocean"
+                "forest" -> "forest"
+                else -> "default"
+            }
+        }
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
 

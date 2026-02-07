@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,7 +44,8 @@ fun SettingsScreen(
 ) {
     val scope = rememberCoroutineScope()
     val currentInstance by settingsRepository.currentInstance.collectAsState(initial = null)
-    val theme by settingsRepository.theme.collectAsState(initial = null)
+    val themeMode by settingsRepository.themeMode.collectAsState(initial = null)
+    val themeColor by settingsRepository.themeColor.collectAsState(initial = "default")
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false)
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
@@ -50,35 +53,54 @@ fun SettingsScreen(
     var summary by remember { mutableStateOf<SummaryData?>(null) }
     var healthOk by remember { mutableStateOf<Boolean?>(null) }
     var showAboutDialog by remember { mutableStateOf(false) }
+    var isRefreshing by remember { mutableStateOf(false) }
 
-    LaunchedEffect(api) {
-        if (api == null) return@LaunchedEffect
-        try {
-            api.health()
-            healthOk = true
-        } catch (_: Exception) {
-            healthOk = false
-        }
-        try {
-            summary = api.getSummary().summary
-        } catch (_: Exception) {
-            summary = null
-        }
-        try {
-            adminOverview = api.getAdminOverview()
-        } catch (e: HttpException) {
-            if (e.code() != 403) adminOverview = null
-        } catch (_: Exception) {
-            adminOverview = null
+    fun refreshOverview(showRefreshingIndicator: Boolean) {
+        scope.launch {
+            if (showRefreshingIndicator) isRefreshing = true
+            try {
+                api?.let { a ->
+                    try {
+                        a.health()
+                        healthOk = true
+                    } catch (_: Exception) {
+                        healthOk = false
+                    }
+                    try {
+                        summary = a.getSummary().summary
+                    } catch (_: Exception) {
+                        summary = null
+                    }
+                    try {
+                        adminOverview = a.getAdminOverview()
+                    } catch (e: HttpException) {
+                        if (e.code() != 403) adminOverview = null
+                    } catch (_: Exception) {
+                        adminOverview = null
+                    }
+                }
+            } finally {
+                if (showRefreshingIndicator) isRefreshing = false
+            }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
+    LaunchedEffect(api) {
+        refreshOverview(showRefreshingIndicator = false)
+    }
+
+    val pullRefreshState = rememberPullToRefreshState()
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { refreshOverview(showRefreshingIndicator = true) },
+        state = pullRefreshState,
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
         Text(
             stringResource(R.string.settings),
             style = MaterialTheme.typography.titleLarge,
@@ -173,7 +195,37 @@ fun SettingsScreen(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             ListItem(
-                headlineContent = { Text(stringResource(R.string.theme)) },
+                headlineContent = { Text(stringResource(R.string.theme_mode_label)) },
+                supportingContent = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf(
+                            null to R.string.theme_system,
+                            "light" to R.string.theme_light,
+                            "dark" to R.string.theme_dark,
+                        ).forEach { (value, labelRes) ->
+                            val isSelected = when (value) {
+                                null -> themeMode.isNullOrBlank()
+                                else -> themeMode == value
+                            }
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    scope.launch {
+                                        settingsRepository.setThemeMode(value)
+                                    }
+                                },
+                                label = { Text(stringResource(labelRes)) },
+                            )
+                        }
+                    }
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.theme_color_label)) },
                 supportingContent = {
                     FlowRow(
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
@@ -181,9 +233,7 @@ fun SettingsScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(
-                            null to R.string.theme_system,
-                            "light" to R.string.theme_light,
-                            "dark" to R.string.theme_dark,
+                            "default" to R.string.theme_color_default,
                             "amoled" to R.string.theme_amoled,
                             "sepia" to R.string.theme_sepia,
                             "midnight" to R.string.theme_midnight,
@@ -191,15 +241,11 @@ fun SettingsScreen(
                             "ocean" to R.string.theme_ocean,
                             "forest" to R.string.theme_forest,
                         ).forEach { (value, labelRes) ->
-                            val isSelected = when (value) {
-                                null -> theme.isNullOrBlank()
-                                else -> theme == value
-                            }
                             FilterChip(
-                                selected = isSelected,
+                                selected = themeColor == value,
                                 onClick = {
                                     scope.launch {
-                                        settingsRepository.setTheme(value)
+                                        settingsRepository.setThemeColor(value)
                                     }
                                 },
                                 label = { Text(stringResource(labelRes)) },
@@ -318,6 +364,7 @@ fun SettingsScreen(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        }
     }
 
     if (showAboutDialog) {

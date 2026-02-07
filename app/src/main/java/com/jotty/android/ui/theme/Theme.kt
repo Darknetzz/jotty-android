@@ -142,36 +142,78 @@ private val ForestColorScheme = lightColorScheme(
     onSurface = ForestOnSurface,
 )
 
+// Dark variants for color palettes (same primary, dark backgrounds)
+private val RoseDarkBg = Color(0xFF1C0A0E)
+private val RoseDarkSurface = Color(0xFF2D1519)
+private val RoseDarkColorScheme = darkColorScheme(
+    primary = Color(0xFFF87191),
+    onPrimary = Color.White,
+    secondary = RosePrimary,
+    onSecondary = Color.White,
+    background = RoseDarkBg,
+    surface = RoseDarkSurface,
+    onBackground = Color.White,
+    onSurface = Color.White,
+)
+
+private val OceanDarkBg = Color(0xFF082F49)
+private val OceanDarkSurface = Color(0xFF0C4A6E)
+private val OceanDarkColorScheme = darkColorScheme(
+    primary = Color(0xFF22D3EE),
+    onPrimary = Color(0xFF082F49),
+    secondary = OceanPrimary,
+    onSecondary = Color.White,
+    background = OceanDarkBg,
+    surface = OceanDarkSurface,
+    onBackground = Color.White,
+    onSurface = Color.White,
+)
+
+private val ForestDarkBg = Color(0xFF052E16)
+private val ForestDarkSurface = Color(0xFF14532D)
+private val ForestDarkColorScheme = darkColorScheme(
+    primary = Color(0xFF4ADE80),
+    onPrimary = Color(0xFF052E16),
+    secondary = ForestPrimary,
+    onSecondary = Color.White,
+    background = ForestDarkBg,
+    surface = ForestDarkSurface,
+    onBackground = Color.White,
+    onSurface = Color.White,
+)
+
 /**
- * Theme preference: null or "system" = follow system; "light", "dark", "amoled", "sepia", "midnight", "rose", "ocean", "forest".
- * [themePreference] is the stored value from settings.
+ * Resolves [themeMode] (null/"system", "light", "dark") and [themeColor] ("default", "amoled", etc.)
+ * to a ColorScheme. E.g. Dark + Forest → Forest dark variant.
  */
 @Composable
 fun JottyTheme(
-    themePreference: String? = null,
+    themeMode: String? = null,
+    themeColor: String = "default",
     content: @Composable () -> Unit,
 ) {
     val systemDark = isSystemInDarkTheme()
-    val colorScheme = when (themePreference) {
-        "light" -> LightColorScheme
-        "dark" -> DarkColorScheme
-        "amoled" -> AmoledColorScheme
-        "sepia" -> SepiaColorScheme
-        "midnight" -> MidnightColorScheme
-        "rose" -> RoseColorScheme
-        "ocean" -> OceanColorScheme
-        "forest" -> ForestColorScheme
-        else -> if (systemDark) DarkColorScheme else LightColorScheme
+    val dark = when (themeMode) {
+        "dark" -> true
+        "light" -> false
+        else -> systemDark
     }
-    val useDarkStatusBar = themePreference in listOf("dark", "amoled", "midnight") ||
-        (themePreference.isNullOrBlank() && systemDark)
+    val colorScheme = when (themeColor) {
+        "amoled" -> if (dark) AmoledColorScheme else LightColorScheme
+        "sepia" -> if (dark) DarkColorScheme else SepiaColorScheme
+        "midnight" -> if (dark) MidnightColorScheme else OceanColorScheme
+        "rose" -> if (dark) RoseDarkColorScheme else RoseColorScheme
+        "ocean" -> if (dark) OceanDarkColorScheme else OceanColorScheme
+        "forest" -> if (dark) ForestDarkColorScheme else ForestColorScheme
+        else -> if (dark) DarkColorScheme else LightColorScheme
+    }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
             window.statusBarColor = colorScheme.background.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !useDarkStatusBar
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !dark
         }
     }
 

@@ -632,6 +632,8 @@ private fun UpdateAvailableContent(
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         ),
+                        syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
+                        syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

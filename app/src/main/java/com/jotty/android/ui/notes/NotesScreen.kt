@@ -686,6 +686,8 @@ private fun NoteView(
                 style = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onSurface,
                 ),
+                syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
+                syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
             Text(

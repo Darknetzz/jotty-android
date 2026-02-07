@@ -14,17 +14,19 @@ This file helps AI agents and contributors work effectively on the project.
 app/src/main/java/com/jotty/android/
 ├── data/
 │   ├── api/          # JottyApi, models, ApiClient (Retrofit)
-│   ├── encryption/   # NoteEncryption (parse frontmatter), XChaCha20Decryptor (Jotty encrypted notes)
-│   └── preferences/  # SettingsRepository, JottyInstance (multi-instance, theme, start tab)
+│   ├── encryption/   # NoteEncryption (parse frontmatter), XChaCha20Decryptor, XChaCha20Encryptor,
+│   │                 # NoteDecryptionSession (in-memory decrypted content per note for session)
+│   └── preferences/  # SettingsRepository, JottyInstance (multi-instance, default instance, theme, start tab, colorHex)
 ├── ui/
-│   ├── checklists/  # ChecklistsScreen (lists, items, to-do/completed, edit/delete tasks)
-│   ├── main/        # MainScreen (NavHost, bottom nav)
-│   ├── notes/       # NotesScreen (list, detail, Markdown view/edit, encrypted note decrypt)
-│   ├── settings/    # SettingsScreen (theme, start screen, dashboard, About)
-│   ├── setup/       # SetupScreen (instance list, add/edit/delete, connect)
+│   ├── checklists/  # ChecklistsScreen (lists, progress, swipe-to-delete, items, to-do/completed, edit/delete tasks)
+│   ├── main/        # MainScreen (NavHost, bottom nav, deep-link note id)
+│   ├── notes/       # NotesScreen (list, search, categories, export/share, encrypt, decrypt, swipe-to-delete, deep link)
+│   ├── settings/    # SettingsScreen (health check, default instance, theme, start screen, dashboard, About)
+│   ├── setup/       # SetupScreen (instance list, default star, instance color, add/edit/delete, connect)
 │   └── theme/       # Theme, Type
-├── JottyApp.kt      # Root composable, migration, nav to Setup vs Main
-└── MainActivity.kt  # Activity, theme from SettingsRepository, Compose setContent
+├── util/            # AppLog (tagged logging)
+├── JottyApp.kt      # Root composable, migration, default instance on first run, deep link state
+└── MainActivity.kt  # Activity, theme, deep link intent (jotty-android://open/note/{id})
 ```
 
 ## Conventions
@@ -48,10 +50,12 @@ app/src/main/java/com/jotty/android/
 
 ## Feature notes
 
-- **Checklists:** Task projects use type `"task"` and `apiPath` (e.g. `"0"`, `"0.0"`) for hierarchy. Checkbox = complete/uncomplete; tap task text = inline edit; delete button per row.
-- **Notes:** Plain notes show Markdown in view mode. Encrypted notes (Jotty frontmatter with `encrypted: true`) show a lock and “Decrypt” for XChaCha20; PGP is not supported in-app.
-- **Instances:** Stored and managed in `SettingsRepository`; “Disconnect” only clears the current instance; add/edit/delete in SetupScreen.
-- **Settings:** Theme (system/light/dark), start screen tab, dashboard from `api/summary`, About (version + GitHub link).
+- **Checklists:** Task projects use type `"task"` and `apiPath` for hierarchy. Progress “X / Y done” on detail. Checkbox = complete/uncomplete; tap task text = inline edit; delete button per row. Swipe row left to delete checklist. Pull-to-refresh, empty/error states.
+- **Notes:** List: search, category filter chips, pull-to-refresh, empty/error states. Plain notes show Markdown in view mode; export/share (title + content). Encrypted notes: lock icon, “Decrypt” for XChaCha20; decrypted content cached in session via `NoteDecryptionSession`; “Encrypt” action and `EncryptNoteDialog` (passphrase, min 12 chars) using `XChaCha20Encryptor` and frontmatter-wrapped body. Swipe row left to delete note. PGP is not supported in-app.
+- **Instances:** Stored in `SettingsRepository`; optional `colorHex` per instance. Default instance: `defaultInstanceId` used when opening app with no current instance; star in Setup and Settings to set default. “Disconnect” only clears current instance; add/edit/delete in SetupScreen (color picker in form).
+- **Settings:** Health check (api.health()), “Set as default instance” row, theme, start screen tab, dashboard from `api/summary`, About.
+- **Deep links:** `jotty-android://open/note/{noteId}` opens the app and the note (MainActivity intent-filter, singleTask; JottyApp/MainScreen/NotesScreen pass through and clear after open).
+- **Technical:** `AppLog` for tagged logging; ProGuard keep rules for Gson and Bouncy Castle (encryption).
 
 ## Where to change what
 
@@ -61,9 +65,13 @@ app/src/main/java/com/jotty/android/
 | Checklist UI / task edit    | `ui/checklists/ChecklistsScreen.kt`   |
 | Notes list / detail / encrypt | `ui/notes/NotesScreen.kt`           |
 | Note encryption parsing     | `data/encryption/NoteEncryption.kt`   |
-| XChaCha20 decrypt           | `data/encryption/XChaCha20Decryptor.kt`|
+| XChaCha20 decrypt/encrypt   | `data/encryption/XChaCha20Decryptor.kt`, `XChaCha20Encryptor.kt` |
+| Session decrypted cache     | `data/encryption/NoteDecryptionSession.kt` |
 | Instances / settings storage | `data/preferences/SettingsRepository.kt` |
 | Setup / instance CRUD       | `ui/setup/SetupScreen.kt`             |
+| Deep link handling         | `MainActivity.kt`, `JottyApp.kt`, `MainScreen.kt`, `NotesScreen.kt` |
+| Logging                    | `util/AppLog.kt`                      |
+| ProGuard keep rules        | `app/proguard-rules.pro`              |
 | App version in UI          | `gradle.properties` + BuildConfig      |
 | Release history             | `CHANGELOG.md`                         |
 

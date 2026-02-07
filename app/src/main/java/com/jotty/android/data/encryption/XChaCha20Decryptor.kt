@@ -88,7 +88,7 @@ object XChaCha20Decryptor {
         }
     }
 
-    private fun hChaCha20Block(key: ByteArray, nonce: ByteArray): ByteArray? {
+    internal fun hChaCha20Block(key: ByteArray, nonce: ByteArray): ByteArray? {
         // HChaCha20: state = constants || key (8 words) || nonce (4 words = 16 bytes)
         if (key.size != 32 || nonce.size != 16) return null
         val state = IntArray(16)

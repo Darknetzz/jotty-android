@@ -31,11 +31,22 @@ sealed class MainRoute(val route: String, val title: String, val icon: androidx.
 fun MainScreen(
     settingsRepository: SettingsRepository,
     onDisconnect: () -> Unit = {},
+    deepLinkNoteId: androidx.compose.runtime.MutableState<String?>? = null,
 ) {
     val navController = rememberNavController()
     var startDestination by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
         startDestination = settingsRepository.startTab.first() ?: MainRoute.Checklists.route
+    }
+    LaunchedEffect(deepLinkNoteId?.value) {
+        val id = deepLinkNoteId?.value
+        if (!id.isNullOrBlank()) {
+            navController.navigate(MainRoute.Notes.route) {
+                popUpTo(MainRoute.Checklists.route) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
     }
     val serverUrl = settingsRepository.serverUrl.collectAsState(initial = null).value
     val apiKey = settingsRepository.apiKey.collectAsState(initial = null).value
@@ -94,7 +105,11 @@ fun MainScreen(
                     ChecklistsScreen(api = api!!)
                 }
                 composable(MainRoute.Notes.route) {
-                    NotesScreen(api = api!!)
+                    NotesScreen(
+                        api = api!!,
+                        initialNoteId = deepLinkNoteId?.value,
+                        onDeepLinkConsumed = { deepLinkNoteId?.value = null },
+                    )
                 }
                 composable(MainRoute.Settings.route) {
                     SettingsScreen(

@@ -1,5 +1,6 @@
 package com.jotty.android.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -7,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,12 +34,20 @@ fun SettingsScreen(
     val currentInstance by settingsRepository.currentInstance.collectAsState(initial = null)
     val theme by settingsRepository.theme.collectAsState(initial = null)
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
+    val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
+    var healthOk by remember { mutableStateOf<Boolean?>(null) }
     var showAboutDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(api) {
         if (api == null) return@LaunchedEffect
+        try {
+            api.health()
+            healthOk = true
+        } catch (_: Exception) {
+            healthOk = false
+        }
         try {
             summary = api.getSummary().summary
         } catch (_: Exception) {
@@ -72,11 +82,55 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
-            ListItem(
-                headlineContent = { Text(currentInstance?.name ?: "Instance") },
-                supportingContent = { Text(currentInstance?.serverUrl ?: "—", maxLines = 2) },
-                leadingContent = { Icon(Icons.Default.Link, contentDescription = null) },
-            )
+            Column {
+                ListItem(
+                    headlineContent = { Text(currentInstance?.name ?: "Instance") },
+                    supportingContent = {
+                        Column {
+                            Text(currentInstance?.serverUrl ?: "—", maxLines = 2)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = when (healthOk) {
+                                    true -> "Connected"
+                                    false -> "Server unreachable"
+                                    null -> "—"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = when (healthOk) {
+                                    true -> MaterialTheme.colorScheme.primary
+                                    false -> MaterialTheme.colorScheme.error
+                                    null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
+                    },
+                    leadingContent = { Icon(Icons.Default.Link, contentDescription = null) },
+                )
+                if (currentInstance != null) {
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text("Set as default instance") },
+                        supportingContent = {
+                            Text(
+                                "Open to this instance when opening the app",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.Star,
+                                contentDescription = null,
+                                tint = if (defaultInstanceId == currentInstance?.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            scope.launch {
+                                settingsRepository.setDefaultInstanceId(currentInstance?.id)
+                            }
+                        },
+                    )
+                }
+            }
         }
 
         if (summary != null || adminOverview != null) {

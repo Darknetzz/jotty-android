@@ -2,6 +2,7 @@ package com.jotty.android.ui.checklists
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,7 +12,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -26,9 +31,10 @@ import androidx.compose.ui.unit.dp
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.util.AppLog
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChecklistsScreen(api: JottyApi) {
     var checklists by remember { mutableStateOf<List<Checklist>>(emptyList()) }
@@ -44,8 +50,10 @@ fun ChecklistsScreen(api: JottyApi) {
             error = null
             try {
                 checklists = api.getChecklists().checklists
+                AppLog.d("checklists", "Loaded ${checklists.size} checklists")
             } catch (e: Exception) {
-                error = e.message ?: "Failed to load"
+                AppLog.e("checklists", "Load failed", e)
+                error = e.message ?: "Failed to load. Check connection and try again."
             } finally {
                 loading = false
             }
@@ -74,23 +82,34 @@ fun ChecklistsScreen(api: JottyApi) {
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                IconButton(onClick = { showCreateDialog = true }) {
-                    Icon(Icons.Default.Add, contentDescription = "New checklist")
+                Row {
+                    IconButton(onClick = { loadChecklists() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    IconButton(onClick = { showCreateDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "New checklist")
+                    }
                 }
             }
 
             when {
-                loading -> {
+                loading && checklists.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator()
                     }
                 }
                 error != null -> {
-                    Text(
-                        text = error!!,
-                        color = MaterialTheme.colorScheme.error,
+                    Column(
                         modifier = Modifier.padding(16.dp),
-                    )
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = error!!,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(onClick = { loadChecklists() }) { Text("Retry") }
+                    }
                 }
                 checklists.isEmpty() -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -107,16 +126,59 @@ fun ChecklistsScreen(api: JottyApi) {
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                            Text(
+                                "Tap + to add a checklist",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
                         }
                     }
                 }
                 else -> {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(checklists, key = { it.id }) { list ->
-                            ChecklistCard(
-                                checklist = list,
-                                onClick = { selectedList = list },
+                            val dismissState = rememberSwipeToDismissBoxState(
+                                confirmValueChange = { value ->
+                                    if (value == SwipeToDismissBoxValue.EndToStart) {
+                                        scope.launch {
+                                            try {
+                                                api.deleteChecklist(list.id)
+                                                checklists = checklists.filter { it.id != list.id }
+                                                if (selectedList?.id == list.id) selectedList = null
+                                            } catch (e: Exception) {
+                                                AppLog.e("checklists", "Delete checklist failed", e)
+                                            }
+                                        }
+                                        true
+                                    } else false
+                                },
                             )
+                            SwipeToDismissBox(
+                                state = dismissState,
+                                modifier = Modifier.fillMaxWidth(),
+                                enableDismissFromStartToEnd = false,
+                                backgroundContent = {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(MaterialTheme.colorScheme.error)
+                                            .padding(horizontal = 20.dp),
+                                        contentAlignment = Alignment.CenterEnd,
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Delete,
+                                            contentDescription = "Delete",
+                                            tint = MaterialTheme.colorScheme.onError,
+                                        )
+                                    }
+                                },
+                            ) {
+                                ChecklistCard(
+                                    checklist = list,
+                                    onClick = { selectedList = list },
+                                )
+                            }
                         }
                     }
                 }
@@ -318,6 +380,17 @@ private fun ChecklistDetailScreen(
         }
         val toDo = flatItems.filter { !it.item.completed }
         val completed = flatItems.filter { it.item.completed }
+        val total = flatItems.size
+        val doneCount = completed.size
+
+        if (total > 0) {
+            Text(
+                text = "$doneCount / $total done",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),

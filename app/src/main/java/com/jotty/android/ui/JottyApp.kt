@@ -15,11 +15,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
-fun JottyApp(settingsRepository: SettingsRepository) {
+fun JottyApp(
+    settingsRepository: SettingsRepository,
+    deepLinkNoteId: MutableState<String?>? = null,
+) {
     var isConfigured by remember { mutableStateOf<Boolean?>(null) }
 
     LaunchedEffect(Unit) {
         settingsRepository.migrateFromLegacyIfNeeded()
+        val currentId = settingsRepository.currentInstanceId.first()
+        val defaultId = settingsRepository.defaultInstanceId.first()
+        if (currentId == null && defaultId != null) {
+            settingsRepository.setCurrentInstanceId(defaultId)
+        }
         isConfigured = settingsRepository.isConfigured.first()
     }
 
@@ -34,6 +42,7 @@ fun JottyApp(settingsRepository: SettingsRepository) {
             true -> MainScreen(
                 settingsRepository = settingsRepository,
                 onDisconnect = { isConfigured = false },
+                deepLinkNoteId = deepLinkNoteId,
             )
             false -> SetupScreen(
                 settingsRepository = settingsRepository,

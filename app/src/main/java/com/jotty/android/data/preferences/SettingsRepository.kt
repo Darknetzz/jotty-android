@@ -28,6 +28,11 @@ class SettingsRepository(private val context: Context) {
         prefs[KEY_CURRENT_INSTANCE_ID].takeIf { !it.isNullOrBlank() }
     }.catch { emit(null) }
 
+    /** Default instance to select when opening app (e.g. after install). */
+    val defaultInstanceId: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_DEFAULT_INSTANCE_ID].takeIf { !it.isNullOrBlank() }
+    }.catch { emit(null) }
+
     val currentInstance: Flow<JottyInstance?> = context.dataStore.data.map { prefs ->
         val list = parseInstances(prefs[KEY_INSTANCES]) ?: emptyList()
         val id = prefs[KEY_CURRENT_INSTANCE_ID]?.takeIf { it.isNotBlank() }
@@ -63,15 +68,20 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty().filter { it.id != id }
             prefs[KEY_INSTANCES] = gson.toJson(list)
-            if (prefs[KEY_CURRENT_INSTANCE_ID] == id) {
-                prefs.remove(KEY_CURRENT_INSTANCE_ID)
-            }
+            if (prefs[KEY_CURRENT_INSTANCE_ID] == id) prefs.remove(KEY_CURRENT_INSTANCE_ID)
+            if (prefs[KEY_DEFAULT_INSTANCE_ID] == id) prefs.remove(KEY_DEFAULT_INSTANCE_ID)
         }
     }
 
     suspend fun setCurrentInstanceId(id: String?) {
         context.dataStore.edit {
             if (id.isNullOrBlank()) it.remove(KEY_CURRENT_INSTANCE_ID) else it[KEY_CURRENT_INSTANCE_ID] = id
+        }
+    }
+
+    suspend fun setDefaultInstanceId(id: String?) {
+        context.dataStore.edit {
+            if (id.isNullOrBlank()) it.remove(KEY_DEFAULT_INSTANCE_ID) else it[KEY_DEFAULT_INSTANCE_ID] = id!!
         }
     }
 
@@ -119,6 +129,7 @@ class SettingsRepository(private val context: Context) {
     companion object {
         private val KEY_INSTANCES = stringPreferencesKey("instances")
         private val KEY_CURRENT_INSTANCE_ID = stringPreferencesKey("current_instance_id")
+        private val KEY_DEFAULT_INSTANCE_ID = stringPreferencesKey("default_instance_id")
         private val KEY_SERVER_URL = stringPreferencesKey("server_url")
         private val KEY_API_KEY = stringPreferencesKey("api_key")
         private val KEY_THEME = stringPreferencesKey("theme")

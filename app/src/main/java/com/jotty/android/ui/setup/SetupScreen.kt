@@ -11,12 +11,19 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.preferences.JottyInstance
@@ -30,6 +37,7 @@ fun SetupScreen(
     onConfigured: () -> Unit,
 ) {
     val instances by settingsRepository.instances.collectAsState(initial = emptyList())
+    val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
     var showAddForm by remember { mutableStateOf(instances.isEmpty()) }
     val scope = rememberCoroutineScope()
 
@@ -81,10 +89,16 @@ fun SetupScreen(
                     items(instances, key = { it.id }) { instance ->
                         InstanceCard(
                             instance = instance,
+                            isDefault = instance.id == defaultInstanceId,
                             onClick = {
                                 scope.launch {
                                     settingsRepository.setCurrentInstanceId(instance.id)
                                     onConfigured()
+                                }
+                            },
+                            onSetDefault = {
+                                scope.launch {
+                                    settingsRepository.setDefaultInstanceId(instance.id)
                                 }
                             },
                             onEdit = { instanceToEdit = instance },
@@ -147,7 +161,9 @@ fun SetupScreen(
 @Composable
 private fun InstanceCard(
     instance: JottyInstance,
+    isDefault: Boolean,
     onClick: () -> Unit,
+    onSetDefault: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -161,6 +177,16 @@ private fun InstanceCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            if (instance.colorHex != null) {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .background(
+                            Color((instance.colorHex.toInt() and 0xFFFFFF) or 0xFF000000.toInt()),
+                            CircleShape,
+                        ),
+                )
+            }
             Icon(Icons.Default.Link, contentDescription = null)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -173,6 +199,16 @@ private fun InstanceCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
+                )
+            }
+            IconButton(
+                onClick = onSetDefault,
+                modifier = Modifier.size(40.dp),
+            ) {
+                Icon(
+                    if (isDefault) Icons.Default.Star else Icons.Outlined.Star,
+                    contentDescription = if (isDefault) "Default instance" else "Set as default instance",
+                    tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             IconButton(
@@ -206,11 +242,21 @@ private fun InstanceForm(
     var name by remember(initialInstance) { mutableStateOf(initialInstance?.name ?: "") }
     var serverUrl by remember(initialInstance) { mutableStateOf(initialInstance?.serverUrl ?: "") }
     var apiKey by remember(initialInstance) { mutableStateOf(initialInstance?.apiKey ?: "") }
+    var colorHex by remember(initialInstance) { mutableStateOf(initialInstance?.colorHex) }
     var apiKeyVisible by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val isEdit = initialInstance != null
+
+    val instanceColors: List<Long?> = listOf(
+        null,
+        0xFF6200EEL,
+        0xFF03DAC6L,
+        0xFF018786L,
+        0xFFBB86FCL,
+        0xFFCF6679L,
+    )
 
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         if (isEdit) {
@@ -255,6 +301,38 @@ private fun InstanceForm(
             },
             isError = error != null,
         )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Color",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            instanceColors.forEach { hex ->
+                val selected = colorHex == hex
+                Surface(
+                    modifier = Modifier
+                        .size(if (hex == null) 36.dp else 32.dp)
+                        .clip(CircleShape)
+                        .then(
+                            if (hex != null) Modifier.background(Color(((hex and 0xFFFFFFFFL).toInt() and 0xFFFFFF) or 0xFF000000.toInt()))
+                            else Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+                        )
+                        .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier),
+                    shape = CircleShape,
+                    onClick = { colorHex = hex },
+                ) {
+                    if (hex == null) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+            }
+        }
 
         error?.let { msg ->
             Text(
@@ -300,6 +378,7 @@ private fun InstanceForm(
                                 name = name.ifBlank { url.replace(Regex("^https?://"), "").split("/").firstOrNull() ?: "Jotty" },
                                 serverUrl = url,
                                 apiKey = key,
+                                colorHex = colorHex,
                             )
                             settingsRepository.addInstance(instance)
                             if (isEdit) onSaved?.invoke() else onDone()

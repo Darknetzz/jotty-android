@@ -2,6 +2,38 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-02-06
+
+### Added
+
+- **Notes: search & categories** — Search field and category filter chips (from server) on the notes list.
+- **Notes: export / share** — Share action in note detail sends title and content (e.g. to other apps).
+- **Notes: encrypt in-app** — Encrypt an unencrypted note with a passphrase (min 12 chars); uses XChaCha20 and frontmatter-wrapped body compatible with Jotty.
+- **Notes: session decryption cache** — Decrypted content is reused in-session when reopening the same note (no re-entry of passphrase).
+- **Notes: swipe-to-delete** — Swipe a note row left to delete (with server sync).
+- **Checklists: progress** — “X / Y done” line on checklist detail above the task list.
+- **Checklists: swipe-to-delete** — Swipe a checklist row left to delete (with server sync).
+- **Checklists & notes: UX** — Pull-to-refresh, empty-state hints (“Tap + to add…”), error state with Retry.
+- **Settings: health check** — Connection card shows “Connected” or “Server unreachable” via `api.health()`.
+- **Settings: default instance** — “Set as default instance” row (star icon); app opens with this instance when no current session.
+- **Setup: default instance** — Star on each instance card (filled when default); tap star to set as default without connecting.
+- **Setup: instance color** — Optional color per instance (color dot on card, color picker in add/edit form).
+- **Deep links** — `jotty-android://open/note/{noteId}` opens the app and the note.
+- **Logging** — Tagged logging via `AppLog` (e.g. notes, checklists).
+- **README** — “Releases / Download” section with link to GitHub Releases and APK install note.
+- **AGENTS.md** — Updated with encryption encrypt/session cache, search/categories/export, health/default/color, deep links, swipe, logging, ProGuard.
+
+### Changed
+
+- **Current vs default instance** — `currentInstanceId` no longer falls back to default; only `JottyApp` sets current from default when opening with no current instance.
+- **Remove instance** — Removing an instance also clears it as default when applicable.
+
+### Technical
+
+- **ProGuard** — Keep rules added for Gson and Bouncy Castle (encryption).
+
+---
+
 ## [1.0.2-1] - 2026-02-06 (hotfix)
 
 ### Fixed
@@ -50,6 +82,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.1.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.0
 [1.0.2-1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2-1
 [1.0.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.1

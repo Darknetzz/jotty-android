@@ -8,6 +8,10 @@ An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-bas
 - **Notes** — Create and edit notes with Markdown support. View and save your content.
 - **Connect to your server** — Works with any self-hosted Jotty instance. Configure server URL and API key once.
 
+## Releases / Download
+
+Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. Download the latest `jotty-android-*.apk` and install on your device (enable “Install from unknown sources” if needed).
+
 ## Setup
 
 ### 1. Get your API key

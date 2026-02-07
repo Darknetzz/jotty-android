@@ -20,8 +20,8 @@ data class NoteFrontmatter(
     val encryptionMethod: String? = null,
 )
 
-/** XChaCha20 encrypted body in Jotty format (JSON with alg, salt, nonce, data). */
-private val XCHACHA_JSON_CONTAINS = Regex(""""alg"\s*:\s*"xchacha20"""", RegexOption.IGNORE_CASE)
+/** XChaCha20 encrypted body in Jotty format (JSON with alg, salt, nonce, data). Matches alg values like "xchacha20" or "XChaCha20-Poly1305". */
+private val XCHACHA_JSON_CONTAINS = Regex(""""alg"\s*:\s*"[^"]*xchacha[^"]*"""", RegexOption.IGNORE_CASE)
 
 /**
  * Parses note content and detects if it is encrypted (Jotty format: YAML frontmatter + body,
@@ -47,7 +47,7 @@ object NoteEncryption {
             val endOfFront = afterFirst.indexOf(FRONTMATTER_END)
             if (endOfFront != -1) {
                 val frontmatterStr = afterFirst.substring(0, endOfFront).trim().replace("\r\n", "\n").replace("\r", "\n")
-                val body = afterFirst.substring(endOfFront + FRONTMATTER_END.length).trimStart()
+                val body = afterFirst.substring(endOfFront + FRONTMATTER_END.length).trim()
                 if (ENCRYPTED_REGEX.containsMatchIn(frontmatterStr)) {
                     val method = METHOD_REGEX.find(frontmatterStr)?.groupValues?.get(1)?.trim()?.lowercase() ?: "xchacha"
                     val title = TITLE_REGEX.find(frontmatterStr)?.groupValues?.get(1)?.trim()?.trim('"', '\'')
@@ -62,7 +62,9 @@ object NoteEncryption {
         }
 
         // 2) Body-only: API sometimes returns just the encrypted JSON (no frontmatter)
-        if (XCHACHA_JSON_CONTAINS.containsMatchIn(trimmed) && trimmed.contains("\"salt\"") && trimmed.contains("\"nonce\"") && trimmed.contains("\"data\"")) {
+        val looksLikeEncryptedJson = trimmed.startsWith("{") && trimmed.contains("\"data\"") &&
+            (XCHACHA_JSON_CONTAINS.containsMatchIn(trimmed) || (trimmed.contains("\"salt\"") && trimmed.contains("\"nonce\"")))
+        if (looksLikeEncryptedJson) {
             return ParsedNoteContent.Encrypted(
                 frontmatter = NoteFrontmatter(encrypted = true, encryptionMethod = "xchacha"),
                 encryptionMethod = "xchacha",

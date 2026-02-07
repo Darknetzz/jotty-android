@@ -686,15 +686,18 @@ private fun DecryptNoteDialog(
                     if (isDecrypting) return@TextButton
                     isDecrypting = true
                     onDecryptError(null)
+                    val pass = passphrase
                     scope.launch {
                         val decrypted = withContext(Dispatchers.Default) {
-                            XChaCha20Decryptor.decrypt(encryptedBody, passphrase)
+                            XChaCha20Decryptor.decrypt(encryptedBody, pass)
                         }
-                        isDecrypting = false
-                        if (decrypted != null) {
-                            onDecrypted(decrypted)
-                        } else {
-                            onDecryptError(decryptFailedMsg)
+                        withContext(Dispatchers.Main) {
+                            isDecrypting = false
+                            if (decrypted != null) {
+                                onDecrypted(decrypted)
+                            } else {
+                                onDecryptError(decryptFailedMsg)
+                            }
                         }
                     }
                 },

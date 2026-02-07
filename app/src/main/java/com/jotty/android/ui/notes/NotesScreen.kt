@@ -19,8 +19,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,10 +34,9 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.data.encryption.XChaCha20Decryptor
 import com.jotty.android.data.encryption.XChaCha20Encryptor
-import com.jotty.android.ui.common.EmptyState
-import com.jotty.android.ui.common.ErrorState
-import com.jotty.android.ui.common.LoadingState
+import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.SwipeToDeleteContainer
+import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
@@ -61,7 +58,10 @@ fun NotesScreen(
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var noteCategories by remember { mutableStateOf<List<String>>(emptyList()) }
     val scope = rememberCoroutineScope()
-    val defaultErrorMsg = stringResource(R.string.load_failed)
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val saveFailedMsg = stringResource(R.string.save_failed)
+    val deleteFailedMsg = stringResource(R.string.delete_failed)
 
     fun loadNotes() {
         scope.launch {
@@ -75,7 +75,7 @@ fun NotesScreen(
                 AppLog.d("notes", "Loaded ${notes.size} notes")
             } catch (e: Exception) {
                 AppLog.e("notes", "Load failed", e)
-                error = e.message ?: defaultErrorMsg
+                error = ApiErrorHelper.userMessage(context, e)
             } finally {
                 loading = false
             }
@@ -96,7 +96,10 @@ fun NotesScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { innerPadding ->
+    Column(Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
         when (val note = selectedNote) {
             null -> {
                 Row(
@@ -147,21 +150,16 @@ fun NotesScreen(
                     }
                 }
 
-                val currentError = error
-                val pullRefreshState = rememberPullToRefreshState()
-                when {
-                    loading && notes.isEmpty() -> LoadingState()
-                    currentError != null -> ErrorState(message = currentError, onRetry = { loadNotes() })
-                    notes.isEmpty() -> EmptyState(
-                        icon = Icons.Default.Note,
-                        title = stringResource(R.string.no_notes_yet),
-                        subtitle = stringResource(R.string.tap_add_note),
-                    )
-                    else -> PullToRefreshBox(
-                        isRefreshing = loading,
-                        onRefresh = { loadNotes() },
-                        state = pullRefreshState,
-                    ) {
+                ListScreenContent(
+                    loading = loading,
+                    error = error,
+                    isEmpty = notes.isEmpty(),
+                    onRetry = { loadNotes() },
+                    emptyIcon = Icons.Default.Note,
+                    emptyTitle = stringResource(R.string.no_notes_yet),
+                    emptySubtitle = stringResource(R.string.tap_add_note),
+                    onRefresh = { loadNotes() },
+                    content = {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -176,6 +174,7 @@ fun NotesScreen(
                                             if (selectedNote?.id == n.id) selectedNote = null
                                         } catch (e: Exception) {
                                             AppLog.e("notes", "Delete note failed", e)
+                                            scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) }
                                         }
                                     },
                                     scope = scope,
@@ -187,8 +186,8 @@ fun NotesScreen(
                                 }
                             }
                         }
-                    }
-                }
+                    },
+                )
             }
             else -> NoteDetailScreen(
                 note = note,
@@ -196,8 +195,10 @@ fun NotesScreen(
                 onBack = { selectedNote = null },
                 onUpdate = { selectedNote = it; loadNotes() },
                 onDelete = { selectedNote = null; loadNotes() },
+                onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
             )
         }
+    }
     }
 
     if (showCreateDialog) {
@@ -229,7 +230,9 @@ fun NotesScreen(
                                     selectedNote = created.data
                                     showCreateDialog = false
                                 }
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) {
+                                scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) }
+                            }
                         }
                     },
                 ) {
@@ -329,6 +332,7 @@ private fun NoteDetailScreen(
     onBack: () -> Unit,
     onUpdate: (Note) -> Unit,
     onDelete: () -> Unit,
+    onSaveFailed: () -> Unit = {},
 ) {
     var title by remember { mutableStateOf(note.title) }
     var content by remember { mutableStateOf(note.content) }
@@ -406,7 +410,7 @@ private fun NoteDetailScreen(
                                             onUpdate(updated.data)
                                             isEditing = false
                                         }
-                                    } catch (_: Exception) {}
+                                    } catch (_: Exception) { onSaveFailed() }
                                     saving = false
                                 }
                             },
@@ -465,7 +469,7 @@ private fun NoteDetailScreen(
                                 onUpdate(updated.data)
                                 showEncryptDialog = false
                             }
-                        } catch (_: Exception) {}
+                        } catch (_: Exception) { onSaveFailed() }
                     }
                 }
             },

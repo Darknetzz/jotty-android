@@ -14,6 +14,16 @@
     <string name="title">Title</string>
     <string name="loading">Loading…</string>
     <string name="load_failed">Failed to load. Check connection and try again.</string>
+    <string name="unknown_error">Something went wrong</string>
+    <string name="no_internet_connection">No internet connection</string>
+    <string name="connection_timed_out">Connection timed out</string>
+    <string name="network_error">Network error</string>
+    <string name="server_error">Server error</string>
+    <string name="request_failed">Request failed</string>
+    <string name="save_failed">Couldn\'t save. Please try again.</string>
+    <string name="delete_failed">Couldn\'t delete. Please try again.</string>
+    <string name="install_failed_fallback">Install failed</string>
+    <string name="no_apk_in_release">No APK in release</string>
 
     <!-- Bottom nav -->
     <string name="nav_checklists">Checklists</string>

@@ -12,8 +12,6 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -30,10 +29,9 @@ import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
-import com.jotty.android.ui.common.EmptyState
-import com.jotty.android.ui.common.ErrorState
-import com.jotty.android.ui.common.LoadingState
+import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.SwipeToDeleteContainer
+import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.launch
 
@@ -46,7 +44,10 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
     var error by remember { mutableStateOf<String?>(null) }
     var showCreateDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-    val defaultErrorMsg = stringResource(R.string.load_failed)
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val saveFailedMsg = stringResource(R.string.save_failed)
+    val deleteFailedMsg = stringResource(R.string.delete_failed)
 
     fun loadChecklists() {
         scope.launch {
@@ -57,7 +58,7 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
                 AppLog.d("checklists", "Loaded ${checklists.size} checklists")
             } catch (e: Exception) {
                 AppLog.e("checklists", "Load failed", e)
-                error = e.message ?: defaultErrorMsg
+                error = ApiErrorHelper.userMessage(context, e)
             } finally {
                 loading = false
             }
@@ -66,7 +67,10 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
 
     LaunchedEffect(Unit) { loadChecklists() }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { innerPadding ->
+    Column(Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
         val currentList = selectedList
         if (currentList != null) {
             ChecklistDetailScreen(
@@ -75,6 +79,8 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
                 onBack = { selectedList = null },
                 onUpdate = { loadChecklists(); selectedList = it },
                 onDelete = { loadChecklists(); selectedList = null },
+                onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
+                onDeleteFailed = { scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) } },
             )
         } else {
             Row(
@@ -97,21 +103,16 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
                 }
             }
 
-            val currentError = error
-            val pullRefreshState = rememberPullToRefreshState()
-            when {
-                loading && checklists.isEmpty() -> LoadingState()
-                currentError != null -> ErrorState(message = currentError, onRetry = { loadChecklists() })
-                checklists.isEmpty() -> EmptyState(
-                    icon = Icons.Default.Checklist,
-                    title = stringResource(R.string.no_checklists_yet),
-                    subtitle = stringResource(R.string.tap_add_checklist),
-                )
-                else -> PullToRefreshBox(
-                    isRefreshing = loading,
-                    onRefresh = { loadChecklists() },
-                    state = pullRefreshState,
-                ) {
+            ListScreenContent(
+                loading = loading,
+                error = error,
+                isEmpty = checklists.isEmpty(),
+                onRetry = { loadChecklists() },
+                emptyIcon = Icons.Default.Checklist,
+                emptyTitle = stringResource(R.string.no_checklists_yet),
+                emptySubtitle = stringResource(R.string.tap_add_checklist),
+                onRefresh = { loadChecklists() },
+                content = {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -126,6 +127,7 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
                                         if (selectedList?.id == list.id) selectedList = null
                                     } catch (e: Exception) {
                                         AppLog.e("checklists", "Delete checklist failed", e)
+                                        scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) }
                                     }
                                 },
                                 scope = scope,
@@ -137,9 +139,10 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
                             }
                         }
                     }
-                }
-            }
+                },
+            )
         }
+    }
     }
 
     if (showCreateDialog) {
@@ -189,7 +192,9 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
                                     selectedList = created.data
                                     showCreateDialog = false
                                 }
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) {
+                                scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) }
+                            }
                         }
                     },
                 ) {
@@ -266,6 +271,8 @@ private fun ChecklistDetailScreen(
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
     onDelete: () -> Unit,
+    onSaveFailed: () -> Unit = {},
+    onDeleteFailed: () -> Unit = {},
 ) {
     var items by remember { mutableStateOf(checklist.items) }
     var newItemText by remember { mutableStateOf("") }
@@ -279,7 +286,7 @@ private fun ChecklistDetailScreen(
                     items = updated.items
                     onUpdate(updated)
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) { onSaveFailed() }
         }
     }
 
@@ -321,7 +328,7 @@ private fun ChecklistDetailScreen(
                                 )
                                 newItemText = ""
                                 refresh()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) { onSaveFailed() }
                         }
                     }
                 },
@@ -366,7 +373,7 @@ private fun ChecklistDetailScreen(
                             try {
                                 api.checkItem(checklist.id, flat.apiPath)
                                 refresh()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) { onSaveFailed() }
                         }
                     },
                     onUncheck = {
@@ -374,7 +381,7 @@ private fun ChecklistDetailScreen(
                             try {
                                 api.uncheckItem(checklist.id, flat.apiPath)
                                 refresh()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) { onSaveFailed() }
                         }
                     },
                     onDelete = {
@@ -382,7 +389,7 @@ private fun ChecklistDetailScreen(
                             try {
                                 api.deleteItem(checklist.id, flat.apiPath)
                                 refresh()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) { onDeleteFailed() }
                         }
                     },
                     onUpdate = {
@@ -394,7 +401,7 @@ private fun ChecklistDetailScreen(
                                     com.jotty.android.data.api.UpdateItemRequest(text = it),
                                 )
                                 refresh()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) { onSaveFailed() }
                         }
                     },
                     onAddSubItem = if (isProject && flat.depth == 0) {
@@ -409,7 +416,7 @@ private fun ChecklistDetailScreen(
                                         ),
                                     )
                                     refresh()
-                                } catch (_: Exception) {}
+                                } catch (_: Exception) { onSaveFailed() }
                             }
                         }
                     } else null,
@@ -428,7 +435,7 @@ private fun ChecklistDetailScreen(
                             try {
                                 api.checkItem(checklist.id, flat.apiPath)
                                 refresh()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) { onSaveFailed() }
                         }
                     },
                     onUncheck = {
@@ -436,7 +443,7 @@ private fun ChecklistDetailScreen(
                             try {
                                 api.uncheckItem(checklist.id, flat.apiPath)
                                 refresh()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) { onSaveFailed() }
                         }
                     },
                     onDelete = {
@@ -444,7 +451,7 @@ private fun ChecklistDetailScreen(
                             try {
                                 api.deleteItem(checklist.id, flat.apiPath)
                                 refresh()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) { onDeleteFailed() }
                         }
                     },
                     onUpdate = {
@@ -456,7 +463,7 @@ private fun ChecklistDetailScreen(
                                     com.jotty.android.data.api.UpdateItemRequest(text = it),
                                 )
                                 refresh()
-                            } catch (_: Exception) {}
+                            } catch (_: Exception) { onSaveFailed() }
                         }
                     },
                     onAddSubItem = null,

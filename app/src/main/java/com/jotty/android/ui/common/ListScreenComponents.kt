@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +42,42 @@ fun ErrorState(
         )
         Spacer(modifier = Modifier.height(12.dp))
         Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+    }
+}
+
+/**
+ * Shared list-screen layout: shows [LoadingState], [ErrorState], [EmptyState], or [PullToRefreshBox] with [content].
+ * Use when you have a list that can be loading, in error, empty, or showing items with pull-to-refresh.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ListScreenContent(
+    loading: Boolean,
+    error: String?,
+    isEmpty: Boolean,
+    onRetry: () -> Unit,
+    emptyIcon: ImageVector,
+    emptyTitle: String,
+    emptySubtitle: String? = null,
+    onRefresh: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val pullRefreshState = rememberPullToRefreshState()
+    when {
+        loading && isEmpty -> LoadingState()
+        error != null -> ErrorState(message = error, onRetry = onRetry)
+        isEmpty -> EmptyState(
+            icon = emptyIcon,
+            title = emptyTitle,
+            subtitle = emptySubtitle,
+        )
+        else -> PullToRefreshBox(
+            isRefreshing = loading,
+            onRefresh = onRefresh,
+            state = pullRefreshState,
+        ) {
+            content()
+        }
     }
 }
 

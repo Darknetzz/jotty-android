@@ -12,9 +12,7 @@ object ApiClient {
     private const val HEADER_API_KEY = "x-api-key"
 
     fun create(baseUrl: String, apiKey: String): JottyApi {
-        val normalizedBase = baseUrl.trimEnd('/').let {
-            if (!it.startsWith("http")) "https://$it" else it
-        }
+        val normalizedBase = normalizeBaseUrl(baseUrl)
 
         val client = OkHttpClient.Builder()
             .addInterceptor { chain ->
@@ -45,4 +43,13 @@ object ApiClient {
             .build()
             .create(JottyApi::class.java)
     }
+
+    /**
+     * Normalizes base URL for API: trims trailing slash, adds https if no scheme.
+     * Visible for testing.
+     */
+    internal fun normalizeBaseUrl(baseUrl: String): String =
+        baseUrl.trimEnd('/').let {
+            if (!it.startsWith("http")) "https://$it" else it
+        }
 }

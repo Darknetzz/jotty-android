@@ -6,6 +6,8 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.content.FileProvider
 import com.jotty.android.BuildConfig
+import com.jotty.android.R
+import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,9 +16,6 @@ import okhttp3.Request
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
-import java.io.IOException
-import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -88,8 +87,9 @@ object UpdateChecker {
     /**
      * Fetches latest release from GitHub and compares with [BuildConfig.VERSION_NAME].
      * Success results (UpToDate, UpdateAvailable) are cached for 5 minutes; errors are not cached.
+     * [context] is used to resolve user-facing error strings.
      */
-    suspend fun checkForUpdate(): UpdateCheckResult = withContext(Dispatchers.IO) {
+    suspend fun checkForUpdate(context: Context): UpdateCheckResult = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
         cache?.let { (cachedAt, result) ->
             if (now - cachedAt < CACHE_TTL_MS && result !is UpdateCheckResult.Error) {
@@ -100,7 +100,7 @@ object UpdateChecker {
             val release = githubApi.getLatestRelease()
             val latestVersion = release.tagName.removePrefix("v").trim()
             val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
-                ?: return@withContext UpdateCheckResult.Error("No APK in release")
+                ?: return@withContext UpdateCheckResult.Error(context.getString(R.string.no_apk_in_release))
 
             val current = BuildConfig.VERSION_NAME?.trim() ?: "0.0.0"
             val result = if (!isNewerVersion(latestVersion, current)) {
@@ -116,15 +116,8 @@ object UpdateChecker {
             result
         } catch (e: Exception) {
             AppLog.e(TAG, "Check for update failed", e)
-            UpdateCheckResult.Error(userFriendlyErrorMessage(e))
+            UpdateCheckResult.Error(ApiErrorHelper.userMessage(context, e))
         }
-    }
-
-    private fun userFriendlyErrorMessage(e: Exception): String = when (e) {
-        is UnknownHostException -> "No internet connection"
-        is SocketTimeoutException -> "Connection timed out"
-        is IOException -> "Network error"
-        else -> e.message ?: "Unknown error"
     }
 
     /**
@@ -188,7 +181,7 @@ object UpdateChecker {
             }
         } catch (e: Exception) {
             AppLog.e(TAG, "Download or install failed", e)
-            InstallResult.Failed(userFriendlyErrorMessage(e))
+            InstallResult.Failed(ApiErrorHelper.userMessage(context, e))
         }
     }
 
@@ -217,7 +210,7 @@ object UpdateChecker {
             InstallResult.Started
         } catch (e: Exception) {
             AppLog.e(TAG, "Start install failed", e)
-            InstallResult.Failed(e.message ?: "Install failed")
+            InstallResult.Failed(e.message?.takeIf { it.isNotBlank() } ?: context.getString(R.string.install_failed_fallback))
         }
     }
 }

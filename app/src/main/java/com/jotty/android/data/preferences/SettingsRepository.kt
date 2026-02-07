@@ -96,7 +96,8 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setDefaultInstanceId(id: String?) {
         context.dataStore.edit {
-            if (id.isNullOrBlank()) it.remove(KEY_DEFAULT_INSTANCE_ID) else it[KEY_DEFAULT_INSTANCE_ID] = id!!
+            val safeId = id?.takeIf { it.isNotBlank() }
+            if (safeId == null) it.remove(KEY_DEFAULT_INSTANCE_ID) else it[KEY_DEFAULT_INSTANCE_ID] = safeId
         }
     }
 

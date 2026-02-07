@@ -475,7 +475,7 @@ private fun AboutDialog(
                             onClick = {
                                 scope.launch {
                                     updateState = UpdateUiState.Checking
-                                    updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate())
+                                    updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate(context))
                                 }
                             },
                             contentPadding = PaddingValues(0.dp),
@@ -562,7 +562,7 @@ private fun AboutDialog(
                                 onClick = {
                                     scope.launch {
                                         updateState = UpdateUiState.Checking
-                                        updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate())
+                                        updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate(context))
                                     }
                                 },
                                 contentPadding = PaddingValues(0.dp),

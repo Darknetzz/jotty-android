@@ -22,6 +22,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -31,6 +32,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -273,8 +275,8 @@ private fun InstanceForm(
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val isEdit = initialInstance != null
+    val context = LocalContext.current
     val fillUrlAndKeyMsg = stringResource(R.string.fill_url_and_key)
-    val connectionFailedMsg = stringResource(R.string.connection_failed, "%s")
 
     val instanceColors: List<Long?> = listOf(
         null,
@@ -410,7 +412,7 @@ private fun InstanceForm(
                             settingsRepository.addInstance(instance, setAsCurrent = setAsCurrentOnConnect)
                             if (isEdit) onSaved?.invoke() else if (setAsCurrentOnConnect) onDone() else onSaved?.invoke()
                         } catch (e: Exception) {
-                            error = connectionFailedMsg.replace("%s", e.message ?: "Unknown error")
+                            error = context.getString(R.string.connection_failed, ApiErrorHelper.userMessage(context, e))
                         } finally {
                             loading = false
                         }

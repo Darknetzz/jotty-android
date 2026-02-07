@@ -6,41 +6,39 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import com.jotty.android.ui.JottyApp
+import com.jotty.android.ui.JottyAppContent
 import com.jotty.android.ui.theme.JottyTheme
 
 class MainActivity : ComponentActivity() {
+
+    /** Shared mutable state for deep-link note ID, updated by both onCreate and onNewIntent. */
+    private val deepLinkNoteId = mutableStateOf<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        deepLinkNoteId.value = parseDeepLinkNoteId(intent)
         enableEdgeToEdge()
         setContent {
-            val context = LocalContext.current
-            val settingsRepository = (context.applicationContext as com.jotty.android.JottyApp).settingsRepository
+            val settingsRepository = (applicationContext as JottyApp).settingsRepository
             val themePref by settingsRepository.theme.collectAsState(initial = null)
             val darkTheme = when (themePref) {
                 "dark" -> true
                 "light" -> false
                 else -> isSystemInDarkTheme()
             }
-            val deepLinkNoteId = remember { mutableStateOf(parseDeepLinkNoteId(intent)) }
             JottyTheme(darkTheme = darkTheme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    JottyApp(
+                    JottyAppContent(
                         settingsRepository = settingsRepository,
                         deepLinkNoteId = deepLinkNoteId,
                     )
@@ -52,6 +50,8 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // Propagate deep-link note ID so the composable reacts to new intents
+        parseDeepLinkNoteId(intent)?.let { deepLinkNoteId.value = it }
     }
 
     companion object {

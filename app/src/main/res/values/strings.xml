@@ -1,4 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Jotty</string>
+
+    <!-- Common -->
+    <string name="retry">Retry</string>
+    <string name="cancel">Cancel</string>
+    <string name="create">Create</string>
+    <string name="save">Save</string>
+    <string name="close">Close</string>
+    <string name="delete">Delete</string>
+    <string name="back">Back</string>
+    <string name="refresh">Refresh</string>
+    <string name="title">Title</string>
+    <string name="loading">Loading…</string>
+    <string name="load_failed">Failed to load. Check connection and try again.</string>
+
+    <!-- Bottom nav -->
+    <string name="nav_checklists">Checklists</string>
+    <string name="nav_notes">Notes</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Checklists -->
+    <string name="new_checklist">New checklist</string>
+    <string name="no_checklists_yet">No checklists yet</string>
+    <string name="tap_add_checklist">Tap + to add a checklist</string>
+    <string name="task_project_sub_tasks">Task project (sub-tasks)</string>
+    <string name="add_item">Add item…</string>
+    <string name="add">Add</string>
+    <string name="add_sub_task">Add sub-task</string>
+    <string name="delete_task">Delete task</string>
+    <string name="project_label">Project</string>
+    <string name="done_progress">%1$d / %2$d done</string>
+    <string name="progress_fraction">%1$d / %2$d</string>
+    <string name="section_to_do">• To Do (%1$d)</string>
+    <string name="section_completed">• Completed (%1$d)</string>
+    <string name="item_placeholder">…</string>
+
+    <!-- Notes -->
+    <string name="new_note">New note</string>
+    <string name="search_notes">Search notes</string>
+    <string name="no_notes_yet">No notes yet</string>
+    <string name="tap_add_note">Tap + to add a note</string>
+    <string name="encrypted">Encrypted</string>
+    <string name="no_content">No content</string>
+    <string name="export_share">Export / Share</string>
+    <string name="export_note">Export note</string>
+    <string name="edit">Edit</string>
+    <string name="decrypt">Decrypt</string>
+    <string name="encrypt">Encrypt</string>
+    <string name="write_your_note">Write your note…</string>
+    <string name="markdown_hint">Supports **bold**, *italic*, # headings, lists, [links](url)</string>
+    <string name="category_all">All</string>
+
+    <!-- Encrypt / Decrypt dialogs -->
+    <string name="encrypt_note">Encrypt note</string>
+    <string name="decrypt_note">Decrypt note</string>
+    <string name="encrypt_passphrase_hint">Choose a passphrase. You\'ll need it to decrypt this note. Store it safely.</string>
+    <string name="decrypt_passphrase_hint">Enter the passphrase you used to encrypt this note.</string>
+    <string name="passphrase">Passphrase</string>
+    <string name="confirm_passphrase">Confirm passphrase</string>
+    <string name="error_passphrase_short">Use at least 12 characters</string>
+    <string name="error_passphrase_mismatch">Passphrases don\'t match</string>
+    <string name="error_decrypt_failed">Wrong passphrase or invalid format</string>
+    <string name="note_is_encrypted">This note is encrypted</string>
+    <string name="pgp_not_supported">PGP decryption is not supported in the app. Use the Jotty web app to decrypt.</string>
+    <string name="enter_passphrase_to_view">Enter your passphrase to view the content.</string>
+    <string name="use_web_app_to_decrypt">Use the Jotty web app to decrypt this note.</string>
+    <string name="pgp_not_supported_short">PGP decryption is not supported in the app. Use the Jotty web app.</string>
+
+    <!-- Setup -->
+    <string name="connect_to_jotty">Connect to Jotty</string>
+    <string name="choose_saved_instance">Choose a saved instance or add a new one</string>
+    <string name="edit_instance">Edit instance</string>
+    <string name="add_new_instance">Add new instance</string>
+    <string name="name">Name</string>
+    <string name="name_placeholder">e.g. Work, Personal</string>
+    <string name="server_url">Server URL</string>
+    <string name="server_url_placeholder">https://jotty.example.com</string>
+    <string name="api_key">API Key</string>
+    <string name="api_key_placeholder">ck_…</string>
+    <string name="show">Show</string>
+    <string name="hide">Hide</string>
+    <string name="color">Color</string>
+    <string name="connect">Connect</string>
+    <string name="fill_url_and_key">Please fill in server URL and API key</string>
+    <string name="connection_failed">Connection failed: %1$s</string>
+    <string name="remove_instance_title">Remove instance?</string>
+    <string name="remove_instance_message">\"%1$s\" will be removed from saved connections. You can add it again later.</string>
+    <string name="remove">Remove</string>
+    <string name="default_instance">Default instance</string>
+    <string name="set_as_default_instance">Set as default instance</string>
+    <string name="edit_instance_action">Edit instance</string>
+    <string name="remove_instance">Remove instance</string>
+    <string name="no_color">—</string>
+    <string name="untitled">Untitled</string>
+
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="connection">Connection</string>
+    <string name="instance_label">Instance</string>
+    <string name="connected">Connected</string>
+    <string name="server_unreachable">Server unreachable</string>
+    <string name="open_to_default_instance">Open to this instance when opening the app</string>
+    <string name="dashboard_overview">Dashboard Overview</string>
+    <string name="appearance">Appearance</string>
+    <string name="theme">Theme</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="start_screen">Start screen</string>
+    <string name="swipe_to_delete">Swipe to delete</string>
+    <string name="swipe_to_delete_description">Swipe list or note rows left to delete (checklists and notes)</string>
+    <string name="account">Account</string>
+    <string name="disconnect">Disconnect</string>
+    <string name="disconnect_description">Switch to another instance (this one is saved)</string>
+    <string name="about">About</string>
+    <string name="about_description">Version, source code, and more</string>
+    <string name="jotty_footer">Jotty Android • Connects to self-hosted Jotty servers</string>
+
+    <!-- About dialog -->
+    <string name="about_jotty_android">About Jotty Android</string>
+    <string name="about_tagline">Android client for Jotty — self-hosted checklists and notes.</string>
+    <string name="version">Version</string>
+    <string name="version_format">%1$s (%2$d)</string>
+    <string name="view_source_github">View source on GitHub</string>
+
+    <!-- Dashboard -->
+    <string name="user_label">User</string>
+    <string name="server_version">Server version</string>
+    <string name="stat_notes">Notes</string>
+    <string name="stat_checklists">Checklists</string>
+    <string name="stat_users">Users</string>
+    <string name="stat_done_percent">Done %%</string>
 </resources>

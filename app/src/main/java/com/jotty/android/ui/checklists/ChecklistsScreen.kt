@@ -2,7 +2,6 @@ package com.jotty.android.ui.checklists
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,12 +10,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,12 +20,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.ui.common.EmptyState
+import com.jotty.android.ui.common.ErrorState
+import com.jotty.android.ui.common.LoadingState
+import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.launch
 
@@ -43,6 +44,7 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
     var error by remember { mutableStateOf<String?>(null) }
     var showCreateDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val defaultErrorMsg = stringResource(R.string.load_failed)
 
     fun loadChecklists() {
         scope.launch {
@@ -53,7 +55,7 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
                 AppLog.d("checklists", "Loaded ${checklists.size} checklists")
             } catch (e: Exception) {
                 AppLog.e("checklists", "Load failed", e)
-                error = e.message ?: "Failed to load. Check connection and try again."
+                error = e.message ?: defaultErrorMsg
             } finally {
                 loading = false
             }
@@ -63,9 +65,10 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
     LaunchedEffect(Unit) { loadChecklists() }
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
-        if (selectedList != null) {
+        val currentList = selectedList
+        if (currentList != null) {
             ChecklistDetailScreen(
-                checklist = selectedList!!,
+                checklist = currentList,
                 api = api,
                 onBack = { selectedList = null },
                 onUpdate = { loadChecklists(); selectedList = it },
@@ -78,109 +81,45 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Checklists",
+                    stringResource(R.string.nav_checklists),
                     style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Row {
                     IconButton(onClick = { loadChecklists() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
                     IconButton(onClick = { showCreateDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "New checklist")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_checklist))
                     }
                 }
             }
 
+            val currentError = error
             when {
-                loading && checklists.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
-                    }
-                }
-                error != null -> {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Text(
-                            text = error!!,
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(onClick = { loadChecklists() }) { Text("Retry") }
-                    }
-                }
-                checklists.isEmpty() -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Default.Checklist,
-                                contentDescription = null,
-                                modifier = Modifier.size(64.dp),
-                                tint = MaterialTheme.colorScheme.outline,
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                "No checklists yet",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Text(
-                                "Tap + to add a checklist",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                    }
-                }
+                loading && checklists.isEmpty() -> LoadingState()
+                currentError != null -> ErrorState(message = currentError, onRetry = { loadChecklists() })
+                checklists.isEmpty() -> EmptyState(
+                    icon = Icons.Default.Checklist,
+                    title = stringResource(R.string.no_checklists_yet),
+                    subtitle = stringResource(R.string.tap_add_checklist),
+                )
                 else -> {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(checklists, key = { it.id }) { list ->
-                            if (swipeToDeleteEnabled) {
-                                val dismissState = rememberSwipeToDismissBoxState(
-                                    confirmValueChange = { value ->
-                                        if (value == SwipeToDismissBoxValue.EndToStart) {
-                                            scope.launch {
-                                                try {
-                                                    api.deleteChecklist(list.id)
-                                                    checklists = checklists.filter { it.id != list.id }
-                                                    if (selectedList?.id == list.id) selectedList = null
-                                                } catch (e: Exception) {
-                                                    AppLog.e("checklists", "Delete checklist failed", e)
-                                                }
-                                            }
-                                            true
-                                        } else false
-                                    },
-                                )
-                                SwipeToDismissBox(
-                                    state = dismissState,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enableDismissFromStartToEnd = false,
-                                    backgroundContent = {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .background(MaterialTheme.colorScheme.error)
-                                                .padding(horizontal = 20.dp),
-                                            contentAlignment = Alignment.CenterEnd,
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = "Delete",
-                                                tint = MaterialTheme.colorScheme.onError,
-                                            )
-                                        }
-                                    },
-                                ) {
-                                    ChecklistCard(
-                                        checklist = list,
-                                        onClick = { selectedList = list },
-                                    )
-                                }
-                            } else {
+                            SwipeToDeleteContainer(
+                                enabled = swipeToDeleteEnabled,
+                                onDelete = {
+                                    try {
+                                        api.deleteChecklist(list.id)
+                                        checklists = checklists.filter { it.id != list.id }
+                                        if (selectedList?.id == list.id) selectedList = null
+                                    } catch (e: Exception) {
+                                        AppLog.e("checklists", "Delete checklist failed", e)
+                                    }
+                                },
+                                scope = scope,
+                            ) {
                                 ChecklistCard(
                                     checklist = list,
                                     onClick = { selectedList = list },
@@ -198,13 +137,13 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
         var isProjectType by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("New checklist") },
+            title = { Text(stringResource(R.string.new_checklist)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
-                        label = { Text("Title") },
+                        label = { Text(stringResource(R.string.title)) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Row(
@@ -216,7 +155,7 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
                             onCheckedChange = { isProjectType = it },
                         )
                         Text(
-                            "Task project (sub-tasks)",
+                            stringResource(R.string.task_project_sub_tasks),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.padding(start = 8.dp),
                         )
@@ -224,13 +163,14 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
                 }
             },
             confirmButton = {
+                val untitled = stringResource(R.string.untitled)
                 TextButton(
                     onClick = {
                         scope.launch {
                             try {
                                 val created = api.createChecklist(
                                     com.jotty.android.data.api.CreateChecklistRequest(
-                                        title = title.ifBlank { "Untitled" },
+                                        title = title.ifBlank { untitled },
                                         type = if (isProjectType) "task" else "simple",
                                     ),
                                 )
@@ -243,12 +183,12 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
                         }
                     },
                 ) {
-                    Text("Create")
+                    Text(stringResource(R.string.create))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             },
         )
@@ -284,7 +224,7 @@ private fun ChecklistCard(
                 )
                 if (isProject) {
                     Text(
-                        "Project",
+                        stringResource(R.string.project_label),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(start = 8.dp),
@@ -298,7 +238,7 @@ private fun ChecklistCard(
                     modifier = Modifier.fillMaxWidth().height(4.dp),
                 )
                 Text(
-                    text = "$completed / $total",
+                    text = stringResource(R.string.progress_fraction, completed, total),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -339,7 +279,7 @@ private fun ChecklistDetailScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
             }
             Text(
                 checklist.title,
@@ -357,7 +297,7 @@ private fun ChecklistDetailScreen(
             OutlinedTextField(
                 value = newItemText,
                 onValueChange = { newItemText = it },
-                placeholder = { Text("Add item...") },
+                placeholder = { Text(stringResource(R.string.add_item)) },
                 modifier = Modifier.weight(1f),
             )
             IconButton(
@@ -376,7 +316,7 @@ private fun ChecklistDetailScreen(
                     }
                 },
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
             }
         }
 
@@ -392,7 +332,7 @@ private fun ChecklistDetailScreen(
 
         if (total > 0) {
             Text(
-                text = "$doneCount / $total done",
+                text = stringResource(R.string.done_progress, doneCount, total),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -404,7 +344,7 @@ private fun ChecklistDetailScreen(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             item(key = "header-todo") {
-                SectionHeader(title = "To Do", count = toDo.size)
+                SectionHeader(title = stringResource(R.string.section_to_do, toDo.size))
             }
             items(toDo, key = { "todo-${it.apiPath}-${it.item.text}" }) { flat ->
                 ChecklistItemRow(
@@ -466,7 +406,7 @@ private fun ChecklistDetailScreen(
                 )
             }
             item(key = "header-completed") {
-                SectionHeader(title = "Completed", count = completed.size)
+                SectionHeader(title = stringResource(R.string.section_completed, completed.size))
             }
             items(completed, key = { "done-${it.apiPath}-${it.item.text}" }) { flat ->
                 ChecklistItemRow(
@@ -528,9 +468,9 @@ private fun flattenWithDepth(items: List<ChecklistItem>, depth: Int = 0, parentP
 }
 
 @Composable
-private fun SectionHeader(title: String, count: Int) {
+private fun SectionHeader(title: String) {
     Text(
-        text = "• $title ($count)",
+        text = title,
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
@@ -589,7 +529,7 @@ private fun ChecklistItemRow(
             )
         } else {
             Text(
-                text = item.text.ifBlank { "..." },
+                text = item.text.ifBlank { stringResource(R.string.item_placeholder) },
                 style = MaterialTheme.typography.bodyLarge,
                 textDecoration = if (item.completed) TextDecoration.LineThrough else null,
                 color = if (item.completed) MaterialTheme.colorScheme.onSurfaceVariant
@@ -606,7 +546,7 @@ private fun ChecklistItemRow(
             ) {
                 Icon(
                     Icons.Default.Add,
-                    contentDescription = "Add sub-task",
+                    contentDescription = stringResource(R.string.add_sub_task),
                     modifier = Modifier.size(18.dp),
                 )
             }
@@ -617,7 +557,7 @@ private fun ChecklistItemRow(
         ) {
             Icon(
                 Icons.Default.Delete,
-                contentDescription = "Delete task",
+                contentDescription = stringResource(R.string.delete_task),
                 tint = MaterialTheme.colorScheme.error,
             )
         }

@@ -23,3 +23,12 @@
 # Bouncy Castle (encryption)
 -keep class org.bouncycastle.** { *; }
 -dontwarn org.bouncycastle.**
+
+# Jotty API models (Gson serialization)
+-keep class com.jotty.android.data.api.** { *; }
+
+# Jotty encryption models (Gson / reflection)
+-keep class com.jotty.android.data.encryption.** { *; }
+
+# Jotty preferences models
+-keep class com.jotty.android.data.preferences.JottyInstance { *; }

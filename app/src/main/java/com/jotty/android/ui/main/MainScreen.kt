@@ -7,12 +7,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.flow.first
+import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
@@ -20,10 +22,10 @@ import com.jotty.android.ui.checklists.ChecklistsScreen
 import com.jotty.android.ui.notes.NotesScreen
 import com.jotty.android.ui.settings.SettingsScreen
 
-sealed class MainRoute(val route: String, val title: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    data object Checklists : MainRoute("checklists", "Checklists", Icons.Default.Checklist)
-    data object Notes : MainRoute("notes", "Notes", Icons.Default.Note)
-    data object Settings : MainRoute("settings", "Settings", Icons.Default.Settings)
+sealed class MainRoute(val route: String, val titleRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
+    data object Checklists : MainRoute("checklists", R.string.nav_checklists, Icons.Default.Checklist)
+    data object Notes : MainRoute("notes", R.string.nav_notes, Icons.Default.Note)
+    data object Settings : MainRoute("settings", R.string.nav_settings, Icons.Default.Settings)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -31,7 +33,7 @@ sealed class MainRoute(val route: String, val title: String, val icon: androidx.
 fun MainScreen(
     settingsRepository: SettingsRepository,
     onDisconnect: () -> Unit = {},
-    deepLinkNoteId: androidx.compose.runtime.MutableState<String?>? = null,
+    deepLinkNoteId: MutableState<String?>? = null,
 ) {
     val navController = rememberNavController()
     var startDestination by remember { mutableStateOf<String?>(null) }
@@ -61,7 +63,7 @@ fun MainScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Jotty") },
+                title = { Text(stringResource(R.string.app_name)) },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -85,29 +87,33 @@ fun MainScreen(
                                 }
                             }
                         },
-                        icon = { Icon(route.icon, contentDescription = route.title) },
-                        label = { Text(route.title) },
+                        icon = { Icon(route.icon, contentDescription = stringResource(route.titleRes)) },
+                        label = { Text(stringResource(route.titleRes)) },
                     )
                 }
             }
         },
     ) { padding ->
+        val currentApi = api
+        val currentStart = startDestination
         when {
-            api == null -> Box(Modifier.fillMaxSize()) { Text("Loading…") }
-            startDestination == null -> Box(Modifier.fillMaxSize()) {
+            currentApi == null -> Box(Modifier.fillMaxSize()) {
+                Text(stringResource(R.string.loading))
+            }
+            currentStart == null -> Box(Modifier.fillMaxSize()) {
                 CircularProgressIndicator(Modifier.align(Alignment.Center))
             }
             else -> NavHost(
                 navController = navController,
-                startDestination = startDestination!!,
+                startDestination = currentStart,
                 modifier = Modifier.padding(padding),
             ) {
                 composable(MainRoute.Checklists.route) {
-                    ChecklistsScreen(api = api!!, swipeToDeleteEnabled = swipeToDeleteEnabled)
+                    ChecklistsScreen(api = currentApi, swipeToDeleteEnabled = swipeToDeleteEnabled)
                 }
                 composable(MainRoute.Notes.route) {
                     NotesScreen(
-                        api = api!!,
+                        api = currentApi,
                         initialNoteId = deepLinkNoteId?.value,
                         onDeepLinkConsumed = { deepLinkNoteId?.value = null },
                         swipeToDeleteEnabled = swipeToDeleteEnabled,
@@ -115,7 +121,7 @@ fun MainScreen(
                 }
                 composable(MainRoute.Settings.route) {
                     SettingsScreen(
-                        api = api,
+                        api = currentApi,
                         settingsRepository = settingsRepository,
                         onDisconnect = onDisconnect,
                     )

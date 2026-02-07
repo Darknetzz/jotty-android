@@ -12,10 +12,14 @@ import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.main.MainScreen
 import com.jotty.android.ui.setup.SetupScreen
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
+/**
+ * Root composable that decides between [SetupScreen] and [MainScreen].
+ *
+ * Named `JottyAppContent` to distinguish from [com.jotty.android.JottyApp] (the [android.app.Application]).
+ */
 @Composable
-fun JottyApp(
+fun JottyAppContent(
     settingsRepository: SettingsRepository,
     deepLinkNoteId: MutableState<String?>? = null,
 ) {

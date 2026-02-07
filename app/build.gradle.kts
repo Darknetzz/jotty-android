@@ -92,6 +92,9 @@ dependencies {
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
     implementation("org.bouncycastle:bcprov-jdk18on:1.78.1")
 
+    // Unit tests
+    testImplementation("junit:junit:4.13.2")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

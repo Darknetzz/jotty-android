@@ -16,21 +16,17 @@ import androidx.compose.material.icons.filled.Note
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.foundation.background
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.jotty.android.R
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteDecryptionSession
@@ -38,6 +34,10 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.data.encryption.XChaCha20Decryptor
 import com.jotty.android.data.encryption.XChaCha20Encryptor
+import com.jotty.android.ui.common.EmptyState
+import com.jotty.android.ui.common.ErrorState
+import com.jotty.android.ui.common.LoadingState
+import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.util.AppLog
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
@@ -59,6 +59,7 @@ fun NotesScreen(
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var noteCategories by remember { mutableStateOf<List<String>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    val defaultErrorMsg = stringResource(R.string.load_failed)
 
     fun loadNotes() {
         scope.launch {
@@ -72,7 +73,7 @@ fun NotesScreen(
                 AppLog.d("notes", "Loaded ${notes.size} notes")
             } catch (e: Exception) {
                 AppLog.e("notes", "Load failed", e)
-                error = e.message ?: "Failed to load. Check connection and try again."
+                error = e.message ?: defaultErrorMsg
             } finally {
                 loading = false
             }
@@ -102,16 +103,16 @@ fun NotesScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        "Notes",
+                        stringResource(R.string.nav_notes),
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                     Row {
                         IconButton(onClick = { loadNotes() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                         }
                         IconButton(onClick = { showCreateDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = "New note")
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_note))
                         }
                     }
                 }
@@ -120,7 +121,7 @@ fun NotesScreen(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    placeholder = { Text("Search notes") },
+                    placeholder = { Text(stringResource(R.string.search_notes)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     singleLine = true,
                 )
@@ -132,7 +133,7 @@ fun NotesScreen(
                         FilterChip(
                             selected = selectedCategory == null,
                             onClick = { selectedCategory = null; loadNotes() },
-                            label = { Text("All") },
+                            label = { Text(stringResource(R.string.category_all)) },
                         )
                         noteCategories.take(5).forEach { cat ->
                             FilterChip(
@@ -144,95 +145,31 @@ fun NotesScreen(
                     }
                 }
 
+                val currentError = error
                 when {
-                    loading && notes.isEmpty() -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
-                    error != null -> {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Text(
-                                text = error!!,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(onClick = { loadNotes() }) { Text("Retry") }
-                        }
-                    }
-                    notes.isEmpty() -> {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    Icons.Default.Note,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.outline,
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    "No notes yet",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Text(
-                                    "Tap + to add a note",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 4.dp),
-                                )
-                            }
-                        }
-                    }
+                    loading && notes.isEmpty() -> LoadingState()
+                    currentError != null -> ErrorState(message = currentError, onRetry = { loadNotes() })
+                    notes.isEmpty() -> EmptyState(
+                        icon = Icons.Default.Note,
+                        title = stringResource(R.string.no_notes_yet),
+                        subtitle = stringResource(R.string.tap_add_note),
+                    )
                     else -> {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(notes, key = { it.id }) { n ->
-                                if (swipeToDeleteEnabled) {
-                                    val dismissState = rememberSwipeToDismissBoxState(
-                                        confirmValueChange = { value ->
-                                            if (value == SwipeToDismissBoxValue.EndToStart) {
-                                                scope.launch {
-                                                    try {
-                                                        api.deleteNote(n.id)
-                                                        notes = notes.filter { it.id != n.id }
-                                                        if (selectedNote?.id == n.id) selectedNote = null
-                                                    } catch (e: Exception) {
-                                                        AppLog.e("notes", "Delete note failed", e)
-                                                    }
-                                                }
-                                                true
-                                            } else false
-                                        },
-                                    )
-                                    SwipeToDismissBox(
-                                        state = dismissState,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        enableDismissFromStartToEnd = false,
-                                        backgroundContent = {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .background(MaterialTheme.colorScheme.error)
-                                                    .padding(horizontal = 20.dp),
-                                                contentAlignment = Alignment.CenterEnd,
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.Delete,
-                                                    contentDescription = "Delete",
-                                                    tint = MaterialTheme.colorScheme.onError,
-                                                )
-                                            }
-                                        },
-                                    ) {
-                                        NoteCard(
-                                            note = n,
-                                            onClick = { selectedNote = n },
-                                        )
-                                    }
-                                } else {
+                                SwipeToDeleteContainer(
+                                    enabled = swipeToDeleteEnabled,
+                                    onDelete = {
+                                        try {
+                                            api.deleteNote(n.id)
+                                            notes = notes.filter { it.id != n.id }
+                                            if (selectedNote?.id == n.id) selectedNote = null
+                                        } catch (e: Exception) {
+                                            AppLog.e("notes", "Delete note failed", e)
+                                        }
+                                    },
+                                    scope = scope,
+                                ) {
                                     NoteCard(
                                         note = n,
                                         onClick = { selectedNote = n },
@@ -255,14 +192,15 @@ fun NotesScreen(
 
     if (showCreateDialog) {
         var title by remember { mutableStateOf("") }
+        val untitled = stringResource(R.string.untitled)
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("New note") },
+            title = { Text(stringResource(R.string.new_note)) },
             text = {
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title") },
+                    label = { Text(stringResource(R.string.title)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
             },
@@ -273,7 +211,7 @@ fun NotesScreen(
                             try {
                                 val created = api.createNote(
                                     com.jotty.android.data.api.CreateNoteRequest(
-                                        title = title.ifBlank { "Untitled" },
+                                        title = title.ifBlank { untitled },
                                     ),
                                 )
                                 if (created.success) {
@@ -285,12 +223,12 @@ fun NotesScreen(
                         }
                     },
                 ) {
-                    Text("Create")
+                    Text(stringResource(R.string.create))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showCreateDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             },
         )
@@ -328,14 +266,14 @@ private fun NoteCard(note: Note, onClick: () -> Unit) {
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Encrypted",
+                        text = stringResource(R.string.encrypted),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else if (note.content.isNotBlank()) {
                 Text(
-                    text = note.content.take(100) + if (note.content.length > 100) "…" else "",
+                    text = note.content.take(100) + if (note.content.length > 100) "\u2026" else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -395,7 +333,7 @@ private fun NoteDetailScreen(
     val isEncryptedByContent = parsed is ParsedNoteContent.Encrypted
     val isEncrypted = note.encrypted == true || isEncryptedByContent
     val displayContent = when {
-        isEncrypted && decryptedContent != null -> decryptedContent!!
+        isEncrypted && decryptedContent != null -> decryptedContent
         isEncrypted -> null
         else -> content
     }
@@ -411,11 +349,12 @@ private fun NoteDetailScreen(
             title = { },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
             },
             actions = {
                 val ctx = LocalContext.current
+                val exportTitle = stringResource(R.string.export_note)
                 if (!isEditing && (displayContent != null || content.isNotBlank())) {
                     IconButton(
                         onClick = {
@@ -426,15 +365,15 @@ private fun NoteDetailScreen(
                                 putExtra(Intent.EXTRA_TITLE, title)
                                 putExtra(Intent.EXTRA_TEXT, shareText)
                             }
-                            ctx.startActivity(Intent.createChooser(intent, "Export note"))
+                            ctx.startActivity(Intent.createChooser(intent, exportTitle))
                         },
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = "Export / Share")
+                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.export_share))
                     }
                 }
                 if (isEncrypted && decryptedContent == null && isEncryptedByContent) {
                     IconButton(onClick = { showDecryptDialog = true }) {
-                        Icon(Icons.Default.Lock, contentDescription = "Decrypt")
+                        Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.decrypt))
                     }
                 } else if (isEditing) {
                     if (saving) {
@@ -462,15 +401,15 @@ private fun NoteDetailScreen(
                                 }
                             },
                         ) {
-                            Icon(Icons.Default.Save, contentDescription = "Save")
+                            Icon(Icons.Default.Save, contentDescription = stringResource(R.string.save))
                         }
                     }
                 } else if (!isEncrypted) {
                     IconButton(onClick = { showEncryptDialog = true }) {
-                        Icon(Icons.Default.Lock, contentDescription = "Encrypt")
+                        Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.encrypt))
                     }
                     IconButton(onClick = { isEditing = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit")
+                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
                     }
                 }
             },
@@ -563,16 +502,16 @@ private fun EncryptedNotePlaceholder(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "This note is encrypted",
+            text = stringResource(R.string.note_is_encrypted),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = when {
-                encryptionMethod == "pgp" -> "PGP decryption is not supported in the app. Use the Jotty web app to decrypt."
-                canDecryptInApp -> "Enter your passphrase to view the content."
-                else -> "Use the Jotty web app to decrypt this note."
+                encryptionMethod == "pgp" -> stringResource(R.string.pgp_not_supported)
+                canDecryptInApp -> stringResource(R.string.enter_passphrase_to_view)
+                else -> stringResource(R.string.use_web_app_to_decrypt)
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -580,7 +519,7 @@ private fun EncryptedNotePlaceholder(
         Spacer(modifier = Modifier.height(24.dp))
         if (canDecryptInApp && encryptionMethod == "xchacha") {
             Button(onClick = onDecryptClick) {
-                Text("Decrypt note")
+                Text(stringResource(R.string.decrypt_note))
             }
         }
     }
@@ -594,20 +533,22 @@ private fun EncryptNoteDialog(
     var passphrase by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val errorShort = stringResource(R.string.error_passphrase_short)
+    val errorMismatch = stringResource(R.string.error_passphrase_mismatch)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Encrypt note") },
+        title = { Text(stringResource(R.string.encrypt_note)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Choose a passphrase. You'll need it to decrypt this note. Store it safely.",
+                    stringResource(R.string.encrypt_passphrase_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedTextField(
                     value = passphrase,
                     onValueChange = { passphrase = it; error = null },
-                    label = { Text("Passphrase") },
+                    label = { Text(stringResource(R.string.passphrase)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
@@ -615,7 +556,7 @@ private fun EncryptNoteDialog(
                 OutlinedTextField(
                     value = confirm,
                     onValueChange = { confirm = it; error = null },
-                    label = { Text("Confirm passphrase") },
+                    label = { Text(stringResource(R.string.confirm_passphrase)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
@@ -628,16 +569,16 @@ private fun EncryptNoteDialog(
             TextButton(
                 onClick = {
                     when {
-                        passphrase.length < 12 -> error = "Use at least 12 characters"
-                        passphrase != confirm -> error = "Passphrases don't match"
+                        passphrase.length < 12 -> error = errorShort
+                        passphrase != confirm -> error = errorMismatch
                         else -> onEncrypt(passphrase)
                     }
                 },
             ) {
-                Text("Encrypt")
+                Text(stringResource(R.string.encrypt))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -651,22 +592,23 @@ private fun DecryptNoteDialog(
     onDecryptError: (String?) -> Unit,
 ) {
     var passphrase by remember { mutableStateOf("") }
+    val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
     if (encryptionMethod != "xchacha") {
         AlertDialog(
             onDismissRequest = onDismiss,
-            title = { Text("Decrypt note") },
-            text = { Text("PGP decryption is not supported in the app. Use the Jotty web app.") },
-            confirmButton = { TextButton(onClick = onDismiss) { Text("OK") } },
+            title = { Text(stringResource(R.string.decrypt_note)) },
+            text = { Text(stringResource(R.string.pgp_not_supported_short)) },
+            confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
         )
         return
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Decrypt note") },
+        title = { Text(stringResource(R.string.decrypt_note)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Enter the passphrase you used to encrypt this note.",
+                    stringResource(R.string.decrypt_passphrase_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -676,7 +618,7 @@ private fun DecryptNoteDialog(
                         passphrase = it
                         onDecryptError(null)
                     },
-                    label = { Text("Passphrase") },
+                    label = { Text(stringResource(R.string.passphrase)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
@@ -692,15 +634,15 @@ private fun DecryptNoteDialog(
                     if (decrypted != null) {
                         onDecrypted(decrypted)
                     } else {
-                        onDecryptError("Wrong passphrase or invalid format")
+                        onDecryptError(decryptFailedMsg)
                     }
                 },
             ) {
-                Text("Decrypt")
+                Text(stringResource(R.string.decrypt))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
@@ -733,7 +675,7 @@ private fun NoteView(
             )
         } else {
             Text(
-                text = "No content",
+                text = stringResource(R.string.no_content),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -760,7 +702,7 @@ private fun NoteEditor(
         OutlinedTextField(
             value = title,
             onValueChange = onTitleChange,
-            label = { Text("Title") },
+            label = { Text(stringResource(R.string.title)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             shape = RoundedCornerShape(12.dp),
@@ -771,10 +713,10 @@ private fun NoteEditor(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 200.dp),
-            placeholder = { Text("Write your note...") },
+            placeholder = { Text(stringResource(R.string.write_your_note)) },
             supportingText = {
                 Text(
-                    "Supports **bold**, *italic*, # headings, lists, [links](url)",
+                    stringResource(R.string.markdown_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

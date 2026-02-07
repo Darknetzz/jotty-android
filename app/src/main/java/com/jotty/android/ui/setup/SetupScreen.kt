@@ -21,10 +21,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
@@ -52,12 +54,12 @@ fun SetupScreen(
     ) {
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Connect to Jotty",
+            text = stringResource(R.string.connect_to_jotty),
             style = MaterialTheme.typography.headlineLarge,
             color = MaterialTheme.colorScheme.onBackground,
         )
         Text(
-            text = "Choose a saved instance or add a new one",
+            text = stringResource(R.string.choose_saved_instance),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),
@@ -116,7 +118,7 @@ fun SetupScreen(
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                             ) {
                                 Icon(Icons.Default.Add, contentDescription = null)
-                                Text("Add new instance", style = MaterialTheme.typography.bodyLarge)
+                                Text(stringResource(R.string.add_new_instance), style = MaterialTheme.typography.bodyLarge)
                             }
                         }
                     }
@@ -124,8 +126,8 @@ fun SetupScreen(
                 instanceToDelete?.let { instance ->
                     AlertDialog(
                         onDismissRequest = { instanceToDelete = null },
-                        title = { Text("Remove instance?") },
-                        text = { Text("\"${instance.name}\" will be removed from saved connections. You can add it again later.") },
+                        title = { Text(stringResource(R.string.remove_instance_title)) },
+                        text = { Text(stringResource(R.string.remove_instance_message, instance.name)) },
                         confirmButton = {
                             TextButton(
                                 onClick = {
@@ -135,12 +137,12 @@ fun SetupScreen(
                                     }
                                 },
                             ) {
-                                Text("Remove", color = MaterialTheme.colorScheme.error)
+                                Text(stringResource(R.string.remove), color = MaterialTheme.colorScheme.error)
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { instanceToDelete = null }) {
-                                Text("Cancel")
+                                Text(stringResource(R.string.cancel))
                             }
                         },
                     )
@@ -207,7 +209,7 @@ private fun InstanceCard(
             ) {
                 Icon(
                     if (isDefault) Icons.Default.Star else Icons.Outlined.Star,
-                    contentDescription = if (isDefault) "Default instance" else "Set as default instance",
+                    contentDescription = if (isDefault) stringResource(R.string.default_instance) else stringResource(R.string.set_as_default_instance),
                     tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -215,7 +217,7 @@ private fun InstanceCard(
                 onClick = onEdit,
                 modifier = Modifier.size(40.dp),
             ) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit instance")
+                Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit_instance_action))
             }
             IconButton(
                 onClick = onDelete,
@@ -223,7 +225,7 @@ private fun InstanceCard(
             ) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Remove instance",
+                    contentDescription = stringResource(R.string.remove_instance),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
@@ -248,6 +250,8 @@ private fun InstanceForm(
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val isEdit = initialInstance != null
+    val fillUrlAndKeyMsg = stringResource(R.string.fill_url_and_key)
+    val connectionFailedMsg = stringResource(R.string.connection_failed, "%s")
 
     val instanceColors: List<Long?> = listOf(
         null,
@@ -261,7 +265,7 @@ private fun InstanceForm(
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         if (isEdit) {
             Text(
-                text = "Edit instance",
+                text = stringResource(R.string.edit_instance),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(bottom = 12.dp),
@@ -270,8 +274,8 @@ private fun InstanceForm(
         OutlinedTextField(
             value = name,
             onValueChange = { name = it; error = null },
-            label = { Text("Name") },
-            placeholder = { Text("e.g. Work, Personal") },
+            label = { Text(stringResource(R.string.name)) },
+            placeholder = { Text(stringResource(R.string.name_placeholder)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -279,8 +283,8 @@ private fun InstanceForm(
         OutlinedTextField(
             value = serverUrl,
             onValueChange = { serverUrl = it; error = null },
-            label = { Text("Server URL") },
-            placeholder = { Text("https://jotty.example.com") },
+            label = { Text(stringResource(R.string.server_url)) },
+            placeholder = { Text(stringResource(R.string.server_url_placeholder)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             isError = error != null,
@@ -289,21 +293,21 @@ private fun InstanceForm(
         OutlinedTextField(
             value = apiKey,
             onValueChange = { apiKey = it; error = null },
-            label = { Text("API Key") },
-            placeholder = { Text("ck_...") },
+            label = { Text(stringResource(R.string.api_key)) },
+            placeholder = { Text(stringResource(R.string.api_key_placeholder)) },
             singleLine = true,
             visualTransformation = if (apiKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
             trailingIcon = {
                 TextButton(onClick = { apiKeyVisible = !apiKeyVisible }) {
-                    Text(if (apiKeyVisible) "Hide" else "Show")
+                    Text(if (apiKeyVisible) stringResource(R.string.hide) else stringResource(R.string.show))
                 }
             },
             isError = error != null,
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Color",
+            text = stringResource(R.string.color),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -327,7 +331,7 @@ private fun InstanceForm(
                 ) {
                     if (hex == null) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("—", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(stringResource(R.string.no_color), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -354,7 +358,7 @@ private fun InstanceForm(
                     onClick = onCancel,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
             Button(
@@ -366,7 +370,7 @@ private fun InstanceForm(
                             val url = serverUrl.trim()
                             val key = apiKey.trim()
                             if (url.isBlank() || key.isBlank()) {
-                                error = "Please fill in server URL and API key"
+                                error = fillUrlAndKeyMsg
                                 return@launch
                             }
 
@@ -383,7 +387,7 @@ private fun InstanceForm(
                             settingsRepository.addInstance(instance)
                             if (isEdit) onSaved?.invoke() else onDone()
                         } catch (e: Exception) {
-                            error = "Connection failed: ${e.message ?: "Unknown error"}"
+                            error = connectionFailedMsg.replace("%s", e.message ?: "Unknown error")
                         } finally {
                             loading = false
                         }
@@ -401,7 +405,7 @@ private fun InstanceForm(
                 } else {
                     Icon(Icons.Default.Check, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (isEdit) "Save" else "Connect")
+                    Text(if (isEdit) stringResource(R.string.save) else stringResource(R.string.connect))
                 }
             }
         }

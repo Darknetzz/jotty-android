@@ -14,12 +14,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.BuildConfig
+import com.jotty.android.R
 import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.SummaryData
-import com.jotty.android.data.api.SummaryResponse
 import com.jotty.android.data.preferences.SettingsRepository
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -70,7 +71,7 @@ fun SettingsScreen(
             .verticalScroll(rememberScrollState()),
     ) {
         Text(
-            "Settings",
+            stringResource(R.string.settings),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -78,23 +79,23 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Connection
-        SettingsSectionTitle("Connection")
+        SettingsSectionTitle(stringResource(R.string.connection))
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Column {
                 ListItem(
-                    headlineContent = { Text(currentInstance?.name ?: "Instance") },
+                    headlineContent = { Text(currentInstance?.name ?: stringResource(R.string.instance_label)) },
                     supportingContent = {
                         Column {
-                            Text(currentInstance?.serverUrl ?: "—", maxLines = 2)
+                            Text(currentInstance?.serverUrl ?: "\u2014", maxLines = 2)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = when (healthOk) {
-                                    true -> "Connected"
-                                    false -> "Server unreachable"
-                                    null -> "—"
+                                    true -> stringResource(R.string.connected)
+                                    false -> stringResource(R.string.server_unreachable)
+                                    null -> "\u2014"
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = when (healthOk) {
@@ -110,10 +111,10 @@ fun SettingsScreen(
                 if (currentInstance != null) {
                     HorizontalDivider()
                     ListItem(
-                        headlineContent = { Text("Set as default instance") },
+                        headlineContent = { Text(stringResource(R.string.set_as_default_instance)) },
                         supportingContent = {
                             Text(
-                                "Open to this instance when opening the app",
+                                stringResource(R.string.open_to_default_instance),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         },
@@ -136,7 +137,7 @@ fun SettingsScreen(
 
         if (summary != null || adminOverview != null) {
             Spacer(modifier = Modifier.height(24.dp))
-            SettingsSectionTitle("Dashboard Overview")
+            SettingsSectionTitle(stringResource(R.string.dashboard_overview))
             summary?.let { DashboardSummaryCard(it) }
             adminOverview?.let { AdminOverviewCard(it) }
         }
@@ -144,23 +145,23 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Appearance
-        SettingsSectionTitle("Appearance")
+        SettingsSectionTitle(stringResource(R.string.appearance))
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             ListItem(
-                headlineContent = { Text("Theme") },
+                headlineContent = { Text(stringResource(R.string.theme)) },
                 supportingContent = {
                     Row(
                         modifier = Modifier.padding(top = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(
-                            null to "System",
-                            "light" to "Light",
-                            "dark" to "Dark",
-                        ).forEach { (value, label) ->
+                            null to R.string.theme_system,
+                            "light" to R.string.theme_light,
+                            "dark" to R.string.theme_dark,
+                        ).forEach { (value, labelRes) ->
                             val isSelected = when (value) {
                                 null -> theme.isNullOrBlank()
                                 else -> theme == value
@@ -172,7 +173,7 @@ fun SettingsScreen(
                                         settingsRepository.setTheme(value)
                                     }
                                 },
-                                label = { Text(label) },
+                                label = { Text(stringResource(labelRes)) },
                             )
                         }
                     }
@@ -180,17 +181,17 @@ fun SettingsScreen(
             )
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text("Start screen") },
+                headlineContent = { Text(stringResource(R.string.start_screen)) },
                 supportingContent = {
                     Row(
                         modifier = Modifier.padding(top = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(
-                            "checklists" to "Checklists",
-                            "notes" to "Notes",
-                            "settings" to "Settings",
-                        ).forEach { (value, label) ->
+                            "checklists" to R.string.nav_checklists,
+                            "notes" to R.string.nav_notes,
+                            "settings" to R.string.nav_settings,
+                        ).forEach { (value, labelRes) ->
                             FilterChip(
                                 selected = (startTab ?: "checklists") == value,
                                 onClick = {
@@ -198,7 +199,7 @@ fun SettingsScreen(
                                         settingsRepository.setStartTab(value)
                                     }
                                 },
-                                label = { Text(label) },
+                                label = { Text(stringResource(labelRes)) },
                             )
                         }
                     }
@@ -206,10 +207,10 @@ fun SettingsScreen(
             )
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text("Swipe to delete") },
+                headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
                 supportingContent = {
                     Text(
-                        "Swipe list or note rows left to delete (checklists and notes)",
+                        stringResource(R.string.swipe_to_delete_description),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 },
@@ -229,7 +230,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Account
-        SettingsSectionTitle("Account")
+        SettingsSectionTitle(stringResource(R.string.account))
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             onClick = {
@@ -246,9 +247,9 @@ fun SettingsScreen(
             ) {
                 Icon(Icons.Default.Logout, contentDescription = null)
                 Column {
-                    Text("Disconnect", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.disconnect), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Switch to another instance (this one is saved)",
+                        stringResource(R.string.disconnect_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -259,7 +260,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(24.dp))
 
         // About
-        SettingsSectionTitle("About")
+        SettingsSectionTitle(stringResource(R.string.about))
         OutlinedCard(
             modifier = Modifier.fillMaxWidth(),
             onClick = { showAboutDialog = true },
@@ -271,9 +272,9 @@ fun SettingsScreen(
             ) {
                 Icon(Icons.Default.Info, contentDescription = null)
                 Column {
-                    Text("About", style = MaterialTheme.typography.bodyLarge)
+                    Text(stringResource(R.string.about), style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "Version, source code, and more",
+                        stringResource(R.string.about_description),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -284,7 +285,7 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(32.dp))
 
         Text(
-            "Jotty Android • Connects to self-hosted Jotty servers",
+            stringResource(R.string.jotty_footer),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -293,7 +294,7 @@ fun SettingsScreen(
     if (showAboutDialog) {
         AboutDialog(
             onDismiss = { showAboutDialog = false },
-            versionName = BuildConfig.VERSION_NAME ?: "—",
+            versionName = BuildConfig.VERSION_NAME ?: "\u2014",
             versionCode = BuildConfig.VERSION_CODE,
         )
     }
@@ -318,7 +319,7 @@ private fun DashboardSummaryCard(summary: SummaryData) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("User", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(stringResource(R.string.user_label), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text(u, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
@@ -326,9 +327,9 @@ private fun DashboardSummaryCard(summary: SummaryData) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                if (notesTotal > 0 || summary.notes != null) StatChip("Notes", notesTotal)
-                if (listsTotal > 0 || summary.checklists != null) StatChip("Checklists", listsTotal)
-                completionRate?.let { StatChip("Done %", it) }
+                if (notesTotal > 0 || summary.notes != null) StatChip(stringResource(R.string.stat_notes), notesTotal)
+                if (listsTotal > 0 || summary.checklists != null) StatChip(stringResource(R.string.stat_checklists), listsTotal)
+                completionRate?.let { StatChip(stringResource(R.string.stat_done_percent), it) }
             }
         }
     }
@@ -349,7 +350,7 @@ private fun AdminOverviewCard(overview: AdminOverviewResponse) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Server version", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(stringResource(R.string.server_version), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                     Text(v, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
@@ -357,9 +358,9 @@ private fun AdminOverviewCard(overview: AdminOverviewResponse) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                overview.users?.let { StatChip("Users", it) }
-                overview.checklists?.let { StatChip("Checklists", it) }
-                overview.notes?.let { StatChip("Notes", it) }
+                overview.users?.let { StatChip(stringResource(R.string.stat_users), it) }
+                overview.checklists?.let { StatChip(stringResource(R.string.stat_checklists), it) }
+                overview.notes?.let { StatChip(stringResource(R.string.stat_notes), it) }
             }
         }
     }
@@ -394,11 +395,11 @@ private fun AboutDialog(
     val uriHandler = LocalUriHandler.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("About Jotty Android") },
+        title = { Text(stringResource(R.string.about_jotty_android)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Android client for Jotty — self-hosted checklists and notes.",
+                    stringResource(R.string.about_tagline),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -406,8 +407,8 @@ private fun AboutDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Version", style = MaterialTheme.typography.bodyMedium)
-                    Text("$versionName ($versionCode)", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.version_format, versionName, versionCode), style = MaterialTheme.typography.bodyMedium)
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 TextButton(
@@ -421,12 +422,12 @@ private fun AboutDialog(
                         tint = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("View source on GitHub")
+                    Text(stringResource(R.string.view_source_github))
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
         },
     )
 }

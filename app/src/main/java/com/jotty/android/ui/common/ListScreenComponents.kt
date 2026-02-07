@@ -85,7 +85,7 @@ fun EmptyState(
 @Composable
 fun SwipeToDeleteContainer(
     enabled: Boolean,
-    onDelete: () -> Unit,
+    onDelete: suspend () -> Unit,
     scope: CoroutineScope,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,

@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun ChecklistsScreen(api: JottyApi) {
+fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
     var checklists by remember { mutableStateOf<List<Checklist>>(emptyList()) }
     var selectedList by remember { mutableStateOf<Checklist?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -138,42 +138,49 @@ fun ChecklistsScreen(api: JottyApi) {
                 else -> {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(checklists, key = { it.id }) { list ->
-                            val dismissState = rememberSwipeToDismissBoxState(
-                                confirmValueChange = { value ->
-                                    if (value == SwipeToDismissBoxValue.EndToStart) {
-                                        scope.launch {
-                                            try {
-                                                api.deleteChecklist(list.id)
-                                                checklists = checklists.filter { it.id != list.id }
-                                                if (selectedList?.id == list.id) selectedList = null
-                                            } catch (e: Exception) {
-                                                AppLog.e("checklists", "Delete checklist failed", e)
+                            if (swipeToDeleteEnabled) {
+                                val dismissState = rememberSwipeToDismissBoxState(
+                                    confirmValueChange = { value ->
+                                        if (value == SwipeToDismissBoxValue.EndToStart) {
+                                            scope.launch {
+                                                try {
+                                                    api.deleteChecklist(list.id)
+                                                    checklists = checklists.filter { it.id != list.id }
+                                                    if (selectedList?.id == list.id) selectedList = null
+                                                } catch (e: Exception) {
+                                                    AppLog.e("checklists", "Delete checklist failed", e)
+                                                }
                                             }
+                                            true
+                                        } else false
+                                    },
+                                )
+                                SwipeToDismissBox(
+                                    state = dismissState,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enableDismissFromStartToEnd = false,
+                                    backgroundContent = {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(MaterialTheme.colorScheme.error)
+                                                .padding(horizontal = 20.dp),
+                                            contentAlignment = Alignment.CenterEnd,
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Delete,
+                                                contentDescription = "Delete",
+                                                tint = MaterialTheme.colorScheme.onError,
+                                            )
                                         }
-                                        true
-                                    } else false
-                                },
-                            )
-                            SwipeToDismissBox(
-                                state = dismissState,
-                                modifier = Modifier.fillMaxWidth(),
-                                enableDismissFromStartToEnd = false,
-                                backgroundContent = {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(MaterialTheme.colorScheme.error)
-                                            .padding(horizontal = 20.dp),
-                                        contentAlignment = Alignment.CenterEnd,
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Delete",
-                                            tint = MaterialTheme.colorScheme.onError,
-                                        )
-                                    }
-                                },
-                            ) {
+                                    },
+                                ) {
+                                    ChecklistCard(
+                                        checklist = list,
+                                        onClick = { selectedList = list },
+                                    )
+                                }
+                            } else {
                                 ChecklistCard(
                                     checklist = list,
                                     onClick = { selectedList = list },

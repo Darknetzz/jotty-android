@@ -48,6 +48,7 @@ fun NotesScreen(
     api: JottyApi,
     initialNoteId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
+    swipeToDeleteEnabled: Boolean = true,
 ) {
     var notes by remember { mutableStateOf<List<Note>>(emptyList()) }
     var selectedNote by remember { mutableStateOf<Note?>(null) }
@@ -189,42 +190,49 @@ fun NotesScreen(
                     else -> {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             items(notes, key = { it.id }) { n ->
-                                val dismissState = rememberSwipeToDismissBoxState(
-                                    confirmValueChange = { value ->
-                                        if (value == SwipeToDismissBoxValue.EndToStart) {
-                                            scope.launch {
-                                                try {
-                                                    api.deleteNote(n.id)
-                                                    notes = notes.filter { it.id != n.id }
-                                                    if (selectedNote?.id == n.id) selectedNote = null
-                                                } catch (e: Exception) {
-                                                    AppLog.e("notes", "Delete note failed", e)
+                                if (swipeToDeleteEnabled) {
+                                    val dismissState = rememberSwipeToDismissBoxState(
+                                        confirmValueChange = { value ->
+                                            if (value == SwipeToDismissBoxValue.EndToStart) {
+                                                scope.launch {
+                                                    try {
+                                                        api.deleteNote(n.id)
+                                                        notes = notes.filter { it.id != n.id }
+                                                        if (selectedNote?.id == n.id) selectedNote = null
+                                                    } catch (e: Exception) {
+                                                        AppLog.e("notes", "Delete note failed", e)
+                                                    }
                                                 }
+                                                true
+                                            } else false
+                                        },
+                                    )
+                                    SwipeToDismissBox(
+                                        state = dismissState,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        enableDismissFromStartToEnd = false,
+                                        backgroundContent = {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(MaterialTheme.colorScheme.error)
+                                                    .padding(horizontal = 20.dp),
+                                                contentAlignment = Alignment.CenterEnd,
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.Delete,
+                                                    contentDescription = "Delete",
+                                                    tint = MaterialTheme.colorScheme.onError,
+                                                )
                                             }
-                                            true
-                                        } else false
-                                    },
-                                )
-                                SwipeToDismissBox(
-                                    state = dismissState,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    enableDismissFromStartToEnd = false,
-                                    backgroundContent = {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .background(MaterialTheme.colorScheme.error)
-                                                .padding(horizontal = 20.dp),
-                                            contentAlignment = Alignment.CenterEnd,
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = "Delete",
-                                                tint = MaterialTheme.colorScheme.onError,
-                                            )
-                                        }
-                                    },
-                                ) {
+                                        },
+                                    ) {
+                                        NoteCard(
+                                            note = n,
+                                            onClick = { selectedNote = n },
+                                        )
+                                    }
+                                } else {
                                     NoteCard(
                                         note = n,
                                         onClick = { selectedNote = n },

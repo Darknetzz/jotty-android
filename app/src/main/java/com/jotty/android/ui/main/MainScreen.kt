@@ -50,6 +50,7 @@ fun MainScreen(
     }
     val serverUrl = settingsRepository.serverUrl.collectAsState(initial = null).value
     val apiKey = settingsRepository.apiKey.collectAsState(initial = null).value
+    val swipeToDeleteEnabled = settingsRepository.swipeToDeleteEnabled.collectAsState(initial = true).value
 
     val api = remember(serverUrl, apiKey) {
         if (!serverUrl.isNullOrBlank() && !apiKey.isNullOrBlank()) {
@@ -102,13 +103,14 @@ fun MainScreen(
                 modifier = Modifier.padding(padding),
             ) {
                 composable(MainRoute.Checklists.route) {
-                    ChecklistsScreen(api = api!!)
+                    ChecklistsScreen(api = api!!, swipeToDeleteEnabled = swipeToDeleteEnabled)
                 }
                 composable(MainRoute.Notes.route) {
                     NotesScreen(
                         api = api!!,
                         initialNoteId = deepLinkNoteId?.value,
                         onDeepLinkConsumed = { deepLinkNoteId?.value = null },
+                        swipeToDeleteEnabled = swipeToDeleteEnabled,
                     )
                 }
                 composable(MainRoute.Settings.route) {

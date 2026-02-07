@@ -34,6 +34,7 @@ fun SettingsScreen(
     val currentInstance by settingsRepository.currentInstance.collectAsState(initial = null)
     val theme by settingsRepository.theme.collectAsState(initial = null)
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
+    val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsState(initial = true)
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
@@ -201,6 +202,26 @@ fun SettingsScreen(
                             )
                         }
                     }
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text("Swipe to delete") },
+                supportingContent = {
+                    Text(
+                        "Swipe list or note rows left to delete (checklists and notes)",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = swipeToDeleteEnabled,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setSwipeToDeleteEnabled(it)
+                            }
+                        },
+                    )
                 },
             )
         }

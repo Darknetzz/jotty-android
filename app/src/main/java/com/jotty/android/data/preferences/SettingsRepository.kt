@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
@@ -54,6 +55,11 @@ class SettingsRepository(private val context: Context) {
         prefs[KEY_START_TAB].takeIf { !it.isNullOrBlank() }
     }.catch { emit(null) }
 
+    /** Swipe to delete list/note rows. Default true. */
+    val swipeToDeleteEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_SWIPE_TO_DELETE] ?: true
+    }.catch { emit(true) }
+
     suspend fun addInstance(instance: JottyInstance) {
         context.dataStore.edit { prefs ->
             val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty().toMutableList()
@@ -102,6 +108,10 @@ class SettingsRepository(private val context: Context) {
         }
     }
 
+    suspend fun setSwipeToDeleteEnabled(value: Boolean) {
+        context.dataStore.edit { it[KEY_SWIPE_TO_DELETE] = value }
+    }
+
     /** Clear all data (instances + app preferences). */
     suspend fun clearAll() {
         context.dataStore.edit { it.clear() }
@@ -134,6 +144,7 @@ class SettingsRepository(private val context: Context) {
         private val KEY_API_KEY = stringPreferencesKey("api_key")
         private val KEY_THEME = stringPreferencesKey("theme")
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
+        private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
 
         private fun parseInstances(json: String?): List<JottyInstance>? {
             if (json.isNullOrBlank()) return null

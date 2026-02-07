@@ -37,6 +37,8 @@ Version is defined in **`gradle.properties`** (single source of truth):
 
 To cut a new release: update both in `gradle.properties`, add an entry to **`CHANGELOG.md`**, then build and tag (e.g. `v1.0.1`).
 
+**Signed release APK:** Copy `keystore.properties.example` to `keystore.properties`, create a keystore (see the example file for the `keytool` command), then run `.\build.ps1 -Release`. The release APK will be signed and installable. Keep your keystore and passwords safe and never commit them.
+
 ## Building
 
 ### Requirements

@@ -184,26 +184,6 @@ fun SettingsScreen(
             }
         }
 
-        if (serverVersion != null || summary != null || adminOverview != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
-            serverVersion?.let { version ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.server_version)) },
-                        supportingContent = { Text(version, style = MaterialTheme.typography.bodyMedium) },
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-            summary?.let { DashboardSummaryCard(it) }
-            if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
-            adminOverview?.let { AdminOverviewCard(it) }
-        }
-
         Spacer(modifier = Modifier.height(24.dp))
 
         // ─── General (appearance & behavior) ───────────────────────────────────
@@ -421,6 +401,25 @@ fun SettingsScreen(
                     )
                 }
             }
+        }
+        if (serverVersion != null || summary != null || adminOverview != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
+            serverVersion?.let { version ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.server_version)) },
+                        supportingContent = { Text(version, style = MaterialTheme.typography.bodyMedium) },
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+            summary?.let { DashboardSummaryCard(it) }
+            if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
+            adminOverview?.let { AdminOverviewCard(it) }
         }
 
         Spacer(modifier = Modifier.height(32.dp))

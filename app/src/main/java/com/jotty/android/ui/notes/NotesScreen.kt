@@ -702,9 +702,9 @@ private fun DecryptNoteDialog(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     isError = decryptError != null,
-                    supportingText = {
-                        if (decryptError != null) {
-                            Column {
+                    supportingText = if (decryptError != null) {
+                        {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(decryptError, color = MaterialTheme.colorScheme.error)
                                 if (decryptErrorDetail != null) {
                                     Text(
@@ -715,7 +715,7 @@ private fun DecryptNoteDialog(
                                 }
                             }
                         }
-                    },
+                    } else null,
                     enabled = !isDecrypting,
                 )
             }

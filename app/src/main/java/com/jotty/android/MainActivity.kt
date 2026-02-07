@@ -5,7 +5,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -28,12 +27,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settingsRepository = (applicationContext as JottyApp).settingsRepository
             val themePref by settingsRepository.theme.collectAsState(initial = null)
-            val darkTheme = when (themePref) {
-                "dark" -> true
-                "light" -> false
-                else -> isSystemInDarkTheme()
-            }
-            JottyTheme(darkTheme = darkTheme) {
+            JottyTheme(themePreference = themePref) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,

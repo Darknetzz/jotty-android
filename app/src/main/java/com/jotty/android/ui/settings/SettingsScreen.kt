@@ -182,6 +182,8 @@ fun SettingsScreen(
                             null to R.string.theme_system,
                             "light" to R.string.theme_light,
                             "dark" to R.string.theme_dark,
+                            "amoled" to R.string.theme_amoled,
+                            "sepia" to R.string.theme_sepia,
                         ).forEach { (value, labelRes) ->
                             val isSelected = when (value) {
                                 null -> theme.isNullOrBlank()

@@ -14,31 +14,70 @@ import okhttp3.Request
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 /**
  * Result of checking for updates.
  */
 sealed class UpdateCheckResult {
-    data class UpdateAvailable(val versionName: String, val downloadUrl: String) : UpdateCheckResult()
+    data class UpdateAvailable(
+        val versionName: String,
+        val downloadUrl: String,
+        val releaseNotes: String? = null,
+    ) : UpdateCheckResult()
     data object UpToDate : UpdateCheckResult()
     data class Error(val message: String) : UpdateCheckResult()
+}
+
+/**
+ * Result of download-and-install attempt (for UI to show fallback e.g. "Open in browser").
+ */
+sealed class InstallResult {
+    data object Started : InstallResult()
+    data class Failed(val userMessage: String) : InstallResult()
 }
 
 object UpdateChecker {
 
     private const val GITHUB_API_BASE = "https://api.github.com/"
     private const val TAG = "UpdateChecker"
+    private const val USER_AGENT = "Jotty-Android/${BuildConfig.VERSION_NAME ?: "0"}"
+    private const val CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes; errors are not cached
 
-    private val okHttp = OkHttpClient.Builder()
+    @Volatile
+    private var cache: Pair<Long, UpdateCheckResult>? = null
+
+    private val githubClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(15, TimeUnit.SECONDS)
+        .addInterceptor { chain ->
+            chain.proceed(
+                chain.request().newBuilder()
+                    .addHeader("User-Agent", USER_AGENT)
+                    .build()
+            )
+        }
+        .build()
+
+    private val downloadClient = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(2, TimeUnit.MINUTES)
+        .addInterceptor { chain ->
+            chain.proceed(
+                chain.request().newBuilder()
+                    .addHeader("User-Agent", USER_AGENT)
+                    .build()
+            )
+        }
         .build()
 
     private val githubApi: GitHubApi by lazy {
         Retrofit.Builder()
             .baseUrl(GITHUB_API_BASE)
-            .client(okHttp)
+            .client(githubClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(GitHubApi::class.java)
@@ -46,9 +85,15 @@ object UpdateChecker {
 
     /**
      * Fetches latest release from GitHub and compares with [BuildConfig.VERSION_NAME].
-     * Returns [UpdateCheckResult.UpdateAvailable] with first .apk asset URL if newer, else [UpdateCheckResult.UpToDate] or [UpdateCheckResult.Error].
+     * Success results (UpToDate, UpdateAvailable) are cached for 5 minutes; errors are not cached.
      */
     suspend fun checkForUpdate(): UpdateCheckResult = withContext(Dispatchers.IO) {
+        val now = System.currentTimeMillis()
+        cache?.let { (cachedAt, result) ->
+            if (now - cachedAt < CACHE_TTL_MS && result !is UpdateCheckResult.Error) {
+                return@withContext result
+            }
+        }
         try {
             val release = githubApi.getLatestRelease()
             val latestVersion = release.tagName.removePrefix("v").trim()
@@ -56,17 +101,28 @@ object UpdateChecker {
                 ?: return@withContext UpdateCheckResult.Error("No APK in release")
 
             val current = BuildConfig.VERSION_NAME?.trim() ?: "0.0.0"
-            if (!isNewerVersion(latestVersion, current)) {
-                return@withContext UpdateCheckResult.UpToDate
+            val result = if (!isNewerVersion(latestVersion, current)) {
+                UpdateCheckResult.UpToDate
+            } else {
+                UpdateCheckResult.UpdateAvailable(
+                    versionName = latestVersion,
+                    downloadUrl = apkAsset.browserDownloadUrl,
+                    releaseNotes = release.body?.trim()?.takeIf { it.isNotBlank() },
+                )
             }
-            UpdateCheckResult.UpdateAvailable(
-                versionName = latestVersion,
-                downloadUrl = apkAsset.browserDownloadUrl,
-            )
+            cache = now to result
+            result
         } catch (e: Exception) {
             AppLog.e(TAG, "Check for update failed", e)
-            UpdateCheckResult.Error(e.message ?: "Unknown error")
+            UpdateCheckResult.Error(userFriendlyErrorMessage(e))
         }
+    }
+
+    private fun userFriendlyErrorMessage(e: Exception): String = when (e) {
+        is UnknownHostException -> "No internet connection"
+        is SocketTimeoutException -> "Connection timed out"
+        is IOException -> "Network error"
+        else -> e.message ?: "Unknown error"
     }
 
     /**
@@ -88,25 +144,41 @@ object UpdateChecker {
 
     /**
      * Downloads the APK from [downloadUrl] to app cache and starts the system installer.
-     * Call from UI context (e.g. Activity). Returns true if install intent was started.
+     * [onProgress] is called on the main thread with 0f..1f when content-length is known; otherwise not called (use indeterminate progress in UI).
      */
-    suspend fun downloadAndInstall(context: Context, downloadUrl: String): Boolean = withContext(Dispatchers.IO) {
+    suspend fun downloadAndInstall(
+        context: Context,
+        downloadUrl: String,
+        onProgress: ((Float) -> Unit)? = null,
+    ): InstallResult = withContext(Dispatchers.IO) {
         val apkFile = File(context.cacheDir, "updates").apply { mkdirs() }
             .let { File(it, "jotty-android-update.apk") }
         try {
             val request = Request.Builder().url(downloadUrl).build()
-            okHttp.newCall(request).execute().use { response ->
+            downloadClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     AppLog.e(TAG, "Download failed: ${response.code}")
-                    return@withContext false
+                    return@withContext InstallResult.Failed("Download failed (${response.code})")
                 }
-                response.body?.byteStream()?.use { input ->
-                    apkFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                } ?: run {
+                val body = response.body ?: run {
                     AppLog.e(TAG, "Download body null")
-                    return@withContext false
+                    return@withContext InstallResult.Failed("Download failed")
+                }
+                val totalBytes = body.contentLength()
+                body.byteStream().use { input ->
+                    apkFile.outputStream().use { output ->
+                        val buffer = ByteArray(8192)
+                        var bytesRead = 0L
+                        var n: Int
+                        while (input.read(buffer).also { n = it } != -1) {
+                            output.write(buffer, 0, n)
+                            bytesRead += n
+                            if (totalBytes > 0 && onProgress != null) {
+                                val p = (bytesRead.toFloat() / totalBytes).coerceIn(0f, 1f)
+                                withContext(Dispatchers.Main) { onProgress(p) }
+                            }
+                        }
+                    }
                 }
             }
             withContext(Dispatchers.Main) {
@@ -114,11 +186,11 @@ object UpdateChecker {
             }
         } catch (e: Exception) {
             AppLog.e(TAG, "Download or install failed", e)
-            false
+            InstallResult.Failed(userFriendlyErrorMessage(e))
         }
     }
 
-    private fun installApk(context: Context, apkFile: File): Boolean {
+    private fun installApk(context: Context, apkFile: File): InstallResult {
         return try {
             val uri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                 FileProvider.getUriForFile(
@@ -134,12 +206,16 @@ object UpdateChecker {
                 setDataAndType(uri, "application/vnd.android.package-archive")
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+                }
             }
             context.startActivity(intent)
-            true
+            InstallResult.Started
         } catch (e: Exception) {
             AppLog.e(TAG, "Start install failed", e)
-            false
+            InstallResult.Failed(e.message ?: "Install failed")
         }
     }
 }

@@ -133,6 +133,9 @@
     <string name="you_are_up_to_date">You\'re on the latest version</string>
     <string name="update_check_error">Could not check for updates: %1$s</string>
     <string name="downloading">Downloading…</string>
+    <string name="install_failed">%1$s. You can install from the release page.</string>
+    <string name="open_release_page">Open release page</string>
+    <string name="whats_new">What\'s new</string>
 
     <!-- Dashboard -->
     <string name="user_label">User</string>

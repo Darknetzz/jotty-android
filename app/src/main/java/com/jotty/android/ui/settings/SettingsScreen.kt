@@ -21,8 +21,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import dev.jeziellago.compose.markdowntext.MarkdownText
 import com.jotty.android.BuildConfig
 import com.jotty.android.R
+import com.jotty.android.data.updates.InstallResult
 import com.jotty.android.data.updates.UpdateCheckResult
 import com.jotty.android.data.updates.UpdateChecker
 import com.jotty.android.data.api.AdminOverviewResponse
@@ -325,6 +327,12 @@ private sealed class UpdateUiState {
     data object Checking : UpdateUiState()
     data object Downloading : UpdateUiState()
     data class Result(val value: UpdateCheckResult) : UpdateUiState()
+    data class InstallFailed(
+        val versionName: String,
+        val downloadUrl: String,
+        val userMessage: String,
+        val releaseNotes: String? = null,
+    ) : UpdateUiState()
 }
 
 @Composable
@@ -412,6 +420,7 @@ private fun SettingsSectionTitle(title: String) {
 }
 
 private const val GITHUB_REPO_URL = "https://github.com/Darknetzz/jotty-android"
+private const val GITHUB_RELEASES_URL = "$GITHUB_REPO_URL/releases"
 
 @Composable
 private fun AboutDialog(
@@ -423,6 +432,7 @@ private fun AboutDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Idle) }
+    var downloadProgress by remember { mutableStateOf<Float?>(null) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -478,46 +488,54 @@ private fun AboutDialog(
                         }
                     }
                     is UpdateUiState.Checking, is UpdateUiState.Downloading -> {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                            Text(
-                                if (state is UpdateUiState.Downloading) stringResource(R.string.downloading)
-                                else stringResource(R.string.checking_for_updates),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                Text(
+                                    if (state is UpdateUiState.Downloading) stringResource(R.string.downloading)
+                                    else stringResource(R.string.checking_for_updates),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            if (state is UpdateUiState.Downloading) {
+                                if (downloadProgress != null) {
+                                    LinearProgressIndicator(
+                                        progress = { downloadProgress ?: 0f },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                } else {
+                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                                }
+                            }
                         }
                     }
                     is UpdateUiState.Result -> when (val r = state.value) {
-                        is UpdateCheckResult.UpdateAvailable -> {
-                            Text(
-                                stringResource(R.string.update_available, r.versionName),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            TextButton(
-                                onClick = {
-                                    scope.launch {
-                                        updateState = UpdateUiState.Downloading
-                                        UpdateChecker.downloadAndInstall(context, r.downloadUrl)
-                                        updateState = UpdateUiState.Idle
+                        is UpdateCheckResult.UpdateAvailable -> UpdateAvailableContent(
+                            versionName = r.versionName,
+                            downloadUrl = r.downloadUrl,
+                            releaseNotes = r.releaseNotes,
+                            installFailedMessage = null,
+                            onDownloadAndInstall = {
+                                scope.launch {
+                                    updateState = UpdateUiState.Downloading
+                                    downloadProgress = null
+                                    when (val result = UpdateChecker.downloadAndInstall(context, r.downloadUrl) { p ->
+                                        downloadProgress = p
+                                    }) {
+                                        is InstallResult.Started -> updateState = UpdateUiState.Idle
+                                        is InstallResult.Failed -> updateState = UpdateUiState.InstallFailed(
+                                            r.versionName, r.downloadUrl, result.userMessage, r.releaseNotes,
+                                        )
                                     }
-                                },
-                                contentPadding = PaddingValues(0.dp),
-                            ) {
-                                Icon(
-                                    Icons.Default.Download,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp),
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(stringResource(R.string.download_and_install))
-                            }
-                        }
+                                    downloadProgress = null
+                                }
+                            },
+                            onOpenReleasePage = { uriHandler.openUri(GITHUB_RELEASES_URL) },
+                        )
                         is UpdateCheckResult.UpToDate -> {
                             Text(
                                 stringResource(R.string.you_are_up_to_date),
@@ -550,11 +568,115 @@ private fun AboutDialog(
                             }
                         }
                     }
+                    is UpdateUiState.InstallFailed -> UpdateAvailableContent(
+                        versionName = state.versionName,
+                        downloadUrl = state.downloadUrl,
+                        releaseNotes = state.releaseNotes,
+                        installFailedMessage = state.userMessage,
+                        onDownloadAndInstall = {
+                            scope.launch {
+                                updateState = UpdateUiState.Downloading
+                                downloadProgress = null
+                                when (val result = UpdateChecker.downloadAndInstall(context, state.downloadUrl) { p ->
+                                    downloadProgress = p
+                                }) {
+                                    is InstallResult.Started -> updateState = UpdateUiState.Idle
+                                    is InstallResult.Failed -> updateState = UpdateUiState.InstallFailed(
+                                        state.versionName, state.downloadUrl, result.userMessage, state.releaseNotes,
+                                    )
+                                }
+                                downloadProgress = null
+                            }
+                        },
+                        onOpenReleasePage = { uriHandler.openUri(GITHUB_RELEASES_URL) },
+                    )
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
-        },
-    )
+    },
+    confirmButton = {
+        TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+    },
+)
+}
+
+@Composable
+private fun UpdateAvailableContent(
+    versionName: String,
+    downloadUrl: String,
+    releaseNotes: String?,
+    installFailedMessage: String?,
+    onDownloadAndInstall: () -> Unit,
+    onOpenReleasePage: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            stringResource(R.string.update_available, versionName),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        releaseNotes?.takeIf { it.isNotBlank() }?.let { notes ->
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    stringResource(R.string.whats_new),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 120.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    MarkdownText(
+                        markdown = notes,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                    )
+                }
+            }
+        }
+        installFailedMessage?.let { msg ->
+            Text(
+                stringResource(R.string.install_failed, msg),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(
+                onClick = onDownloadAndInstall,
+                contentPadding = PaddingValues(0.dp),
+            ) {
+                Icon(
+                    Icons.Default.Download,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(stringResource(R.string.download_and_install))
+            }
+            if (installFailedMessage != null) {
+                TextButton(
+                    onClick = onOpenReleasePage,
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Link,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.open_release_page))
+                }
+            }
+        }
+    }
 }

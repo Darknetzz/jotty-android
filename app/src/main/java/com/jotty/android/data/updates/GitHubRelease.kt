@@ -7,6 +7,7 @@ import com.google.gson.annotations.SerializedName
  */
 data class GitHubReleaseResponse(
     @SerializedName("tag_name") val tagName: String,
+    @SerializedName("body") val body: String? = null,
     @SerializedName("assets") val assets: List<GitHubAsset>,
 )
 

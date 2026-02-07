@@ -6,6 +6,19 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.1.6] - 2026-02-07
+
+### Added
+
+- **Theme options** — Nine themes: System, Light, Dark, AMOLED, Sepia, Midnight, Rose, Ocean, Forest. Theme chips wrap on small screens (FlowRow).
+- **Settings categories** — Settings reorganized into Overview (connection + dashboard), General (theme, start screen, swipe to delete), Account, About. Optional "Dashboard Overview" subtitle when summary/admin data is available.
+
+### Changed
+
+- **JottyTheme** — Now takes `themePreference: String?` instead of `darkTheme: Boolean`; status bar follows resolved scheme for all theme variants.
+
+---
+
 ## [1.1.5] - 2026-02-07
 
 ### Fixed

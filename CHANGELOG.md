@@ -2,7 +2,7 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [1.1.2] - 2026-02-07
 
 ### Added
 
@@ -118,6 +118,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.1.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.1
 [1.1.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.0
 [1.0.2-1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2-1

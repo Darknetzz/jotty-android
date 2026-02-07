@@ -87,8 +87,8 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Connection
-        SettingsSectionTitle(stringResource(R.string.connection))
+        // ─── Overview (connection + dashboard) ─────────────────────────────────
+        SettingsSectionTitle(stringResource(R.string.settings_category_overview))
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -157,16 +157,17 @@ fun SettingsScreen(
         }
 
         if (summary != null || adminOverview != null) {
-            Spacer(modifier = Modifier.height(24.dp))
-            SettingsSectionTitle(stringResource(R.string.dashboard_overview))
+            Spacer(modifier = Modifier.height(12.dp))
+            SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
             summary?.let { DashboardSummaryCard(it) }
+            if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
             adminOverview?.let { AdminOverviewCard(it) }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Appearance
-        SettingsSectionTitle(stringResource(R.string.appearance))
+        // ─── General (appearance & behavior) ───────────────────────────────────
+        SettingsSectionTitle(stringResource(R.string.settings_category_general))
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -417,6 +418,16 @@ private fun SettingsSectionTitle(title: String) {
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(bottom = 8.dp),
+    )
+}
+
+@Composable
+private fun SettingsSectionSubtitle(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = 6.dp),
     )
 }
 

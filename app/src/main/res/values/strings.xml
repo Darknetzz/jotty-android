@@ -107,6 +107,8 @@
 
     <!-- Settings -->
     <string name="settings">Settings</string>
+    <string name="settings_category_overview">Overview</string>
+    <string name="settings_category_general">General</string>
     <string name="connection">Connection</string>
     <string name="instance_label">Instance</string>
     <string name="connected">Connected</string>

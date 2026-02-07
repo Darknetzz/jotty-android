@@ -6,6 +6,27 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.2.3] - 2026-02-07
+
+### Added
+
+- **Jotty server version in Settings** — Dashboard overview now shows the Jotty server version (from `api/health`) when available, in the same section as the dashboard summary and admin overview.
+
+### Fixed
+
+- **Debug logging** — Debug setting is now synced from MainActivity via `collectAsState` and `LaunchedEffect`, so toggling "Debug logging" in Settings correctly enables or disables `AppLog.d()` output in logcat.
+- **Decrypt / encrypted notes** — Decrypt dialog captures passphrase at tap time and runs success/error callbacks on the main dispatcher; encrypted body detection is more lenient (alg value may contain "xchacha" e.g. "XChaCha20-Poly1305", body-only JSON accepted when it has `"data"` and salt/nonce; frontmatter body trimmed). Always-on logcat messages (tag `Jotty/encryption`) for decrypt attempts and failures so you can diagnose issues without enabling Debug logging.
+
+### Technical
+
+- MainActivity: `debugLoggingEnabled` collected with `collectAsState`, `LaunchedEffect(debugLoggingEnabled)` syncs to AppLog; JottyAppContent no longer collects debug flow.
+- SettingsScreen: `serverVersion` from health response, shown in Dashboard overview when present.
+- XChaCha20Decryptor: `Log.i`/`Log.w` for attempt, parse step details, key/auth failure; parse step logs (GSON null, missing salt/nonce/data, base64 failure, size checks).
+- NoteEncryption: body-only regex matches alg containing "xchacha"; body trimmed after frontmatter; fallback for JSON with `"data"` and salt/nonce.
+- NotesScreen: decrypt uses `withContext(Dispatchers.Main)` for callbacks; passphrase captured before launch; LaunchedEffect logs note detail when encrypted.
+
+---
+
 ## [1.2.2] - 2026-02-07
 
 ### Fixed

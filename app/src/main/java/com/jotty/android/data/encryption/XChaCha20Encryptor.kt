@@ -26,11 +26,14 @@ object XChaCha20Encryptor {
 
     /**
      * Encrypts [plaintext] with [passphrase]. Returns JSON body (no frontmatter).
+     * Passphrase is trimmed so it matches decryption behavior.
      */
     fun encrypt(plaintext: String, passphrase: String): String? {
+        val trimmed = passphrase.trim()
+        if (trimmed.isEmpty()) return null
         val salt = ByteArray(SALT_BYTES).apply { random.nextBytes(this) }
         val nonce24 = ByteArray(NONCE_BYTES).apply { random.nextBytes(this) }
-        val key = deriveKey(passphrase, salt) ?: return null
+        val key = deriveKey(trimmed, salt) ?: return null
         val ciphertextAndTag = encryptXChaCha20Poly1305(key, nonce24, plaintext.toByteArray(Charsets.UTF_8)) ?: return null
         val saltB64 = Base64.getEncoder().encodeToString(salt)
         val nonceB64 = Base64.getEncoder().encodeToString(nonce24)

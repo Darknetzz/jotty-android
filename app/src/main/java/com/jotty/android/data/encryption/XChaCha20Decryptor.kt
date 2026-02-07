@@ -1,5 +1,6 @@
 package com.jotty.android.data.encryption
 
+import com.google.gson.annotations.SerializedName
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.modes.ChaCha20Poly1305
 import org.bouncycastle.crypto.params.Argon2Parameters
@@ -22,24 +23,25 @@ object XChaCha20Decryptor {
 
     /**
      * Decrypts [encryptedBodyJson] (JSON with salt, nonce, data in base64) using [passphrase].
+     * Passphrase is trimmed. Accepts standard and URL-safe base64 in the JSON.
      * @return decrypted plaintext or null on failure (wrong passphrase, bad format, etc.)
      */
     fun decrypt(encryptedBodyJson: String, passphrase: String): String? {
         val (salt, nonce, data) = parseEncryptedBody(encryptedBodyJson) ?: return null
-        val key = deriveKey(passphrase, salt) ?: return null
+        val key = deriveKey(passphrase.trim(), salt) ?: return null
         return decryptXChaCha20Poly1305(key, nonce, data)
     }
 
     private fun parseEncryptedBody(json: String): Triple<ByteArray, ByteArray, ByteArray>? {
         return try {
-            // Minimal JSON parse for {"alg":"xchacha20","salt":"...","nonce":"...","data":"..."}
-            val saltB64 = json.substringAfter("\"salt\":\"").substringBefore("\"")
-            val nonceB64 = json.substringAfter("\"nonce\":\"").substringBefore("\"")
-            val dataB64 = json.substringAfter("\"data\":\"").substringBefore("\"")
-            if (saltB64.isBlank() || nonceB64.isBlank() || dataB64.isBlank()) return null
-            val salt = Base64.getDecoder().decode(saltB64) ?: return null
-            val nonce = Base64.getDecoder().decode(nonceB64) ?: return null
-            val data = Base64.getDecoder().decode(dataB64) ?: return null
+            val body = GSON.fromJson(json.trim(), EncryptedBodyJson::class.java)
+                ?: return null
+            val saltB64 = body.salt?.takeIf { it.isNotBlank() } ?: return null
+            val nonceB64 = body.nonce?.takeIf { it.isNotBlank() } ?: return null
+            val dataB64 = body.data?.takeIf { it.isNotBlank() } ?: return null
+            val salt = decodeBase64(saltB64) ?: return null
+            val nonce = decodeBase64(nonceB64) ?: return null
+            val data = decodeBase64(dataB64) ?: return null
             if (nonce.size != 24 || data.size < TAG_BYTES) return null
             Triple(salt, nonce, data)
         } catch (_: Exception) {
@@ -47,7 +49,27 @@ object XChaCha20Decryptor {
         }
     }
 
+    /** Decodes base64 string; accepts both standard and URL-safe base64 (e.g. from Jotty web). */
+    private fun decodeBase64(s: String): ByteArray? {
+        val normalized = s.replace('-', '+').replace('_', '/')
+        return try {
+            Base64.getDecoder().decode(normalized)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
+
+    private data class EncryptedBodyJson(
+        @SerializedName("alg") val alg: String? = null,
+        @SerializedName("salt") val salt: String? = null,
+        @SerializedName("nonce") val nonce: String? = null,
+        @SerializedName("data") val data: String? = null,
+    )
+
+    private val GSON = com.google.gson.Gson()
+
     private fun deriveKey(passphrase: String, salt: ByteArray): ByteArray? {
+        if (passphrase.isEmpty()) return null
         return try {
             val params = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
                 .withVersion(Argon2Parameters.ARGON2_VERSION_13)

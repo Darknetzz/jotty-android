@@ -2,6 +2,7 @@ package com.jotty.android.data.encryption
 
 import org.junit.Assert.*
 import org.junit.Test
+import java.util.Base64
 
 class XChaCha20EncryptorTest {
 
@@ -66,6 +67,28 @@ class XChaCha20EncryptorTest {
         // Convert to URL-safe base64 (e.g. as produced by Jotty web): + -> -, / -> _, remove padding
         val urlSafeUnpadded = encrypted.replace("+", "-").replace("/", "_").replace("=", "")
         val decrypted = XChaCha20Decryptor.decrypt(urlSafeUnpadded, passphrase)
+        assertNotNull(decrypted)
+        assertEquals(plaintext, decrypted)
+    }
+
+    @Test
+    fun `decrypt accepts libsodium secretbox format tag then ciphertext`() {
+        // Our encryptor produces ciphertext||tag (BC/IETF). Jotty web may use libsodium secretbox (tag||ciphertext).
+        // Simulate: take our encrypted JSON, decode "data", reorder to tag||ciphertext, re-encode, decrypt.
+        val plaintext = "Secret from Jotty web"
+        val passphrase = "web passphrase"
+        val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val regex = """"data"\s*:\s*"([^"]+)"""".toRegex()
+        val dataB64 = regex.find(encryptedJson)?.groupValues?.get(1) ?: fail("no data in JSON")
+        val data = Base64.getDecoder().decode(dataB64)
+        assertTrue(data.size >= 16)
+        val tagFirst = ByteArray(data.size).apply {
+            System.arraycopy(data, data.size - 16, this, 0, 16)
+            System.arraycopy(data, 0, this, 16, data.size - 16)
+        }
+        val tagFirstB64 = Base64.getEncoder().encodeToString(tagFirst)
+        val libsodiumStyleJson = encryptedJson.replace("\"$dataB64\"", "\"$tagFirstB64\"")
+        val decrypted = XChaCha20Decryptor.decrypt(libsodiumStyleJson, passphrase)
         assertNotNull(decrypted)
         assertEquals(plaintext, decrypted)
     }

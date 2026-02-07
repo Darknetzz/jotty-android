@@ -157,6 +157,8 @@ object XChaCha20Decryptor {
     /**
      * XChaCha20-Poly1305: HChaCha20(key, nonce[0..15]) -> subkey; then
      * ChaCha20-Poly1305(subkey, nonce[16..23] || 0x00000000, ciphertext).
+     * Bouncy Castle expects [ciphertext][tag] (tag at end). Libsodium secretbox uses [tag][ciphertext].
+     * We try BC order first, then if auth fails try libsodium order.
      */
     private fun decryptXChaCha20Poly1305(key: ByteArray, nonce24: ByteArray, ciphertextAndTag: ByteArray): String? {
         if (nonce24.size != 24 || key.size != 32 || ciphertextAndTag.size < TAG_BYTES) return null
@@ -164,11 +166,26 @@ object XChaCha20Decryptor {
         val nonce12 = ByteArray(12).apply {
             System.arraycopy(nonce24, 16, this, 0, 8)
         }
+        // Try BC order first: ciphertext || tag (our encryptor and IETF AEAD use this)
+        tryDecrypt(subkey, nonce12, ciphertextAndTag)?.let { return it }
+        // Try libsodium secretbox order: tag || ciphertext (Jotty web may use this)
+        if (ciphertextAndTag.size > TAG_BYTES) {
+            val reordered = ByteArray(ciphertextAndTag.size).apply {
+                System.arraycopy(ciphertextAndTag, TAG_BYTES, this, 0, size - TAG_BYTES)
+                System.arraycopy(ciphertextAndTag, 0, this, size - TAG_BYTES, TAG_BYTES)
+            }
+            tryDecrypt(subkey, nonce12, reordered)?.let { return it }
+        }
+        return null
+    }
+
+    /** Decrypts assuming [ciphertext][tag] (BC / IETF order). Returns null on auth failure or error. */
+    private fun tryDecrypt(subkey: ByteArray, nonce12: ByteArray, ciphertextThenTag: ByteArray): String? {
         return try {
             val cipher = ChaCha20Poly1305()
             cipher.init(false, ParametersWithIV(KeyParameter(subkey), nonce12))
-            val plain = ByteArray(ciphertextAndTag.size - TAG_BYTES)
-            cipher.processBytes(ciphertextAndTag, 0, ciphertextAndTag.size, plain, 0)
+            val plain = ByteArray(ciphertextThenTag.size - TAG_BYTES)
+            cipher.processBytes(ciphertextThenTag, 0, ciphertextThenTag.size, plain, 0)
             cipher.doFinal(plain, 0)
             String(plain, Charsets.UTF_8)
         } catch (_: Exception) {

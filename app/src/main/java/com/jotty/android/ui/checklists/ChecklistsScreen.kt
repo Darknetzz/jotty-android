@@ -99,24 +99,23 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
 
             val currentError = error
             val pullRefreshState = rememberPullToRefreshState()
-            PullToRefreshBox(
-                isRefreshing = loading,
-                onRefresh = { loadChecklists() },
-                state = pullRefreshState,
-            ) {
-                when {
-                    loading && checklists.isEmpty() -> LoadingState()
-                    currentError != null -> ErrorState(message = currentError, onRetry = { loadChecklists() })
-                    checklists.isEmpty() -> EmptyState(
-                        icon = Icons.Default.Checklist,
-                        title = stringResource(R.string.no_checklists_yet),
-                        subtitle = stringResource(R.string.tap_add_checklist),
-                    )
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
+            when {
+                loading && checklists.isEmpty() -> LoadingState()
+                currentError != null -> ErrorState(message = currentError, onRetry = { loadChecklists() })
+                checklists.isEmpty() -> EmptyState(
+                    icon = Icons.Default.Checklist,
+                    title = stringResource(R.string.no_checklists_yet),
+                    subtitle = stringResource(R.string.tap_add_checklist),
+                )
+                else -> PullToRefreshBox(
+                    isRefreshing = loading,
+                    onRefresh = { loadChecklists() },
+                    state = pullRefreshState,
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         items(checklists, key = { it.id }) { list ->
                             SwipeToDeleteContainer(
                                 enabled = swipeToDeleteEnabled,

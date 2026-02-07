@@ -149,24 +149,23 @@ fun NotesScreen(
 
                 val currentError = error
                 val pullRefreshState = rememberPullToRefreshState()
-                PullToRefreshBox(
-                    isRefreshing = loading,
-                    onRefresh = { loadNotes() },
-                    state = pullRefreshState,
-                ) {
-                    when {
-                        loading && notes.isEmpty() -> LoadingState()
-                        currentError != null -> ErrorState(message = currentError, onRetry = { loadNotes() })
-                        notes.isEmpty() -> EmptyState(
-                            icon = Icons.Default.Note,
-                            title = stringResource(R.string.no_notes_yet),
-                            subtitle = stringResource(R.string.tap_add_note),
-                        )
-                        else -> {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
+                when {
+                    loading && notes.isEmpty() -> LoadingState()
+                    currentError != null -> ErrorState(message = currentError, onRetry = { loadNotes() })
+                    notes.isEmpty() -> EmptyState(
+                        icon = Icons.Default.Note,
+                        title = stringResource(R.string.no_notes_yet),
+                        subtitle = stringResource(R.string.tap_add_note),
+                    )
+                    else -> PullToRefreshBox(
+                        isRefreshing = loading,
+                        onRefresh = { loadNotes() },
+                        state = pullRefreshState,
+                    ) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
                             items(notes, key = { it.id }) { n ->
                                 SwipeToDeleteContainer(
                                     enabled = swipeToDeleteEnabled,

@@ -2,6 +2,14 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.0.2-1] - 2026-02-06 (hotfix)
+
+### Fixed
+
+- **Encryption detection** — Encrypted notes are now detected reliably: support for API `encrypted` flag, relaxed frontmatter parsing (BOM, quoted values, YAML variants), and body-only detection when the server returns just the XChaCha20 JSON payload without frontmatter.
+
+---
+
 ## [1.0.2] - 2026-02-06
 
 ### Added
@@ -42,6 +50,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.0.2-1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2-1
 [1.0.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2
 [1.0.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.0

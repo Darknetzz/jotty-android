@@ -6,6 +6,30 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.2.0] - 2026-02-07
+
+### Added
+
+- **Content padding setting** — General → "Content padding": Comfortable (16dp vertical) or Compact (8dp). Applied to Checklists, Notes, Settings, and Setup so the app uses screen height the way you prefer.
+
+### Fixed
+
+- **Note decryption** — "Invalid password" when the passphrase was correct: encrypted body is now parsed with Gson (handles key order and formatting), base64 decoding supports both standard and URL-safe (e.g. from Jotty web), and passphrase is trimmed on encrypt and decrypt so accidental spaces no longer cause failure.
+
+### Changed
+
+- **Screen padding** — Default vertical padding reduced; use Settings → Content padding to choose Comfortable or Compact.
+- **Encrypt/decrypt** — Passphrase is trimmed when encrypting and decrypting for consistent behavior.
+
+### Technical
+
+- SettingsRepository: `contentPaddingMode`, `setContentPaddingMode`; KEY_CONTENT_PADDING.
+- ChecklistsScreen, NotesScreen, SetupScreen: take or use `settingsRepository` for content padding.
+- XChaCha20Decryptor: Gson for JSON, `decodeBase64()` for URL-safe base64, passphrase trim; EncryptedBodyJson data class.
+- XChaCha20Encryptor: passphrase trim and empty check.
+
+---
+
 ## [1.1.7] - 2026-02-07
 
 ### Added

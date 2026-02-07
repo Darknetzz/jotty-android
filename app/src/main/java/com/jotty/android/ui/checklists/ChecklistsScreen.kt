@@ -12,6 +12,8 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -37,7 +39,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
+fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
     var checklists by remember { mutableStateOf<List<Checklist>>(emptyList()) }
     var selectedList by remember { mutableStateOf<Checklist?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -96,16 +98,25 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = true) {
             }
 
             val currentError = error
-            when {
-                loading && checklists.isEmpty() -> LoadingState()
-                currentError != null -> ErrorState(message = currentError, onRetry = { loadChecklists() })
-                checklists.isEmpty() -> EmptyState(
-                    icon = Icons.Default.Checklist,
-                    title = stringResource(R.string.no_checklists_yet),
-                    subtitle = stringResource(R.string.tap_add_checklist),
-                )
-                else -> {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val pullRefreshState = rememberPullToRefreshState()
+            PullToRefreshBox(
+                isRefreshing = loading,
+                onRefresh = { loadChecklists() },
+                state = pullRefreshState,
+            ) {
+                when {
+                    loading && checklists.isEmpty() -> LoadingState()
+                    currentError != null -> ErrorState(message = currentError, onRetry = { loadChecklists() })
+                    checklists.isEmpty() -> EmptyState(
+                        icon = Icons.Default.Checklist,
+                        title = stringResource(R.string.no_checklists_yet),
+                        subtitle = stringResource(R.string.tap_add_checklist),
+                    )
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
                         items(checklists, key = { it.id }) { list ->
                             SwipeToDeleteContainer(
                                 enabled = swipeToDeleteEnabled,

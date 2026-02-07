@@ -112,6 +112,8 @@
     <string name="swipe_to_delete">Swipe to delete</string>
     <string name="swipe_to_delete_description">Swipe list or note rows left to delete (checklists and notes)</string>
     <string name="account">Account</string>
+    <string name="manage_instances">Manage instances</string>
+    <string name="manage_instances_description">Add, edit, or remove saved Jotty servers</string>
     <string name="disconnect">Disconnect</string>
     <string name="disconnect_description">Switch to another instance (this one is saved)</string>
     <string name="about">About</string>

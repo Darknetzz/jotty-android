@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -37,6 +38,8 @@ import java.util.UUID
 fun SetupScreen(
     settingsRepository: SettingsRepository,
     onConfigured: () -> Unit,
+    standaloneMode: Boolean = false,
+    onBack: (() -> Unit)? = null,
 ) {
     val instances by settingsRepository.instances.collectAsState(initial = emptyList())
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
@@ -52,18 +55,34 @@ fun SetupScreen(
             .fillMaxSize()
             .padding(24.dp),
     ) {
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = stringResource(R.string.connect_to_jotty),
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = stringResource(R.string.choose_saved_instance),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp),
-        )
+        if (standaloneMode && onBack != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                }
+                Text(
+                    text = stringResource(R.string.manage_instances),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+            }
+        } else {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.connect_to_jotty),
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+            )
+            Text(
+                text = stringResource(R.string.choose_saved_instance),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
@@ -72,6 +91,7 @@ fun SetupScreen(
             InstanceForm(
                 initialInstance = instanceToEdit,
                 settingsRepository = settingsRepository,
+                setAsCurrentOnConnect = !standaloneMode,
                 onDone = onConfigured,
                 onSaved = { instanceToEdit = null },
                 onCancel = { instanceToEdit = null },
@@ -80,8 +100,9 @@ fun SetupScreen(
             InstanceForm(
                 initialInstance = null,
                 settingsRepository = settingsRepository,
+                setAsCurrentOnConnect = !standaloneMode,
                 onDone = onConfigured,
-                onSaved = null,
+                onSaved = if (standaloneMode) { { showAddForm = false } } else null,
                 onCancel = { if (instances.isNotEmpty()) showAddForm = false },
             )
         } else {
@@ -95,7 +116,7 @@ fun SetupScreen(
                             onClick = {
                                 scope.launch {
                                     settingsRepository.setCurrentInstanceId(instance.id)
-                                    onConfigured()
+                                    if (standaloneMode) onBack?.invoke() else onConfigured()
                                 }
                             },
                             onSetDefault = {
@@ -151,6 +172,7 @@ fun SetupScreen(
                 InstanceForm(
                     initialInstance = null,
                     settingsRepository = settingsRepository,
+                    setAsCurrentOnConnect = !standaloneMode,
                     onDone = onConfigured,
                     onSaved = null,
                     onCancel = null,
@@ -237,6 +259,7 @@ private fun InstanceCard(
 private fun InstanceForm(
     initialInstance: JottyInstance?,
     settingsRepository: SettingsRepository,
+    setAsCurrentOnConnect: Boolean = true,
     onDone: () -> Unit,
     onSaved: (() -> Unit)?,
     onCancel: (() -> Unit)?,
@@ -384,8 +407,8 @@ private fun InstanceForm(
                                 apiKey = key,
                                 colorHex = colorHex,
                             )
-                            settingsRepository.addInstance(instance)
-                            if (isEdit) onSaved?.invoke() else onDone()
+                            settingsRepository.addInstance(instance, setAsCurrent = setAsCurrentOnConnect)
+                            if (isEdit) onSaved?.invoke() else if (setAsCurrentOnConnect) onDone() else onSaved?.invoke()
                         } catch (e: Exception) {
                             error = connectionFailedMsg.replace("%s", e.message ?: "Unknown error")
                         } finally {

@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,7 +50,7 @@ fun NotesScreen(
     api: JottyApi,
     initialNoteId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
-    swipeToDeleteEnabled: Boolean = true,
+    swipeToDeleteEnabled: Boolean = false,
 ) {
     var notes by remember { mutableStateOf<List<Note>>(emptyList()) }
     var selectedNote by remember { mutableStateOf<Note?>(null) }
@@ -146,16 +148,25 @@ fun NotesScreen(
                 }
 
                 val currentError = error
-                when {
-                    loading && notes.isEmpty() -> LoadingState()
-                    currentError != null -> ErrorState(message = currentError, onRetry = { loadNotes() })
-                    notes.isEmpty() -> EmptyState(
-                        icon = Icons.Default.Note,
-                        title = stringResource(R.string.no_notes_yet),
-                        subtitle = stringResource(R.string.tap_add_note),
-                    )
-                    else -> {
-                        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val pullRefreshState = rememberPullToRefreshState()
+                PullToRefreshBox(
+                    isRefreshing = loading,
+                    onRefresh = { loadNotes() },
+                    state = pullRefreshState,
+                ) {
+                    when {
+                        loading && notes.isEmpty() -> LoadingState()
+                        currentError != null -> ErrorState(message = currentError, onRetry = { loadNotes() })
+                        notes.isEmpty() -> EmptyState(
+                            icon = Icons.Default.Note,
+                            title = stringResource(R.string.no_notes_yet),
+                            subtitle = stringResource(R.string.tap_add_note),
+                        )
+                        else -> {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
                             items(notes, key = { it.id }) { n ->
                                 SwipeToDeleteContainer(
                                     enabled = swipeToDeleteEnabled,

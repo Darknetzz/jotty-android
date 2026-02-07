@@ -20,7 +20,10 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.checklists.ChecklistsScreen
 import com.jotty.android.ui.notes.NotesScreen
+import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.ui.settings.SettingsScreen
+
+private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
 
 sealed class MainRoute(val route: String, val titleRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     data object Checklists : MainRoute("checklists", R.string.nav_checklists, Icons.Default.Checklist)
@@ -52,7 +55,7 @@ fun MainScreen(
     }
     val serverUrl = settingsRepository.serverUrl.collectAsState(initial = null).value
     val apiKey = settingsRepository.apiKey.collectAsState(initial = null).value
-    val swipeToDeleteEnabled = settingsRepository.swipeToDeleteEnabled.collectAsState(initial = true).value
+    val swipeToDeleteEnabled = settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false).value
 
     val api = remember(serverUrl, apiKey) {
         if (!serverUrl.isNullOrBlank() && !apiKey.isNullOrBlank()) {
@@ -124,6 +127,15 @@ fun MainScreen(
                         api = currentApi,
                         settingsRepository = settingsRepository,
                         onDisconnect = onDisconnect,
+                        onManageInstances = { navController.navigate(ROUTE_MANAGE_INSTANCES) },
+                    )
+                }
+                composable(ROUTE_MANAGE_INSTANCES) {
+                    SetupScreen(
+                        settingsRepository = settingsRepository,
+                        onConfigured = { /* no-op; we stay in manage mode */ },
+                        standaloneMode = true,
+                        onBack = { navController.popBackStack() },
                     )
                 }
             }

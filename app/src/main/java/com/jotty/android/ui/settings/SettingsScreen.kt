@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,12 +31,13 @@ fun SettingsScreen(
     api: JottyApi?,
     settingsRepository: SettingsRepository,
     onDisconnect: () -> Unit,
+    onManageInstances: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val currentInstance by settingsRepository.currentInstance.collectAsState(initial = null)
     val theme by settingsRepository.theme.collectAsState(initial = null)
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
-    val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsState(initial = true)
+    val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false)
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
@@ -107,6 +109,18 @@ fun SettingsScreen(
                         }
                     },
                     leadingContent = { Icon(Icons.Default.Link, contentDescription = null) },
+                )
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.manage_instances)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.manage_instances_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    leadingContent = { Icon(Icons.Default.ManageAccounts, contentDescription = null) },
+                    modifier = Modifier.clickable(onClick = onManageInstances),
                 )
                 if (currentInstance != null) {
                     HorizontalDivider()

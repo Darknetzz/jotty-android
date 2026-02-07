@@ -2,6 +2,19 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Pull-to-refresh** — Swipe down on Checklists and Notes list screens to refresh (in addition to the refresh button).
+- **Manage instances without disconnecting** — Settings → "Manage instances" opens the instance list to add, edit, or remove Jotty servers while staying connected to the current one.
+
+### Changed
+
+- **Swipe-to-delete disabled by default** — Swipe-to-delete for checklists and notes is off by default; enable it in Settings → Appearance.
+
+---
+
 ## [1.1.1] - 2026-02-07
 
 ### Added

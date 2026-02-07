@@ -55,18 +55,21 @@ class SettingsRepository(private val context: Context) {
         prefs[KEY_START_TAB].takeIf { !it.isNullOrBlank() }
     }.catch { emit(null) }
 
-    /** Swipe to delete list/note rows. Default true. */
+    /** Swipe to delete list/note rows. Default false. */
     val swipeToDeleteEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[KEY_SWIPE_TO_DELETE] ?: true
-    }.catch { emit(true) }
+        prefs[KEY_SWIPE_TO_DELETE] ?: false
+    }.catch { emit(false) }
 
-    suspend fun addInstance(instance: JottyInstance) {
+    /**
+     * Adds or updates an instance. When [setAsCurrent] is true, also sets it as the current instance.
+     */
+    suspend fun addInstance(instance: JottyInstance, setAsCurrent: Boolean = true) {
         context.dataStore.edit { prefs ->
             val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty().toMutableList()
             if (list.none { it.id == instance.id }) list.add(instance)
             else list[list.indexOfFirst { it.id == instance.id }] = instance
             prefs[KEY_INSTANCES] = gson.toJson(list)
-            prefs[KEY_CURRENT_INSTANCE_ID] = instance.id
+            if (setAsCurrent) prefs[KEY_CURRENT_INSTANCE_ID] = instance.id
         }
     }
 
@@ -74,7 +77,13 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit { prefs ->
             val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty().filter { it.id != id }
             prefs[KEY_INSTANCES] = gson.toJson(list)
-            if (prefs[KEY_CURRENT_INSTANCE_ID] == id) prefs.remove(KEY_CURRENT_INSTANCE_ID)
+            if (prefs[KEY_CURRENT_INSTANCE_ID] == id) {
+                val defaultId = prefs[KEY_DEFAULT_INSTANCE_ID]?.takeIf { it != id }
+                val fallback = defaultId?.takeIf { list.any { inst -> inst.id == defaultId } }
+                    ?: list.firstOrNull()?.id
+                if (fallback != null) prefs[KEY_CURRENT_INSTANCE_ID] = fallback
+                else prefs.remove(KEY_CURRENT_INSTANCE_ID)
+            }
             if (prefs[KEY_DEFAULT_INSTANCE_ID] == id) prefs.remove(KEY_DEFAULT_INSTANCE_ID)
         }
     }

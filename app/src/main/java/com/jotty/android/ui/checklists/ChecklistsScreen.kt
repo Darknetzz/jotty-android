@@ -126,13 +126,15 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
                                 checklist = list,
                                 onClick = { selectedList = list },
                                 onDelete = {
-                                    try {
-                                        api.deleteChecklist(list.id)
-                                        checklists = checklists.filter { it.id != list.id }
-                                        if (selectedList?.id == list.id) selectedList = null
-                                    } catch (e: Exception) {
-                                        AppLog.e("checklists", "Delete checklist failed", e)
-                                        scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) }
+                                    scope.launch {
+                                        try {
+                                            api.deleteChecklist(list.id)
+                                            checklists = checklists.filter { it.id != list.id }
+                                            if (selectedList?.id == list.id) selectedList = null
+                                        } catch (e: Exception) {
+                                            AppLog.e("checklists", "Delete checklist failed", e)
+                                            snackbarHostState.showSnackbar(deleteFailedMsg)
+                                        }
                                     }
                                 },
                             )

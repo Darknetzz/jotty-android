@@ -2,6 +2,12 @@
 <resources>
     <string name="app_name">Jotty</string>
 
+    <!-- Common / accessibility (content descriptions for icons) -->
+    <string name="cd_search">Search</string>
+    <string name="cd_link">Link</string>
+    <string name="cd_download">Download</string>
+    <string name="cd_success">Done</string>
+
     <!-- Common -->
     <string name="retry">Retry</string>
     <string name="cancel">Cancel</string>
@@ -72,6 +78,7 @@
     <string name="error_passphrase_short">Use at least 12 characters</string>
     <string name="error_passphrase_mismatch">Passphrases don\'t match</string>
     <string name="error_decrypt_failed">Wrong passphrase or invalid format</string>
+    <string name="error_encrypt_failed">Encryption failed. Please try again.</string>
     <string name="note_is_encrypted">This note is encrypted</string>
     <string name="pgp_not_supported">PGP decryption is not supported in the app. Use the Jotty web app to decrypt.</string>
     <string name="enter_passphrase_to_view">Enter your passphrase to view the content.</string>

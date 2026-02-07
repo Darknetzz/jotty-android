@@ -8,7 +8,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -143,7 +142,7 @@ fun SetupScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = null)
+                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
                                 Text(stringResource(R.string.add_new_instance), style = MaterialTheme.typography.bodyLarge)
                             }
                         }
@@ -216,7 +215,7 @@ private fun InstanceCard(
                         ),
                 )
             }
-            Icon(Icons.Default.Link, contentDescription = null)
+            Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = instance.name,
@@ -431,7 +430,7 @@ private fun InstanceForm(
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Icon(Icons.Default.Check, contentDescription = null)
+                    Icon(Icons.Default.Check, contentDescription = stringResource(R.string.cd_success))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(if (isEdit) stringResource(R.string.save) else stringResource(R.string.connect))
                 }

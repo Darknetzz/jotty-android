@@ -57,4 +57,16 @@ class XChaCha20EncryptorTest {
         assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, passphraseWithSpaces))
         assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, "trim me"))
     }
+
+    @Test
+    fun `decrypt accepts URL-safe base64 and unpadded base64 in JSON`() {
+        val plaintext = "Note encrypted with standard base64"
+        val passphrase = "pass"
+        val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        // Convert to URL-safe base64 (e.g. as produced by Jotty web): + -> -, / -> _, remove padding
+        val urlSafeUnpadded = encrypted.replace("+", "-").replace("/", "_").replace("=", "")
+        val decrypted = XChaCha20Decryptor.decrypt(urlSafeUnpadded, passphrase)
+        assertNotNull(decrypted)
+        assertEquals(plaintext, decrypted)
+    }
 }

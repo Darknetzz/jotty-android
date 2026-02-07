@@ -56,11 +56,11 @@ app/src/main/java/com/jotty/android/
 ## Feature notes
 
 - **Checklists:** Task projects use type `"task"` and `apiPath` for hierarchy. Progress "X / Y done" on detail. Checkbox = complete/uncomplete; tap task text = inline edit; delete button per row. Swipe row left to delete checklist (disabled by default; enable in Settings). Pull-to-refresh (swipe down), empty/error states.
-- **Notes:** List: search, category filter chips, pull-to-refresh (swipe down), empty/error states. Swipe-to-delete disabled by default; enable in Settings. Plain notes show Markdown in view mode; export/share (title + content). Encrypted notes: lock icon, "Decrypt" for XChaCha20; decrypted content cached in session via `NoteDecryptionSession`; "Encrypt" action and `EncryptNoteDialog` (passphrase, min 12 chars) using `XChaCha20Encryptor` and frontmatter-wrapped body. Swipe row left to delete note. PGP is not supported in-app.
+- **Notes:** List: search, category filter chips, pull-to-refresh (swipe down), empty/error states. Swipe-to-delete disabled by default; enable in Settings. Plain notes show Markdown in view mode; export/share (title + content). Encrypted notes: lock icon, "Decrypt" for XChaCha20; decrypted content cached in session via `NoteDecryptionSession`; "Encrypt" action and `EncryptNoteDialog` (passphrase, min 12 chars) using `XChaCha20Encryptor` and frontmatter-wrapped body. **Encrypt and decrypt run on a background thread** (`Dispatchers.Default`) so the UI stays responsive; dialogs show a loading state during the operation. If encrypt returns null, the dialog shows an error. Swipe row left to delete note. PGP is not supported in-app.
 - **Instances:** Stored in `SettingsRepository`; optional `colorHex` per instance. Default instance: `defaultInstanceId` used when opening app with no current instance; star in Setup and Settings to set default. Add/edit/delete instances from Settings → "Manage instances" without disconnecting; "Disconnect" clears current instance only.
-- **Settings:** Health check (api.health()), "Set as default instance" row, theme, start screen tab, dashboard from `api/summary`, About.
+- **Settings:** Health check (api.health()), "Set as default instance" row, theme, start screen tab, swipe to delete, content padding, **debug logging** (General; when enabled, `AppLog.d()` writes to logcat, e.g. decryption failure step), dashboard from `api/summary`, About.
 - **Deep links:** `jotty-android://open/note/{noteId}` opens the app and the note (MainActivity intent-filter, singleTask; `deepLinkNoteId` state updated in both `onCreate` and `onNewIntent`; JottyAppContent/MainScreen/NotesScreen pass through and clear after open).
-- **Technical:** `AppLog` for tagged logging; HTTP logging only in debug builds; ProGuard keep rules for Gson, Bouncy Castle, and all data model classes. `NoteDecryptionSession` uses `ConcurrentHashMap` for thread safety.
+- **Technical:** `AppLog` for tagged logging; when Settings → Debug logging is enabled, `AppLog.d()` writes to logcat (e.g. decryption parse/key/auth failure). HTTP logging only in debug builds. ProGuard keep rules for Gson, Bouncy Castle, and all data model classes. `NoteDecryptionSession` uses `ConcurrentHashMap` for thread safety.
 
 ## Where to change what
 
@@ -77,7 +77,7 @@ app/src/main/java/com/jotty/android/
 | Deep link handling         | `MainActivity.kt`, `ui/JottyApp.kt`, `MainScreen.kt`, `NotesScreen.kt` |
 | Shared list composables     | `ui/common/ListScreenComponents.kt`   |
 | API/network error messages | `util/ApiErrorHelper.kt`              |
-| Logging                    | `util/AppLog.kt`                      |
+| Logging / debug logging    | `util/AppLog.kt` (flag); Settings → `SettingsRepository.debugLoggingEnabled`, `SettingsScreen.kt` |
 | ProGuard keep rules        | `app/proguard-rules.pro`              |
 | App version in UI          | `gradle.properties` + BuildConfig      |
 | Strings / i18n             | `res/values/strings.xml`               |

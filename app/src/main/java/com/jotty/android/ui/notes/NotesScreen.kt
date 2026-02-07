@@ -137,7 +137,7 @@ fun NotesScreen(
                     onValueChange = { searchQuery = it },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                     placeholder = { Text(stringResource(R.string.search_notes)) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
                     singleLine = true,
                 )
                 if (noteCategories.isNotEmpty()) {
@@ -283,7 +283,7 @@ private fun NoteCard(note: Note, onClick: () -> Unit) {
                 ) {
                     Icon(
                         Icons.Default.Lock,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.encrypted),
                         modifier = Modifier.size(14.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -352,6 +352,7 @@ private fun NoteDetailScreen(
     var showDecryptDialog by remember { mutableStateOf(false) }
     var showEncryptDialog by remember { mutableStateOf(false) }
     var isEncrypting by remember { mutableStateOf(false) }
+    var encryptError by remember { mutableStateOf<String?>(null) }
     var decryptError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val parsed = remember(content) { NoteEncryption.parse(content) }
@@ -460,10 +461,16 @@ private fun NoteDetailScreen(
     }
 
     if (showEncryptDialog) {
+        val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
         EncryptNoteDialog(
-            onDismiss = { showEncryptDialog = false },
+            onDismiss = {
+                showEncryptDialog = false
+                encryptError = null
+            },
             isEncrypting = isEncrypting,
+            encryptError = encryptError,
             onEncrypt = { passphrase ->
+                encryptError = null
                 isEncrypting = true
                 scope.launch {
                     val body = withContext(Dispatchers.Default) {
@@ -486,6 +493,8 @@ private fun NoteDetailScreen(
                                 showEncryptDialog = false
                             }
                         } catch (_: Exception) { onSaveFailed() }
+                    } else {
+                        encryptError = encryptFailedMsg
                     }
                 }
             },
@@ -526,7 +535,7 @@ private fun EncryptedNotePlaceholder(
     ) {
         Icon(
             Icons.Default.Lock,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.note_is_encrypted),
             modifier = Modifier.size(64.dp),
             tint = MaterialTheme.colorScheme.outline,
         )
@@ -559,6 +568,7 @@ private fun EncryptedNotePlaceholder(
 private fun EncryptNoteDialog(
     onDismiss: () -> Unit,
     isEncrypting: Boolean = false,
+    encryptError: String? = null,
     onEncrypt: (String) -> Unit,
 ) {
     var passphrase by remember { mutableStateOf("") }
@@ -566,6 +576,7 @@ private fun EncryptNoteDialog(
     var error by remember { mutableStateOf<String?>(null) }
     val errorShort = stringResource(R.string.error_passphrase_short)
     val errorMismatch = stringResource(R.string.error_passphrase_mismatch)
+    val displayError = error ?: encryptError
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.encrypt_note)) },
@@ -592,8 +603,8 @@ private fun EncryptNoteDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    isError = error != null,
-                    supportingText = error?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    isError = displayError != null,
+                    supportingText = displayError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
                     enabled = !isEncrypting,
                 )
             }

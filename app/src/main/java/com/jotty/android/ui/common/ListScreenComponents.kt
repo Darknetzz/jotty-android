@@ -93,7 +93,7 @@ fun EmptyState(
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
                 icon,
-                contentDescription = null,
+                contentDescription = title,
                 modifier = Modifier.size(64.dp),
                 tint = MaterialTheme.colorScheme.outline,
             )

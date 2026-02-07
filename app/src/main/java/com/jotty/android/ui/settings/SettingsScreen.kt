@@ -140,7 +140,7 @@ fun SettingsScreen(
                             )
                         }
                     },
-                    leadingContent = { Icon(Icons.Default.Link, contentDescription = null) },
+                    leadingContent = { Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link)) },
                 )
                 HorizontalDivider()
                 ListItem(
@@ -151,7 +151,7 @@ fun SettingsScreen(
                             style = MaterialTheme.typography.bodySmall,
                         )
                     },
-                    leadingContent = { Icon(Icons.Default.ManageAccounts, contentDescription = null) },
+                    leadingContent = { Icon(Icons.Default.ManageAccounts, contentDescription = stringResource(R.string.manage_instances)) },
                     modifier = Modifier.clickable(onClick = onManageInstances),
                 )
                 if (currentInstance != null) {
@@ -167,7 +167,7 @@ fun SettingsScreen(
                         leadingContent = {
                             Icon(
                                 Icons.Default.Star,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.set_as_default_instance),
                                 tint = if (defaultInstanceId == currentInstance?.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         },
@@ -200,9 +200,10 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.theme_mode_label)) },
                 supportingContent = {
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(
                             null to R.string.theme_system,
@@ -261,9 +262,10 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.content_padding)) },
                 supportingContent = {
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(
                             "comfortable" to R.string.content_padding_comfortable,
@@ -286,9 +288,10 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.start_screen)) },
                 supportingContent = {
-                    Row(
-                        modifier = Modifier.padding(top = 4.dp),
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(
                             "checklists" to R.string.nav_checklists,
@@ -368,7 +371,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null)
+                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = stringResource(R.string.disconnect))
                 Column {
                     Text(stringResource(R.string.disconnect), style = MaterialTheme.typography.bodyLarge)
                     Text(
@@ -393,7 +396,7 @@ fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                Icon(Icons.Default.Info, contentDescription = null)
+                Icon(Icons.Default.Info, contentDescription = stringResource(R.string.about))
                 Column {
                     Text(stringResource(R.string.about), style = MaterialTheme.typography.bodyLarge)
                     Text(
@@ -573,7 +576,7 @@ private fun AboutDialog(
                 ) {
                     Icon(
                         Icons.Default.Link,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.view_source_github),
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary,
                     )
@@ -594,7 +597,7 @@ private fun AboutDialog(
                         ) {
                             Icon(
                                 Icons.Default.Update,
-                                contentDescription = null,
+                                contentDescription = stringResource(R.string.check_for_updates),
                                 modifier = Modifier.size(18.dp),
                                 tint = MaterialTheme.colorScheme.primary,
                             )
@@ -768,7 +771,7 @@ private fun UpdateAvailableContent(
             ) {
                 Icon(
                     Icons.Default.Download,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.cd_download),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -782,7 +785,7 @@ private fun UpdateAvailableContent(
                 ) {
                     Icon(
                         Icons.Default.Link,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.open_release_page),
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.primary,
                     )

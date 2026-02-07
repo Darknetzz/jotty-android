@@ -54,6 +54,7 @@ fun SettingsScreen(
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
     var healthOk by remember { mutableStateOf<Boolean?>(null) }
+    var serverVersion by remember { mutableStateOf<String?>(null) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
@@ -63,10 +64,12 @@ fun SettingsScreen(
             try {
                 api?.let { a ->
                     try {
-                        a.health()
+                        val health = a.health()
                         healthOk = true
+                        serverVersion = health.version
                     } catch (_: Exception) {
                         healthOk = false
+                        serverVersion = null
                     }
                     try {
                         summary = a.getSummary().summary
@@ -181,9 +184,21 @@ fun SettingsScreen(
             }
         }
 
-        if (summary != null || adminOverview != null) {
+        if (serverVersion != null || summary != null || adminOverview != null) {
             Spacer(modifier = Modifier.height(12.dp))
             SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
+            serverVersion?.let { version ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.server_version)) },
+                        supportingContent = { Text(version, style = MaterialTheme.typography.bodyMedium) },
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
             summary?.let { DashboardSummaryCard(it) }
             if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
             adminOverview?.let { AdminOverviewCard(it) }

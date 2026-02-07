@@ -74,7 +74,7 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-    Column(Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
+    Column(Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
         val currentList = selectedList
         if (currentList != null) {
             ChecklistDetailScreen(

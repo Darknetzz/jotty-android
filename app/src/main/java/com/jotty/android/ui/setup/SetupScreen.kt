@@ -55,7 +55,7 @@ fun SetupScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(horizontal = 24.dp, vertical = 12.dp),
     ) {
         if (standaloneMode && onBack != null) {
             Row(

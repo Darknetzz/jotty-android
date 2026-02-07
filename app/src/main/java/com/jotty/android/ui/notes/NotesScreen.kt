@@ -103,7 +103,7 @@ fun NotesScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-    Column(Modifier.fillMaxSize().padding(innerPadding).padding(16.dp)) {
+    Column(Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = 8.dp)) {
         when (val note = selectedNote) {
             null -> {
                 Row(

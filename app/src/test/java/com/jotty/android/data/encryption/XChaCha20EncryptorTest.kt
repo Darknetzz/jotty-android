@@ -30,4 +30,31 @@ class XChaCha20EncryptorTest {
         assertEquals("id-1", enc.frontmatter.uuid)
         assertEquals("Test", enc.frontmatter.title)
     }
+
+    @Test
+    fun `encrypt then decrypt round-trip returns original plaintext`() {
+        val plaintext = "Hello, secret note with unicode: 日本語 🎉"
+        val passphrase = "my secure passphrase 123"
+        val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphrase)
+        assertNotNull(encrypted)
+        val decrypted = XChaCha20Decryptor.decrypt(encrypted!!, passphrase)
+        assertNotNull(decrypted)
+        assertEquals(plaintext, decrypted)
+    }
+
+    @Test
+    fun `decrypt with wrong passphrase returns null`() {
+        val plaintext = "Secret"
+        val encrypted = XChaCha20Encryptor.encrypt(plaintext, "correct")!!
+        assertNull(XChaCha20Decryptor.decrypt(encrypted, "wrong"))
+    }
+
+    @Test
+    fun `decrypt with trimmed passphrase matches encrypt with trimmed passphrase`() {
+        val plaintext = "Content"
+        val passphraseWithSpaces = "  trim me  "
+        val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphraseWithSpaces)!!
+        assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, passphraseWithSpaces))
+        assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, "trim me"))
+    }
 }

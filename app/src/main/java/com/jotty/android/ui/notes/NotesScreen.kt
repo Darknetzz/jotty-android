@@ -42,7 +42,9 @@ import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import dev.jeziellago.compose.markdowntext.MarkdownText
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -349,6 +351,7 @@ private fun NoteDetailScreen(
     var decryptedContent by remember { mutableStateOf<String?>(null) }
     var showDecryptDialog by remember { mutableStateOf(false) }
     var showEncryptDialog by remember { mutableStateOf(false) }
+    var isEncrypting by remember { mutableStateOf(false) }
     var decryptError by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val parsed = remember(content) { NoteEncryption.parse(content) }
@@ -459,11 +462,16 @@ private fun NoteDetailScreen(
     if (showEncryptDialog) {
         EncryptNoteDialog(
             onDismiss = { showEncryptDialog = false },
+            isEncrypting = isEncrypting,
             onEncrypt = { passphrase ->
-                val body = XChaCha20Encryptor.encrypt(displayContent ?: content, passphrase)
-                if (body != null) {
-                    val fullContent = XChaCha20Encryptor.wrapWithFrontmatter(note.id, title, note.category, body)
-                    scope.launch {
+                isEncrypting = true
+                scope.launch {
+                    val body = withContext(Dispatchers.Default) {
+                        XChaCha20Encryptor.encrypt(displayContent ?: content, passphrase)
+                    }
+                    isEncrypting = false
+                    if (body != null) {
+                        val fullContent = XChaCha20Encryptor.wrapWithFrontmatter(note.id, title, note.category, body)
                         try {
                             val updated = api.updateNote(
                                 note.id,
@@ -550,6 +558,7 @@ private fun EncryptedNotePlaceholder(
 @Composable
 private fun EncryptNoteDialog(
     onDismiss: () -> Unit,
+    isEncrypting: Boolean = false,
     onEncrypt: (String) -> Unit,
 ) {
     var passphrase by remember { mutableStateOf("") }
@@ -574,6 +583,7 @@ private fun EncryptNoteDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
+                    enabled = !isEncrypting,
                 )
                 OutlinedTextField(
                     value = confirm,
@@ -584,20 +594,27 @@ private fun EncryptNoteDialog(
                     visualTransformation = PasswordVisualTransformation(),
                     isError = error != null,
                     supportingText = error?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    enabled = !isEncrypting,
                 )
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
+                    if (isEncrypting) return@TextButton
                     when {
                         passphrase.length < 12 -> error = errorShort
                         passphrase != confirm -> error = errorMismatch
                         else -> onEncrypt(passphrase)
                     }
                 },
+                enabled = !isEncrypting,
             ) {
-                Text(stringResource(R.string.encrypt))
+                if (isEncrypting) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                } else {
+                    Text(stringResource(R.string.encrypt))
+                }
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
@@ -614,6 +631,8 @@ private fun DecryptNoteDialog(
     onDecryptError: (String?) -> Unit,
 ) {
     var passphrase by remember { mutableStateOf("") }
+    var isDecrypting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
     if (encryptionMethod != "xchacha") {
         AlertDialog(
@@ -646,21 +665,35 @@ private fun DecryptNoteDialog(
                     visualTransformation = PasswordVisualTransformation(),
                     isError = decryptError != null,
                     supportingText = decryptError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                    enabled = !isDecrypting,
                 )
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
-                    val decrypted = XChaCha20Decryptor.decrypt(encryptedBody, passphrase)
-                    if (decrypted != null) {
-                        onDecrypted(decrypted)
-                    } else {
-                        onDecryptError(decryptFailedMsg)
+                    if (isDecrypting) return@TextButton
+                    isDecrypting = true
+                    onDecryptError(null)
+                    scope.launch {
+                        val decrypted = withContext(Dispatchers.Default) {
+                            XChaCha20Decryptor.decrypt(encryptedBody, passphrase)
+                        }
+                        isDecrypting = false
+                        if (decrypted != null) {
+                            onDecrypted(decrypted)
+                        } else {
+                            onDecryptError(decryptFailedMsg)
+                        }
                     }
                 },
+                enabled = !isDecrypting,
             ) {
-                Text(stringResource(R.string.decrypt))
+                if (isDecrypting) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                } else {
+                    Text(stringResource(R.string.decrypt))
+                }
             }
         },
         dismissButton = {

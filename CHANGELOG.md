@@ -6,7 +6,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
-## [1.3.0] - 2026-02-07
+## [1.2.1] - 2026-02-07
 
 ### Added
 

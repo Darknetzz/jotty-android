@@ -6,6 +6,37 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.3.0] - 2026-02-07
+
+### Added
+
+- **Debug logging** — Settings → General → "Debug logging": when enabled, extra details (e.g. decryption failure step: parse, key derivation, or auth) are written to logcat for troubleshooting.
+- **Accessibility** — Meaningful content descriptions for icons (Search, Link, Encrypt, Decrypt, Disconnect, About, etc.) so TalkBack and other assistive technologies announce them correctly.
+- **Encrypt/decrypt loading** — Encrypt and decrypt run on a background thread so the UI stays responsive; dialogs show a spinner and disable inputs while the operation runs.
+
+### Fixed
+
+- **Note decryption** — Base64 decoding now strips whitespace and adds padding when needed; leading BOM in the encrypted body is trimmed so more payloads (including from Jotty web) decrypt correctly.
+- **Deprecations** — Replaced deprecated `Icons.Filled.ArrowBack`, `Note`, `Logout` with AutoMirrored variants; SwipeToDismissBox no longer uses deprecated `confirmValueChange` (replaced with `LaunchedEffect` on state).
+
+### Changed
+
+- **Encrypt dialog** — If encryption fails (e.g. returns null), the dialog shows "Encryption failed. Please try again." instead of doing nothing.
+- **Settings chips** — Theme mode, theme color, content padding, and start screen chips use FlowRow so they wrap on small screens.
+- **Empty state** — Empty-list icon uses the screen title as content description for accessibility.
+
+### Technical
+
+- SettingsRepository: `debugLoggingEnabled`, `setDebugLoggingEnabled`; KEY_DEBUG_LOGGING.
+- AppLog: `isDebugEnabled()`, `setDebugEnabled()`; `d()` only logs when debug is enabled.
+- XChaCha20Decryptor: step-wise failure logging (parse / key derivation / auth); BOM trim; base64 whitespace strip and padding.
+- JottyAppContent: collects `debugLoggingEnabled` and syncs to AppLog.
+- NotesScreen: decrypt in `Dispatchers.Default` with loading state; encrypt in `Dispatchers.Default` with `encryptError` state; EncryptNoteDialog accepts `encryptError`, `isEncrypting`.
+- Unit tests: encrypt/decrypt round-trip, wrong passphrase, trimmed passphrase, URL-safe base64 decrypt.
+- AGENTS.md: debug logging, background encrypt/decrypt, "Where to change what" for logging.
+
+---
+
 ## [1.2.0] - 2026-02-07
 
 ### Added

@@ -19,13 +19,13 @@ app/src/main/java/com/jotty/android/
 │   └── preferences/  # SettingsRepository, JottyInstance (multi-instance, default instance, theme, start tab, colorHex)
 ├── ui/
 │   ├── checklists/  # ChecklistsScreen (lists, progress, swipe-to-delete, items, to-do/completed, edit/delete tasks)
-│   ├── common/      # Shared composables: LoadingState, ErrorState, EmptyState, SwipeToDeleteContainer
+│   ├── common/      # Shared composables: LoadingState, ErrorState, EmptyState, ListScreenContent, SwipeToDeleteContainer
 │   ├── main/        # MainScreen (NavHost, bottom nav, deep-link note id)
 │   ├── notes/       # NotesScreen (list, search, categories, export/share, encrypt, decrypt, swipe-to-delete, deep link)
 │   ├── settings/    # SettingsScreen (health check, default instance, theme, start screen, dashboard, About)
 │   ├── setup/       # SetupScreen (instance list, default star, instance color, add/edit/delete, connect)
 │   └── theme/       # Theme, Type
-├── util/            # AppLog (tagged logging)
+├── util/            # AppLog (tagged logging), ApiErrorHelper (exception → user message via string resources)
 ├── JottyApp.kt      # Application class (SettingsRepository singleton)
 ├── ui/JottyApp.kt   # JottyAppContent composable — root UI (migration, default instance, setup↔main nav)
 └── MainActivity.kt  # Activity, theme, deep link intent (jotty-android://open/note/{id})
@@ -76,6 +76,7 @@ app/src/main/java/com/jotty/android/
 | Setup / instance CRUD       | `ui/setup/SetupScreen.kt`             |
 | Deep link handling         | `MainActivity.kt`, `ui/JottyApp.kt`, `MainScreen.kt`, `NotesScreen.kt` |
 | Shared list composables     | `ui/common/ListScreenComponents.kt`   |
+| API/network error messages | `util/ApiErrorHelper.kt`              |
 | Logging                    | `util/AppLog.kt`                      |
 | ProGuard keep rules        | `app/proguard-rules.pro`              |
 | App version in UI          | `gradle.properties` + BuildConfig      |

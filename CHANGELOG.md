@@ -2,6 +2,28 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+
+- **ApiErrorHelper** — Shared mapping of exceptions to user-friendly messages (no internet, timeout, server error, etc.) via string resources; used for list load errors, setup connection, and update check/install.
+- **ListScreenContent** — Reusable composable in `ui/common/` for loading / error / empty / pull-to-refresh list layout (used by Notes and Checklists).
+- **Unit tests** — `ApiClientTest` (URL normalization), `ApiErrorHelperTest` (exception → string resource mapping).
+
+### Changed
+
+- **Null safety** — Removed last `!!` in `SettingsRepository.setDefaultInstanceId`.
+- **Error messages** — All API/network errors now use string resources and consistent messages (e.g. "No internet connection", "Something went wrong") instead of raw exception text.
+- **Update checker** — `checkForUpdate(context)` now takes `Context` for localized error strings; "Unknown error" / "Install failed" moved to strings.xml.
+- **Snackbar on failures** — Create/update/delete for notes and checklists (and checklist items) now show a Snackbar on failure instead of failing silently.
+
+### Technical
+
+- New string resources: `unknown_error`, `no_internet_connection`, `connection_timed_out`, `network_error`, `server_error`, `request_failed`, `save_failed`, `delete_failed`, `install_failed_fallback`, `no_apk_in_release`.
+- `ApiClient.normalizeBaseUrl()` extracted for testability.
+
+---
+
 ## [1.1.3] - 2026-02-07
 
 ### Added

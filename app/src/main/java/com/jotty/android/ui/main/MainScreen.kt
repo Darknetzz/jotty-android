@@ -2,6 +2,7 @@ package com.jotty.android.ui.main
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,7 +28,7 @@ private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
 
 sealed class MainRoute(val route: String, val titleRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     data object Checklists : MainRoute("checklists", R.string.nav_checklists, Icons.Default.Checklist)
-    data object Notes : MainRoute("notes", R.string.nav_notes, Icons.Default.Note)
+    data object Notes : MainRoute("notes", R.string.nav_notes, Icons.AutoMirrored.Filled.Note)
     data object Settings : MainRoute("settings", R.string.nav_settings, Icons.Default.Settings)
 }
 

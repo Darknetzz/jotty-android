@@ -9,11 +9,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Note
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
@@ -163,7 +163,7 @@ fun NotesScreen(
                     error = error,
                     isEmpty = notes.isEmpty(),
                     onRetry = { loadNotes() },
-                    emptyIcon = Icons.Default.Note,
+                    emptyIcon = Icons.AutoMirrored.Filled.Note,
                     emptyTitle = stringResource(R.string.no_notes_yet),
                     emptySubtitle = stringResource(R.string.tap_add_note),
                     onRefresh = { loadNotes() },
@@ -371,7 +371,7 @@ private fun NoteDetailScreen(
             title = { },
             navigationIcon = {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.back))
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
             },
             actions = {

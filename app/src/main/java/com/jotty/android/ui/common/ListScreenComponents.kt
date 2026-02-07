@@ -129,14 +129,12 @@ fun SwipeToDeleteContainer(
     content: @Composable () -> Unit,
 ) {
     if (enabled) {
-        val dismissState = rememberSwipeToDismissBoxState(
-            confirmValueChange = { value ->
-                if (value == SwipeToDismissBoxValue.EndToStart) {
-                    scope.launch { onDelete() }
-                    true
-                } else false
-            },
-        )
+        val dismissState = rememberSwipeToDismissBoxState()
+        LaunchedEffect(dismissState.currentValue) {
+            if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
+                onDelete()
+            }
+        }
         SwipeToDismissBox(
             state = dismissState,
             modifier = modifier.fillMaxWidth(),

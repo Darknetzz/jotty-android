@@ -49,6 +49,7 @@ fun SettingsScreen(
     val startTab by settingsRepository.startTab.collectAsState(initial = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
+    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsState(initial = false)
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
@@ -322,6 +323,26 @@ fun SettingsScreen(
                         onCheckedChange = {
                             scope.launch {
                                 settingsRepository.setSwipeToDeleteEnabled(it)
+                            }
+                        },
+                    )
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.debug_logging)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.debug_logging_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = debugLoggingEnabled,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setDebugLoggingEnabled(it)
                             }
                         },
                     )

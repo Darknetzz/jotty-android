@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.main.MainScreen
 import com.jotty.android.ui.setup.SetupScreen
+import com.jotty.android.util.AppLog
 import kotlinx.coroutines.flow.first
 
 /**
@@ -25,6 +26,9 @@ fun JottyAppContent(
 ) {
     var isConfigured by remember { mutableStateOf<Boolean?>(null) }
 
+    LaunchedEffect(settingsRepository) {
+        settingsRepository.debugLoggingEnabled.collect { AppLog.setDebugEnabled(it) }
+    }
     LaunchedEffect(Unit) {
         settingsRepository.migrateFromLegacyIfNeeded()
         settingsRepository.migrateThemeToModeAndColorIfNeeded()

@@ -73,6 +73,11 @@ class SettingsRepository(private val context: Context) {
         prefs[KEY_CONTENT_PADDING].takeIf { !it.isNullOrBlank() } ?: "comfortable"
     }.catch { emit("comfortable") }
 
+    /** Debug logging (e.g. decryption failure step). When enabled, AppLog.d() writes to logcat. Default false. */
+    val debugLoggingEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_DEBUG_LOGGING] ?: false
+    }.catch { emit(false) }
+
     /**
      * Adds or updates an instance. When [setAsCurrent] is true, also sets it as the current instance.
      */
@@ -145,6 +150,10 @@ class SettingsRepository(private val context: Context) {
         context.dataStore.edit {
             if (value == "comfortable") it.remove(KEY_CONTENT_PADDING) else it[KEY_CONTENT_PADDING] = value
         }
+    }
+
+    suspend fun setDebugLoggingEnabled(value: Boolean) {
+        context.dataStore.edit { it[KEY_DEBUG_LOGGING] = value }
     }
 
     /** Clear all data (instances + app preferences). */
@@ -229,6 +238,7 @@ class SettingsRepository(private val context: Context) {
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
+        private val KEY_DEBUG_LOGGING = booleanPreferencesKey("debug_logging_enabled")
 
         private fun parseInstances(json: String?): List<JottyInstance>? {
             if (json.isNullOrBlank()) return null

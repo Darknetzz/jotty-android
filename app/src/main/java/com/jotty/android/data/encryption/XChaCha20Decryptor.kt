@@ -1,6 +1,7 @@
 package com.jotty.android.data.encryption
 
 import com.google.gson.annotations.SerializedName
+import com.jotty.android.util.AppLog
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.modes.ChaCha20Poly1305
 import org.bouncycastle.crypto.params.Argon2Parameters
@@ -28,9 +29,23 @@ object XChaCha20Decryptor {
      */
     fun decrypt(encryptedBodyJson: String, passphrase: String): String? {
         val json = encryptedBodyJson.trim().trimStart('\uFEFF')
-        val (salt, nonce, data) = parseEncryptedBody(json) ?: return null
-        val key = deriveKey(passphrase.trim(), salt) ?: return null
-        return decryptXChaCha20Poly1305(key, nonce, data)
+        val parsed = parseEncryptedBody(json)
+        if (parsed == null) {
+            AppLog.d("encryption", "Decrypt: parse failed (invalid JSON or missing/invalid base64 fields)")
+            return null
+        }
+        val (salt, nonce, data) = parsed
+        val key = deriveKey(passphrase.trim(), salt)
+        if (key == null) {
+            AppLog.d("encryption", "Decrypt: key derivation failed (empty passphrase or Argon2 error)")
+            return null
+        }
+        val result = decryptXChaCha20Poly1305(key, nonce, data)
+        if (result == null) {
+            AppLog.d("encryption", "Decrypt: auth failed (wrong passphrase or corrupted data)")
+            return null
+        }
+        return result
     }
 
     private fun parseEncryptedBody(json: String): Triple<ByteArray, ByteArray, ByteArray>? {

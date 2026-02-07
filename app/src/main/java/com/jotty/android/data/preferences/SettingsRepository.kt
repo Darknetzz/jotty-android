@@ -45,7 +45,7 @@ class SettingsRepository(private val context: Context) {
 
     val isConfigured: Flow<Boolean> = currentInstance.map { it != null }
 
-    /** Theme: null/"system" = follow system; "light", "dark", "amoled", "sepia" */
+    /** Theme: null/"system" = follow system; "light", "dark", "amoled", "sepia", "midnight", "rose", "ocean", "forest" */
     val theme: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[KEY_THEME].takeIf { !it.isNullOrBlank() }
     }.catch { emit(null) }

@@ -175,9 +175,10 @@ fun SettingsScreen(
             ListItem(
                 headlineContent = { Text(stringResource(R.string.theme)) },
                 supportingContent = {
-                    Row(
-                        modifier = Modifier.padding(top = 4.dp),
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(
                             null to R.string.theme_system,
@@ -185,6 +186,10 @@ fun SettingsScreen(
                             "dark" to R.string.theme_dark,
                             "amoled" to R.string.theme_amoled,
                             "sepia" to R.string.theme_sepia,
+                            "midnight" to R.string.theme_midnight,
+                            "rose" to R.string.theme_rose,
+                            "ocean" to R.string.theme_ocean,
+                            "forest" to R.string.theme_forest,
                         ).forEach { (value, labelRes) ->
                             val isSelected = when (value) {
                                 null -> theme.isNullOrBlank()

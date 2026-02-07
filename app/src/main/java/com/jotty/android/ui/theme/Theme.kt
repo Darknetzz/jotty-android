@@ -71,8 +71,79 @@ private val SepiaColorScheme = lightColorScheme(
     onSurface = SepiaOnSurface,
 )
 
+// Midnight — dark blue/navy theme
+private val MidnightBlue = Color(0xFF1E3A5F)
+private val MidnightBlueLight = Color(0xFF2E5077)
+private val MidnightBg = Color(0xFF0D1929)
+private val MidnightSurface = Color(0xFF132F4C)
+
+private val MidnightColorScheme = darkColorScheme(
+    primary = MidnightBlueLight,
+    onPrimary = Color.White,
+    secondary = MidnightBlue,
+    onSecondary = Color.White,
+    background = MidnightBg,
+    surface = MidnightSurface,
+    onBackground = Color.White,
+    onSurface = Color.White,
+)
+
+// Rose — warm pink/rose light theme
+private val RosePrimary = Color(0xFFB91C3C)
+private val RoseBg = Color(0xFFFDF2F4)
+private val RoseSurface = Color(0xFFFFF5F7)
+private val RoseOnBg = Color(0xFF3F1419)
+private val RoseOnSurface = Color(0xFF2D0F12)
+
+private val RoseColorScheme = lightColorScheme(
+    primary = RosePrimary,
+    onPrimary = Color.White,
+    secondary = RosePrimary,
+    onSecondary = Color.White,
+    background = RoseBg,
+    surface = RoseSurface,
+    onBackground = RoseOnBg,
+    onSurface = RoseOnSurface,
+)
+
+// Ocean — cool blue-tinted light theme
+private val OceanPrimary = Color(0xFF0E7490)
+private val OceanBg = Color(0xFFF0F9FF)
+private val OceanSurface = Color(0xFFE0F2FE)
+private val OceanOnBg = Color(0xFF0C4A6E)
+private val OceanOnSurface = Color(0xFF0A3D52)
+
+private val OceanColorScheme = lightColorScheme(
+    primary = OceanPrimary,
+    onPrimary = Color.White,
+    secondary = OceanPrimary,
+    onSecondary = Color.White,
+    background = OceanBg,
+    surface = OceanSurface,
+    onBackground = OceanOnBg,
+    onSurface = OceanOnSurface,
+)
+
+// Forest — green-tinted light theme
+private val ForestPrimary = Color(0xFF166534)
+private val ForestBg = Color(0xFFF0FDF4)
+private val ForestSurface = Color(0xFFDCFCE7)
+private val ForestOnBg = Color(0xFF14532D)
+private val ForestOnSurface = Color(0xFF052E16)
+
+private val ForestColorScheme = lightColorScheme(
+    primary = ForestPrimary,
+    onPrimary = Color.White,
+    secondary = ForestPrimary,
+    onSecondary = Color.White,
+    background = ForestBg,
+    surface = ForestSurface,
+    onBackground = ForestOnBg,
+    onSurface = ForestOnSurface,
+)
+
 /**
- * Theme preference: null or "system" = follow system; "light", "dark", "amoled", "sepia".
+ * Theme preference: null or "system" = follow system; "light", "dark", "amoled", "sepia", "midnight", "rose", "ocean", "forest".
  * [themePreference] is the stored value from settings.
  */
 @Composable
@@ -86,9 +157,14 @@ fun JottyTheme(
         "dark" -> DarkColorScheme
         "amoled" -> AmoledColorScheme
         "sepia" -> SepiaColorScheme
+        "midnight" -> MidnightColorScheme
+        "rose" -> RoseColorScheme
+        "ocean" -> OceanColorScheme
+        "forest" -> ForestColorScheme
         else -> if (systemDark) DarkColorScheme else LightColorScheme
     }
-    val useDarkStatusBar = colorScheme != LightColorScheme
+    val useDarkStatusBar = themePreference in listOf("dark", "amoled", "midnight") ||
+        (themePreference.isNullOrBlank() && systemDark)
 
     val view = LocalView.current
     if (!view.isInEditMode) {

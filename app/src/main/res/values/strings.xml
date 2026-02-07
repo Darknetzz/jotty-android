@@ -122,6 +122,10 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_amoled">AMOLED</string>
     <string name="theme_sepia">Sepia</string>
+    <string name="theme_midnight">Midnight</string>
+    <string name="theme_rose">Rose</string>
+    <string name="theme_ocean">Ocean</string>
+    <string name="theme_forest">Forest</string>
     <string name="start_screen">Start screen</string>
     <string name="swipe_to_delete">Swipe to delete</string>
     <string name="swipe_to_delete_description">Swipe list or note rows left to delete (checklists and notes)</string>

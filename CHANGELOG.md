@@ -6,6 +6,21 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.2.2] - 2026-02-07
+
+### Fixed
+
+- **Debug logging** — Logging now works reliably: flag is initialized at app startup from the persisted preference; enabling debug writes an INFO-level confirmation to logcat so you can verify it took effect; Settings description includes logcat filter hint (filter by `Jotty`).
+- **Decryption diagnostics** — When debug logging is enabled, decryption failures now log clearer messages (parse failed, key derivation failed, auth failed) to help troubleshoot "Wrong passphrase or invalid format".
+
+### Technical
+
+- JottyApp: early `debugLoggingEnabled` sync in `onCreate()` via ProcessLifecycleOwner.
+- AppLog: `setDebugEnabled(true)` logs an INFO message confirming debug is on.
+- XChaCha20Decryptor: refined debug failure messages for parse / key derivation / auth steps.
+
+---
+
 ## [1.2.1] - 2026-02-07
 
 ### Added

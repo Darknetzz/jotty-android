@@ -3,6 +3,7 @@ package com.jotty.android.ui.checklists
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,6 +19,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
@@ -31,7 +33,6 @@ import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.ui.common.ListScreenContent
-import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.launch
@@ -121,8 +122,9 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(checklists, key = { it.id }) { list ->
-                            SwipeToDeleteContainer(
-                                enabled = swipeToDeleteEnabled,
+                            ChecklistCard(
+                                checklist = list,
+                                onClick = { selectedList = list },
                                 onDelete = {
                                     try {
                                         api.deleteChecklist(list.id)
@@ -133,13 +135,7 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
                                         scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) }
                                     }
                                 },
-                                scope = scope,
-                            ) {
-                                ChecklistCard(
-                                    checklist = list,
-                                    onClick = { selectedList = list },
-                                )
-                            }
+                            )
                         }
                     }
                 },
@@ -217,7 +213,9 @@ fun ChecklistsScreen(api: JottyApi, swipeToDeleteEnabled: Boolean = false) {
 private fun ChecklistCard(
     checklist: Checklist,
     onClick: () -> Unit,
+    onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     val completed = checklist.items.count { it.completed }
     val total = checklist.items.size
     val progress = if (total > 0) completed.toFloat() / total else 0f
@@ -229,37 +227,62 @@ private fun ChecklistCard(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = checklist.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                if (isProject) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
-                        stringResource(R.string.project_label),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 8.dp),
+                        text = checklist.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .pointerInput(Unit) {
+                                detectTapGestures(onLongPress = { menuExpanded = true })
+                            },
+                    )
+                    if (isProject) {
+                        Text(
+                            stringResource(R.string.project_label),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
+                if (checklist.items.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.progress_fraction, completed, total),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
             }
-            if (checklist.items.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().height(4.dp),
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.edit)) },
+                    onClick = {
+                        menuExpanded = false
+                        onClick()
+                    },
                 )
-                Text(
-                    text = stringResource(R.string.progress_fraction, completed, total),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.delete)) },
+                    onClick = {
+                        menuExpanded = false
+                        onDelete()
+                    },
                 )
             }
         }

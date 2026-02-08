@@ -45,15 +45,17 @@ object XChaCha20Decryptor {
      * Use [decrypt] when only the plaintext is needed.
      */
     fun decryptWithReason(encryptedBodyJson: String, passphrase: String): DecryptResult {
-        val json = encryptedBodyJson.trim().trimStart('\uFEFF')
+        var json = encryptedBodyJson.trim().trimStart('\uFEFF')
+        json = stripMarkdownCodeFence(json)
         Log.i(LOG_TAG, "Decrypt attempt: jsonLength=${json.length}, passphraseLength=${passphrase.length}, jsonStart=${json.take(80).replace("\n", " ")}")
         val parsed = parseEncryptedBody(json)
-        if (parsed == null) {
-            Log.w(LOG_TAG, "Decrypt: parse failed (invalid JSON or missing/invalid base64 fields)")
-            AppLog.d("encryption", "Decrypt: parse failed — check encrypted body format")
-            return DecryptResult(null, FAILURE_PARSE)
+        if (parsed.first == null) {
+            val reason = parsed.second ?: FAILURE_PARSE
+            Log.w(LOG_TAG, "Decrypt: parse failed — $reason")
+            AppLog.d("encryption", "Decrypt: parse failed — $reason")
+            return DecryptResult(null, reason)
         }
-        val (salt, nonce, data) = parsed
+        val (salt, nonce, data) = parsed.first!!
         val key = deriveKey(passphrase.trim(), salt)
         if (key == null) {
             Log.w(LOG_TAG, "Decrypt: key derivation failed (empty passphrase or Argon2 error)")
@@ -78,55 +80,69 @@ object XChaCha20Decryptor {
     fun decrypt(encryptedBodyJson: String, passphrase: String): String? =
         decryptWithReason(encryptedBodyJson, passphrase).plaintext
 
-    private fun parseEncryptedBody(json: String): Triple<ByteArray, ByteArray, ByteArray>? {
+    /** Removes markdown code fence (e.g. ```json ... ```) if present, so pasted/wrapped payloads still parse. */
+    private fun stripMarkdownCodeFence(s: String): String {
+        val trimmed = s.trim()
+        val regex = Regex("^```(?:json)?\\s*\\n?(.*)\\n?```\\s*$", RegexOption.DOT_MATCHES_ALL)
+        return regex.replace(trimmed) { it.groupValues[1].trim() }.trim().ifEmpty { trimmed }
+    }
+
+    /**
+     * Returns (Triple(salt, nonce, data), null) on success, (null, reason) on parse failure.
+     * Reason is a short string for UI when debug logging is on.
+     */
+    private fun parseEncryptedBody(json: String): Pair<Triple<ByteArray, ByteArray, ByteArray>?, String?> {
         return try {
             val body = GSON.fromJson(json, EncryptedBodyJson::class.java)
             if (body == null) {
                 Log.w(LOG_TAG, "Parse: GSON returned null")
-                return null
+                return null to "Invalid JSON (empty or not an object)"
             }
             val saltB64 = body.salt?.takeIf { it.isNotBlank() }
             if (saltB64 == null) {
                 Log.w(LOG_TAG, "Parse: missing or blank salt")
-                return null
+                return null to "Missing or blank salt"
             }
             val nonceB64 = body.nonce?.takeIf { it.isNotBlank() }
             if (nonceB64 == null) {
                 Log.w(LOG_TAG, "Parse: missing or blank nonce")
-                return null
+                return null to "Missing or blank nonce"
             }
             val dataB64 = body.data?.takeIf { it.isNotBlank() }
             if (dataB64 == null) {
                 Log.w(LOG_TAG, "Parse: missing or blank data")
-                return null
+                return null to "Missing or blank data"
             }
             val salt = decodeBase64(saltB64)
             if (salt == null) {
                 Log.w(LOG_TAG, "Parse: salt base64 decode failed (length=${saltB64.length})")
-                return null
+                return null to "Invalid base64 in salt"
             }
             val nonce = decodeBase64(nonceB64)
             if (nonce == null) {
                 Log.w(LOG_TAG, "Parse: nonce base64 decode failed (length=${nonceB64.length})")
-                return null
+                return null to "Invalid base64 in nonce"
             }
             val data = decodeBase64(dataB64)
             if (data == null) {
                 Log.w(LOG_TAG, "Parse: data base64 decode failed (length=${dataB64.length})")
-                return null
+                return null to "Invalid base64 in data"
             }
             if (nonce.size != 24) {
                 Log.w(LOG_TAG, "Parse: nonce size ${nonce.size} != 24")
-                return null
+                return null to "Nonce must be 24 bytes (got ${nonce.size})"
             }
             if (data.size < TAG_BYTES) {
                 Log.w(LOG_TAG, "Parse: data size ${data.size} < TAG_BYTES ($TAG_BYTES)")
-                return null
+                return null to "Ciphertext too short"
             }
-            Triple(salt, nonce, data)
+            Triple(salt, nonce, data) to null
+        } catch (e: com.google.gson.JsonSyntaxException) {
+            Log.w(LOG_TAG, "Parse: JSON syntax exception", e)
+            null to "Invalid JSON (syntax error)"
         } catch (e: Exception) {
             Log.w(LOG_TAG, "Parse: exception", e)
-            null
+            null to "Parse error: ${e.message ?: "unknown"}"
         }
     }
 

@@ -83,7 +83,8 @@ object XChaCha20Encryptor {
     private fun encryptXChaCha20Poly1305(key: ByteArray, nonce24: ByteArray, plaintext: ByteArray): ByteArray? {
         if (nonce24.size != NONCE_BYTES || key.size != KEY_BYTES) return null
         val subkey = XChaCha20Decryptor.hChaCha20Block(key, nonce24.copyOfRange(0, 16)) ?: return null
-        val nonce12 = ByteArray(12).apply { System.arraycopy(nonce24, 16, this, 0, 8) }
+        // Match libsodium: npub2[0..3]=0, npub2[4..11]=nonce24[16..23]
+        val nonce12 = ByteArray(12).apply { System.arraycopy(nonce24, 16, this, 4, 8) }
         return try {
             val cipher = ChaCha20Poly1305()
             cipher.init(true, ParametersWithIV(KeyParameter(subkey), nonce12))

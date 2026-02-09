@@ -309,32 +309,42 @@ object XChaCha20Decryptor {
     }
 
     /**
-     * XChaCha20-Poly1305: HChaCha20(key, nonce[0..15]) -> subkey; then
-     * ChaCha20-Poly1305(subkey, nonce[16..23] || 0x00000000, ciphertext).
-     * Bouncy Castle expects [ciphertext][tag] (tag at end). Libsodium secretbox uses [tag][ciphertext].
-     * When [preferLibsodiumOrder] is true (e.g. 36-byte nonce from web), try tag||ciphertext first.
+     * XChaCha20-Poly1305: HChaCha20(key, nonce[0..15]) -> subkey; inner nonce per libsodium:
+     * npub2[0..3]=0, npub2[4..11]=nonce[16..23]. Then ChaCha20-Poly1305(subkey, npub2, ciphertext).
+     * BC expects [ciphertext][tag]. For web (hex) we try [ciphertext][tag] first ([preferLibsodiumOrder]).
+     * Legacy app used nonce[16..23] in bytes 0..7; we try that layout if libsodium layout fails.
      */
     private fun decryptXChaCha20Poly1305(key: ByteArray, nonce24: ByteArray, ciphertextAndTag: ByteArray, preferLibsodiumOrder: Boolean = false): String? {
         if (nonce24.size != 24 || key.size != 32 || ciphertextAndTag.size < TAG_BYTES) return null
         val subkey = hChaCha20Block(key, nonce24.copyOfRange(0, 16)) ?: return null
+        // Libsodium: npub2[0..3]=0, npub2[4..11]=nonce24[16..23] (see aead_xchacha20poly1305.c)
         val nonce12 = ByteArray(12).apply {
+            System.arraycopy(nonce24, 16, this, 4, 8)
+        }
+        // Legacy app used nonce24[16..23] in bytes 0..7, then zeros; try both for compatibility
+        val nonce12Legacy = ByteArray(12).apply {
             System.arraycopy(nonce24, 16, this, 0, 8)
         }
-        if (preferLibsodiumOrder && ciphertextAndTag.size > TAG_BYTES) {
-            val reordered = ByteArray(ciphertextAndTag.size).apply {
-                System.arraycopy(ciphertextAndTag, TAG_BYTES, this, 0, size - TAG_BYTES)
-                System.arraycopy(ciphertextAndTag, 0, this, size - TAG_BYTES, TAG_BYTES)
+        fun tryBothOrders(sk: ByteArray, n12: ByteArray): String? {
+            if (preferLibsodiumOrder && ciphertextAndTag.size > TAG_BYTES) {
+                val reordered = ByteArray(ciphertextAndTag.size).apply {
+                    System.arraycopy(ciphertextAndTag, TAG_BYTES, this, 0, size - TAG_BYTES)
+                    System.arraycopy(ciphertextAndTag, 0, this, size - TAG_BYTES, TAG_BYTES)
+                }
+                tryDecrypt(sk, n12, reordered)?.let { return it }
             }
-            tryDecrypt(subkey, nonce12, reordered)?.let { return it }
-        }
-        tryDecrypt(subkey, nonce12, ciphertextAndTag)?.let { return it }
-        if (!preferLibsodiumOrder && ciphertextAndTag.size > TAG_BYTES) {
-            val reordered = ByteArray(ciphertextAndTag.size).apply {
-                System.arraycopy(ciphertextAndTag, TAG_BYTES, this, 0, size - TAG_BYTES)
-                System.arraycopy(ciphertextAndTag, 0, this, size - TAG_BYTES, TAG_BYTES)
+            tryDecrypt(sk, n12, ciphertextAndTag)?.let { return it }
+            if (!preferLibsodiumOrder && ciphertextAndTag.size > TAG_BYTES) {
+                val reordered = ByteArray(ciphertextAndTag.size).apply {
+                    System.arraycopy(ciphertextAndTag, TAG_BYTES, this, 0, size - TAG_BYTES)
+                    System.arraycopy(ciphertextAndTag, 0, this, size - TAG_BYTES, TAG_BYTES)
+                }
+                tryDecrypt(sk, n12, reordered)?.let { return it }
             }
-            tryDecrypt(subkey, nonce12, reordered)?.let { return it }
+            return null
         }
+        tryBothOrders(subkey, nonce12)?.let { return it }
+        tryBothOrders(subkey, nonce12Legacy)?.let { return it }
         return null
     }
 

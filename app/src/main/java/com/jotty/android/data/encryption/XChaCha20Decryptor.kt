@@ -36,15 +36,21 @@ object XChaCha20Decryptor {
     private const val TAG_BYTES = 16
 
     /**
-     * Argon2 (iterations, memoryKB) presets to try when decrypting.
-     * Primary: Android app format (2, 64MB). Fallbacks: common libsodium/JS variants so notes
-     * encrypted by the Jotty web app (libsodium-wrappers) decrypt correctly.
+     * Argon2 (iterations, memoryKB, parallelism) presets to try when decrypting.
+     * Primary: Android app format. Fallbacks: common libsodium/JS variants so notes
+     * encrypted by the Jotty web app (libsodium-wrappers-sumo) decrypt correctly.
      */
+    private data class Argon2Preset(val iterations: Int, val memoryKb: Int, val parallelism: Int = 1)
+
     private val ARGON2_PRESETS = listOf(
-        Pair(2, 65536),   // App + libsodium INTERACTIVE (64 MiB)
-        Pair(3, 65536),
-        Pair(4, 32768),   // Some libsodium bindings use 32 MiB
-        Pair(2, 32768),
+        Argon2Preset(2, 65536),      // App + libsodium INTERACTIVE (64 MiB)
+        Argon2Preset(2, 65536, 2),   // same with parallelism 2 (some bindings)
+        Argon2Preset(3, 65536),
+        Argon2Preset(4, 32768),      // Some libsodium bindings use 32 MiB
+        Argon2Preset(2, 32768),
+        Argon2Preset(1, 65536),      // Min ops (e.g. test/default in some libs)
+        Argon2Preset(3, 262144),     // libsodium MODERATE (256 MiB)
+        Argon2Preset(2, 131072),     // 128 MiB
     )
 
     /** Failure reason strings for UI (shown when Settings → Debug logging is on). */
@@ -81,13 +87,14 @@ object XChaCha20Decryptor {
             )
             else -> emptyList()
         }
-        for ((iterations, memoryKb) in ARGON2_PRESETS) {
-            val key = deriveKey(pass, salt, iterations, memoryKb) ?: continue
+        val preferLibsodiumOrder = nonce.size > 24
+        for (preset in ARGON2_PRESETS) {
+            val key = deriveKey(pass, salt, preset.iterations, preset.memoryKb, preset.parallelism) ?: continue
             for (nonce24 in nonce24Candidates) {
-                val result = decryptXChaCha20Poly1305(key, nonce24, data)
+                val result = decryptXChaCha20Poly1305(key, nonce24, data, preferLibsodiumOrder)
                 if (result != null) {
-                    if (iterations != ARGON2_ITERATIONS || memoryKb != ARGON2_MEMORY_KB) {
-                        Log.i(LOG_TAG, "Decrypt success with Argon2 fallback (iterations=$iterations, memoryKb=$memoryKb)")
+                    if (preset.iterations != ARGON2_ITERATIONS || preset.memoryKb != ARGON2_MEMORY_KB || preset.parallelism != ARGON2_PARALLELISM) {
+                        Log.i(LOG_TAG, "Decrypt success with Argon2 fallback (iterations=${preset.iterations}, memoryKb=${preset.memoryKb}, parallelism=${preset.parallelism})")
                     }
                     if (nonce.size > 24 && nonce24 === nonce24Candidates.getOrNull(1)) {
                         Log.i(LOG_TAG, "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
@@ -205,14 +212,14 @@ object XChaCha20Decryptor {
 
     private val GSON = com.google.gson.Gson()
 
-    private fun deriveKey(passphrase: String, salt: ByteArray, iterations: Int = ARGON2_ITERATIONS, memoryKb: Int = ARGON2_MEMORY_KB): ByteArray? {
+    private fun deriveKey(passphrase: String, salt: ByteArray, iterations: Int = ARGON2_ITERATIONS, memoryKb: Int = ARGON2_MEMORY_KB, parallelism: Int = ARGON2_PARALLELISM): ByteArray? {
         if (passphrase.isEmpty()) return null
         return try {
             val params = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
                 .withVersion(Argon2Parameters.ARGON2_VERSION_13)
                 .withIterations(iterations)
                 .withMemoryAsKB(memoryKb)
-                .withParallelism(ARGON2_PARALLELISM)
+                .withParallelism(parallelism)
                 .withSalt(salt)
                 .build()
             val generator = Argon2BytesGenerator()
@@ -229,18 +236,23 @@ object XChaCha20Decryptor {
      * XChaCha20-Poly1305: HChaCha20(key, nonce[0..15]) -> subkey; then
      * ChaCha20-Poly1305(subkey, nonce[16..23] || 0x00000000, ciphertext).
      * Bouncy Castle expects [ciphertext][tag] (tag at end). Libsodium secretbox uses [tag][ciphertext].
-     * We try BC order first, then if auth fails try libsodium order.
+     * When [preferLibsodiumOrder] is true (e.g. 36-byte nonce from web), try tag||ciphertext first.
      */
-    private fun decryptXChaCha20Poly1305(key: ByteArray, nonce24: ByteArray, ciphertextAndTag: ByteArray): String? {
+    private fun decryptXChaCha20Poly1305(key: ByteArray, nonce24: ByteArray, ciphertextAndTag: ByteArray, preferLibsodiumOrder: Boolean = false): String? {
         if (nonce24.size != 24 || key.size != 32 || ciphertextAndTag.size < TAG_BYTES) return null
         val subkey = hChaCha20Block(key, nonce24.copyOfRange(0, 16)) ?: return null
         val nonce12 = ByteArray(12).apply {
             System.arraycopy(nonce24, 16, this, 0, 8)
         }
-        // Try BC order first: ciphertext || tag (our encryptor and IETF AEAD use this)
+        if (preferLibsodiumOrder && ciphertextAndTag.size > TAG_BYTES) {
+            val reordered = ByteArray(ciphertextAndTag.size).apply {
+                System.arraycopy(ciphertextAndTag, TAG_BYTES, this, 0, size - TAG_BYTES)
+                System.arraycopy(ciphertextAndTag, 0, this, size - TAG_BYTES, TAG_BYTES)
+            }
+            tryDecrypt(subkey, nonce12, reordered)?.let { return it }
+        }
         tryDecrypt(subkey, nonce12, ciphertextAndTag)?.let { return it }
-        // Try libsodium secretbox order: tag || ciphertext (Jotty web may use this)
-        if (ciphertextAndTag.size > TAG_BYTES) {
+        if (!preferLibsodiumOrder && ciphertextAndTag.size > TAG_BYTES) {
             val reordered = ByteArray(ciphertextAndTag.size).apply {
                 System.arraycopy(ciphertextAndTag, TAG_BYTES, this, 0, size - TAG_BYTES)
                 System.arraycopy(ciphertextAndTag, 0, this, size - TAG_BYTES, TAG_BYTES)

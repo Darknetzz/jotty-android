@@ -175,20 +175,20 @@ object XChaCha20Decryptor {
                 Log.w(LOG_TAG, "Parse: missing or blank data")
                 return null to "Missing or blank data"
             }
-            val salt = decodeBase64(saltB64)
+            val salt = decodeBase64OrHex(saltB64)
             if (salt == null) {
-                Log.w(LOG_TAG, "Parse: salt base64 decode failed (length=${saltB64.length})")
-                return null to "Invalid base64 in salt"
+                Log.w(LOG_TAG, "Parse: salt decode failed (length=${saltB64.length})")
+                return null to "Invalid base64/hex in salt"
             }
-            val nonce = decodeBase64(nonceB64)
+            val nonce = decodeBase64OrHex(nonceB64)
             if (nonce == null) {
-                Log.w(LOG_TAG, "Parse: nonce base64 decode failed (length=${nonceB64.length})")
-                return null to "Invalid base64 in nonce"
+                Log.w(LOG_TAG, "Parse: nonce decode failed (length=${nonceB64.length})")
+                return null to "Invalid base64/hex in nonce"
             }
-            val data = decodeBase64(dataB64)
+            val data = decodeBase64OrHex(dataB64)
             if (data == null) {
-                Log.w(LOG_TAG, "Parse: data base64 decode failed (length=${dataB64.length})")
-                return null to "Invalid base64 in data"
+                Log.w(LOG_TAG, "Parse: data decode failed (length=${dataB64.length})")
+                return null to "Invalid base64/hex in data"
             }
             if (nonce.size < 24) {
                 Log.w(LOG_TAG, "Parse: nonce size ${nonce.size} < 24")
@@ -211,10 +211,39 @@ object XChaCha20Decryptor {
         }
     }
 
+    /**
+     * Decodes salt/nonce/data from JSON. Jotty web app uses hex (to_hex); Android app uses base64.
+     * If the string looks like hex (even length, only 0-9a-fA-F), decode as hex; otherwise base64.
+     */
+    private fun decodeBase64OrHex(s: String): ByteArray? {
+        val stripped = s.replace("\\s".toRegex(), "")
+        if (stripped.length % 2 == 0 && stripped.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) {
+            return decodeHex(stripped)
+        }
+        return decodeBase64(stripped)
+    }
+
+    private fun decodeHex(s: String): ByteArray? {
+        if (s.length % 2 != 0) return null
+        val out = ByteArray(s.length / 2)
+        for (i in out.indices) {
+            val high = s[i * 2].hexDigitValue() ?: return null
+            val low = s[i * 2 + 1].hexDigitValue() ?: return null
+            out[i] = (high * 16 + low).toByte()
+        }
+        return out
+    }
+
+    private fun Char.hexDigitValue(): Int? = when (this) {
+        in '0'..'9' -> code - '0'.code
+        in 'a'..'f' -> code - 'a'.code + 10
+        in 'A'..'F' -> code - 'A'.code + 10
+        else -> null
+    }
+
     /** Decodes base64 string; accepts standard and URL-safe base64, with or without padding. */
     private fun decodeBase64(s: String): ByteArray? {
-        val stripped = s.replace("\\s".toRegex(), "")
-        val normalized = stripped.replace('-', '+').replace('_', '/')
+        val normalized = s.replace('-', '+').replace('_', '/')
         val padded = when (normalized.length % 4) {
             0 -> normalized
             2 -> normalized + "=="

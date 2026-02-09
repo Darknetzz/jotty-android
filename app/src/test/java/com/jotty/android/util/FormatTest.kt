@@ -22,4 +22,13 @@ class FormatTest {
         assertEquals("", formatNoteDate(""))
         assertEquals("ab", formatNoteDate("ab"))
     }
+
+    @Test
+    fun `stripInvisibleFromEdges removes BOM and zero-width from edges`() {
+        assertEquals("My secretest secrets", stripInvisibleFromEdges("\uFEFF\uFEFFMy secretest secrets"))
+        assertEquals("hello", stripInvisibleFromEdges("\u200Bhello\u200C"))
+        assertEquals("mid", stripInvisibleFromEdges("\uFEFFmid\u2060"))
+        assertEquals("unchanged", stripInvisibleFromEdges("unchanged"))
+        assertEquals("", stripInvisibleFromEdges("\uFEFF\u200B"))
+    }
 }

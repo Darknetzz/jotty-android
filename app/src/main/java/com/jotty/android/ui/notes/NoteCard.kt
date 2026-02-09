@@ -24,6 +24,7 @@ import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.util.formatNoteDate
+import com.jotty.android.util.stripInvisibleFromEdges
 
 @Composable
 internal fun NoteCard(note: Note, onClick: () -> Unit) {
@@ -39,7 +40,7 @@ internal fun NoteCard(note: Note, onClick: () -> Unit) {
                 .padding(16.dp),
         ) {
             Text(
-                text = note.title,
+                text = stripInvisibleFromEdges(note.title),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -62,8 +63,9 @@ internal fun NoteCard(note: Note, onClick: () -> Unit) {
                     )
                 }
             } else if (note.content.isNotBlank()) {
+                val contentStripped = stripInvisibleFromEdges(note.content)
                 Text(
-                    text = note.content.take(100) + if (note.content.length > 100) "\u2026" else "",
+                    text = contentStripped.take(100) + if (contentStripped.length > 100) "\u2026" else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),

@@ -37,6 +37,7 @@ import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.data.encryption.XChaCha20Encryptor
+import com.jotty.android.util.stripInvisibleFromEdges
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -75,9 +76,9 @@ internal fun NoteDetailScreen(
     }
 
     LaunchedEffect(note) {
-        title = note.title
-        content = note.content
-        decryptedContent = NoteDecryptionSession.get(note.id)
+        title = stripInvisibleFromEdges(note.title)
+        content = stripInvisibleFromEdges(note.content)
+        decryptedContent = NoteDecryptionSession.get(note.id)?.let { stripInvisibleFromEdges(it) }
     }
 
     LaunchedEffect(note.encrypted, content, parsed) {
@@ -232,8 +233,9 @@ internal fun NoteDetailScreen(
                 decryptErrorDetail = null
             },
             onDecrypted = {
-                decryptedContent = it
-                NoteDecryptionSession.put(note.id, it)
+                val cleaned = stripInvisibleFromEdges(it)
+                decryptedContent = cleaned
+                NoteDecryptionSession.put(note.id, cleaned)
                 showDecryptDialog = false
                 decryptError = null
                 decryptErrorDetail = null

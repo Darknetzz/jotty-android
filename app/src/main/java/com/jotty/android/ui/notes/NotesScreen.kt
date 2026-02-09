@@ -734,8 +734,9 @@ private fun DecryptNoteDialog(
                         }
                         withContext(Dispatchers.Main) {
                             isDecrypting = false
-                            if (result.isSuccess) {
-                                onDecrypted(result.plaintext!!)
+                            val plaintext = result.plaintext
+                            if (plaintext != null) {
+                                onDecrypted(plaintext)
                             } else {
                                 onDecryptError(
                                     decryptFailedMsg,

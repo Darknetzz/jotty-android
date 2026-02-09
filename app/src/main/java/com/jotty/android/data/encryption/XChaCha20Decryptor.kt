@@ -49,8 +49,7 @@ object XChaCha20Decryptor {
         Argon2Preset(4, 32768),      // Some libsodium bindings use 32 MiB
         Argon2Preset(2, 32768),
         Argon2Preset(1, 65536),      // Min ops (e.g. test/default in some libs)
-        Argon2Preset(3, 262144),     // libsodium MODERATE (256 MiB)
-        Argon2Preset(2, 131072),     // 128 MiB
+        Argon2Preset(2, 131072),     // 128 MiB (capped; 256 MiB can OOM on devices)
     )
 
     /** Failure reason strings for UI (shown when Settings → Debug logging is on). */
@@ -63,6 +62,20 @@ object XChaCha20Decryptor {
      * Use [decrypt] when only the plaintext is needed.
      */
     fun decryptWithReason(encryptedBodyJson: String, passphrase: String): DecryptResult {
+        return try {
+            decryptWithReasonOrThrow(encryptedBodyJson, passphrase)
+        } catch (e: OutOfMemoryError) {
+            Log.e(LOG_TAG, "Decrypt: OutOfMemoryError (e.g. Argon2 preset too large)", e)
+            AppLog.d("encryption", "Decrypt: OOM — try a note with smaller Argon2 params")
+            DecryptResult(null, "Decryption failed (out of memory)")
+        } catch (e: Throwable) {
+            Log.e(LOG_TAG, "Decrypt: unexpected error", e)
+            AppLog.d("encryption", "Decrypt: ${e.message}")
+            DecryptResult(null, "Decryption failed: ${e.message ?: "unknown error"}")
+        }
+    }
+
+    private fun decryptWithReasonOrThrow(encryptedBodyJson: String, passphrase: String): DecryptResult {
         var json = encryptedBodyJson.trim().trimStart('\uFEFF')
         json = stripMarkdownCodeFence(json)
         Log.i(LOG_TAG, "Decrypt attempt: jsonLength=${json.length}, passphraseLength=${passphrase.length}, jsonStart=${json.take(80).replace("\n", " ")}")
@@ -89,7 +102,11 @@ object XChaCha20Decryptor {
         }
         val preferLibsodiumOrder = nonce.size > 24
         for (preset in ARGON2_PRESETS) {
-            val key = deriveKey(pass, salt, preset.iterations, preset.memoryKb, preset.parallelism) ?: continue
+            val key = try {
+                deriveKey(pass, salt, preset.iterations, preset.memoryKb, preset.parallelism)
+            } catch (_: OutOfMemoryError) {
+                null
+            } ?: continue
             for (nonce24 in nonce24Candidates) {
                 val result = decryptXChaCha20Poly1305(key, nonce24, data, preferLibsodiumOrder)
                 if (result != null) {
@@ -270,7 +287,11 @@ object XChaCha20Decryptor {
             val plain = ByteArray(ciphertextThenTag.size - TAG_BYTES)
             cipher.processBytes(ciphertextThenTag, 0, ciphertextThenTag.size, plain, 0)
             cipher.doFinal(plain, 0)
-            String(plain, Charsets.UTF_8)
+            try {
+                String(plain, Charsets.UTF_8)
+            } catch (_: Exception) {
+                null
+            }
         } catch (_: Exception) {
             null
         }

@@ -1,24 +1,14 @@
 package com.jotty.android.ui.notes
 
-import android.content.Intent
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,27 +16,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.preferences.SettingsRepository
-import com.jotty.android.data.encryption.NoteDecryptionSession
-import com.jotty.android.data.encryption.NoteEncryption
-import com.jotty.android.data.encryption.ParsedNoteContent
-import com.jotty.android.data.encryption.XChaCha20Decryptor
-import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import coil.ImageLoader
-import dev.jeziellago.compose.markdowntext.MarkdownText
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +48,7 @@ fun NotesScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var debouncedSearchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
     var noteCategories by remember { mutableStateOf<List<String>>(emptyList()) }
     val scope = rememberCoroutineScope()
@@ -73,6 +56,12 @@ fun NotesScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
+    val noteNotFoundMsg = stringResource(R.string.note_not_found)
+
+    LaunchedEffect(searchQuery) {
+        delay(400)
+        debouncedSearchQuery = searchQuery
+    }
 
     fun loadNotes() {
         scope.launch {
@@ -81,7 +70,7 @@ fun NotesScreen(
             try {
                 notes = api.getNotes(
                     category = selectedCategory,
-                    search = searchQuery.takeIf { it.isNotBlank() },
+                    search = debouncedSearchQuery.takeIf { it.isNotBlank() },
                 ).notes
                 AppLog.d("notes", "Loaded ${notes.size} notes")
             } catch (e: Exception) {
@@ -93,7 +82,7 @@ fun NotesScreen(
         }
     }
 
-    LaunchedEffect(selectedCategory, searchQuery) { loadNotes() }
+    LaunchedEffect(selectedCategory, debouncedSearchQuery) { loadNotes() }
     LaunchedEffect(Unit) {
         try {
             noteCategories = api.getCategories().categories.notes.map { it.name }.distinct()
@@ -103,6 +92,12 @@ fun NotesScreen(
         val id = initialNoteId ?: return@LaunchedEffect
         notes.find { it.id == id }?.let { note ->
             selectedNote = note
+            onDeepLinkConsumed()
+        }
+    }
+    LaunchedEffect(notes, loading, initialNoteId) {
+        if (!loading && initialNoteId != null && notes.isNotEmpty() && notes.none { it.id == initialNoteId }) {
+            scope.launch { snackbarHostState.showSnackbar(noteNotFoundMsg) }
             onDeepLinkConsumed()
         }
     }
@@ -127,10 +122,10 @@ fun NotesScreen(
                     )
                     Row {
                         IconButton(onClick = { loadNotes() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
+                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
                         }
                         IconButton(onClick = { showCreateDialog = true }) {
-                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_note))
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
                         }
                     }
                 }
@@ -266,590 +261,3 @@ fun NotesScreen(
     }
 }
 
-@Composable
-private fun NoteCard(note: Note, onClick: () -> Unit) {
-    val isEncrypted = note.encrypted == true || NoteEncryption.isEncrypted(note.content)
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-        ) {
-            Text(
-                text = note.title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            if (isEncrypted) {
-                Row(
-                    modifier = Modifier.padding(top = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = stringResource(R.string.encrypted),
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = stringResource(R.string.encrypted),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else if (note.content.isNotBlank()) {
-                Text(
-                    text = note.content.take(100) + if (note.content.length > 100) "\u2026" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                    maxLines = 2,
-                )
-            }
-            Row(
-                modifier = Modifier.padding(top = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (note.category.isNotBlank() && note.category != API_CATEGORY_UNCATEGORIZED) {
-                    Text(
-                        text = note.category,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (note.updatedAt.isNotBlank()) {
-                    Text(
-                        text = formatNoteDate(note.updatedAt),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-private fun formatNoteDate(updatedAt: String): String {
-    return try {
-        val iso = updatedAt.replace("Z", "+00:00")
-        val i = iso.indexOf('T')
-        if (i > 0) iso.substring(0, i) else updatedAt.take(10)
-    } catch (_: Exception) { updatedAt.take(10) }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun NoteDetailScreen(
-    note: Note,
-    api: JottyApi,
-    onBack: () -> Unit,
-    onUpdate: (Note) -> Unit,
-    onDelete: () -> Unit,
-    onSaveFailed: () -> Unit = {},
-    debugLoggingEnabled: Boolean = false,
-    imageLoader: ImageLoader? = null,
-) {
-    var title by remember { mutableStateOf(note.title) }
-    var content by remember { mutableStateOf(note.content) }
-    var isEditing by remember { mutableStateOf(false) }
-    var saving by remember { mutableStateOf(false) }
-    var decryptedContent by remember { mutableStateOf<String?>(null) }
-    var showDecryptDialog by remember { mutableStateOf(false) }
-    var showEncryptDialog by remember { mutableStateOf(false) }
-    var isEncrypting by remember { mutableStateOf(false) }
-    var encryptError by remember { mutableStateOf<String?>(null) }
-    var decryptError by remember { mutableStateOf<String?>(null) }
-    var decryptErrorDetail by remember { mutableStateOf<String?>(null) }
-    val scope = rememberCoroutineScope()
-    val parsed = remember(content) { NoteEncryption.parse(content) }
-    val isEncryptedByContent = parsed is ParsedNoteContent.Encrypted
-    val isEncrypted = note.encrypted == true || isEncryptedByContent
-    val displayContent = when {
-        isEncrypted && decryptedContent != null -> decryptedContent
-        isEncrypted -> null
-        else -> content
-    }
-
-    LaunchedEffect(note) {
-        title = note.title
-        content = note.content
-        decryptedContent = NoteDecryptionSession.get(note.id)
-    }
-
-    LaunchedEffect(note.encrypted, content, parsed) {
-        if (note.encrypted == true || parsed is ParsedNoteContent.Encrypted) {
-            Log.i(
-                "Jotty/encryption",
-                "Note detail: note.encrypted=${note.encrypted}, contentLength=${content.length}, " +
-                    "parsedAsEncrypted=${parsed is ParsedNoteContent.Encrypted}, " +
-                    "contentStart=${content.take(60).replace("\n", " ")}"
-            )
-        }
-    }
-
-    Column(Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-            },
-            actions = {
-                val ctx = LocalContext.current
-                val exportTitle = stringResource(R.string.export_note)
-                if (!isEditing && (displayContent != null || content.isNotBlank())) {
-                    IconButton(
-                        onClick = {
-                            val text = (displayContent ?: content).trim()
-                            val shareText = if (text.isNotBlank()) "# $title\n\n$text" else title
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TITLE, title)
-                                putExtra(Intent.EXTRA_TEXT, shareText)
-                            }
-                            ctx.startActivity(Intent.createChooser(intent, exportTitle))
-                        },
-                    ) {
-                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.export_share))
-                    }
-                }
-                if (isEncrypted && decryptedContent == null && isEncryptedByContent) {
-                    IconButton(onClick = { showDecryptDialog = true }) {
-                        Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.decrypt))
-                    }
-                } else if (isEditing) {
-                    if (saving) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(12.dp))
-                    } else {
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    saving = true
-                                    try {
-                                        val updated = api.updateNote(
-                                            note.id,
-                                            com.jotty.android.data.api.UpdateNoteRequest(
-                                                title = title,
-                                                content = content,
-                                                originalCategory = note.category,
-                                            ),
-                                        )
-                                        if (updated.success) {
-                                            onUpdate(updated.data)
-                                            isEditing = false
-                                        }
-                                    } catch (_: Exception) { onSaveFailed() }
-                                    saving = false
-                                }
-                            },
-                        ) {
-                            Icon(Icons.Default.Save, contentDescription = stringResource(R.string.save))
-                        }
-                    }
-                } else if (!isEncrypted) {
-                    IconButton(onClick = { showEncryptDialog = true }) {
-                        Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.encrypt))
-                    }
-                    IconButton(onClick = { isEditing = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
-                    }
-                }
-            },
-        )
-
-        when {
-            isEncrypted && decryptedContent == null -> EncryptedNotePlaceholder(
-                encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
-                canDecryptInApp = isEncryptedByContent,
-                onDecryptClick = { showDecryptDialog = true },
-            )
-            isEditing -> NoteEditor(
-                title = title,
-                onTitleChange = { title = it },
-                content = content,
-                onContentChange = { content = it },
-            )
-            else -> NoteView(
-                title = title,
-                content = displayContent ?: "",
-                imageLoader = imageLoader,
-            )
-        }
-    }
-
-    if (showEncryptDialog) {
-        val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
-        EncryptNoteDialog(
-            onDismiss = {
-                showEncryptDialog = false
-                encryptError = null
-            },
-            isEncrypting = isEncrypting,
-            encryptError = encryptError,
-            onEncrypt = { passphrase ->
-                encryptError = null
-                isEncrypting = true
-                scope.launch {
-                    val body = withContext(Dispatchers.Default) {
-                        XChaCha20Encryptor.encrypt(displayContent ?: content, passphrase)
-                    }
-                    isEncrypting = false
-                    if (body != null) {
-                        val fullContent = XChaCha20Encryptor.wrapWithFrontmatter(note.id, title, note.category, body)
-                        try {
-                            val updated = api.updateNote(
-                                note.id,
-                                com.jotty.android.data.api.UpdateNoteRequest(
-                                    title = title,
-                                    content = fullContent,
-                                    originalCategory = note.category,
-                                ),
-                            )
-                            if (updated.success) {
-                                onUpdate(updated.data)
-                                showEncryptDialog = false
-                            }
-                        } catch (_: Exception) { onSaveFailed() }
-                    } else {
-                        encryptError = encryptFailedMsg
-                    }
-                }
-            },
-        )
-    }
-    if (showDecryptDialog && parsed is ParsedNoteContent.Encrypted) {
-        DecryptNoteDialog(
-            encryptionMethod = parsed.encryptionMethod,
-            encryptedBody = parsed.encryptedBody,
-            onDismiss = {
-                showDecryptDialog = false
-                decryptError = null
-                decryptErrorDetail = null
-            },
-            onDecrypted = {
-                decryptedContent = it
-                NoteDecryptionSession.put(note.id, it)
-                showDecryptDialog = false
-                decryptError = null
-                decryptErrorDetail = null
-            },
-            decryptError = decryptError,
-            decryptErrorDetail = decryptErrorDetail,
-            onDecryptError = { main, detail ->
-                decryptError = main
-                decryptErrorDetail = detail
-            },
-            debugLoggingEnabled = debugLoggingEnabled,
-        )
-    }
-}
-
-@Composable
-private fun EncryptedNotePlaceholder(
-    encryptionMethod: String,
-    canDecryptInApp: Boolean,
-    onDecryptClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            Icons.Default.Lock,
-            contentDescription = stringResource(R.string.note_is_encrypted),
-            modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.outline,
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.note_is_encrypted),
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = when {
-                encryptionMethod == "pgp" -> stringResource(R.string.pgp_not_supported)
-                canDecryptInApp -> stringResource(R.string.enter_passphrase_to_view)
-                else -> stringResource(R.string.use_web_app_to_decrypt)
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        if (canDecryptInApp && encryptionMethod == "xchacha") {
-            Button(onClick = onDecryptClick) {
-                Text(stringResource(R.string.decrypt_note))
-            }
-        }
-    }
-}
-
-@Composable
-private fun EncryptNoteDialog(
-    onDismiss: () -> Unit,
-    isEncrypting: Boolean = false,
-    encryptError: String? = null,
-    onEncrypt: (String) -> Unit,
-) {
-    var passphrase by remember { mutableStateOf("") }
-    var confirm by remember { mutableStateOf("") }
-    var error by remember { mutableStateOf<String?>(null) }
-    val errorShort = stringResource(R.string.error_passphrase_short)
-    val errorMismatch = stringResource(R.string.error_passphrase_mismatch)
-    val displayError = error ?: encryptError
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.encrypt_note)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    stringResource(R.string.encrypt_passphrase_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedTextField(
-                    value = passphrase,
-                    onValueChange = { passphrase = it; error = null },
-                    label = { Text(stringResource(R.string.passphrase)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    enabled = !isEncrypting,
-                )
-                OutlinedTextField(
-                    value = confirm,
-                    onValueChange = { confirm = it; error = null },
-                    label = { Text(stringResource(R.string.confirm_passphrase)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    isError = displayError != null,
-                    supportingText = displayError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-                    enabled = !isEncrypting,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (isEncrypting) return@TextButton
-                    when {
-                        passphrase.length < 12 -> error = errorShort
-                        passphrase != confirm -> error = errorMismatch
-                        else -> onEncrypt(passphrase)
-                    }
-                },
-                enabled = !isEncrypting,
-            ) {
-                if (isEncrypting) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                } else {
-                    Text(stringResource(R.string.encrypt))
-                }
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
-}
-
-@Composable
-private fun DecryptNoteDialog(
-    encryptionMethod: String,
-    encryptedBody: String,
-    onDismiss: () -> Unit,
-    onDecrypted: (String) -> Unit,
-    decryptError: String?,
-    decryptErrorDetail: String?,
-    onDecryptError: (mainMessage: String?, detail: String?) -> Unit,
-    debugLoggingEnabled: Boolean = false,
-) {
-    var passphrase by remember { mutableStateOf("") }
-    var isDecrypting by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
-    val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
-    val decryptAuthFailedHint = stringResource(R.string.decrypt_auth_failed_hint)
-    if (encryptionMethod != "xchacha") {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text(stringResource(R.string.decrypt_note)) },
-            text = { Text(stringResource(R.string.pgp_not_supported_short)) },
-            confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.close)) } },
-        )
-        return
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.decrypt_note)) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    stringResource(R.string.decrypt_passphrase_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                OutlinedTextField(
-                    value = passphrase,
-                    onValueChange = {
-                        passphrase = it
-                        onDecryptError(null, null)
-                    },
-                    label = { Text(stringResource(R.string.passphrase)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    isError = decryptError != null,
-                    supportingText = if (decryptError != null) {
-                        {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(decryptError, color = MaterialTheme.colorScheme.error)
-                                if (decryptErrorDetail != null) {
-                                    Text(
-                                        decryptErrorDetail,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
-                                }
-                            }
-                        }
-                    } else null,
-                    enabled = !isDecrypting,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    if (isDecrypting) return@TextButton
-                    isDecrypting = true
-                    onDecryptError(null, null)
-                    val pass = passphrase
-                    val showDetail = debugLoggingEnabled
-                    scope.launch {
-                        val result = withContext(Dispatchers.Default) {
-                            XChaCha20Decryptor.decryptWithReason(encryptedBody, pass)
-                        }
-                        withContext(Dispatchers.Main) {
-                            isDecrypting = false
-                            val plaintext = result.plaintext
-                            if (plaintext != null) {
-                                onDecrypted(plaintext)
-                            } else {
-                                val detail = when {
-                                    result.failureReason?.contains("Auth failed") == true ->
-                                        if (showDetail) result.failureReason + "\n\n" + decryptAuthFailedHint else decryptAuthFailedHint
-                                    showDetail -> result.failureReason
-                                    else -> null
-                                }
-                                onDecryptError(decryptFailedMsg, detail)
-                            }
-                        }
-                    }
-                },
-                enabled = !isDecrypting,
-            ) {
-                if (isDecrypting) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
-                } else {
-                    Text(stringResource(R.string.decrypt))
-                }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
-}
-
-@Composable
-private fun NoteView(
-    title: String,
-    content: String,
-    imageLoader: ImageLoader? = null,
-) {
-    val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp),
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
-        if (content.isNotBlank()) {
-            MarkdownText(
-                markdown = content,
-                modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
-                ),
-                syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
-                syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                imageLoader = imageLoader,
-            )
-        } else {
-            Text(
-                text = stringResource(R.string.no_content),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(modifier = Modifier.height(24.dp))
-    }
-}
-
-@Composable
-private fun NoteEditor(
-    title: String,
-    onTitleChange: (String) -> Unit,
-    content: String,
-    onContentChange: (String) -> Unit,
-) {
-    val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        OutlinedTextField(
-            value = title,
-            onValueChange = onTitleChange,
-            label = { Text(stringResource(R.string.title)) },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            shape = RoundedCornerShape(12.dp),
-        )
-        OutlinedTextField(
-            value = content,
-            onValueChange = onContentChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 200.dp),
-            placeholder = { Text(stringResource(R.string.write_your_note)) },
-            supportingText = {
-                Text(
-                    stringResource(R.string.markdown_hint),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
-            minLines = 12,
-            shape = RoundedCornerShape(12.dp),
-        )
-    }
-}

@@ -5,6 +5,13 @@
     <!-- Common / accessibility (content descriptions for icons) -->
     <string name="cd_search">Search</string>
     <string name="cd_link">Link</string>
+    <string name="cd_refresh">Refresh list</string>
+    <string name="cd_add">Add</string>
+    <string name="cd_share">Share note</string>
+    <string name="cd_decrypt">Decrypt note</string>
+    <string name="cd_encrypt">Encrypt note</string>
+    <string name="cd_edit">Edit note</string>
+    <string name="cd_save">Save changes</string>
     <string name="cd_download">Download</string>
     <string name="cd_success">Done</string>
 
@@ -57,6 +64,7 @@
     <string name="search_notes">Search notes</string>
     <string name="no_notes_yet">No notes yet</string>
     <string name="tap_add_note">Tap + to add a note</string>
+    <string name="note_not_found">Note not found</string>
     <string name="encrypted">Encrypted</string>
     <string name="no_content">No content</string>
     <string name="export_share">Export / Share</string>

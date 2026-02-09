@@ -106,10 +106,10 @@ fun ChecklistsScreen(
                 )
                 Row {
                     IconButton(onClick = { loadChecklists() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
                     }
                     IconButton(onClick = { showCreateDialog = true }) {
-                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_checklist))
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
                     }
                 }
             }

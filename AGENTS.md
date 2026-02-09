@@ -71,13 +71,21 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 
 **Limitations (same as Jotty):** Encrypted note content is not searchable (titles/metadata are). Encrypted notes are only decryptable by the key owner; shared encrypted notes stay encrypted for others. No passphrase recovery — lost passphrase means permanent loss of access; users should keep secure backups.
 
+## Images in notes
+
+- Note body supports Markdown images: `![alt](url)`. Rendered via compose-markdown with Coil.
+- **Same-host auth:** Image URLs on the same host as the Jotty server get the `x-api-key` header so server-hosted images load. See `util/NoteImageLoader.kt` — `createNoteImageLoader(context, baseUrl, apiKey)`; loaders are cached per (baseUrl, apiKey).
+- **Links:** Markdown links are clickable and open in the browser (`onLinkClicked` → `LocalUriHandler.openUri`).
+- **Where to change:** `util/NoteImageLoader.kt` for auth/cache; `ui/notes/NoteView.kt` for Markdown/link behaviour; `MainScreen.kt` creates and passes the image loader to `NotesScreen`.
+
 ## Where to change what
 
 | Goal                         | Primary location(s)                    |
 |-----------------------------|----------------------------------------|
 | API endpoints / models      | `data/api/JottyApi.kt`, `models.kt`   |
 | Checklist UI / task edit    | `ui/checklists/ChecklistsScreen.kt`   |
-| Notes list / detail / encrypt | `ui/notes/NotesScreen.kt`           |
+| Notes list                  | `ui/notes/NotesScreen.kt`             |
+| Note detail / encrypt/decrypt | `ui/notes/NoteDetailScreen.kt`, `NoteDialogs.kt`, `NoteView.kt`, `NoteEditor.kt`, `NoteCard.kt` |
 | Note encryption parsing     | `data/encryption/NoteEncryption.kt`   |
 | XChaCha20 decrypt/encrypt   | `data/encryption/XChaCha20Decryptor.kt`, `XChaCha20Encryptor.kt` |
 | Session decrypted cache     | `data/encryption/NoteDecryptionSession.kt` |

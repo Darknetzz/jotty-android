@@ -672,6 +672,7 @@ private fun DecryptNoteDialog(
     var isDecrypting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
+    val decryptAuthFailedHint = stringResource(R.string.decrypt_auth_failed_hint)
     if (encryptionMethod != "xchacha") {
         AlertDialog(
             onDismissRequest = onDismiss,
@@ -738,10 +739,13 @@ private fun DecryptNoteDialog(
                             if (plaintext != null) {
                                 onDecrypted(plaintext)
                             } else {
-                                onDecryptError(
-                                    decryptFailedMsg,
-                                    if (showDetail) result.failureReason else null,
-                                )
+                                val detail = when {
+                                    result.failureReason?.contains("Auth failed") == true ->
+                                        if (showDetail) result.failureReason + "\n\n" + decryptAuthFailedHint else decryptAuthFailedHint
+                                    showDetail -> result.failureReason
+                                    else -> null
+                                }
+                                onDecryptError(decryptFailedMsg, detail)
                             }
                         }
                     }

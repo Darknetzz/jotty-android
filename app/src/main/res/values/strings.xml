@@ -78,6 +78,7 @@
     <string name="error_passphrase_short">Use at least 12 characters</string>
     <string name="error_passphrase_mismatch">Passphrases don\'t match</string>
     <string name="error_decrypt_failed">Wrong passphrase or invalid format</string>
+    <string name="decrypt_auth_failed_hint">If this was encrypted in the Jotty web app, use the exact same passphrase and check for leading or trailing spaces.</string>
     <string name="error_encrypt_failed">Encryption failed. Please try again.</string>
     <string name="note_is_encrypted">This note is encrypted</string>
     <string name="pgp_not_supported">PGP decryption is not supported in the app. Use the Jotty web app to decrypt.</string>

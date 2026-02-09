@@ -87,8 +87,7 @@ object XChaCha20Decryptor {
             return DecryptResult(null, reason)
         }
         val (salt, nonce, data) = parsed.first!!
-        val pass = passphrase.trim()
-        if (pass.isEmpty()) {
+        if (passphrase.trim().isEmpty()) {
             Log.w(LOG_TAG, "Decrypt: key derivation failed (empty passphrase)")
             return DecryptResult(null, FAILURE_KEY_DERIVATION)
         }
@@ -100,24 +99,33 @@ object XChaCha20Decryptor {
             )
             else -> emptyList()
         }
-        val preferLibsodiumOrder = nonce.size > 24
-        for (preset in ARGON2_PRESETS) {
-            val key = try {
-                deriveKey(pass, salt, preset.iterations, preset.memoryKb, preset.parallelism)
-            } catch (_: OutOfMemoryError) {
-                null
-            } ?: continue
-            for (nonce24 in nonce24Candidates) {
-                val result = decryptXChaCha20Poly1305(key, nonce24, data, preferLibsodiumOrder)
-                if (result != null) {
-                    if (preset.iterations != ARGON2_ITERATIONS || preset.memoryKb != ARGON2_MEMORY_KB || preset.parallelism != ARGON2_PARALLELISM) {
-                        Log.i(LOG_TAG, "Decrypt success with Argon2 fallback (iterations=${preset.iterations}, memoryKb=${preset.memoryKb}, parallelism=${preset.parallelism})")
+        // Try libsodium order (tag||ciphertext) first for every note — web and app both use it
+        val preferLibsodiumOrder = true
+        val passphrasesToTry = listOf(passphrase.trim()).distinct() +
+            (if (passphrase != passphrase.trim()) listOf(passphrase) else emptyList())
+        for (pass in passphrasesToTry) {
+            if (pass.isEmpty()) continue
+            for (preset in ARGON2_PRESETS) {
+                val key = try {
+                    deriveKey(pass, salt, preset.iterations, preset.memoryKb, preset.parallelism)
+                } catch (_: OutOfMemoryError) {
+                    null
+                } ?: continue
+                for (nonce24 in nonce24Candidates) {
+                    val result = decryptXChaCha20Poly1305(key, nonce24, data, preferLibsodiumOrder)
+                    if (result != null) {
+                        if (pass != passphrase.trim()) {
+                            Log.i(LOG_TAG, "Decrypt success with untrimmed passphrase")
+                        }
+                        if (preset.iterations != ARGON2_ITERATIONS || preset.memoryKb != ARGON2_MEMORY_KB || preset.parallelism != ARGON2_PARALLELISM) {
+                            Log.i(LOG_TAG, "Decrypt success with Argon2 fallback (iterations=${preset.iterations}, memoryKb=${preset.memoryKb}, parallelism=${preset.parallelism})")
+                        }
+                        if (nonce.size > 24 && nonce24 === nonce24Candidates.getOrNull(1)) {
+                            Log.i(LOG_TAG, "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
+                        }
+                        Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
+                        return DecryptResult(result, null)
                     }
-                    if (nonce.size > 24 && nonce24 === nonce24Candidates.getOrNull(1)) {
-                        Log.i(LOG_TAG, "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
-                    }
-                    Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
-                    return DecryptResult(result, null)
                 }
             }
         }

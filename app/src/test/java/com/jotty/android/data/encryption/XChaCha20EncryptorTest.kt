@@ -102,4 +102,17 @@ class XChaCha20EncryptorTest {
         assertNotNull(decrypted)
         assertEquals(plaintext, decrypted)
     }
+
+    @Test
+    fun `decrypt parses hex-encoded JSON from Jotty web and fails at auth not parse`() {
+        // Web app stores salt/nonce/data as hex. Minimal valid-length hex payload (wrong key → auth fail, not parse).
+        val hexJson = """{"alg":"xchacha20","salt":"00000000000000000000000000000000","nonce":"000000000000000000000000000000000000000000000000","data":"0000000000000000000000000000000000000000000000000000000000000000"}"""
+        val result = XChaCha20Decryptor.decryptWithReason(hexJson, "any passphrase")
+        assertNull(result.plaintext)
+        assertNotNull(result.failureReason)
+        assertTrue(
+            "Expected auth failure (hex parsed), not parse failure: ${result.failureReason}",
+            result.failureReason!!.contains("Auth failed") || result.failureReason!!.contains("Key derivation")
+        )
+    }
 }

@@ -86,7 +86,10 @@ object XChaCha20Decryptor {
             AppLog.d("encryption", "Decrypt: parse failed — $reason")
             return DecryptResult(null, reason)
         }
-        val (salt, nonce, data) = parsed.first!!
+        val payload = parsed.first!!
+        val (salt, nonce, data) = Triple(payload.salt, payload.nonce, payload.data)
+        // Jotty web uses IETF AEAD (ciphertext||tag). App uses libsodium secretbox (tag||ciphertext). Try the right one first.
+        val preferLibsodiumOrder = !payload.usedHex
         if (passphrase.trim().isEmpty()) {
             Log.w(LOG_TAG, "Decrypt: key derivation failed (empty passphrase)")
             return DecryptResult(null, FAILURE_KEY_DERIVATION)
@@ -99,8 +102,6 @@ object XChaCha20Decryptor {
             )
             else -> emptyList()
         }
-        // Try libsodium order (tag||ciphertext) first for every note — web and app both use it
-        val preferLibsodiumOrder = true
         val passphrasesToTry = listOf(passphrase.trim()).distinct() +
             (if (passphrase != passphrase.trim()) listOf(passphrase) else emptyList())
         for (pass in passphrasesToTry) {
@@ -149,59 +150,71 @@ object XChaCha20Decryptor {
         return regex.replace(trimmed) { it.groupValues[1].trim() }.trim().ifEmpty { trimmed }
     }
 
+    /** Result of parse: salt, nonce, data, and whether any field was decoded from hex (Jotty web format). */
+    private data class ParsedPayload(val salt: ByteArray, val nonce: ByteArray, val data: ByteArray, val usedHex: Boolean) {
+        override fun equals(other: Any?) = (other is ParsedPayload) && salt.contentEquals(other.salt) && nonce.contentEquals(other.nonce) && data.contentEquals(other.data) && usedHex == other.usedHex
+        override fun hashCode() = salt.contentHashCode() + 31 * (nonce.contentHashCode() + 31 * (data.contentHashCode() + 31 * usedHex.hashCode()))
+    }
+
     /**
-     * Returns (Triple(salt, nonce, data), null) on success, (null, reason) on parse failure.
+     * Returns (ParsedPayload, null) on success, (null, reason) on parse failure.
      * Reason is a short string for UI when debug logging is on.
      */
-    private fun parseEncryptedBody(json: String): Pair<Triple<ByteArray, ByteArray, ByteArray>?, String?> {
+    private fun parseEncryptedBody(json: String): Pair<ParsedPayload?, String?> {
         return try {
             val body = GSON.fromJson(json, EncryptedBodyJson::class.java)
             if (body == null) {
                 Log.w(LOG_TAG, "Parse: GSON returned null")
                 return null to "Invalid JSON (empty or not an object)"
             }
-            val saltB64 = body.salt?.takeIf { it.isNotBlank() }
-            if (saltB64 == null) {
+            val saltStr = body.salt?.takeIf { it.isNotBlank() }
+            if (saltStr == null) {
                 Log.w(LOG_TAG, "Parse: missing or blank salt")
                 return null to "Missing or blank salt"
             }
-            val nonceB64 = body.nonce?.takeIf { it.isNotBlank() }
-            if (nonceB64 == null) {
+            val nonceStr = body.nonce?.takeIf { it.isNotBlank() }
+            if (nonceStr == null) {
                 Log.w(LOG_TAG, "Parse: missing or blank nonce")
                 return null to "Missing or blank nonce"
             }
-            val dataB64 = body.data?.takeIf { it.isNotBlank() }
-            if (dataB64 == null) {
+            val dataStr = body.data?.takeIf { it.isNotBlank() }
+            if (dataStr == null) {
                 Log.w(LOG_TAG, "Parse: missing or blank data")
                 return null to "Missing or blank data"
             }
-            val salt = decodeBase64OrHex(saltB64)
+            val (salt, saltHex) = decodeBase64OrHexWithSource(saltStr)
             if (salt == null) {
-                Log.w(LOG_TAG, "Parse: salt decode failed (length=${saltB64.length})")
+                Log.w(LOG_TAG, "Parse: salt decode failed (length=${saltStr.length}, sample=${saltStr.take(20)})")
+                AppLog.d("encryption", "Parse: salt decode failed; first chars: ${saltStr.take(30)}")
                 return null to "Invalid base64/hex in salt"
             }
-            val nonce = decodeBase64OrHex(nonceB64)
+            val (nonce, nonceHex) = decodeBase64OrHexWithSource(nonceStr)
             if (nonce == null) {
-                Log.w(LOG_TAG, "Parse: nonce decode failed (length=${nonceB64.length})")
+                Log.w(LOG_TAG, "Parse: nonce decode failed (length=${nonceStr.length})")
                 return null to "Invalid base64/hex in nonce"
             }
-            val data = decodeBase64OrHex(dataB64)
+            val (data, dataHex) = decodeBase64OrHexWithSource(dataStr)
             if (data == null) {
-                Log.w(LOG_TAG, "Parse: data decode failed (length=${dataB64.length})")
+                Log.w(LOG_TAG, "Parse: data decode failed (length=${dataStr.length})")
                 return null to "Invalid base64/hex in data"
+            }
+            val usedHex = saltHex || nonceHex || dataHex
+            if (usedHex) {
+                Log.i(LOG_TAG, "Parse: payload from hex (Jotty web format); salt=${salt.size}B nonce=${nonce.size}B data=${data.size}B")
+                AppLog.d("encryption", "Parse: hex payload (web); will try IETF order first")
             }
             if (nonce.size < 24) {
                 Log.w(LOG_TAG, "Parse: nonce size ${nonce.size} < 24")
                 return null to "Nonce must be at least 24 bytes (got ${nonce.size})"
             }
             if (nonce.size > 24) {
-                Log.i(LOG_TAG, "Parse: nonce size ${nonce.size} (e.g. Jotty web); will try first 24 and last 24 bytes")
+                Log.i(LOG_TAG, "Parse: nonce size ${nonce.size}; will try first 24 and last 24 bytes")
             }
             if (data.size < TAG_BYTES) {
                 Log.w(LOG_TAG, "Parse: data size ${data.size} < TAG_BYTES ($TAG_BYTES)")
                 return null to "Ciphertext too short"
             }
-            Triple(salt, nonce, data) to null
+            ParsedPayload(salt, nonce, data, usedHex) to null
         } catch (e: com.google.gson.JsonSyntaxException) {
             Log.w(LOG_TAG, "Parse: JSON syntax exception", e)
             null to "Invalid JSON (syntax error)"
@@ -213,14 +226,18 @@ object XChaCha20Decryptor {
 
     /**
      * Decodes salt/nonce/data from JSON. Jotty web app uses hex (to_hex); Android app uses base64.
-     * If the string looks like hex (even length, only 0-9a-fA-F), decode as hex; otherwise base64.
+     * Returns (bytes, true) if decoded from hex, (bytes, false) from base64, (null, false) on failure.
+     * Tries hex first when string is only hex chars (after stripping whitespace); else base64.
      */
-    private fun decodeBase64OrHex(s: String): ByteArray? {
+    private fun decodeBase64OrHexWithSource(s: String): Pair<ByteArray?, Boolean> {
         val stripped = s.replace("\\s".toRegex(), "")
-        if (stripped.length % 2 == 0 && stripped.all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }) {
-            return decodeHex(stripped)
+        val hexOnly = stripped.filter { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
+        if (hexOnly.length % 2 == 0 && hexOnly.length == stripped.length && hexOnly.isNotEmpty()) {
+            val decoded = decodeHex(stripped)
+            return if (decoded != null) decoded to true else null to false
         }
-        return decodeBase64(stripped)
+        val decoded = decodeBase64(stripped)
+        return if (decoded != null) decoded to false else null to false
     }
 
     private fun decodeHex(s: String): ByteArray? {

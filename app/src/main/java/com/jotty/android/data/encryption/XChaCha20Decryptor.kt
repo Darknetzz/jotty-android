@@ -8,6 +8,7 @@ import org.bouncycastle.crypto.modes.ChaCha20Poly1305
 import org.bouncycastle.crypto.params.Argon2Parameters
 import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.crypto.params.ParametersWithIV
+import java.text.Normalizer
 import java.util.Base64
 
 /**
@@ -102,8 +103,12 @@ object XChaCha20Decryptor {
             )
             else -> emptyList()
         }
-        val passphrasesToTry = listOf(passphrase.trim()).distinct() +
-            (if (passphrase != passphrase.trim()) listOf(passphrase) else emptyList())
+        // Try trimmed, NFC-normalized, and raw passphrase (web may use different Unicode form).
+        val trimmed = passphrase.trim()
+        val nfcTrimmed = Normalizer.normalize(trimmed, Normalizer.Form.NFC)
+        val nfcRaw = Normalizer.normalize(passphrase, Normalizer.Form.NFC)
+        val passphrasesToTry = listOfNotNull(trimmed, nfcTrimmed, nfcRaw)
+            .distinct() + (if (passphrase != trimmed) listOf(passphrase) else emptyList())
         for (pass in passphrasesToTry) {
             if (pass.isEmpty()) continue
             for (preset in ARGON2_PRESETS) {

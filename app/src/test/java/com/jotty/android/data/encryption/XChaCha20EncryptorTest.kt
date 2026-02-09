@@ -73,22 +73,32 @@ class XChaCha20EncryptorTest {
 
     @Test
     fun `decrypt accepts libsodium secretbox format tag then ciphertext`() {
-        // Our encryptor produces ciphertext||tag (BC/IETF). Jotty web may use libsodium secretbox (tag||ciphertext).
-        // Simulate: take our encrypted JSON, decode "data", reorder to tag||ciphertext, re-encode, decrypt.
+        // Encryptor now produces tag||ciphertext (libsodium format) so web can decrypt. Verify round-trip.
         val plaintext = "Secret from Jotty web"
         val passphrase = "web passphrase"
+        val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val decrypted = XChaCha20Decryptor.decrypt(encryptedJson, passphrase)
+        assertNotNull(decrypted)
+        assertEquals(plaintext, decrypted)
+    }
+
+    @Test
+    fun `decrypt accepts BC order ciphertext then tag for backward compatibility`() {
+        // Encryptor outputs tag||ciphertext. Reorder to ciphertext||tag (old app format); decryptor should still accept.
+        val plaintext = "Backward compat"
+        val passphrase = "pass"
         val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
         val regex = """"data"\s*:\s*"([^"]+)"""".toRegex()
         val dataB64 = regex.find(encryptedJson)?.groupValues?.get(1) ?: fail("no data in JSON")
         val data = Base64.getDecoder().decode(dataB64)
         assertTrue(data.size >= 16)
-        val tagFirst = ByteArray(data.size).apply {
-            System.arraycopy(data, data.size - 16, this, 0, 16)
-            System.arraycopy(data, 0, this, 16, data.size - 16)
+        val ciphertextThenTag = ByteArray(data.size).apply {
+            System.arraycopy(data, 16, this, 0, data.size - 16)
+            System.arraycopy(data, 0, this, data.size - 16, 16)
         }
-        val tagFirstB64 = Base64.getEncoder().encodeToString(tagFirst)
-        val libsodiumStyleJson = encryptedJson.replace("\"$dataB64\"", "\"$tagFirstB64\"")
-        val decrypted = XChaCha20Decryptor.decrypt(libsodiumStyleJson, passphrase)
+        val bcOrderB64 = Base64.getEncoder().encodeToString(ciphertextThenTag)
+        val bcOrderJson = encryptedJson.replace("\"$dataB64\"", "\"$bcOrderB64\"")
+        val decrypted = XChaCha20Decryptor.decrypt(bcOrderJson, passphrase)
         assertNotNull(decrypted)
         assertEquals(plaintext, decrypted)
     }

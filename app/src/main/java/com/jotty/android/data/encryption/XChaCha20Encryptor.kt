@@ -11,6 +11,7 @@ import java.util.Base64
 /**
  * Encrypts plaintext with XChaCha20-Poly1305 for Jotty.
  * Output format: JSON with "alg","salt","nonce","data" (base64). Same params as XChaCha20Decryptor.
+ * Uses libsodium secretbox format (tag then ciphertext) so notes encrypted here decrypt in the Jotty web app.
  */
 object XChaCha20Encryptor {
 
@@ -75,6 +76,10 @@ object XChaCha20Encryptor {
         }
     }
 
+    /**
+     * Encrypts with XChaCha20-Poly1305. Returns payload in libsodium secretbox order:
+     * tag (16 bytes) then ciphertext, so the Jotty web app can decrypt.
+     */
     private fun encryptXChaCha20Poly1305(key: ByteArray, nonce24: ByteArray, plaintext: ByteArray): ByteArray? {
         if (nonce24.size != NONCE_BYTES || key.size != KEY_BYTES) return null
         val subkey = XChaCha20Decryptor.hChaCha20Block(key, nonce24.copyOfRange(0, 16)) ?: return null
@@ -82,10 +87,15 @@ object XChaCha20Encryptor {
         return try {
             val cipher = ChaCha20Poly1305()
             cipher.init(true, ParametersWithIV(KeyParameter(subkey), nonce12))
-            val out = ByteArray(plaintext.size + TAG_BYTES)
-            cipher.processBytes(plaintext, 0, plaintext.size, out, 0)
-            cipher.doFinal(out, plaintext.size)
-            out
+            val ciphertextThenTag = ByteArray(plaintext.size + TAG_BYTES)
+            cipher.processBytes(plaintext, 0, plaintext.size, ciphertextThenTag, 0)
+            cipher.doFinal(ciphertextThenTag, plaintext.size)
+            // Bouncy Castle outputs ciphertext||tag; libsodium secretbox expects tag||ciphertext
+            val tagThenCiphertext = ByteArray(ciphertextThenTag.size).apply {
+                System.arraycopy(ciphertextThenTag, plaintext.size, this, 0, TAG_BYTES)
+                System.arraycopy(ciphertextThenTag, 0, this, TAG_BYTES, plaintext.size)
+            }
+            tagThenCiphertext
         } catch (_: Exception) {
             null
         }

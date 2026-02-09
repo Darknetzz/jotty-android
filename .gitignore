@@ -38,3 +38,4 @@ keystore.properties
 .kotlin
 
 RELEASE_*.md
+build-custom.ps1

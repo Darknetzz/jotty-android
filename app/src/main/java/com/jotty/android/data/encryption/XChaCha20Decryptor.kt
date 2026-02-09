@@ -62,14 +62,27 @@ object XChaCha20Decryptor {
             AppLog.d("encryption", "Decrypt: key derivation failed")
             return DecryptResult(null, FAILURE_KEY_DERIVATION)
         }
-        val result = decryptXChaCha20Poly1305(key, nonce, data)
-        if (result == null) {
-            Log.w(LOG_TAG, "Decrypt: auth failed (wrong passphrase or corrupted data — Poly1305 tag mismatch)")
-            AppLog.d("encryption", "Decrypt: auth failed")
-            return DecryptResult(null, FAILURE_AUTH)
+        val nonce24Candidates = when {
+            nonce.size == 24 -> listOf(nonce)
+            nonce.size > 24 -> listOf(
+                nonce.copyOfRange(0, 24),
+                nonce.copyOfRange(nonce.size - 24, nonce.size),
+            )
+            else -> emptyList()
         }
-        Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
-        return DecryptResult(result, null)
+        for (nonce24 in nonce24Candidates) {
+            val result = decryptXChaCha20Poly1305(key, nonce24, data)
+            if (result != null) {
+                if (nonce.size > 24 && nonce24 === nonce24Candidates[1]) {
+                    Log.i(LOG_TAG, "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
+                }
+                Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
+                return DecryptResult(result, null)
+            }
+        }
+        Log.w(LOG_TAG, "Decrypt: auth failed (wrong passphrase or corrupted data — Poly1305 tag mismatch)")
+        AppLog.d("encryption", "Decrypt: auth failed")
+        return DecryptResult(null, FAILURE_AUTH)
     }
 
     /**
@@ -128,22 +141,18 @@ object XChaCha20Decryptor {
                 Log.w(LOG_TAG, "Parse: data base64 decode failed (length=${dataB64.length})")
                 return null to "Invalid base64 in data"
             }
-            val nonce24 = when {
-                nonce.size == 24 -> nonce
-                nonce.size >= 24 -> {
-                    Log.i(LOG_TAG, "Parse: nonce size ${nonce.size} > 24, using first 24 bytes (e.g. Jotty web format)")
-                    nonce.copyOfRange(0, 24)
-                }
-                else -> {
-                    Log.w(LOG_TAG, "Parse: nonce size ${nonce.size} < 24")
-                    return null to "Nonce must be at least 24 bytes (got ${nonce.size})"
-                }
+            if (nonce.size < 24) {
+                Log.w(LOG_TAG, "Parse: nonce size ${nonce.size} < 24")
+                return null to "Nonce must be at least 24 bytes (got ${nonce.size})"
+            }
+            if (nonce.size > 24) {
+                Log.i(LOG_TAG, "Parse: nonce size ${nonce.size} (e.g. Jotty web); will try first 24 and last 24 bytes")
             }
             if (data.size < TAG_BYTES) {
                 Log.w(LOG_TAG, "Parse: data size ${data.size} < TAG_BYTES ($TAG_BYTES)")
                 return null to "Ciphertext too short"
             }
-            Triple(salt, nonce24, data) to null
+            Triple(salt, nonce, data) to null
         } catch (e: com.google.gson.JsonSyntaxException) {
             Log.w(LOG_TAG, "Parse: JSON syntax exception", e)
             null to "Invalid JSON (syntax error)"

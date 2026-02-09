@@ -35,6 +35,18 @@ object XChaCha20Decryptor {
     private const val KEY_BYTES = 32
     private const val TAG_BYTES = 16
 
+    /**
+     * Argon2 (iterations, memoryKB) presets to try when decrypting.
+     * Primary: Android app format (2, 64MB). Fallbacks: common libsodium/JS variants so notes
+     * encrypted by the Jotty web app (libsodium-wrappers) decrypt correctly.
+     */
+    private val ARGON2_PRESETS = listOf(
+        Pair(2, 65536),   // App + libsodium INTERACTIVE (64 MiB)
+        Pair(3, 65536),
+        Pair(4, 32768),   // Some libsodium bindings use 32 MiB
+        Pair(2, 32768),
+    )
+
     /** Failure reason strings for UI (shown when Settings → Debug logging is on). */
     const val FAILURE_PARSE = "Parse failed (invalid JSON or base64)"
     const val FAILURE_KEY_DERIVATION = "Key derivation failed"
@@ -56,10 +68,9 @@ object XChaCha20Decryptor {
             return DecryptResult(null, reason)
         }
         val (salt, nonce, data) = parsed.first!!
-        val key = deriveKey(passphrase.trim(), salt)
-        if (key == null) {
-            Log.w(LOG_TAG, "Decrypt: key derivation failed (empty passphrase or Argon2 error)")
-            AppLog.d("encryption", "Decrypt: key derivation failed")
+        val pass = passphrase.trim()
+        if (pass.isEmpty()) {
+            Log.w(LOG_TAG, "Decrypt: key derivation failed (empty passphrase)")
             return DecryptResult(null, FAILURE_KEY_DERIVATION)
         }
         val nonce24Candidates = when {
@@ -70,14 +81,20 @@ object XChaCha20Decryptor {
             )
             else -> emptyList()
         }
-        for (nonce24 in nonce24Candidates) {
-            val result = decryptXChaCha20Poly1305(key, nonce24, data)
-            if (result != null) {
-                if (nonce.size > 24 && nonce24 === nonce24Candidates[1]) {
-                    Log.i(LOG_TAG, "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
+        for ((iterations, memoryKb) in ARGON2_PRESETS) {
+            val key = deriveKey(pass, salt, iterations, memoryKb) ?: continue
+            for (nonce24 in nonce24Candidates) {
+                val result = decryptXChaCha20Poly1305(key, nonce24, data)
+                if (result != null) {
+                    if (iterations != ARGON2_ITERATIONS || memoryKb != ARGON2_MEMORY_KB) {
+                        Log.i(LOG_TAG, "Decrypt success with Argon2 fallback (iterations=$iterations, memoryKb=$memoryKb)")
+                    }
+                    if (nonce.size > 24 && nonce24 === nonce24Candidates.getOrNull(1)) {
+                        Log.i(LOG_TAG, "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
+                    }
+                    Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
+                    return DecryptResult(result, null)
                 }
-                Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
-                return DecryptResult(result, null)
             }
         }
         Log.w(LOG_TAG, "Decrypt: auth failed (wrong passphrase or corrupted data — Poly1305 tag mismatch)")
@@ -188,13 +205,13 @@ object XChaCha20Decryptor {
 
     private val GSON = com.google.gson.Gson()
 
-    private fun deriveKey(passphrase: String, salt: ByteArray): ByteArray? {
+    private fun deriveKey(passphrase: String, salt: ByteArray, iterations: Int = ARGON2_ITERATIONS, memoryKb: Int = ARGON2_MEMORY_KB): ByteArray? {
         if (passphrase.isEmpty()) return null
         return try {
             val params = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
                 .withVersion(Argon2Parameters.ARGON2_VERSION_13)
-                .withIterations(ARGON2_ITERATIONS)
-                .withMemoryAsKB(ARGON2_MEMORY_KB)
+                .withIterations(iterations)
+                .withMemoryAsKB(memoryKb)
                 .withParallelism(ARGON2_PARALLELISM)
                 .withSalt(salt)
                 .build()

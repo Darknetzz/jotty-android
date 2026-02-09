@@ -212,6 +212,7 @@ fun NotesScreen(
                     onDelete = { selectedNote = null; loadNotes() },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     debugLoggingEnabled = debugLoggingEnabled,
+                    imageLoader = imageLoader,
                 )
             }
         }
@@ -351,6 +352,7 @@ private fun NoteDetailScreen(
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit = {},
     debugLoggingEnabled: Boolean = false,
+    imageLoader: ImageLoader? = null,
 ) {
     var title by remember { mutableStateOf(note.title) }
     var content by remember { mutableStateOf(note.content) }

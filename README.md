@@ -68,6 +68,21 @@ gradle wrapper --gradle-version 8.9
 ./gradlew assembleRelease
 ```
 
+## Troubleshooting
+
+### Server log: `Session check error` / `ERR_SSL_WRONG_VERSION_NUMBER`
+
+This usually means something is speaking **HTTP** where **TLS (HTTPS)** is expected:
+
+- **If the app talks to your server:** In the app, use an instance URL that starts with `https://` (e.g. `https://jotty.example.com`). If you enter a URL without a scheme, the app adds `https://` by default.
+- **If the server does a “session check”** (e.g. an outbound request to validate the session): that request’s URL must use `https://`. Check the Jotty server config (e.g. app URL, callback URL, or any URL used for session validation) and ensure it’s HTTPS, not HTTP.
+
+### Server log: `XChaCha Decryption Error: Error: invalid input` at `from_hex`
+
+The server is decoding encrypted content with **hex** while the Android app (and typically the Jotty web app) store **base64** in the encrypted JSON (`salt`, `nonce`, `data`). So the server is likely using the wrong decoder for that payload.
+
+- **Fix on the Jotty server:** In the Jotty repo, search for XChaCha decryption and `from_hex`. The code that reads the encrypted note body should decode the JSON fields (salt, nonce, data) as **base64**, not hex. If some path expects hex, either switch it to base64 or add a format check (e.g. try base64 first, then hex) so both formats are accepted.
+
 ## Architecture
 
 - **Jetpack Compose** — UI

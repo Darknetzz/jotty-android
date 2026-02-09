@@ -128,15 +128,22 @@ object XChaCha20Decryptor {
                 Log.w(LOG_TAG, "Parse: data base64 decode failed (length=${dataB64.length})")
                 return null to "Invalid base64 in data"
             }
-            if (nonce.size != 24) {
-                Log.w(LOG_TAG, "Parse: nonce size ${nonce.size} != 24")
-                return null to "Nonce must be 24 bytes (got ${nonce.size})"
+            val nonce24 = when {
+                nonce.size == 24 -> nonce
+                nonce.size >= 24 -> {
+                    Log.i(LOG_TAG, "Parse: nonce size ${nonce.size} > 24, using first 24 bytes (e.g. Jotty web format)")
+                    nonce.copyOfRange(0, 24)
+                }
+                else -> {
+                    Log.w(LOG_TAG, "Parse: nonce size ${nonce.size} < 24")
+                    return null to "Nonce must be at least 24 bytes (got ${nonce.size})"
+                }
             }
             if (data.size < TAG_BYTES) {
                 Log.w(LOG_TAG, "Parse: data size ${data.size} < TAG_BYTES ($TAG_BYTES)")
                 return null to "Ciphertext too short"
             }
-            Triple(salt, nonce, data) to null
+            Triple(salt, nonce24, data) to null
         } catch (e: com.google.gson.JsonSyntaxException) {
             Log.w(LOG_TAG, "Parse: JSON syntax exception", e)
             null to "Invalid JSON (syntax error)"

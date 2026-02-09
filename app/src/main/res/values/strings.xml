@@ -65,7 +65,7 @@
     <string name="decrypt">Decrypt</string>
     <string name="encrypt">Encrypt</string>
     <string name="write_your_note">Write your note…</string>
-    <string name="markdown_hint">Supports **bold**, *italic*, # headings, lists, [links](url)</string>
+    <string name="markdown_hint">Supports **bold**, *italic*, # headings, lists, [links](url), ![images](url)</string>
     <string name="category_all">All</string>
 
     <!-- Encrypt / Decrypt dialogs -->

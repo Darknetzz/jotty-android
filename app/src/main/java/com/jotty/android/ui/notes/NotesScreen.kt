@@ -42,6 +42,7 @@ import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
+import coil.ImageLoader
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,6 +56,7 @@ fun NotesScreen(
     initialNoteId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
+    imageLoader: ImageLoader? = null,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -474,6 +476,7 @@ private fun NoteDetailScreen(
             else -> NoteView(
                 title = title,
                 content = displayContent ?: "",
+                imageLoader = imageLoader,
             )
         }
     }
@@ -769,6 +772,7 @@ private fun DecryptNoteDialog(
 private fun NoteView(
     title: String,
     content: String,
+    imageLoader: ImageLoader? = null,
 ) {
     val scrollState = rememberScrollState()
     Column(
@@ -792,6 +796,7 @@ private fun NoteView(
                 ),
                 syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
                 syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                imageLoader = imageLoader,
             )
         } else {
             Text(

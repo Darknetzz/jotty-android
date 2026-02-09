@@ -8,6 +8,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
@@ -23,6 +24,8 @@ import com.jotty.android.ui.checklists.ChecklistsScreen
 import com.jotty.android.ui.notes.NotesScreen
 import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.ui.settings.SettingsScreen
+import com.jotty.android.util.createNoteImageLoader
+import coil.ImageLoader
 
 private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
 
@@ -54,9 +57,14 @@ fun MainScreen(
             }
         }
     }
+    val context = LocalContext.current
     val serverUrl = settingsRepository.serverUrl.collectAsState(initial = null).value
     val apiKey = settingsRepository.apiKey.collectAsState(initial = null).value
     val swipeToDeleteEnabled = settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false).value
+
+    val imageLoader = remember(context, serverUrl, apiKey) {
+        createNoteImageLoader(context, serverUrl, apiKey)
+    }
 
     val api = remember(serverUrl, apiKey) {
         if (!serverUrl.isNullOrBlank() && !apiKey.isNullOrBlank()) {
@@ -126,6 +134,7 @@ fun MainScreen(
                         initialNoteId = deepLinkNoteId?.value,
                         onDeepLinkConsumed = { deepLinkNoteId?.value = null },
                         swipeToDeleteEnabled = swipeToDeleteEnabled,
+                        imageLoader = imageLoader,
                     )
                 }
                 composable(MainRoute.Settings.route) {

@@ -6,6 +6,34 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.2.7] - 2026-02-09
+
+### Added
+
+- **Markdown links** — Links in note content open in the browser when tapped.
+- **Deep link feedback** — Opening the app via `jotty-android://open/note/{id}` for a missing or deleted note shows a “Note not found” snackbar.
+- **Content descriptions** — Icon buttons (refresh, add, share, decrypt, encrypt, edit, save) use descriptive content descriptions for TalkBack.
+- **Unit test** — `FormatTest` for `formatNoteDate` (util).
+
+### Changed
+
+- **Notes search** — Search input is debounced (400 ms) so the API is not called on every keystroke.
+- **Note image loader** — Coil ImageLoader is cached per (baseUrl, apiKey) and built with application context so it survives config changes.
+- **Decrypted notes** — `NoteDecryptionSession` is cleared when the app goes to background (onStop) so decrypted content is not kept in memory longer than needed.
+
+### Technical
+
+- Notes UI split into separate files: `NoteCard.kt`, `NoteView.kt`, `NoteEditor.kt`, `NoteDialogs.kt`, `NoteDetailScreen.kt`; `NotesScreen.kt` retains list and create flow.
+- `formatNoteDate` moved to `util/Format.kt`.
+- NotesScreen: debounced search state; LaunchedEffect for deep-link “note not found” when list loaded and id not in list.
+- NoteView: `onLinkClicked` → `LocalUriHandler.openUri`.
+- NoteImageLoader: `ConcurrentHashMap` cache keyed by normalized base URL and API key; `applicationContext` for loader.
+- JottyApp: `ProcessLifecycleOwner` observer clears `NoteDecryptionSession` in `onStop`.
+- AGENTS.md: “Images in notes” subsection; “Where to change what” updated for notes (list vs detail/dialogs).
+- strings.xml: `note_not_found`, `cd_refresh`, `cd_add`, `cd_share`, `cd_decrypt`, `cd_encrypt`, `cd_edit`, `cd_save`.
+
+---
+
 ## [1.2.6] - 2026-02-08
 
 ### Fixed

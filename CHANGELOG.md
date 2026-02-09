@@ -6,6 +6,27 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.2.6] - 2026-02-08
+
+### Fixed
+
+- **Note decryption (Jotty web)** — Inner 12-byte nonce for XChaCha20-Poly1305 now matches libsodium: bytes 0–3 zero, bytes 4–11 = last 8 bytes of the 24-byte nonce. Previously the layout was reversed, causing "Auth failed (wrong passphrase or tag mismatch)" even with the correct passphrase for notes encrypted in the browser.
+
+### Added
+
+- **Images in notes** — Markdown images `![alt](url)` in note content are now loaded and displayed. A Coil ImageLoader is passed to the markdown renderer; image URLs on the same host as your Jotty server receive the API key so server-hosted images load. External URLs and data URIs also work. The note editor hint now mentions images.
+
+### Technical
+
+- XChaCha20Decryptor: nonce12 built as npub2[0..3]=0, npub2[4..11]=nonce24[16..23]; legacy app nonce layout tried as fallback when decrypting.
+- XChaCha20Encryptor: same libsodium nonce layout for new encryptions.
+- util/NoteImageLoader.kt: `createNoteImageLoader(context, baseUrl, apiKey)` builds a Coil ImageLoader that adds `x-api-key` for requests to the Jotty host.
+- MainScreen: creates note image loader, passes it to NotesScreen.
+- NotesScreen / NoteView: pass imageLoader into MarkdownText.
+- Coil dependency (2.6.0); strings.xml: markdown_hint includes `![images](url)`.
+
+---
+
 ## [1.2.5] - 2026-02-08
 
 ### Fixed

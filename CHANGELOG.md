@@ -6,6 +6,28 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.2.5] - 2026-02-08
+
+### Fixed
+
+- **Note decryption (web compatibility)** — Decryption now tries multiple Argon2 presets (iterations/memory/parallelism) so notes encrypted with different Jotty web settings are more likely to decrypt. Nonces longer than 24 bytes (e.g. 36 from web) use first or last 24 bytes. Tag order: libsodium (tag then ciphertext) is tried first, then BC order. Passphrase is tried trimmed and untrimmed. Empty passphrase returns a clear key-derivation failure. Encrypted body is stripped of markdown code fences before parsing. OOM and invalid UTF-8 during decrypt are handled without crashing.
+- **Note encryption (web compatibility)** — Encryptor now outputs libsodium secretbox format (tag then ciphertext) so notes encrypted in the app decrypt correctly in the Jotty web app.
+
+### Added
+
+- **Decrypt dialog** — When decryption fails with an auth error, the dialog shows a short hint: use the exact same passphrase and check for leading/trailing spaces (especially for notes encrypted in the web app). When Settings → Debug logging is on, the specific failure reason (parse, key derivation, or auth) is shown below the main message.
+- **Documentation** — README: Troubleshooting section (server SSL wrong version, XChaCha `from_hex` error); Encryption section (XChaCha20-Poly1305 supported, PGP web-only, limitations). AGENTS.md: Encryption (Jotty) section describing both methods and limitations for contributors.
+
+### Technical
+
+- XChaCha20Decryptor: Argon2 presets list; full nonce with 24-byte candidates; `decryptWithReason`/`DecryptResult`; try libsodium order then BC; passphrase variants; code-fence stripping; OOM and exception handling; empty passphrase check.
+- XChaCha20Encryptor: reorder output to tag then ciphertext for libsodium compatibility.
+- NotesScreen: auth-failed hint and failure-reason detail in Decrypt dialog.
+- strings.xml: `decrypt_auth_failed_hint`.
+- XChaCha20EncryptorTest: libsodium format and BC-order backward compatibility.
+
+---
+
 ## [1.2.4] - 2026-02-07
 
 ### Fixed

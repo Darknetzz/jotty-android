@@ -62,6 +62,15 @@ app/src/main/java/com/jotty/android/
 - **Deep links:** `jotty-android://open/note/{noteId}` opens the app and the note (MainActivity intent-filter, singleTask; `deepLinkNoteId` state updated in both `onCreate` and `onNewIntent`; JottyAppContent/MainScreen/NotesScreen pass through and clear after open).
 - **Technical:** `AppLog` for tagged logging; when Settings → Debug logging is enabled, `AppLog.d()` writes to logcat (e.g. decryption parse/key/auth failure). HTTP logging only in debug builds. ProGuard keep rules for Gson, Bouncy Castle, and all data model classes. `NoteDecryptionSession` uses `ConcurrentHashMap` for thread safety.
 
+## Encryption (Jotty)
+
+Jotty supports two encryption methods; users choose in the web app under **Profile → Encryption → Encryption Method**.
+
+- **XChaCha20-Poly1305 (default, recommended)** — Passphrase-only, 256-bit keys via Argon2id. **Fully supported in the app:** encrypt and decrypt in-app; format matches the Jotty web app (JSON with base64 salt, nonce, data; libsodium-style tag-then-ciphertext).
+- **PGP** — RSA-4096, key pairs; for PGP compatibility. **Not supported in the app:** encrypted PGP notes show a message directing users to decrypt in the Jotty web app.
+
+**Limitations (same as Jotty):** Encrypted note content is not searchable (titles/metadata are). Encrypted notes are only decryptable by the key owner; shared encrypted notes stay encrypted for others. No passphrase recovery — lost passphrase means permanent loss of access; users should keep secure backups.
+
 ## Where to change what
 
 | Goal                         | Primary location(s)                    |

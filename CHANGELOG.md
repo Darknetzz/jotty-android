@@ -6,6 +6,21 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.2.8] - 2026-02-09
+
+### Fixed
+
+- **Unicode “question marks” in notes** — Note titles and content that contained invisible/special Unicode (e.g. BOM U+FEFF or zero-width spaces from pasting) no longer show as “?” at the start or end. These characters are stripped when loading and when setting decrypted content.
+
+### Technical
+
+- `util/Format.kt`: `stripInvisibleFromEdges()` removes BOM and zero-width chars (U+200B, U+200C, U+200D, U+2060) from the start and end of strings.
+- NoteCard: title and content snippet use stripped text for display.
+- NoteDetailScreen: title and content stripped when loading from note; decrypted content stripped before storing in session and displaying.
+- FormatTest: unit test for `stripInvisibleFromEdges`.
+
+---
+
 ## [1.2.7] - 2026-02-09
 
 ### Added

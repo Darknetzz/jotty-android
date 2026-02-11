@@ -154,6 +154,15 @@
     <string name="content_padding_compact">Compact</string>
     <string name="debug_logging">Debug logging</string>
     <string name="debug_logging_description">Log extra details to logcat (e.g. decryption failure step). Filter by \'Jotty\' in Android Studio Logcat or adb logcat -s Jotty. Use for troubleshooting.</string>
+    <string name="offline_mode">Offline mode</string>
+    <string name="offline_mode_description">Save notes locally and sync when online. Works when you don\'t have internet connection.</string>
+    <string name="syncing">Syncing…</string>
+    <string name="sync_complete">Sync complete</string>
+    <string name="sync_failed">Sync failed</string>
+    <string name="offline">Offline</string>
+    <string name="online">Online</string>
+    <string name="saved_locally">Saved locally</string>
+    <string name="will_sync_when_online">Will sync when online</string>
     <string name="account">Account</string>
     <string name="manage_instances">Manage instances</string>
     <string name="manage_instances_description">Add, edit, or remove saved Jotty servers</string>

@@ -78,6 +78,11 @@ class SettingsRepository(private val context: Context) {
         prefs[KEY_DEBUG_LOGGING] ?: false
     }.catch { emit(false) }
 
+    /** Offline mode: enable local storage and sync. Default true. */
+    val offlineModeEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_OFFLINE_MODE] ?: true
+    }.catch { emit(true) }
+
     /**
      * Adds or updates an instance. When [setAsCurrent] is true, also sets it as the current instance.
      */
@@ -153,7 +158,12 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setDebugLoggingEnabled(value: Boolean) {
-        context.dataStore.edit { it[KEY_DEBUG_LOGGING] = value }
+        context.dataStore.edit { it[KEY_DEBUG_LOGGING] = value
+        }
+    }
+
+    suspend fun setOfflineModeEnabled(value: Boolean) {
+        context.dataStore.edit { it[KEY_OFFLINE_MODE] = value }
     }
 
     /** Clear all data (instances + app preferences). */
@@ -239,6 +249,7 @@ class SettingsRepository(private val context: Context) {
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
         private val KEY_DEBUG_LOGGING = booleanPreferencesKey("debug_logging_enabled")
+        private val KEY_OFFLINE_MODE = booleanPreferencesKey("offline_mode_enabled")
 
         private fun parseInstances(json: String?): List<JottyInstance>? {
             if (json.isNullOrBlank()) return null

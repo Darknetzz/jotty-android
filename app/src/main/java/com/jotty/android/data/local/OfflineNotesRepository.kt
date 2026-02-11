@@ -41,6 +41,10 @@ class OfflineNotesRepository(
     // Track sync state
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
+    
+    // Track conflicts detected during last sync
+    private val _conflictsDetected = MutableStateFlow(0)
+    val conflictsDetected: StateFlow<Int> = _conflictsDetected.asStateFlow()
 
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
@@ -193,6 +197,7 @@ class OfflineNotesRepository(
     /**
      * Sync all notes with the server.
      * Fetches remote notes and pushes local changes.
+     * Detects conflicts and creates local copies to avoid data loss.
      */
     suspend fun syncNotes(): Result<Unit> = withContext(Dispatchers.IO) {
         if (_isSyncing.value) {
@@ -209,6 +214,10 @@ class OfflineNotesRepository(
         AppLog.d("OfflineNotesRepository", "Starting sync...")
 
         try {
+            // Get local notes before pushing changes (for conflict detection)
+            val localNotesBeforeSync = noteDao.getAllNotes(instanceId)
+            val localNotesMap = localNotesBeforeSync.associateBy { it.id }
+            
             // 1. Push local changes first
             val dirtyNotes = noteDao.getDirtyNotes(instanceId)
             AppLog.d("OfflineNotesRepository", "Found ${dirtyNotes.size} dirty notes")
@@ -225,10 +234,37 @@ class OfflineNotesRepository(
             val response = api.getNotes()
             if (response.notes != null) {
                 val serverNotes = response.notes.map { it.toEntity(instanceId, isDirty = false) }
+                val conflictCopies = mutableListOf<NoteEntity>()
                 
-                // Replace all local notes with server version (last-write-wins from server)
+                // 3. Detect conflicts: notes that were modified both locally and on server
+                for (serverNote in serverNotes) {
+                    val localNote = localNotesMap[serverNote.id]
+                    if (localNote != null && localNote.isDirty && !localNote.isDeleted) {
+                        // Check if server note has different content than what we just pushed
+                        if (hasConflict(localNote, serverNote)) {
+                            // Create a copy of the local version to preserve data
+                            val localCopy = localNote.copy(
+                                id = UUID.randomUUID().toString(), // New ID for the copy
+                                title = "${localNote.title} (Local copy)",
+                                isDirty = false, // Don't try to sync the copy
+                                isDeleted = false
+                            )
+                            conflictCopies.add(localCopy)
+                            AppLog.d("OfflineNotesRepository", "Conflict detected for '${localNote.title}', creating local copy")
+                        }
+                    }
+                }
+                
+                // 4. Update database: replace with server notes + add conflict copies
                 noteDao.deleteAllNotes(instanceId)
                 noteDao.insertNotes(serverNotes)
+                if (conflictCopies.isNotEmpty()) {
+                    noteDao.insertNotes(conflictCopies)
+                    _conflictsDetected.value = conflictCopies.size
+                    AppLog.d("OfflineNotesRepository", "Created ${conflictCopies.size} local copies due to conflicts")
+                } else {
+                    _conflictsDetected.value = 0
+                }
                 
                 AppLog.d("OfflineNotesRepository", "Synced ${serverNotes.size} notes from server")
             }
@@ -241,6 +277,17 @@ class OfflineNotesRepository(
             AppLog.d("OfflineNotesRepository", "Sync failed: ${e.message}")
             Result.failure(e)
         }
+    }
+    
+    /**
+     * Check if there's a conflict between local and server versions.
+     * A conflict exists if the content or title differs significantly.
+     */
+    private fun hasConflict(localNote: NoteEntity, serverNote: NoteEntity): Boolean {
+        // If content or title is different, there might be a conflict
+        return localNote.title != serverNote.title || 
+               localNote.content != serverNote.content ||
+               localNote.category != serverNote.category
     }
 
     /**
@@ -307,6 +354,13 @@ class OfflineNotesRepository(
      */
     suspend fun searchNotes(query: String): List<Note> = withContext(Dispatchers.IO) {
         noteDao.searchNotes(instanceId, query).map { it.toNote() }
+    }
+
+    /**
+     * Clear the conflict notification count.
+     */
+    fun clearConflictNotification() {
+        _conflictsDetected.value = 0
     }
 
     /**

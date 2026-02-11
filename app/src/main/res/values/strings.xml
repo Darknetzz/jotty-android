@@ -164,6 +164,8 @@
     <string name="online">Online</string>
     <string name="saved_locally">Saved locally</string>
     <string name="will_sync_when_online">Will sync when online</string>
+    <string name="sync_conflicts_detected">%d conflict(s) detected. Local copies created to preserve your data.</string>
+    <string name="view_conflicts">View copies</string>
     <string name="account">Account</string>
     <string name="manage_instances">Manage instances</string>
     <string name="manage_instances_description">Add, edit, or remove saved Jotty servers</string>

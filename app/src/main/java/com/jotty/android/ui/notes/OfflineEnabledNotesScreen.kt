@@ -57,6 +57,7 @@ fun OfflineEnabledNotesScreen(
     val notes by offlineRepository.getNotesFlow().collectAsState(initial = emptyList())
     val isOnline by offlineRepository.isOnline.collectAsState()
     val isSyncing by offlineRepository.isSyncing.collectAsState()
+    val conflictsDetected by offlineRepository.conflictsDetected.collectAsState()
     
     var selectedNote by remember { mutableStateOf<Note?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -75,6 +76,25 @@ fun OfflineEnabledNotesScreen(
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
+    
+    // Show conflict notification when conflicts are detected
+    LaunchedEffect(conflictsDetected) {
+        if (conflictsDetected > 0) {
+            val message = context.getString(R.string.sync_conflicts_detected, conflictsDetected)
+            scope.launch {
+                val result = snackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = context.getString(R.string.view_conflicts),
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) {
+                    // Filter to show notes with "(Local copy)" in title
+                    searchQuery = "(Local copy)"
+                }
+                offlineRepository.clearConflictNotification()
+            }
+        }
+    }
 
     // Debounce search query
     LaunchedEffect(searchQuery) {

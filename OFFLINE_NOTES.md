@@ -24,17 +24,24 @@ The app continuously monitors your internet connection status and displays this 
 
 ### Sync Strategy
 
-The app uses a **last-write-wins** strategy with automatic conflict resolution:
+The app uses an intelligent sync strategy with **conflict detection and local copy creation**:
 
 1. **Creating notes offline**: Notes are created with a temporary local ID and marked as dirty
 2. **When coming online**: The app automatically syncs all pending changes
 3. **Server reconciliation**: After pushing local changes, the app fetches the latest from the server
-4. **Conflict resolution**: Server data takes precedence to maintain consistency
+4. **Conflict detection**: If a note was edited both locally and remotely, the app detects the conflict
+5. **Conflict resolution**: 
+   - The server version becomes the "primary" note
+   - A copy of the local version is created with " (Local copy)" suffix
+   - Both versions are preserved so no data is lost
+   - You'll see a notification when conflicts are detected
 
 ### Sync Operations
 
-- **Push**: Local changes (create/update/delete) are pushed to the server
+- **Push**: Local changes (create/update/delete) are pushed to the server first
 - **Pull**: Latest notes are fetched from the server and replace local cache
+- **Conflict detection**: Compares content/title/category between local and server versions
+- **Local copies**: Created automatically when conflicts are detected to preserve your work
 - **Manual sync**: Tap the refresh button when online to force a sync
 
 ## User Interface
@@ -44,7 +51,15 @@ The app uses a **last-write-wins** strategy with automatic conflict resolution:
 In the Notes screen, you'll see sync status indicators:
 - Top-right corner shows connection status icon
 - "Saved locally" snackbar appears when saving offline
+- "X conflict(s) detected" snackbar with "View copies" action when conflicts occur
 - Refresh button is disabled when offline
+
+### Conflict Notifications
+
+When the app detects that a note was edited both locally and on the server:
+1. A snackbar appears: "X conflict(s) detected. Local copies created to preserve your data."
+2. Tap "View copies" to search for notes with "(Local copy)" in the title
+3. You can then review, merge, or delete the copies as needed
 
 ### Settings
 
@@ -105,7 +120,6 @@ Key implementation files:
 - **Checklists**: Currently only notes support offline mode; checklists require online connection
 - **Encryption**: Encrypted notes can be viewed offline but must be decrypted while online first
 - **Categories**: New categories created offline won't appear in filters until synced
-- **Multi-device**: Last-write-wins means simultaneous edits on multiple devices will result in one change being lost
 
 ## Testing
 
@@ -118,6 +132,17 @@ To test offline functionality:
 5. **Turn off airplane mode**
 6. **Wait for auto-sync** or tap refresh - verify changes appear on web app
 
+To test conflict resolution:
+
+1. **Create a note** on the Android app while online
+2. **Edit the same note** in the Jotty web app (add some text)
+3. **Turn on airplane mode** on Android
+4. **Edit the note** on Android (add different text)
+5. **Turn off airplane mode**
+6. **Wait for sync** - you'll see a conflict notification
+7. **Tap "View copies"** - you'll see both the server version and your local copy
+8. **Review and merge** the changes manually, then delete the copy
+
 ## Troubleshooting
 
 ### Notes not syncing
@@ -127,11 +152,15 @@ To test offline functionality:
 - Check if sync indicator shows syncing or offline
 - Manually tap refresh button when online
 
-### Lost changes
+### Conflicts detected
 
-- The app uses last-write-wins strategy
-- Simultaneous edits on multiple devices may result in one being overwritten
-- Always wait for sync to complete before switching devices
+When you see "X conflict(s) detected" notification:
+- This means a note was edited both locally and on the server
+- The server version is kept as the main note
+- Your local changes are preserved in a copy with "(Local copy)" suffix
+- Tap "View copies" to see all conflict copies
+- Review both versions and manually merge if needed
+- Delete the copy once you've merged the changes
 
 ### Storage space
 
@@ -142,9 +171,10 @@ To test offline functionality:
 ## Future Improvements
 
 Possible enhancements for future versions:
-- Conflict resolution UI for simultaneous edits
+- ~~Conflict resolution UI for simultaneous edits~~ ✅ Implemented (creates local copies)
 - Offline support for checklists
 - Selective sync (only certain categories)
 - Export/backup local database
 - Sync status per note (show which notes are pending)
 - Background sync using WorkManager
+- Advanced merge UI with side-by-side comparison

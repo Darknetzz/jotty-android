@@ -107,4 +107,33 @@ class NoteEntityTest {
         assertEquals(originalNote.updatedAt, convertedNote.updatedAt)
         assertEquals(originalNote.encrypted, convertedNote.encrypted)
     }
+
+    @Test
+    fun `creating local copy for conflict appends suffix to title`() {
+        val originalEntity = NoteEntity(
+            id = "original-id",
+            title = "My Note",
+            category = "Work",
+            content = "Original content edited offline",
+            createdAt = "2024-01-01T00:00:00Z",
+            updatedAt = "2024-01-02T10:00:00Z",
+            encrypted = false,
+            isDirty = true,
+            isDeleted = false,
+            instanceId = "instance-123"
+        )
+
+        // Simulate creating a local copy for conflict resolution
+        val localCopy = originalEntity.copy(
+            id = "new-uuid-for-copy",
+            title = "${originalEntity.title} (Local copy)",
+            isDirty = false
+        )
+
+        assertEquals("new-uuid-for-copy", localCopy.id)
+        assertEquals("My Note (Local copy)", localCopy.title)
+        assertEquals("Original content edited offline", localCopy.content)
+        assertEquals(false, localCopy.isDirty) // Copy should not be synced
+        assertEquals(false, localCopy.isDeleted)
+    }
 }

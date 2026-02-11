@@ -50,6 +50,7 @@ fun SettingsScreen(
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsState(initial = false)
+    val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsState(initial = true)
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
@@ -341,6 +342,28 @@ fun SettingsScreen(
                         onCheckedChange = {
                             scope.launch {
                                 settingsRepository.setDebugLoggingEnabled(it)
+                            }
+                        },
+                    )
+                },
+            )
+            
+            HorizontalDivider()
+            
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.offline_mode)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.offline_mode_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = offlineModeEnabled,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setOfflineModeEnabled(it)
                             }
                         },
                     )

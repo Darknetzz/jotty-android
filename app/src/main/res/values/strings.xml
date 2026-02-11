@@ -75,6 +75,7 @@
     <string name="write_your_note">Write your note…</string>
     <string name="markdown_hint">Supports **bold**, *italic*, # headings, lists, [links](url), ![images](url)</string>
     <string name="category_all">All</string>
+    <string name="all_categories">All categories</string>
 
     <!-- Encrypt / Decrypt dialogs -->
     <string name="encrypt_note">Encrypt note</string>

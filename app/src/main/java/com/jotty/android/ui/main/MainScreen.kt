@@ -21,7 +21,7 @@ import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.checklists.ChecklistsScreen
-import com.jotty.android.ui.notes.NotesScreen
+import com.jotty.android.ui.notes.OfflineNotesScreen
 import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.ui.settings.SettingsScreen
 import com.jotty.android.util.createNoteImageLoader
@@ -58,6 +58,7 @@ fun MainScreen(
         }
     }
     val context = LocalContext.current
+    val currentInstance = settingsRepository.currentInstance.collectAsState(initial = null).value
     val serverUrl = settingsRepository.serverUrl.collectAsState(initial = null).value
     val apiKey = settingsRepository.apiKey.collectAsState(initial = null).value
     val swipeToDeleteEnabled = settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false).value
@@ -128,14 +129,18 @@ fun MainScreen(
                     )
                 }
                 composable(MainRoute.Notes.route) {
-                    NotesScreen(
-                        api = currentApi,
-                        settingsRepository = settingsRepository,
-                        initialNoteId = deepLinkNoteId?.value,
-                        onDeepLinkConsumed = { deepLinkNoteId?.value = null },
-                        swipeToDeleteEnabled = swipeToDeleteEnabled,
-                        imageLoader = imageLoader,
-                    )
+                    val instanceId = currentInstance?.id
+                    if (instanceId != null) {
+                        OfflineNotesScreen(
+                            api = currentApi,
+                            settingsRepository = settingsRepository,
+                            instanceId = instanceId,
+                            initialNoteId = deepLinkNoteId?.value,
+                            onDeepLinkConsumed = { deepLinkNoteId?.value = null },
+                            swipeToDeleteEnabled = swipeToDeleteEnabled,
+                            imageLoader = imageLoader,
+                        )
+                    }
                 }
                 composable(MainRoute.Settings.route) {
                     SettingsScreen(

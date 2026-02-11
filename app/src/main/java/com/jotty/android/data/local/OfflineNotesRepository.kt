@@ -104,7 +104,7 @@ class OfflineNotesRepository(
      */
     suspend fun createNote(title: String, content: String = "", category: String = "Uncategorized"): Result<Note> = withContext(Dispatchers.IO) {
         try {
-            val now = System.currentTimeMillis().toString()
+            val now = java.time.Instant.now().toString() // ISO 8601 format
             val noteId = UUID.randomUUID().toString()
             
             val entity = NoteEntity(
@@ -150,7 +150,7 @@ class OfflineNotesRepository(
                 title = title,
                 content = content,
                 category = category,
-                updatedAt = System.currentTimeMillis().toString(),
+                updatedAt = java.time.Instant.now().toString(), // ISO 8601 format
                 isDirty = true // Mark as dirty for sync
             )
 

@@ -33,6 +33,8 @@ import com.jotty.android.util.AppLog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private const val SEARCH_DEBOUNCE_DELAY_MS = 400L
+
 /**
  * Notes screen with offline support.
  * Uses OfflineNotesRepository for local storage and sync.
@@ -76,7 +78,7 @@ fun OfflineEnabledNotesScreen(
 
     // Debounce search query
     LaunchedEffect(searchQuery) {
-        delay(400)
+        delay(SEARCH_DEBOUNCE_DELAY_MS)
         debouncedSearchQuery = searchQuery
     }
 

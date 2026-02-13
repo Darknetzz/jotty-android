@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.devtools.ksp") version "2.2.21-1.0.31"
 }
 
 val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -93,6 +94,14 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Room for offline storage
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    ksp("androidx.room:room-compiler:2.6.1")
+
+    // WorkManager for background sync
+    implementation("androidx.work:work-runtime-ktx:2.10.0")
 
     // Markdown rendering for notes (images via Coil)
     implementation("com.github.jeziellago:compose-markdown:0.5.8")

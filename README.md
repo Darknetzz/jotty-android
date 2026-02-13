@@ -6,6 +6,7 @@ An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-bas
 
 - **Checklists** — Create, view, and manage checklists. Add items, check/uncheck tasks, and track progress.
 - **Notes** — Create and edit notes with Markdown support. View and save your content.
+- **Offline support** — Take notes without an internet connection. Changes sync automatically when you're back online.
 - **Connect to your server** — Works with any self-hosted Jotty instance. Configure server URL and API key once.
 
 ## Releases / Download
@@ -87,8 +88,19 @@ The server is decoding encrypted content with **hex** while the Android app (and
 
 - **Jetpack Compose** — UI
 - **Retrofit** — REST API client for Jotty
-- **DataStore** — Storing server URL and API key
+- **Room** — Local database for offline storage
+- **DataStore** — Storing app settings and server credentials
 - **Navigation Compose** — Screen navigation
+
+## Offline Support
+
+Jotty Android supports working offline. When enabled (default), notes are stored locally and automatically synced when you have an internet connection. See [OFFLINE_NOTES.md](OFFLINE_NOTES.md) for details.
+
+Key features:
+- Create, edit, and delete notes without internet
+- Automatic sync when connectivity is restored
+- Visual sync status indicators
+- Last-write-wins conflict resolution
 
 ## Encryption
 

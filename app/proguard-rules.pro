@@ -33,6 +33,14 @@
 # Jotty preferences models
 -keep class com.jotty.android.data.preferences.JottyInstance { *; }
 
+# Room Database
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class *
+-dontwarn androidx.room.paging.**
+
+# Jotty local database models
+-keep class com.jotty.android.data.local.** { *; }
+
 # GitHub release (update check) DTOs for Gson
 -keep class com.jotty.android.data.updates.GitHubReleaseResponse { *; }
 -keep class com.jotty.android.data.updates.GitHubAsset { *; }

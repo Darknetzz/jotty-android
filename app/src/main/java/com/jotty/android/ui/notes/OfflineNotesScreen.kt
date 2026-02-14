@@ -26,10 +26,11 @@ fun OfflineNotesScreen(
     val context = LocalContext.current
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsState(initial = true)
     
-    // Create offline repository
+    // Create offline repository (use applicationContext for lifecycle safety)
     val offlineRepository = remember(instanceId) {
-        val database = JottyDatabase.getDatabase(context)
-        OfflineNotesRepository(context, database, instanceId, api)
+        val appContext = context.applicationContext
+        val database = JottyDatabase.getDatabase(appContext)
+        OfflineNotesRepository(appContext, database, instanceId, api)
     }
 
     val scope = rememberCoroutineScope()

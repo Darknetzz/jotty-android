@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -82,11 +83,12 @@ class OfflineNotesRepository(
 
     /**
      * Get all notes as Flow (observes changes).
+     * Uses flowOn(IO) so Room queries run off the main thread.
      */
     fun getNotesFlow(): Flow<List<Note>> {
-        return noteDao.getAllNotesFlow(instanceId).map { entities ->
-            entities.map { it.toNote() }
-        }
+        return noteDao.getAllNotesFlow(instanceId)
+            .map { entities -> entities.map { it.toNote() } }
+            .flowOn(Dispatchers.IO)
     }
 
     /**

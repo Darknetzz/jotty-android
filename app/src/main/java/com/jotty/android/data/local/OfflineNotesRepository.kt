@@ -47,37 +47,37 @@ class OfflineNotesRepository(
     private val _conflictsDetected = MutableStateFlow(0)
     val conflictsDetected: StateFlow<Int> = _conflictsDetected.asStateFlow()
 
-    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
     init {
-        // Register connectivity callback
-        val networkRequest = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
-
-        connectivityManager.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                AppLog.d("OfflineNotesRepository", "Network available")
-                _isOnline.value = true
-                // Auto-sync when coming online
-                coroutineScope.launch {
-                    syncNotes()
+        connectivityManager?.let { cm ->
+            val networkRequest = NetworkRequest.Builder()
+                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .build()
+            cm.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    AppLog.d("OfflineNotesRepository", "Network available")
+                    _isOnline.value = true
+                    coroutineScope.launch { syncNotes() }
                 }
-            }
 
-            override fun onLost(network: Network) {
-                AppLog.d("OfflineNotesRepository", "Network lost")
-                _isOnline.value = false
-            }
-        })
+                override fun onLost(network: Network) {
+                    AppLog.d("OfflineNotesRepository", "Network lost")
+                    _isOnline.value = false
+                }
+            })
+        }
     }
 
     /**
      * Check current connectivity status.
+     * Returns false if ConnectivityManager is unavailable (e.g. missing ACCESS_NETWORK_STATE).
      */
     private fun checkConnectivity(): Boolean {
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        val cm = connectivityManager ?: return false
+        val network = cm.activeNetwork ?: return false
+        val capabilities = cm.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 

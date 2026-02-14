@@ -140,6 +140,13 @@ fun MainScreen(
                             swipeToDeleteEnabled = swipeToDeleteEnabled,
                             imageLoader = imageLoader,
                         )
+                    } else {
+                        Box(
+                            Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(stringResource(R.string.loading))
+                        }
                     }
                 }
                 composable(MainRoute.Settings.route) {

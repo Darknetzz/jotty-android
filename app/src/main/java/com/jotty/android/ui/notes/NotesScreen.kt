@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
@@ -146,13 +147,25 @@ fun NotesScreen(
                         FilterChip(
                             selected = selectedCategory == null,
                             onClick = { selectedCategory = null; loadNotes() },
-                            label = { Text(stringResource(R.string.category_all)) },
+                            label = {
+                                Text(
+                                    stringResource(R.string.category_all),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
                         )
                         noteCategories.take(5).forEach { cat ->
                             FilterChip(
                                 selected = selectedCategory == cat,
                                 onClick = { selectedCategory = cat; loadNotes() },
-                                label = { Text(cat) },
+                                label = {
+                                    Text(
+                                        cat,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
                             )
                         }
                     }

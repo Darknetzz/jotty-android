@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import com.jotty.android.R
@@ -254,13 +255,25 @@ fun OfflineEnabledNotesScreen(
                             FilterChip(
                                 selected = selectedCategory == null,
                                 onClick = { selectedCategory = null },
-                                label = { Text(stringResource(R.string.all_categories)) },
+                                label = {
+                                    Text(
+                                        stringResource(R.string.all_categories),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
                             )
                             noteCategories.forEach { cat ->
                                 FilterChip(
                                     selected = selectedCategory == cat,
                                     onClick = { selectedCategory = if (selectedCategory == cat) null else cat },
-                                    label = { Text(cat) },
+                                    label = {
+                                        Text(
+                                            cat,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
                                 )
                             }
                         }

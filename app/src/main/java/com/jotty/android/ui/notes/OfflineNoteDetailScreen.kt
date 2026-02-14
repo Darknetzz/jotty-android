@@ -55,7 +55,6 @@ fun OfflineNoteDetailScreen(
                     }
                     com.jotty.android.data.api.ApiResponse(
                         success = true,
-                        message = "Note updated",
                         data = updated
                     )
                 } else {
@@ -71,10 +70,7 @@ fun OfflineNoteDetailScreen(
                     if (!isOnline) {
                         scope.launch { onSavedLocally() }
                     }
-                    com.jotty.android.data.api.SuccessResponse(
-                        success = true,
-                        message = "Note deleted"
-                    )
+                    com.jotty.android.data.api.SuccessResponse(success = true)
                 } else {
                     throw result.exceptionOrNull() ?: Exception("Delete failed")
                 }
@@ -82,14 +78,20 @@ fun OfflineNoteDetailScreen(
             
             override suspend fun getCategories() = api.getCategories()
             override suspend fun health() = api.health()
-            override suspend fun getChecklists(category: String?) = api.getChecklists(category)
+            override suspend fun getChecklists(
+                category: String?,
+                type: String?,
+                search: String?,
+            ) = api.getChecklists(category, type, search)
             override suspend fun createChecklist(request: com.jotty.android.data.api.CreateChecklistRequest) = api.createChecklist(request)
             override suspend fun updateChecklist(checklistId: String, request: com.jotty.android.data.api.UpdateChecklistRequest) = api.updateChecklist(checklistId, request)
             override suspend fun deleteChecklist(checklistId: String) = api.deleteChecklist(checklistId)
-            override suspend fun getChecklistTasks(checklistId: String) = api.getChecklistTasks(checklistId)
-            override suspend fun createChecklistTask(checklistId: String, request: com.jotty.android.data.api.CreateTaskRequest) = api.createChecklistTask(checklistId, request)
-            override suspend fun updateChecklistTask(checklistId: String, taskId: String, request: com.jotty.android.data.api.UpdateTaskRequest) = api.updateChecklistTask(checklistId, taskId, request)
-            override suspend fun deleteChecklistTask(checklistId: String, taskId: String) = api.deleteChecklistTask(checklistId, taskId)
+            override suspend fun addChecklistItem(listId: String, body: com.jotty.android.data.api.AddItemRequest) = api.addChecklistItem(listId, body)
+            override suspend fun checkItem(listId: String, itemIndex: String) = api.checkItem(listId, itemIndex)
+            override suspend fun uncheckItem(listId: String, itemIndex: String) = api.uncheckItem(listId, itemIndex)
+            override suspend fun updateItem(listId: String, itemIndex: String, body: com.jotty.android.data.api.UpdateItemRequest) = api.updateItem(listId, itemIndex, body)
+            override suspend fun deleteItem(listId: String, itemIndex: String) = api.deleteItem(listId, itemIndex)
+            override suspend fun getAdminOverview() = api.getAdminOverview()
             override suspend fun getSummary() = api.getSummary()
         }
     }

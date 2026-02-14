@@ -273,10 +273,17 @@ fun OfflineEnabledNotesScreen(
                         loading = loading,
                         error = error,
                         isEmpty = filteredNotes.isEmpty(),
-                        emptyTitle = stringResource(R.string.no_notes_yet),
-                        emptyMessage = stringResource(R.string.tap_add_note),
-                        emptyIcon = Icons.AutoMirrored.Filled.Note,
                         onRetry = {
+                            scope.launch {
+                                if (isOnline) {
+                                    offlineRepository.syncNotes()
+                                }
+                            }
+                        },
+                        emptyIcon = Icons.AutoMirrored.Filled.Note,
+                        emptyTitle = stringResource(R.string.no_notes_yet),
+                        emptySubtitle = stringResource(R.string.tap_add_note),
+                        onRefresh = {
                             scope.launch {
                                 if (isOnline) {
                                     offlineRepository.syncNotes()

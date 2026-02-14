@@ -425,21 +425,9 @@ fun SettingsScreen(
                 }
             }
         }
-        if (serverVersion != null || summary != null || adminOverview != null) {
+        if (summary != null || adminOverview != null) {
             Spacer(modifier = Modifier.height(12.dp))
             SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
-            serverVersion?.let { version ->
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.server_version)) },
-                        supportingContent = { Text(version, style = MaterialTheme.typography.bodyMedium) },
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
             summary?.let { DashboardSummaryCard(it) }
             if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
             adminOverview?.let { AdminOverviewCard(it) }
@@ -460,6 +448,7 @@ fun SettingsScreen(
             onDismiss = { showAboutDialog = false },
             versionName = BuildConfig.VERSION_NAME ?: "\u2014",
             versionCode = BuildConfig.VERSION_CODE,
+            serverVersion = serverVersion,
         )
     }
 }
@@ -514,7 +503,7 @@ private fun DashboardSummaryCard(summary: SummaryData) {
 
 @Composable
 private fun AdminOverviewCard(overview: AdminOverviewResponse) {
-    val hasAny = overview.users != null || overview.checklists != null || overview.notes != null || overview.version != null
+    val hasAny = overview.users != null || overview.checklists != null || overview.notes != null
     if (!hasAny) return
 
     Card(
@@ -522,15 +511,6 @@ private fun AdminOverviewCard(overview: AdminOverviewResponse) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            overview.version?.let { v ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(stringResource(R.string.server_version), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text(v, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -579,6 +559,7 @@ private fun AboutDialog(
     onDismiss: () -> Unit,
     versionName: String,
     versionCode: Int,
+    serverVersion: String? = null,
 ) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
@@ -605,6 +586,15 @@ private fun AboutDialog(
                 ) {
                     Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium)
                     Text(stringResource(R.string.version_format, versionName, versionCode), style = MaterialTheme.typography.bodyMedium)
+                }
+                serverVersion?.let { version ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(stringResource(R.string.server_version), style = MaterialTheme.typography.bodyMedium)
+                        Text(version, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 TextButton(

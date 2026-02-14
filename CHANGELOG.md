@@ -4,18 +4,6 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
-### Fixed
-
-- **Notes section crash** — Opening the Notes tab no longer crashes. The app now declares `ACCESS_NETWORK_STATE` so `ConnectivityManager` is available; `OfflineNotesRepository` handles a missing service safely (treats as offline). When the Notes tab is shown with no current instance, a loading placeholder is shown instead of empty content.
-- **Category labels wrapping** — Category names in filter chips (e.g. "Uncategorized") and on note cards no longer break across multiple lines; they stay on one line with ellipsis when space is limited.
-
-### Technical
-
-- AndroidManifest: `ACCESS_NETWORK_STATE` permission.
-- OfflineNotesRepository: `ConnectivityManager` obtained with `as?`, callback registered only when non-null; `checkConnectivity()` returns false when service is unavailable.
-- MainScreen: Notes composable shows centered "Loading" when `instanceId` is null.
-- OfflineEnabledNotesScreen, NotesScreen, NoteCard: category label `Text` uses `maxLines = 1`, `overflow = TextOverflow.Ellipsis`.
-
 ---
 
 ## [1.2.9] - 2026-02-14
@@ -31,6 +19,11 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 - **Notes screen** — When offline mode is enabled, notes are stored in a local Room database and synced when connectivity returns. Refresh button is disabled when offline. "Saved locally" snackbar appears when saving offline.
 
+### Fixed
+
+- **Notes section crash** — Opening the Notes tab no longer crashes. The app now declares `ACCESS_NETWORK_STATE` so `ConnectivityManager` is available; `OfflineNotesRepository` handles a missing service safely (treats as offline). When the Notes tab is shown with no current instance, a loading placeholder is shown instead of empty content.
+- **Category labels wrapping** — Category names in filter chips (e.g. "Uncategorized") and on note cards no longer break across multiple lines; they stay on one line with ellipsis when space is limited.
+
 ### Technical
 
 - `data/local/`: JottyDatabase, NoteEntity, NoteDao, OfflineNotesRepository.
@@ -40,6 +33,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 - ProGuard: keep rules for Room entities and DAOs.
 - Documentation: OFFLINE_NOTES.md, CONFLICT_RESOLUTION.md, UI_CHANGES.md.
 - strings.xml: `saved_locally`, `sync_conflicts_detected`, `view_conflicts`, `online`, `syncing`, `offline`, `offline_mode`, etc.
+- AndroidManifest: `ACCESS_NETWORK_STATE` permission.
+- OfflineNotesRepository: `ConnectivityManager` obtained with `as?`, callback registered only when non-null; `checkConnectivity()` returns false when service is unavailable.
+- MainScreen: Notes composable shows centered "Loading" when `instanceId` is null.
+- OfflineEnabledNotesScreen, NotesScreen, NoteCard: category label `Text` uses `maxLines = 1`, `overflow = TextOverflow.Ellipsis`.
 
 ---
 

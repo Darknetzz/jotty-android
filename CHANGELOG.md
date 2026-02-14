@@ -6,6 +6,31 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.2.9] - 2026-02-14
+
+### Added
+
+- **Offline notes** — Create, edit, and delete notes without an internet connection. Changes are saved locally and sync automatically when online.
+- **Conflict resolution** — When a note is edited both offline and on the server, the app detects the conflict and creates a local copy with a "(Local copy)" suffix so no data is lost. A snackbar notifies you and offers "View copies" to find conflict copies.
+- **Sync status indicators** — Notes screen shows connection status: cloud with checkmark (online), cloud with sync icon (syncing), or cloud off (offline).
+- **Settings → Offline mode** — Toggle to enable or disable offline support (General section). Default: on.
+
+### Changed
+
+- **Notes screen** — When offline mode is enabled, notes are stored in a local Room database and synced when connectivity returns. Refresh button is disabled when offline. "Saved locally" snackbar appears when saving offline.
+
+### Technical
+
+- `data/local/`: JottyDatabase, NoteEntity, NoteDao, OfflineNotesRepository.
+- `ui/notes/`: OfflineNotesScreen (wrapper), OfflineEnabledNotesScreen, OfflineNoteDetailScreen.
+- OfflineNotesRepository: connectivity monitoring via ConnectivityManager.NetworkCallback, auto-sync on network available.
+- SettingsRepository: `offlineModeEnabled`, KEY_OFFLINE_MODE.
+- ProGuard: keep rules for Room entities and DAOs.
+- Documentation: OFFLINE_NOTES.md, CONFLICT_RESOLUTION.md, UI_CHANGES.md.
+- strings.xml: `saved_locally`, `sync_conflicts_detected`, `view_conflicts`, `online`, `syncing`, `offline`, `offline_mode`, etc.
+
+---
+
 ## [1.2.8] - 2026-02-09
 
 ### Fixed
@@ -408,6 +433,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.2.9]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.9
 [1.2.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.3
 [1.1.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.2

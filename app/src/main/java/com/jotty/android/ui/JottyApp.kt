@@ -38,6 +38,7 @@ fun JottyAppContent(
 
     AnimatedContent(
         targetState = isConfigured,
+        modifier = Modifier.fillMaxSize(),
         transitionSpec = {
             fadeIn() togetherWith fadeOut()
         },

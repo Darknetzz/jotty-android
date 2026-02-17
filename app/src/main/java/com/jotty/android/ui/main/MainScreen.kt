@@ -119,7 +119,7 @@ fun MainScreen(
             else -> NavHost(
                 navController = navController,
                 startDestination = currentStart,
-                modifier = Modifier.padding(padding),
+                modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 composable(MainRoute.Checklists.route) {
                     ChecklistsScreen(

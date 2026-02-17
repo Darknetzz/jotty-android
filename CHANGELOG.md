@@ -4,6 +4,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **Layout height** — App content now uses the full height between the top and bottom bars; the root AnimatedContent and main NavHost use `fillMaxSize()` so there is no extra margin above or below the content area.
+
 ---
 
 ## [1.2.9] - 2026-02-14

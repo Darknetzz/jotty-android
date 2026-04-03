@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import com.jotty.android.BuildConfig
 import com.jotty.android.R
+import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.data.updates.InstallResult
 import com.jotty.android.data.updates.UpdateCheckResult
 import com.jotty.android.data.updates.UpdateChecker
@@ -105,7 +106,7 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp, vertical = contentVerticalDp.dp)
+                .mainScreenTabContentPadding(topComfortDp = contentVerticalDp)
                 .verticalScroll(rememberScrollState()),
         ) {
         Text(

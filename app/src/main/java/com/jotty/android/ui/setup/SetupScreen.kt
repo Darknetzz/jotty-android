@@ -32,6 +32,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -57,7 +58,16 @@ fun SetupScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = contentVerticalDp.dp),
+            .then(
+                if (standaloneMode) {
+                    Modifier.mainScreenTabContentPadding(
+                        topComfortDp = contentVerticalDp,
+                        horizontal = 24.dp,
+                    )
+                } else {
+                    Modifier.padding(horizontal = 24.dp, vertical = contentVerticalDp.dp)
+                },
+            ),
     ) {
         if (standaloneMode && onBack != null) {
             Row(

@@ -24,6 +24,8 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
@@ -107,8 +109,16 @@ fun NotesScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = MainNestedScaffoldContentWindowInsets,
     ) { innerPadding ->
-    Column(Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = contentVerticalDp.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .mainScreenTabContentPadding(
+                topComfortDp = contentVerticalDp,
+                scaffoldInnerPadding = innerPadding,
+            ),
+    ) {
         when (val note = selectedNote) {
             null -> {
                 Row(

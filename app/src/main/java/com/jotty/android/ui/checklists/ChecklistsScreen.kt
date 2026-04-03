@@ -34,6 +34,8 @@ import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.launch
@@ -80,8 +82,16 @@ fun ChecklistsScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = MainNestedScaffoldContentWindowInsets,
     ) { innerPadding ->
-    Column(Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = contentVerticalDp.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .mainScreenTabContentPadding(
+                topComfortDp = contentVerticalDp,
+                scaffoldInnerPadding = innerPadding,
+            ),
+    ) {
         val currentList = selectedList
         if (currentList != null) {
             ChecklistDetailScreen(

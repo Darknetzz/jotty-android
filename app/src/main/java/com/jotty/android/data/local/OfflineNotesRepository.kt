@@ -10,8 +10,10 @@ import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.CreateNoteRequest
 import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.util.AppLog
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,13 +32,21 @@ class OfflineNotesRepository(
     private val context: Context,
     private val database: JottyDatabase,
     private val instanceId: String,
-    private val api: JottyApi
+    private val api: JottyApi,
+    /** When non-null, used instead of [checkConnectivity] for initial online state (e.g. unit tests). */
+    initialOnlineOverride: Boolean? = null,
+    /** Set false in tests to avoid registering a network callback. */
+    private val registerNetworkCallback: Boolean = true,
 ) {
     private val noteDao = database.noteDao()
-    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+
+    private val scopeExceptionHandler = CoroutineExceptionHandler { _, t ->
+        AppLog.d("OfflineNotesRepository", "Background coroutine failed: ${t.message}")
+    }
+    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + scopeExceptionHandler)
 
     // Track connectivity state
-    private val _isOnline = MutableStateFlow(checkConnectivity())
+    private val _isOnline = MutableStateFlow(initialOnlineOverride ?: checkConnectivity())
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
 
     // Track sync state
@@ -51,6 +61,7 @@ class OfflineNotesRepository(
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
     init {
+        if (!registerNetworkCallback) return@init
         connectivityManager?.let { cm ->
             val networkRequest = NetworkRequest.Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)

@@ -48,7 +48,7 @@ To cut a new release: update both in `gradle.properties`, add an entry to **`CHA
 
 - Android Studio Hedgehog (2023.1.1) or newer, or
 - JDK 17+
-- Android SDK 35
+- Android SDK 36
 
 ### Gradle Wrapper
 

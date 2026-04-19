@@ -10,6 +10,7 @@ import retrofit2.Response
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 
 class ApiErrorHelperTest {
 
@@ -34,6 +35,34 @@ class ApiErrorHelperTest {
         assertEquals(
             R.string.network_error,
             ApiErrorHelper.errorMessageResId(IOException()),
+        )
+    }
+
+    @Test
+    fun errorMessageResId_sslException_returns_ssl_message() {
+        assertEquals(
+            R.string.error_ssl_or_certificate,
+            ApiErrorHelper.errorMessageResId(SSLException("handshake failed")),
+        )
+    }
+
+    @Test
+    fun errorMessageResId_httpException_401_returns_invalid_api_key() {
+        val body = "".toResponseBody("text/plain".toMediaTypeOrNull())
+        val response = Response.error<String>(401, body)
+        assertEquals(
+            R.string.error_invalid_api_key,
+            ApiErrorHelper.errorMessageResId(HttpException(response)),
+        )
+    }
+
+    @Test
+    fun errorMessageResId_httpException_403_returns_access_denied() {
+        val body = "".toResponseBody("text/plain".toMediaTypeOrNull())
+        val response = Response.error<String>(403, body)
+        assertEquals(
+            R.string.error_access_denied,
+            ApiErrorHelper.errorMessageResId(HttpException(response)),
         )
     }
 

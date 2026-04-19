@@ -2,6 +2,8 @@
 
 An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-based checklist and notes app.
 
+**Disclaimer:** This project is built mostly for personal use. Much of the code was written with AI assistance and may contain bugs or rough edges. If you find issues or want to improve things, issues and contributions are welcome.
+
 ## Features
 
 - **Checklists** — Create, view, and manage checklists. Add items, check/uncheck tasks, and track progress.

@@ -111,6 +111,53 @@ if ($needJava) {
     }
 }
 
+function Ensure-AndroidSdk {
+    $props = Join-Path $scriptDir "local.properties"
+    $sdk = $null
+    if (Test-Path $props) {
+        $line = Get-Content $props | Where-Object { $_ -match '^\s*sdk\.dir\s*=' } | Select-Object -First 1
+        if ($line -match 'sdk\.dir\s*=\s*(.+)') {
+            $sdk = $Matches[1].Trim()
+        }
+    }
+    if ($sdk -and (Test-Path $sdk)) {
+        if (-not $env:ANDROID_HOME) { $env:ANDROID_HOME = $sdk }
+        if (-not $env:ANDROID_SDK_ROOT) { $env:ANDROID_SDK_ROOT = $sdk }
+        return
+    }
+
+    $sdkCandidates = @(
+        $env:ANDROID_HOME
+        $env:ANDROID_SDK_ROOT
+        (Join-Path $env:LOCALAPPDATA "Android\Sdk")
+        (Join-Path $env:USERPROFILE "Android\Sdk")
+    ) | Where-Object { $_ -and (Test-Path $_) }
+
+    foreach ($c in $sdkCandidates) {
+        if ((Test-Path (Join-Path $c "platform-tools")) -or (Test-Path (Join-Path $c "build-tools"))) {
+            $sdk = $c
+            break
+        }
+    }
+
+    if ($sdk) {
+        $env:ANDROID_HOME = $sdk
+        $env:ANDROID_SDK_ROOT = $sdk
+        $sdkProp = ($sdk -replace '\\', '/')
+        if (-not (Test-Path $props) -or -not ((Get-Content $props -ErrorAction SilentlyContinue | Where-Object { $_ -match '^\s*sdk\.dir\s*=' }))) {
+            Add-Content -Path $props -Value "sdk.dir=$sdkProp"
+            Write-Host "Wrote Android SDK path to local.properties: $sdk" -ForegroundColor Green
+        }
+        return
+    }
+
+    Write-Host "Android SDK not found. Install Android Studio (SDK Manager) or command-line tools." -ForegroundColor Red
+    Write-Host "Set ANDROID_HOME or add sdk.dir to local.properties — see local.properties.example" -ForegroundColor Red
+    exit 1
+}
+
+Ensure-AndroidSdk
+
 $task = if ($Release) { "assembleRelease" } else { "assembleDebug" }
 $variant = if ($Release) { "release" } else { "debug" }
 

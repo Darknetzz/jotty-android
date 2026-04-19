@@ -188,6 +188,52 @@ if [[ "$need_java" -eq 1 ]] || [[ -z "${JAVA_HOME:-}" ]] || [[ ! -x "${JAVA_HOME
   exit 1
 fi
 
+# Android SDK: Gradle needs sdk.dir in local.properties and/or ANDROID_HOME
+ensure_android_sdk() {
+  local props="${SCRIPT_DIR}/local.properties"
+  local sdk=""
+
+  if [[ -f "$props" ]]; then
+    sdk="$(grep '^sdk.dir=' "$props" | head -1 | sed 's/^sdk.dir=//' | tr -d '\r')"
+    # Windows-style path in file: optional
+    sdk="${sdk//\\//}"
+  fi
+
+  if [[ -n "$sdk" && -d "$sdk" ]]; then
+    export ANDROID_HOME="${ANDROID_HOME:-$sdk}"
+    export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$sdk}"
+    return 0
+  fi
+
+  for candidate in "${ANDROID_HOME:-}" "${ANDROID_SDK_ROOT:-}" "${HOME}/Android/Sdk" "${HOME}/.config/Android/Sdk"; do
+    [[ -z "$candidate" || ! -d "$candidate" ]] && continue
+    if [[ -d "$candidate/platform-tools" || -d "$candidate/build-tools" ]]; then
+      sdk="$candidate"
+      break
+    fi
+  done
+
+  if [[ -n "$sdk" ]]; then
+    export ANDROID_HOME="$sdk"
+    export ANDROID_SDK_ROOT="$sdk"
+    if [[ ! -f "$props" ]] || ! grep -q '^sdk.dir=' "$props" 2>/dev/null; then
+      printf 'sdk.dir=%s\n' "$sdk" >> "$props"
+      echo "Wrote Android SDK path to local.properties: $sdk" >&2
+    fi
+    return 0
+  fi
+
+  echo "" >&2
+  echo "Android SDK not found. The build needs platform tools and a compile SDK." >&2
+  echo "Install Android Studio (SDK Manager) or Android command-line tools, then either:" >&2
+  echo "  • export ANDROID_HOME=\"\$HOME/Android/Sdk\"   # default Studio location on Linux" >&2
+  echo "  • or create ${props} with: sdk.dir=/path/to/Android/Sdk" >&2
+  echo "See local.properties.example and https://developer.android.com/studio#command-tools" >&2
+  exit 1
+}
+
+ensure_android_sdk
+
 if [[ "$RELEASE" -eq 1 ]]; then
   task="assembleRelease"
   variant="release"

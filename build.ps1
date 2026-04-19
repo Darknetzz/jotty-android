@@ -10,14 +10,44 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 
-# Ensure Gradle wrapper JAR exists (often missing when repo is cloned)
+# Ensure Gradle wrapper JAR exists and matches gradle-wrapper.properties (often missing when repo is cloned)
 $wrapperJar = "gradle\wrapper\gradle-wrapper.jar"
-if (-not (Test-Path $wrapperJar)) {
-    Write-Host "Gradle wrapper JAR missing. Downloading..." -ForegroundColor Yellow
-    $wrapperUrl = "https://github.com/gradle/gradle/raw/v8.13.0/gradle/wrapper/gradle-wrapper.jar"
+$wrapperProps = "gradle\wrapper\gradle-wrapper.properties"
+$gradleTagVer = "9.1.0"
+if (Test-Path $wrapperProps) {
+    $line = Get-Content $wrapperProps | Where-Object { $_ -match '^distributionUrl=' } | Select-Object -First 1
+    if ($line -match 'gradle-([0-9][0-9.]+)-') {
+        $gradleTagVer = $Matches[1]
+    }
+}
+$wrapperUrl = "https://raw.githubusercontent.com/gradle/gradle/v$gradleTagVer/gradle/wrapper/gradle-wrapper.jar"
+
+function Test-WrapperJarUsable {
+    if (-not (Test-Path $wrapperJar)) { return $false }
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $zip = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $wrapperJar))
+        $entry = $zip.Entries | Where-Object { $_.FullName -eq "META-INF/MANIFEST.MF" }
+        if (-not $entry) { $zip.Dispose(); return $false }
+        $sr = New-Object System.IO.StreamReader($entry.Open())
+        $manifest = $sr.ReadToEnd()
+        $sr.Close()
+        $zip.Dispose()
+        return $manifest -match "(?m)^Main-Class:"
+    } catch {
+        return $false
+    }
+}
+
+if (-not (Test-WrapperJarUsable)) {
+    Write-Host "Gradle wrapper JAR missing or invalid (re-downloading for Gradle $gradleTagVer)..." -ForegroundColor Yellow
     try {
         $ProgressPreference = "SilentlyContinue"
         Invoke-WebRequest -Uri $wrapperUrl -OutFile $wrapperJar -UseBasicParsing
+        if (-not (Test-WrapperJarUsable)) {
+            Write-Host "Downloaded wrapper JAR still invalid. Delete $wrapperJar and retry, or run: gradle wrapper" -ForegroundColor Red
+            exit 1
+        }
         Write-Host "Wrapper JAR installed." -ForegroundColor Green
     } catch {
         Write-Host "Download failed. Install the wrapper manually:" -ForegroundColor Red

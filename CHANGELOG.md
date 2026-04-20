@@ -4,9 +4,31 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Clearer API error messages** — HTTP **401** and **403** map to dedicated strings (invalid API key / access denied). **SSL/TLS** failures map to a short message about HTTPS and certificates. (`ApiErrorHelper`, `strings.xml`, tests.)
+- **Offline repository tests** — JVM tests with in-memory Room and a fake `JottyApi` cover sync, server replace, and conflict “(Local copy)” behavior. (`FakeJottyApi`, `OfflineNotesRepositoryTest`; Robolectric + test dependencies.)
+- **CI** — GitHub Actions workflow runs `./gradlew test` and `./gradlew lint` on push/PR (JDK 17 + Android SDK setup).
+- **UI smoke test** — Instrumented test checks that `MainActivity` shows a Compose root (`MainActivitySmokeTest`).
+- **`build.sh`** — Linux build script mirroring `build.ps1`: Gradle wrapper bootstrap (version read from `gradle-wrapper.properties`), Java 11+ discovery (`java` on `PATH`, `/usr/lib/jvm/*`, `/opt/android-studio/jbr`, etc.), Android SDK detection (`ANDROID_HOME`, `~/Android/Sdk`, `/opt/...`, scan for `platform-tools` under `/opt`), copies debug/release APK to `jotty-android.apk`.
+- **`local.properties.example`** — Documents `sdk.dir` and typical Studio vs SDK paths (including IDE under `/opt`).
+
+### Changed
+
+- **Checklists & offline notes UI** — `ChecklistsViewModel` and `OfflineEnabledNotesViewModel` hold list/filter/selection state with `StateFlow`; screens collect via `viewModel { … }`. Notes search debouncing uses `Flow.debounce` with no delay for blank queries.
+- **README** — Build requirements list Android SDK **36** to match `compileSdk` / `targetSdk`.
+
 ### Fixed
 
 - **Layout height** — App content now uses the full height between the top and bottom bars; the root AnimatedContent and main NavHost use `fillMaxSize()` so there is no extra margin above or below the content area.
+- **Offline sync coroutine scope** — `OfflineNotesRepository` uses `SupervisorJob` + `CoroutineExceptionHandler` so background work is not torn down by a single failure. Optional `initialOnlineOverride` and `registerNetworkCallback` support unit tests without `ConnectivityManager`.
+- **`init` block** — Replaced invalid `return@init` with `if (registerNetworkCallback) { … }` so Kotlin compiles cleanly.
+
+### Technical
+
+- `gradle.properties` / wrapper: build scripts download `gradle-wrapper.jar` matching the version in `gradle-wrapper.properties` (e.g. 9.1.0) and validate the JAR manifest; `build.ps1` updated the same way.
+- `app/build.gradle.kts`: `testOptions.unitTests.isIncludeAndroidResources`, Room testing, Robolectric, coroutines-test; `androidTest` deps + `testInstrumentationRunner` for Compose UI tests.
+- `OfflineNotesRepository.kt`: constructor parameters for tests only (defaults unchanged for app use).
 
 ---
 

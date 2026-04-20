@@ -61,23 +61,24 @@ class OfflineNotesRepository(
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
     init {
-        if (!registerNetworkCallback) return@init
-        connectivityManager?.let { cm ->
-            val networkRequest = NetworkRequest.Builder()
-                .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                .build()
-            cm.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
-                override fun onAvailable(network: Network) {
-                    AppLog.d("OfflineNotesRepository", "Network available")
-                    _isOnline.value = true
-                    coroutineScope.launch { syncNotes() }
-                }
+        if (registerNetworkCallback) {
+            connectivityManager?.let { cm ->
+                val networkRequest = NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .build()
+                cm.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: Network) {
+                        AppLog.d("OfflineNotesRepository", "Network available")
+                        _isOnline.value = true
+                        coroutineScope.launch { syncNotes() }
+                    }
 
-                override fun onLost(network: Network) {
-                    AppLog.d("OfflineNotesRepository", "Network lost")
-                    _isOnline.value = false
-                }
-            })
+                    override fun onLost(network: Network) {
+                        AppLog.d("OfflineNotesRepository", "Network lost")
+                        _isOnline.value = false
+                    }
+                })
+            }
         }
     }
 

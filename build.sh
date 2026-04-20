@@ -136,8 +136,8 @@ fi
 if [[ "$need_java" -eq 1 ]]; then
   candidates=(
     "${JAVA_HOME:-}"
-    "${HOME}/.sdkman/candidates/java/current"
     "/opt/android-studio/jbr"
+    "${HOME}/.sdkman/candidates/java/current"
     "${HOME}/android-studio/jbr"
     "/usr/lib/jvm/default-java"
     "/usr/lib/jvm/java-25-openjdk-amd64"
@@ -205,13 +205,24 @@ ensure_android_sdk() {
     return 0
   fi
 
-  for candidate in "${ANDROID_HOME:-}" "${ANDROID_SDK_ROOT:-}" "${HOME}/Android/Sdk" "${HOME}/.config/Android/Sdk"; do
+  for candidate in "${ANDROID_HOME:-}" "${ANDROID_SDK_ROOT:-}" \
+      "/opt/android-sdk" "/opt/Android/Sdk" \
+      "${HOME}/Android/Sdk" "${HOME}/.config/Android/Sdk"; do
     [[ -z "$candidate" || ! -d "$candidate" ]] && continue
     if [[ -d "$candidate/platform-tools" || -d "$candidate/build-tools" ]]; then
       sdk="$candidate"
       break
     fi
   done
+
+  # SDK under /opt (e.g. custom location next to /opt/android-studio)
+  if [[ -z "$sdk" ]]; then
+    local pt
+    pt=$(find /opt -maxdepth 8 -type d -name platform-tools 2>/dev/null | head -1)
+    if [[ -n "$pt" ]]; then
+      sdk="$(dirname "$pt")"
+    fi
+  fi
 
   if [[ -n "$sdk" ]]; then
     export ANDROID_HOME="$sdk"

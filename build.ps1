@@ -111,7 +111,7 @@ if ($needJava) {
     }
 }
 
-function Ensure-AndroidSdk {
+function Initialize-AndroidSdk {
     $props = Join-Path $scriptDir "local.properties"
     $sdk = $null
     if (Test-Path $props) {
@@ -156,7 +156,7 @@ function Ensure-AndroidSdk {
     exit 1
 }
 
-Ensure-AndroidSdk
+Initialize-AndroidSdk
 
 $task = if ($Release) { "assembleRelease" } else { "assembleDebug" }
 $variant = if ($Release) { "release" } else { "debug" }

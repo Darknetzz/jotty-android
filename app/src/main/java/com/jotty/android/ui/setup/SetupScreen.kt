@@ -23,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -292,7 +293,9 @@ private fun InstanceForm(
     val scope = rememberCoroutineScope()
     val isEdit = initialInstance != null
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val fillUrlAndKeyMsg = stringResource(R.string.fill_url_and_key)
+    val openBrowserFailedMsg = stringResource(R.string.open_jotty_browser_failed)
 
     val instanceColors: List<Long?> = listOf(
         null,
@@ -346,6 +349,27 @@ private fun InstanceForm(
             },
             isError = error != null,
         )
+        Text(
+            text = stringResource(R.string.api_key_setup_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        TextButton(
+            onClick = {
+                val url = serverUrl.trim()
+                if (url.isBlank()) {
+                    error = fillUrlAndKeyMsg
+                } else {
+                    runCatching { uriHandler.openUri(browserUrlFromServerUrl(url)) }
+                        .onFailure { error = openBrowserFailedMsg }
+                }
+            },
+            enabled = !loading,
+            contentPadding = PaddingValues(horizontal = 0.dp),
+        ) {
+            Text(stringResource(R.string.open_jotty_in_browser))
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(R.string.color),
@@ -451,4 +475,9 @@ private fun InstanceForm(
             }
         }
     }
+}
+
+private fun browserUrlFromServerUrl(serverUrl: String): String {
+    val trimmed = serverUrl.trim().trimEnd('/')
+    return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
 }

@@ -111,6 +111,9 @@
     <string name="server_url_placeholder">https://jotty.example.com</string>
     <string name="api_key">API Key</string>
     <string name="api_key_placeholder">ck_…</string>
+    <string name="api_key_setup_hint">Jotty Android uses an API key instead of your account password. Log in to Jotty in a browser, open Profile &gt; Settings, generate an API key, then paste it here.</string>
+    <string name="open_jotty_in_browser">Open Jotty to generate an API key</string>
+    <string name="open_jotty_browser_failed">Couldn\'t open Jotty in your browser.</string>
     <string name="show">Show</string>
     <string name="hide">Hide</string>
     <string name="color">Color</string>

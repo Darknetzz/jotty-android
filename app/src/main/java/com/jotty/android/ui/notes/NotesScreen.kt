@@ -123,14 +123,9 @@ fun NotesScreen(
             null -> {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        stringResource(R.string.nav_notes),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
                     Row {
                         IconButton(onClick = { loadNotes() }) {
                             Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))

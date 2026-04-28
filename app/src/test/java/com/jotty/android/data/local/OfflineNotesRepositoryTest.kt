@@ -7,6 +7,7 @@ import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.ApiResponse
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.UpdateNoteRequest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -127,5 +128,80 @@ class OfflineNotesRepositoryTest {
         assertEquals(2, stored.size)
         assertTrue(stored.any { it.title == "LocalTitle (Local copy)" && it.content == "local-body" })
         assertTrue(stored.any { it.title == "ServerTitle" && it.content == "server-body" })
+    }
+
+    @Test
+    fun getConflictCopiesFlow_returnsOnlyLocalCopies() = runTest {
+        val repo = OfflineNotesRepository(
+            context = context,
+            database = database,
+            instanceId = instanceId,
+            api = FakeJottyApi(),
+            initialOnlineOverride = true,
+            registerNetworkCallback = false,
+        )
+        database.noteDao().insertNotes(
+            listOf(
+                NoteEntity(
+                    id = "regular",
+                    title = "Regular",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = null,
+                    instanceId = instanceId,
+                ),
+                NoteEntity(
+                    id = "copy",
+                    title = "Regular${OfflineNotesRepository.LOCAL_COPY_SUFFIX}",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "local body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = null,
+                    instanceId = instanceId,
+                ),
+            ),
+        )
+
+        val conflictCopies = repo.getConflictCopiesFlow().first()
+
+        assertEquals(1, conflictCopies.size)
+        assertEquals("copy", conflictCopies.single().id)
+    }
+
+    @Test
+    fun clearLocalNotes_deletesOnlyRequestedInstance() = runTest {
+        val otherInstanceId = "other-instance"
+        database.noteDao().insertNotes(
+            listOf(
+                NoteEntity(
+                    id = "target",
+                    title = "Target",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = null,
+                    instanceId = instanceId,
+                ),
+                NoteEntity(
+                    id = "other",
+                    title = "Other",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = null,
+                    instanceId = otherInstanceId,
+                ),
+            ),
+        )
+
+        OfflineNotesRepository.clearLocalNotes(context, instanceId)
+
+        assertTrue(database.noteDao().getAllNotes(instanceId).isEmpty())
+        assertEquals(1, database.noteDao().getAllNotes(otherInstanceId).size)
     }
 }

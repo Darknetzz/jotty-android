@@ -91,14 +91,9 @@ fun ChecklistsScreen(
         } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    stringResource(R.string.nav_checklists),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
                 Row {
                     IconButton(onClick = { vm.loadChecklists() }) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))

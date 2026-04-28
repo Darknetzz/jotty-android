@@ -104,6 +104,19 @@ class OfflineNotesRepository(
     }
 
     /**
+     * Local conflict copies are kept until users review and delete or merge them.
+     */
+    fun getConflictCopiesFlow(): Flow<List<Note>> {
+        return noteDao.getAllNotesFlow(instanceId)
+            .map { entities ->
+                entities
+                    .filter { it.title.endsWith(LOCAL_COPY_SUFFIX) }
+                    .map { it.toNote() }
+            }
+            .flowOn(Dispatchers.IO)
+    }
+
+    /**
      * Get all notes (one-time fetch).
      */
     suspend fun getNotes(): List<Note> = withContext(Dispatchers.IO) {
@@ -259,7 +272,7 @@ class OfflineNotesRepository(
                             // Create a copy of the local version to preserve data
                             val localCopy = localNote.copy(
                                 id = UUID.randomUUID().toString(), // New ID for the copy
-                                title = "${localNote.title} (Local copy)",
+                                title = "${localNote.title}$LOCAL_COPY_SUFFIX",
                                 isDirty = false, // Don't try to sync the copy
                                 isDeleted = false
                             )
@@ -390,5 +403,16 @@ class OfflineNotesRepository(
     suspend fun clearAllNotes() = withContext(Dispatchers.IO) {
         noteDao.deleteAllNotes(instanceId)
         AppLog.d("OfflineNotesRepository", "All notes cleared for instance: $instanceId")
+    }
+
+    companion object {
+        const val LOCAL_COPY_SUFFIX = " (Local copy)"
+
+        suspend fun clearLocalNotes(context: Context, instanceId: String) = withContext(Dispatchers.IO) {
+            JottyDatabase.getDatabase(context.applicationContext)
+                .noteDao()
+                .deleteAllNotes(instanceId)
+            AppLog.d("OfflineNotesRepository", "All notes cleared for removed instance: $instanceId")
+        }
     }
 }

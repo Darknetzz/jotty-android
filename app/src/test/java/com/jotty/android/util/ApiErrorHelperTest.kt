@@ -77,9 +77,29 @@ class ApiErrorHelperTest {
     }
 
     @Test
-    fun errorMessageResId_httpException_4xx_returns_request_failed() {
+    fun errorMessageResId_httpException_404_returns_not_found() {
         val body = "".toResponseBody("text/plain".toMediaTypeOrNull())
         val response = Response.error<String>(404, body)
+        assertEquals(
+            R.string.error_not_found,
+            ApiErrorHelper.errorMessageResId(HttpException(response)),
+        )
+    }
+
+    @Test
+    fun errorMessageResId_httpException_429_returns_rate_limited() {
+        val body = "".toResponseBody("text/plain".toMediaTypeOrNull())
+        val response = Response.error<String>(429, body)
+        assertEquals(
+            R.string.error_rate_limited,
+            ApiErrorHelper.errorMessageResId(HttpException(response)),
+        )
+    }
+
+    @Test
+    fun errorMessageResId_httpException_other4xx_returns_request_failed() {
+        val body = "".toResponseBody("text/plain".toMediaTypeOrNull())
+        val response = Response.error<String>(400, body)
         assertEquals(
             R.string.request_failed,
             ApiErrorHelper.errorMessageResId(HttpException(response)),

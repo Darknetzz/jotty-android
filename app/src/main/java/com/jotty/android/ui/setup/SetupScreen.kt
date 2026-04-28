@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
+import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.mainScreenTabContentPadding
@@ -42,6 +43,7 @@ fun SetupScreen(
     settingsRepository: SettingsRepository,
     onConfigured: () -> Unit,
     standaloneMode: Boolean = false,
+    showStandaloneHeader: Boolean = true,
     onBack: (() -> Unit)? = null,
 ) {
     val instances by settingsRepository.instances.collectAsState(initial = emptyList())
@@ -50,6 +52,7 @@ fun SetupScreen(
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     var showAddForm by remember { mutableStateOf(instances.isEmpty()) }
     val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current.applicationContext
 
     LaunchedEffect(instances) {
         if (instances.isNotEmpty() && showAddForm) showAddForm = false
@@ -69,7 +72,7 @@ fun SetupScreen(
                 },
             ),
     ) {
-        if (standaloneMode && onBack != null) {
+        if (standaloneMode && showStandaloneHeader && onBack != null) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -167,6 +170,7 @@ fun SetupScreen(
                             TextButton(
                                 onClick = {
                                     scope.launch {
+                                        OfflineNotesRepository.clearLocalNotes(appContext, instance.id)
                                         settingsRepository.removeInstance(instance.id)
                                         instanceToDelete = null
                                     }

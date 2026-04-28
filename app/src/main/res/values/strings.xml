@@ -32,6 +32,8 @@
     <string name="connection_timed_out">Connection timed out</string>
     <string name="network_error">Network error</string>
     <string name="server_error">Server error</string>
+    <string name="error_not_found">Not found</string>
+    <string name="error_rate_limited">Too many requests. Try again later.</string>
     <string name="request_failed">Request failed</string>
     <string name="error_invalid_api_key">Invalid or expired API key</string>
     <string name="error_access_denied">Access denied</string>
@@ -168,6 +170,8 @@
     <string name="saved_locally">Saved locally</string>
     <string name="will_sync_when_online">Will sync when online</string>
     <string name="sync_conflicts_detected">%d conflict(s) detected. Local copies created to preserve your data.</string>
+    <string name="conflict_copy_pending">1 local copy needs review.</string>
+    <string name="conflict_copies_pending">%d local copies need review.</string>
     <string name="view_conflicts">View copies</string>
     <string name="account">Account</string>
     <string name="manage_instances">Manage instances</string>

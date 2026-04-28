@@ -109,13 +109,7 @@ fun SettingsScreen(
                 .mainScreenTabContentPadding(topComfortDp = contentVerticalDp)
                 .verticalScroll(rememberScrollState()),
         ) {
-        Text(
-            stringResource(R.string.settings),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // ─── Overview (connection + dashboard) ─────────────────────────────────
         SettingsSectionTitle(stringResource(R.string.settings_category_overview))

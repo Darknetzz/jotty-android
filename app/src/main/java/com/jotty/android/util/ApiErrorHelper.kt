@@ -26,6 +26,8 @@ object ApiErrorHelper {
         is HttpException -> when (t.code()) {
             401 -> R.string.error_invalid_api_key
             403 -> R.string.error_access_denied
+            404 -> R.string.error_not_found
+            429 -> R.string.error_rate_limited
             in 500..599 -> R.string.server_error
             else -> R.string.request_failed
         }

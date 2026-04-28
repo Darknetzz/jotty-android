@@ -19,9 +19,22 @@ import kotlinx.coroutines.launch
 
 /** Centered loading spinner for list screens. */
 @Composable
-fun LoadingState(modifier: Modifier = Modifier) {
+fun LoadingState(
+    modifier: Modifier = Modifier,
+    message: String? = null,
+) {
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator()
+            if (message != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
     }
 }
 
@@ -32,16 +45,16 @@ fun ErrorState(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier.padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = message,
-            color = MaterialTheme.colorScheme.error,
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+    Box(modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Button(onClick = onRetry) { Text(stringResource(R.string.retry)) }
+        }
     }
 }
 

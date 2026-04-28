@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,6 +60,7 @@ fun OfflineEnabledNotesScreen(
 
     // Observe notes from local database
     val notes by offlineRepository.getNotesFlow().collectAsState(initial = emptyList())
+    val conflictCopies by offlineRepository.getConflictCopiesFlow().collectAsState(initial = emptyList())
     val isOnline by offlineRepository.isOnline.collectAsState()
     val isSyncing by offlineRepository.isSyncing.collectAsState()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsState()
@@ -79,6 +81,22 @@ fun OfflineEnabledNotesScreen(
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
+
+    fun requestSync(showLoading: Boolean = true) {
+        scope.launch {
+            if (!isOnline) return@launch
+            if (showLoading) loading = true
+            error = null
+            val result = offlineRepository.syncNotes()
+            if (result.isFailure) {
+                error = ApiErrorHelper.userMessage(
+                    context,
+                    result.exceptionOrNull() ?: Exception("Sync failed"),
+                )
+            }
+            if (showLoading) loading = false
+        }
+    }
     
     // Show conflict notification when conflicts are detected
     LaunchedEffect(conflictsDetected) {
@@ -135,7 +153,7 @@ fun OfflineEnabledNotesScreen(
         ) {
             when (val note = selectedNote) {
                 null -> {
-                    // Header with title, sync status, and actions
+                    // Header with sync status and actions; the app bar owns the screen title.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -145,17 +163,16 @@ fun OfflineEnabledNotesScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                stringResource(R.string.nav_notes),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            // Sync status indicator
+                            val statusText = when {
+                                isSyncing -> stringResource(R.string.syncing)
+                                isOnline -> stringResource(R.string.online)
+                                else -> stringResource(R.string.offline)
+                            }
                             when {
                                 isSyncing -> {
                                     Icon(
                                         Icons.Default.CloudQueue,
-                                        contentDescription = stringResource(R.string.syncing),
+                                        contentDescription = statusText,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -163,7 +180,7 @@ fun OfflineEnabledNotesScreen(
                                 isOnline -> {
                                     Icon(
                                         Icons.Default.CloudDone,
-                                        contentDescription = stringResource(R.string.online),
+                                        contentDescription = statusText,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -171,22 +188,21 @@ fun OfflineEnabledNotesScreen(
                                 else -> {
                                     Icon(
                                         Icons.Default.CloudOff,
-                                        contentDescription = stringResource(R.string.offline),
+                                        contentDescription = statusText,
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
+                            Text(
+                                statusText,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         Row {
                             IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        if (isOnline) {
-                                            offlineRepository.syncNotes()
-                                        }
-                                    }
-                                },
+                                onClick = { requestSync(showLoading = false) },
                                 enabled = isOnline && !isSyncing
                             ) {
                                 Icon(
@@ -255,6 +271,42 @@ fun OfflineEnabledNotesScreen(
                         }
                     }
 
+                    if (conflictCopies.isNotEmpty()) {
+                        ElevatedCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            colors = CardDefaults.elevatedCardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            ),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                                Text(
+                                    text = if (conflictCopies.size == 1) {
+                                        stringResource(R.string.conflict_copy_pending)
+                                    } else {
+                                        stringResource(R.string.conflict_copies_pending, conflictCopies.size)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                                TextButton(onClick = { vm.applyConflictSearchFilter() }) {
+                                    Text(stringResource(R.string.view_conflicts))
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // Notes list
@@ -263,21 +315,13 @@ fun OfflineEnabledNotesScreen(
                         error = error,
                         isEmpty = filteredNotes.isEmpty(),
                         onRetry = {
-                            scope.launch {
-                                if (isOnline) {
-                                    offlineRepository.syncNotes()
-                                }
-                            }
+                            requestSync()
                         },
                         emptyIcon = Icons.AutoMirrored.Filled.Note,
                         emptyTitle = stringResource(R.string.no_notes_yet),
                         emptySubtitle = stringResource(R.string.tap_add_note),
                         onRefresh = {
-                            scope.launch {
-                                if (isOnline) {
-                                    offlineRepository.syncNotes()
-                                }
-                            }
+                            requestSync()
                         },
                         content = {
                             LazyColumn(

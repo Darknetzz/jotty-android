@@ -6,6 +6,8 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ### Added
 
+- **Offline conflict review banner** — Notes now show a persistent local-copy warning with a **View copies** action when conflict copies are present, so conflict resolution is not lost after a snackbar disappears. (`OfflineEnabledNotesScreen`, `OfflineNotesRepository`, `strings.xml`.)
+- **Offline cleanup coverage** — Repository tests cover conflict-copy filtering and per-instance local note cleanup. (`OfflineNotesRepositoryTest`.)
 - **Clearer API error messages** — HTTP **401** and **403** map to dedicated strings (invalid API key / access denied). **SSL/TLS** failures map to a short message about HTTPS and certificates. (`ApiErrorHelper`, `strings.xml`, tests.)
 - **Offline repository tests** — JVM tests with in-memory Room and a fake `JottyApi` cover sync, server replace, and conflict “(Local copy)” behavior. (`FakeJottyApi`, `OfflineNotesRepositoryTest`; Robolectric + test dependencies.)
 - **CI** — GitHub Actions workflow runs `./gradlew test` and `./gradlew lint` on push/PR (JDK 17 + Android SDK setup).
@@ -15,11 +17,15 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ### Changed
 
+- **UX polish** — Startup and main-tab loading/error states now use shared centered components; tab titles live in the app bar; note detail shows the note title in the app bar. (`JottyApp`, `MainScreen`, `ListScreenComponents`, notes/checklists/settings screens.)
+- **Navigation clarity** — Settings → Manage instances keeps the Settings bottom-navigation item selected and uses the main app bar back affordance. (`MainScreen`, `SetupScreen`.)
+- **API error messages** — HTTP **404** maps to “Not found” and **429** maps to a rate-limit message. (`ApiErrorHelper`, `strings.xml`, tests.)
 - **Checklists & offline notes UI** — `ChecklistsViewModel` and `OfflineEnabledNotesViewModel` hold list/filter/selection state with `StateFlow`; screens collect via `viewModel { … }`. Notes search debouncing uses `Flow.debounce` with no delay for blank queries.
 - **README** — Build requirements list Android SDK **36** to match `compileSdk` / `targetSdk`.
 
 ### Fixed
 
+- **Removed-instance local data** — Removing a saved instance now clears that instance’s local offline notes from Room so stale data does not remain after credentials are removed. (`SetupScreen`, `OfflineNotesRepository`.)
 - **Layout height** — App content now uses the full height between the top and bottom bars; the root AnimatedContent and main NavHost use `fillMaxSize()` so there is no extra margin above or below the content area.
 - **Offline sync coroutine scope** — `OfflineNotesRepository` uses `SupervisorJob` + `CoroutineExceptionHandler` so background work is not torn down by a single failure. Optional `initialOnlineOverride` and `registerNetworkCallback` support unit tests without `ConnectivityManager`.
 - **`init` block** — Replaced invalid `return@init` with `if (registerNetworkCallback) { … }` so Kotlin compiles cleanly.

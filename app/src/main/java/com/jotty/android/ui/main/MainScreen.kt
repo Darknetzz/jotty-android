@@ -19,7 +19,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
-import com.jotty.android.ui.checklists.ChecklistsScreen
+import com.jotty.android.ui.checklists.OfflineChecklistsScreen
 import com.jotty.android.ui.common.LoadingState
 import com.jotty.android.ui.notes.OfflineNotesScreen
 import com.jotty.android.ui.setup.SetupScreen
@@ -135,11 +135,17 @@ fun MainScreen(
                 modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 composable(MainRoute.Checklists.route) {
-                    ChecklistsScreen(
-                        api = currentApi,
-                        settingsRepository = settingsRepository,
-                        swipeToDeleteEnabled = swipeToDeleteEnabled,
-                    )
+                    val instanceId = currentInstance?.id
+                    if (instanceId != null) {
+                        OfflineChecklistsScreen(
+                            api = currentApi,
+                            settingsRepository = settingsRepository,
+                            instanceId = instanceId,
+                            swipeToDeleteEnabled = swipeToDeleteEnabled,
+                        )
+                    } else {
+                        LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
+                    }
                 }
                 composable(MainRoute.Notes.route) {
                     val instanceId = currentInstance?.id

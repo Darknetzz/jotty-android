@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,26 +61,53 @@ class OfflineNotesRepository(
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
+    // @Volatile: read from the main thread (close) and the callback thread concurrently.
+    // Null when registerNetworkCallback=false (tests).
+    @Volatile private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    @Volatile private var closed = false
+
     init {
         if (registerNetworkCallback) {
             connectivityManager?.let { cm ->
                 val networkRequest = NetworkRequest.Builder()
                     .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                     .build()
-                cm.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
+                val callback = object : ConnectivityManager.NetworkCallback() {
                     override fun onAvailable(network: Network) {
+                        if (closed) return
                         AppLog.d("OfflineNotesRepository", "Network available")
                         _isOnline.value = true
                         coroutineScope.launch { syncNotes() }
                     }
 
                     override fun onLost(network: Network) {
+                        if (closed) return
                         AppLog.d("OfflineNotesRepository", "Network lost")
                         _isOnline.value = false
                     }
-                })
+                }
+                networkCallback = callback
+                cm.registerNetworkCallback(networkRequest, callback)
+                AppLog.d("OfflineNotesRepository", "Network callback registered (instance: $instanceId)")
             }
         }
+    }
+
+    /**
+     * Releases resources held by this repository: unregisters the network callback and
+     * cancels the background coroutine scope. Must be called by the owner when it is
+     * destroyed (e.g. [OfflineNotesViewModel.onCleared]) to prevent leaks.
+     * Safe to call multiple times.
+     */
+    fun close() {
+        if (closed) return
+        closed = true
+        networkCallback?.let {
+            connectivityManager?.unregisterNetworkCallback(it)
+            networkCallback = null
+        }
+        coroutineScope.cancel()
+        AppLog.d("OfflineNotesRepository", "Closed (instance: $instanceId)")
     }
 
     /**

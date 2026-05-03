@@ -31,6 +31,13 @@ abstract class JottyDatabase : RoomDatabase() {
                 db.execSQL(
                     "ALTER TABLE notes ADD COLUMN isLocalOnly INTEGER NOT NULL DEFAULT 0"
                 )
+                // Best-effort rescue of pre-existing local-only notes: if a dirty,
+                // non-deleted note has createdAt == updatedAt it was almost certainly
+                // created offline and never synced. Mark it so syncNote() calls
+                // createNote instead of updateNote (which would 404 on an unknown ID).
+                db.execSQL(
+                    "UPDATE notes SET isLocalOnly = 1 WHERE isDirty = 1 AND isDeleted = 0 AND createdAt = updatedAt"
+                )
             }
         }
 

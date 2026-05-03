@@ -203,18 +203,22 @@ class OfflineNotesRepository(
 
     /**
      * Delete a note (works offline).
+     * If the note only exists locally (never synced), it is hard-deleted immediately —
+     * no server call is made since the server has never seen this ID.
      */
     suspend fun deleteNote(noteId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            // Mark as deleted (soft delete for sync)
-            noteDao.markAsDeleted(noteId)
-            AppLog.d("OfflineNotesRepository", "Note marked for deletion: $noteId")
-
-            // Try to sync if online
-            if (_isOnline.value) {
-                syncDeletedNote(noteId)
+            val note = noteDao.getNoteById(noteId)
+            if (note != null && note.isLocalOnly) {
+                noteDao.deleteNote(noteId)
+                AppLog.d("OfflineNotesRepository", "Local-only note hard-deleted: $noteId")
+            } else {
+                noteDao.markAsDeleted(noteId)
+                AppLog.d("OfflineNotesRepository", "Note marked for deletion: $noteId")
+                if (_isOnline.value) {
+                    syncDeletedNote(noteId)
+                }
             }
-
             Result.success(Unit)
         } catch (e: Exception) {
             AppLog.d("OfflineNotesRepository", "Failed to delete note: ${e.message}")

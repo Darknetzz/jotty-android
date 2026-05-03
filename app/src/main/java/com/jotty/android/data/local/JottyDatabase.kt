@@ -4,14 +4,19 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Room database for offline note storage.
- * Database version: 1
+ * Database version: 2
+ *
+ * v1 → v2: add isLocalOnly column (default 0 = false) to distinguish notes
+ * created offline-only from notes that exist on the server.
  */
 @Database(
     entities = [NoteEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class JottyDatabase : RoomDatabase() {
@@ -21,16 +26,23 @@ abstract class JottyDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: JottyDatabase? = null
 
-        /**
-         * Get or create the database instance.
-         */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE notes ADD COLUMN isLocalOnly INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         fun getDatabase(context: Context): JottyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     JottyDatabase::class.java,
                     "jotty_database"
-                ).build()
+                )
+                    .addMigrations(MIGRATION_1_2)
+                    .build()
                 INSTANCE = instance
                 instance
             }

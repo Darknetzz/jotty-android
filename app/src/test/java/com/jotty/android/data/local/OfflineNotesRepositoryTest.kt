@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -169,6 +170,95 @@ class OfflineNotesRepositoryTest {
 
         assertEquals(1, conflictCopies.size)
         assertEquals("copy", conflictCopies.single().id)
+    }
+
+    @Test
+    fun syncNote_whenIsLocalOnly_callsCreateNoteNotUpdateNote() = runTest {
+        var createCalled = false
+        var updateCalled = false
+        val api = FakeJottyApi(
+            notesFromGet = emptyList(),
+            createNoteResponse = { req ->
+                createCalled = true
+                ApiResponse(
+                    true,
+                    Note("server-id", req.title, req.category ?: API_CATEGORY_UNCATEGORIZED, req.content.orEmpty(), "c", "u"),
+                )
+            },
+            updateNoteHandler = { _, _ ->
+                updateCalled = true
+                error("should not be called for a local-only note")
+            },
+        )
+        val repo = OfflineNotesRepository(
+            context = context,
+            database = database,
+            instanceId = instanceId,
+            api = api,
+            initialOnlineOverride = true,
+            registerNetworkCallback = false,
+        )
+
+        val result = repo.createNote(title = "Offline note", content = "body")
+
+        assertTrue(result.isSuccess)
+        assertTrue("createNote should have been called", createCalled)
+        assertFalse("updateNote must not be called for a local-only note", updateCalled)
+        // The temporary local ID must have been replaced by the server-assigned ID.
+        val stored = database.noteDao().getAllNotes(instanceId)
+        assertEquals(1, stored.size)
+        assertEquals("server-id", stored.single().id)
+        assertFalse("isLocalOnly must be cleared after successful server sync", stored.single().isLocalOnly)
+    }
+
+    @Test
+    fun syncNote_whenNotLocalOnly_callsUpdateNoteNotCreateNote() = runTest {
+        var createCalled = false
+        var updateCalled = false
+        val api = FakeJottyApi(
+            notesFromGet = emptyList(),
+            createNoteResponse = { _ ->
+                createCalled = true
+                error("should not be called for an existing note")
+            },
+            updateNoteHandler = { noteId, req ->
+                updateCalled = true
+                ApiResponse(
+                    true,
+                    Note(noteId, req.title, req.category ?: API_CATEGORY_UNCATEGORIZED, req.content.orEmpty(), "c", "u"),
+                )
+            },
+        )
+        // Pre-insert an existing (server-synced) note — isLocalOnly defaults to false.
+        database.noteDao().insertNote(
+            NoteEntity(
+                id = "existing-server-id",
+                title = "Old Title",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "old body",
+                createdAt = "2024-01-01T00:00:00Z",
+                updatedAt = "2024-01-01T00:00:00Z",
+                encrypted = null,
+                isDirty = false,
+                isDeleted = false,
+                instanceId = instanceId,
+                isLocalOnly = false,
+            ),
+        )
+        val repo = OfflineNotesRepository(
+            context = context,
+            database = database,
+            instanceId = instanceId,
+            api = api,
+            initialOnlineOverride = true,
+            registerNetworkCallback = false,
+        )
+
+        val result = repo.updateNote("existing-server-id", "New Title", "new body", API_CATEGORY_UNCATEGORIZED)
+
+        assertTrue(result.isSuccess)
+        assertFalse("createNote must not be called for an existing note", createCalled)
+        assertTrue("updateNote should have been called", updateCalled)
     }
 
     @Test

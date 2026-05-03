@@ -78,8 +78,9 @@ class NoteEntityTest {
 
         val entity = note.toEntity(instanceId = "instance-123")
 
-        assertEquals(false, entity.isDirty) // default when not specified
+        assertEquals(false, entity.isDirty)
         assertEquals(false, entity.isDeleted)
+        assertEquals(false, entity.isLocalOnly)
         assertEquals(null, entity.encrypted)
     }
 

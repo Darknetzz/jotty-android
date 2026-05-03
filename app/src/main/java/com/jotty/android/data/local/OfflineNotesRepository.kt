@@ -146,9 +146,10 @@ class OfflineNotesRepository(
                 createdAt = now,
                 updatedAt = now,
                 encrypted = null,
-                isDirty = true, // Mark as dirty for sync
+                isDirty = true,
                 isDeleted = false,
-                instanceId = instanceId
+                instanceId = instanceId,
+                isLocalOnly = true,
             )
 
             // Save locally
@@ -319,45 +320,39 @@ class OfflineNotesRepository(
 
     /**
      * Sync a single note to the server.
+     * Uses [NoteEntity.isLocalOnly] to decide between create and update — a note is local-only
+     * when it was created offline and has never been pushed to the server, regardless of timestamps.
      */
     private suspend fun syncNote(note: NoteEntity) {
         try {
-            // Check if this is a new note (starts with random UUID) or an existing one
-            val isNew = note.createdAt == note.updatedAt && note.isDirty
-
-            if (isNew) {
-                // Create new note on server
+            if (note.isLocalOnly) {
                 val request = CreateNoteRequest(
                     title = note.title,
                     content = note.content,
                     category = note.category
                 )
                 val response = api.createNote(request)
-                
                 if (response.data != null) {
-                    // Replace local temp ID with server ID
+                    // Swap the local temporary ID for the server-assigned ID.
                     noteDao.deleteNote(note.id)
                     noteDao.insertNote(response.data.toEntity(instanceId, isDirty = false))
                     AppLog.d("OfflineNotesRepository", "Note created on server: ${response.data.id}")
                 }
             } else {
-                // Update existing note on server
                 val request = UpdateNoteRequest(
                     title = note.title,
                     content = note.content,
                     category = note.category
                 )
                 val response = api.updateNote(note.id, request)
-                
                 if (response.data != null) {
-                    // Update local note with server response
                     noteDao.insertNote(response.data.toEntity(instanceId, isDirty = false))
                     AppLog.d("OfflineNotesRepository", "Note updated on server: ${note.id}")
                 }
             }
         } catch (e: Exception) {
             AppLog.d("OfflineNotesRepository", "Failed to sync note ${note.id}: ${e.message}")
-            // Keep note marked as dirty for next sync attempt
+            // Keep note marked as dirty for next sync attempt.
         }
     }
 

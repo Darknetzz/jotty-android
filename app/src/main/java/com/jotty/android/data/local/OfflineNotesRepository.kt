@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,26 +61,53 @@ class OfflineNotesRepository(
     private val connectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
+    // @Volatile: read from the main thread (close) and the callback thread concurrently.
+    // Null when registerNetworkCallback=false (tests).
+    @Volatile private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    @Volatile private var closed = false
+
     init {
         if (registerNetworkCallback) {
             connectivityManager?.let { cm ->
                 val networkRequest = NetworkRequest.Builder()
                     .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                     .build()
-                cm.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
+                val callback = object : ConnectivityManager.NetworkCallback() {
                     override fun onAvailable(network: Network) {
+                        if (closed) return
                         AppLog.d("OfflineNotesRepository", "Network available")
                         _isOnline.value = true
                         coroutineScope.launch { syncNotes() }
                     }
 
                     override fun onLost(network: Network) {
+                        if (closed) return
                         AppLog.d("OfflineNotesRepository", "Network lost")
                         _isOnline.value = false
                     }
-                })
+                }
+                networkCallback = callback
+                cm.registerNetworkCallback(networkRequest, callback)
+                AppLog.d("OfflineNotesRepository", "Network callback registered (instance: $instanceId)")
             }
         }
+    }
+
+    /**
+     * Releases resources held by this repository: unregisters the network callback and
+     * cancels the background coroutine scope. Must be called by the owner when it is
+     * destroyed (e.g. [OfflineNotesViewModel.onCleared]) to prevent leaks.
+     * Safe to call multiple times.
+     */
+    fun close() {
+        if (closed) return
+        closed = true
+        networkCallback?.let {
+            connectivityManager?.unregisterNetworkCallback(it)
+            networkCallback = null
+        }
+        coroutineScope.cancel()
+        AppLog.d("OfflineNotesRepository", "Closed (instance: $instanceId)")
     }
 
     /**
@@ -146,9 +174,10 @@ class OfflineNotesRepository(
                 createdAt = now,
                 updatedAt = now,
                 encrypted = null,
-                isDirty = true, // Mark as dirty for sync
+                isDirty = true,
                 isDeleted = false,
-                instanceId = instanceId
+                instanceId = instanceId,
+                isLocalOnly = true,
             )
 
             // Save locally
@@ -202,18 +231,22 @@ class OfflineNotesRepository(
 
     /**
      * Delete a note (works offline).
+     * If the note only exists locally (never synced), it is hard-deleted immediately —
+     * no server call is made since the server has never seen this ID.
      */
     suspend fun deleteNote(noteId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            // Mark as deleted (soft delete for sync)
-            noteDao.markAsDeleted(noteId)
-            AppLog.d("OfflineNotesRepository", "Note marked for deletion: $noteId")
-
-            // Try to sync if online
-            if (_isOnline.value) {
-                syncDeletedNote(noteId)
+            val note = noteDao.getNoteById(noteId)
+            if (note != null && note.isLocalOnly) {
+                noteDao.deleteNote(noteId)
+                AppLog.d("OfflineNotesRepository", "Local-only note hard-deleted: $noteId")
+            } else {
+                noteDao.markAsDeleted(noteId)
+                AppLog.d("OfflineNotesRepository", "Note marked for deletion: $noteId")
+                if (_isOnline.value) {
+                    syncDeletedNote(noteId)
+                }
             }
-
             Result.success(Unit)
         } catch (e: Exception) {
             AppLog.d("OfflineNotesRepository", "Failed to delete note: ${e.message}")
@@ -319,45 +352,39 @@ class OfflineNotesRepository(
 
     /**
      * Sync a single note to the server.
+     * Uses [NoteEntity.isLocalOnly] to decide between create and update — a note is local-only
+     * when it was created offline and has never been pushed to the server, regardless of timestamps.
      */
     private suspend fun syncNote(note: NoteEntity) {
         try {
-            // Check if this is a new note (starts with random UUID) or an existing one
-            val isNew = note.createdAt == note.updatedAt && note.isDirty
-
-            if (isNew) {
-                // Create new note on server
+            if (note.isLocalOnly) {
                 val request = CreateNoteRequest(
                     title = note.title,
                     content = note.content,
                     category = note.category
                 )
                 val response = api.createNote(request)
-                
                 if (response.data != null) {
-                    // Replace local temp ID with server ID
+                    // Swap the local temporary ID for the server-assigned ID.
                     noteDao.deleteNote(note.id)
                     noteDao.insertNote(response.data.toEntity(instanceId, isDirty = false))
                     AppLog.d("OfflineNotesRepository", "Note created on server: ${response.data.id}")
                 }
             } else {
-                // Update existing note on server
                 val request = UpdateNoteRequest(
                     title = note.title,
                     content = note.content,
                     category = note.category
                 )
                 val response = api.updateNote(note.id, request)
-                
                 if (response.data != null) {
-                    // Update local note with server response
                     noteDao.insertNote(response.data.toEntity(instanceId, isDirty = false))
                     AppLog.d("OfflineNotesRepository", "Note updated on server: ${note.id}")
                 }
             }
         } catch (e: Exception) {
             AppLog.d("OfflineNotesRepository", "Failed to sync note ${note.id}: ${e.message}")
-            // Keep note marked as dirty for next sync attempt
+            // Keep note marked as dirty for next sync attempt.
         }
     }
 

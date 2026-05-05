@@ -1,63 +1,47 @@
-package com.jotty.android.ui.notes
+package com.jotty.android.ui.checklists
 
 import android.app.Application
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
 
 /**
- * Wrapper for NotesScreen that adds offline support.
- * Switches between online API calls and offline repository based on settings.
- *
- * [OfflineNotesViewModel] owns the [OfflineNotesRepository] so the network callback
- * and coroutine scope are properly cleaned up in ViewModel.onCleared(), not leaked
- * across recompositions.
+ * Wrapper that selects between [OfflineEnabledChecklistsScreen] (offline mode on) and
+ * the plain [ChecklistsScreen] (offline mode off), mirroring the notes pattern.
  */
 @Composable
-fun OfflineNotesScreen(
+fun OfflineChecklistsScreen(
     api: JottyApi,
     settingsRepository: SettingsRepository,
     instanceId: String,
-    initialNoteId: String? = null,
-    onDeepLinkConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
-    imageLoader: ImageLoader? = null,
 ) {
     val application = LocalContext.current.applicationContext as Application
-    val vm: OfflineNotesViewModel = viewModel(
+    val vm: OfflineChecklistsViewModel = viewModel(
         key = instanceId,
-        factory = OfflineNotesViewModel.Factory(application, instanceId, api),
+        factory = OfflineChecklistsViewModel.Factory(application, instanceId, api),
     )
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsState(initial = true)
 
     LaunchedEffect(offlineModeEnabled, instanceId) {
-        if (offlineModeEnabled) {
-            offlineRepository.syncNotes()
-        }
+        if (offlineModeEnabled) offlineRepository.syncChecklists()
     }
 
     if (offlineModeEnabled) {
-        OfflineEnabledNotesScreen(
+        OfflineEnabledChecklistsScreen(
             offlineRepository = offlineRepository,
             api = api,
             settingsRepository = settingsRepository,
-            initialNoteId = initialNoteId,
-            onDeepLinkConsumed = onDeepLinkConsumed,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
-            imageLoader = imageLoader,
         )
     } else {
-        NotesScreen(
+        ChecklistsScreen(
             api = api,
             settingsRepository = settingsRepository,
-            initialNoteId = initialNoteId,
-            onDeepLinkConsumed = onDeepLinkConsumed,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
-            imageLoader = imageLoader,
         )
     }
 }

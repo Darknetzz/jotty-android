@@ -11,6 +11,14 @@ An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-bas
 - **Offline support** — Take notes without an internet connection. Changes sync automatically when you're back online.
 - **Connect to your server** — Works with any self-hosted Jotty instance. Configure server URL and API key once.
 
+## Screenshots
+
+|  |  |
+|---|---|
+| <img src="images/Screenshot_20260505_111356_Jotty.png" alt="Setup screen where you connect to a Jotty instance with URL and API key" width="230" /><br />Connect to your Jotty server by entering the instance URL and API key. | <img src="images/Screenshot_20260505_111502_Jotty.png" alt="Checklist screen showing checklist cards and progress indicators" width="230" /><br />Browse your checklists, quickly see progress, and open items for details. |
+| <img src="images/Screenshot_20260505_111515_Jotty.png" alt="Checklist detail view with task list and completion checkboxes" width="230" /><br />Manage checklist tasks with quick complete/uncomplete actions. | <img src="images/Screenshot_20260505_111800_Jotty.png" alt="Notes list with search and category filtering" width="230" /><br />View notes in one place with search and category filters. |
+| <img src="images/f9647f9e-6846-472f-b12c-02f573450608.png" alt="Note detail screen displaying markdown content and note actions" width="230" /><br />Read and edit notes with Markdown support and note-level actions. | <img src="images/5a5fb2e8-9c47-420b-96e9-8d0fd6b3cb38.png" alt="Settings screen for theme, defaults, and app preferences" width="230" /><br />Customize theme, default instance behavior, and app settings. |
+
 ## Releases / Download
 
 Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. Download the latest `jotty-android-*.apk` and install on your device (enable “Install from unknown sources” if needed).

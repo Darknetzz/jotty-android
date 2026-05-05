@@ -97,10 +97,11 @@ fun OfflineEnabledChecklistsScreen(
     LaunchedEffect(conflictsDetected) {
         if (conflictsDetected > 0) {
             val msg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
+            val actionLabel = stringResource(R.string.view_conflicts)
             scope.launch {
                 val result = snackbarHostState.showSnackbar(
                     message = msg,
-                    actionLabel = stringResource(R.string.view_conflicts),
+                    actionLabel = actionLabel,
                     duration = SnackbarDuration.Long,
                 )
                 if (result == SnackbarResult.ActionPerformed) vm.applyConflictSearchFilter()
@@ -341,7 +342,7 @@ fun OfflineEnabledChecklistsScreen(
     }
 }
 
-// ─── Checklist card ──────────────────────────────────────────────────────────
+// ─── Checklist card ───────────────────────────────────────────────────────────────────
 
 @Composable
 private fun OfflineChecklistCard(
@@ -417,7 +418,7 @@ private fun OfflineChecklistCard(
     }
 }
 
-// ─── Detail screen ───────────────────────────────────────────────────────────
+// ─── Detail screen ────────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -596,7 +597,7 @@ private fun OfflineChecklistDetailContent(
     }
 }
 
-// ─── Item row ────────────────────────────────────────────────────────────────
+// ─── Item row ─────────────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -679,7 +680,7 @@ private fun OfflineItemRow(
     }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun SectionLabel(title: String) {

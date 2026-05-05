@@ -435,10 +435,12 @@ class OfflineNotesRepository(
     companion object {
         const val LOCAL_COPY_SUFFIX = " (Local copy)"
 
-        suspend fun clearLocalNotes(context: Context, instanceId: String) = withContext(Dispatchers.IO) {
-            JottyDatabase.getDatabase(context.applicationContext)
-                .noteDao()
-                .deleteAllNotes(instanceId)
+        suspend fun clearLocalNotes(
+            context: Context,
+            instanceId: String,
+            database: JottyDatabase = JottyDatabase.getDatabase(context.applicationContext),
+        ) = withContext(Dispatchers.IO) {
+            database.noteDao().deleteAllNotes(instanceId)
             AppLog.d("OfflineNotesRepository", "All notes cleared for removed instance: $instanceId")
         }
     }

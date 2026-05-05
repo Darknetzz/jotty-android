@@ -11,6 +11,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 
@@ -21,8 +22,19 @@ private val instancesType = object : TypeToken<List<JottyInstance>>() {}.type
 
 class SettingsRepository(private val context: Context) {
 
+    // API keys are stored in hardware-backed EncryptedSharedPreferences.
+    // The instances JSON in DataStore stores apiKey as "" after migration.
+    private val apiKeyStore = ApiKeyStore(context)
+
+    /** Enrich a parsed instance with its API key from [ApiKeyStore]. */
+    private fun JottyInstance.withStoredApiKey(): JottyInstance {
+        val stored = apiKeyStore.getApiKey(id)
+        // Prefer the encrypted store; fall back to JSON value (pre-migration data).
+        return if (stored != null) copy(apiKey = stored) else this
+    }
+
     val instances: Flow<List<JottyInstance>> = context.dataStore.data.map { prefs ->
-        parseInstances(prefs[KEY_INSTANCES]).orEmpty()
+        parseInstances(prefs[KEY_INSTANCES]).orEmpty().map { it.withStoredApiKey() }
     }.catch { emit(emptyList()) }
 
     val currentInstanceId: Flow<String?> = context.dataStore.data.map { prefs ->
@@ -37,7 +49,7 @@ class SettingsRepository(private val context: Context) {
     val currentInstance: Flow<JottyInstance?> = context.dataStore.data.map { prefs ->
         val list = parseInstances(prefs[KEY_INSTANCES]) ?: emptyList()
         val id = prefs[KEY_CURRENT_INSTANCE_ID]?.takeIf { it.isNotBlank() }
-        list.find { it.id == id }
+        list.find { it.id == id }?.withStoredApiKey()
     }.catch { emit(null) }
 
     val serverUrl: Flow<String?> = currentInstance.map { it?.serverUrl }
@@ -85,18 +97,32 @@ class SettingsRepository(private val context: Context) {
 
     /**
      * Adds or updates an instance. When [setAsCurrent] is true, also sets it as the current instance.
+     *
+     * When [ApiKeyStore.isEncrypted] is true (typical):
+     *  - API key is written to [ApiKeyStore] (commit, durable) BEFORE the DataStore edit.
+     *    A crash after the encrypted write leaves a harmless orphan key, never a missing key.
+     *  - DataStore JSON stores `apiKey=""` so the key is never on disk in plain text.
+     *
+     * When encryption is unavailable: instance is stored as-is in DataStore (plain text).
      */
     suspend fun addInstance(instance: JottyInstance, setAsCurrent: Boolean = true) {
+        val encrypted = apiKeyStore.isEncrypted
+        if (encrypted) {
+            apiKeyStore.setApiKey(instance.id, instance.apiKey) // commit + Dispatchers.IO inside
+        }
         context.dataStore.edit { prefs ->
+            val toStore = if (encrypted) instance.copy(apiKey = "") else instance
             val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty().toMutableList()
-            if (list.none { it.id == instance.id }) list.add(instance)
-            else list[list.indexOfFirst { it.id == instance.id }] = instance
+            if (list.none { it.id == toStore.id }) list.add(toStore)
+            else list[list.indexOfFirst { it.id == toStore.id }] = toStore
             prefs[KEY_INSTANCES] = gson.toJson(list)
             if (setAsCurrent) prefs[KEY_CURRENT_INSTANCE_ID] = instance.id
         }
     }
 
     suspend fun removeInstance(id: String) {
+        // Remove instance from DataStore first, then clean up the key.
+        // A crash between the two leaves an orphan key — harmless, never an instance with no key.
         context.dataStore.edit { prefs ->
             val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty().filter { it.id != id }
             prefs[KEY_INSTANCES] = gson.toJson(list)
@@ -109,6 +135,7 @@ class SettingsRepository(private val context: Context) {
             }
             if (prefs[KEY_DEFAULT_INSTANCE_ID] == id) prefs.remove(KEY_DEFAULT_INSTANCE_ID)
         }
+        apiKeyStore.removeApiKey(id)
     }
 
     suspend fun setCurrentInstanceId(id: String?) {
@@ -158,35 +185,73 @@ class SettingsRepository(private val context: Context) {
     }
 
     suspend fun setDebugLoggingEnabled(value: Boolean) {
-        context.dataStore.edit { it[KEY_DEBUG_LOGGING] = value
-        }
+        context.dataStore.edit { it[KEY_DEBUG_LOGGING] = value }
     }
 
     suspend fun setOfflineModeEnabled(value: Boolean) {
         context.dataStore.edit { it[KEY_OFFLINE_MODE] = value }
     }
 
-    /** Clear all data (instances + app preferences). */
+    /** Clear all data (instances + app preferences) including encrypted API keys. */
     suspend fun clearAll() {
+        // DataStore first: a crash before the encrypted clear leaves harmless orphan keys.
+        // The reverse would leave instances with no keys, breaking auth with no remediation.
         context.dataStore.edit { it.clear() }
+        apiKeyStore.clearAll()
     }
 
     /** One-time migration: if old server_url/api_key exist and no instances, create one instance and clear legacy keys. */
     suspend fun migrateFromLegacyIfNeeded() {
-        context.dataStore.edit { prefs ->
-            if (!prefs[KEY_INSTANCES].isNullOrBlank()) return@edit
-            val url = prefs[KEY_SERVER_URL]?.takeIf { it.isNotBlank() } ?: return@edit
-            val key = prefs[KEY_API_KEY]?.takeIf { it.isNotBlank() } ?: return@edit
-            val instance = JottyInstance(
-                id = UUID.randomUUID().toString(),
-                name = "Jotty",
-                serverUrl = url.trim(),
-                apiKey = key.trim(),
-            )
-            prefs[KEY_INSTANCES] = gson.toJson(listOf(instance))
-            prefs[KEY_CURRENT_INSTANCE_ID] = instance.id
-            prefs.remove(KEY_SERVER_URL)
-            prefs.remove(KEY_API_KEY)
+        val prefs = context.dataStore.data.first()
+        if (!prefs[KEY_INSTANCES].isNullOrBlank()) return
+        val url = prefs[KEY_SERVER_URL]?.takeIf { it.isNotBlank() } ?: return
+        val key = prefs[KEY_API_KEY]?.takeIf { it.isNotBlank() } ?: return
+        val instance = JottyInstance(
+            id = UUID.randomUUID().toString(),
+            name = "Jotty",
+            serverUrl = url.trim(),
+            apiKey = "",  // key moved to ApiKeyStore below
+        )
+        // Write encrypted key (commit, durable) before DataStore edit.
+        // A crash after this write and before the edit leaves a harmless orphan key;
+        // the next launch re-runs this migration with a fresh UUID.
+        apiKeyStore.setApiKey(instance.id, key.trim())
+        context.dataStore.edit { p ->
+            if (!p[KEY_INSTANCES].isNullOrBlank()) return@edit // concurrent re-entry guard
+            p[KEY_INSTANCES] = gson.toJson(listOf(instance))
+            p[KEY_CURRENT_INSTANCE_ID] = instance.id
+            p.remove(KEY_SERVER_URL)
+            p.remove(KEY_API_KEY)
+        }
+    }
+
+    /**
+     * One-time migration: move any API keys still stored as plain text in the instances JSON
+     * to [ApiKeyStore] (EncryptedSharedPreferences), then blank them out in DataStore.
+     *
+     * Safe to call on every launch — it is a no-op when all keys are already encrypted.
+     * No-op when [ApiKeyStore.isEncrypted] is false (Keystore unavailable).
+     */
+    suspend fun migrateApiKeysToEncryptedStoreIfNeeded() {
+        if (!apiKeyStore.isEncrypted) return
+        val prefs = context.dataStore.data.first()
+        val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty()
+        val plainTextInstances = list.filter { it.apiKey.isNotBlank() }
+        if (plainTextInstances.isEmpty()) return
+        // Write all keys to encrypted store first (commit, durable).
+        // A crash before the DataStore edit leaves encrypted keys written but DataStore unchanged;
+        // the next launch finds the same plaintext keys and re-runs — fully idempotent.
+        plainTextInstances.forEach { instance ->
+            if (apiKeyStore.getApiKey(instance.id) == null) {
+                apiKeyStore.setApiKey(instance.id, instance.apiKey)
+            }
+            // If already in encrypted store (key non-null), the DataStore copy is stale —
+            // still blank it below regardless.
+        }
+        context.dataStore.edit { p ->
+            val current = parseInstances(p[KEY_INSTANCES]).orEmpty()
+            val migrated = current.map { if (it.apiKey.isNotBlank()) it.copy(apiKey = "") else it }
+            p[KEY_INSTANCES] = gson.toJson(migrated)
         }
     }
 

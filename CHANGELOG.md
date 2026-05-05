@@ -16,7 +16,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - **UI smoke test** — Instrumented test checks that `MainActivity` shows a Compose root (`MainActivitySmokeTest`).
 - **`build.sh`** — Linux build script mirroring `build.ps1`: Gradle wrapper bootstrap (version read from `gradle-wrapper.properties`), Java 11+ discovery (`java` on `PATH`, `/usr/lib/jvm/*`, `/opt/android-studio/jbr`, etc.), Android SDK detection (`ANDROID_HOME`, `~/Android/Sdk`, `/opt/...`, scan for `platform-tools` under `/opt`), copies debug/release APK to `jotty-android.apk`.
 - **`local.properties.example`** — Documents `sdk.dir` and typical Studio vs SDK paths (including IDE under `/opt`).
-- **Offline checklists** — Added offline-mode support for checklists, mirroring notes behavior so checklist operations continue while disconnected and sync when connectivity returns. (Merged from [#4](https://github.com/Darknetzz/jotty-android/pull/4), thanks [@Emilien-Etadam](https://github.com/Emilien-Etadam)!)
+- **Offline checklists** — Added offline-mode support for checklists, mirroring notes behavior so checklist operations continue while disconnected and sync when connectivity returns.
 
 ### Changed
 
@@ -24,7 +24,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - **Navigation clarity** — Settings → Manage instances keeps the Settings bottom-navigation item selected and uses the main app bar back affordance. (`MainScreen`, `SetupScreen`.)
 - **API error messages** — HTTP **404** maps to “Not found” and **429** maps to a rate-limit message. (`ApiErrorHelper`, `strings.xml`, tests.)
 - **Checklists & offline notes UI** — `ChecklistsViewModel` and `OfflineEnabledNotesViewModel` hold list/filter/selection state with `StateFlow`; screens collect via `viewModel { … }`. Notes search debouncing uses `Flow.debounce` with no delay for blank queries.
-- **Offline sync routing** — Replaced the fragile timestamp heuristic with an explicit `isLocalOnly` flag to correctly route create vs update during offline sync and avoid duplicate/lost notes. (Merged from [#4](https://github.com/Darknetzz/jotty-android/pull/4), thanks [@Emilien-Etadam](https://github.com/Emilien-Etadam)!)
+- **Offline sync routing** — Replaced the fragile timestamp heuristic with an explicit `isLocalOnly` flag to correctly route create vs update during offline sync and avoid duplicate/lost notes.
 - **README** — Build requirements list Android SDK **36** to match `compileSdk` / `targetSdk`.
 
 ### Fixed
@@ -34,8 +34,8 @@ All notable changes to Jotty Android are documented here. The format is based on
 - **Layout height** — App content now uses the full height between the top and bottom bars; the root AnimatedContent and main NavHost use `fillMaxSize()` so there is no extra margin above or below the content area.
 - **Offline sync coroutine scope** — `OfflineNotesRepository` uses `SupervisorJob` + `CoroutineExceptionHandler` so background work is not torn down by a single failure. Optional `initialOnlineOverride` and `registerNetworkCallback` support unit tests without `ConnectivityManager`.
 - **`init` block** — Replaced invalid `return@init` with `if (registerNetworkCallback) { … }` so Kotlin compiles cleanly.
-- **Lifecycle cleanup** — Offline notes repository lifecycle is now ViewModel-owned with explicit cleanup so network callbacks/scopes are released correctly on destination teardown. (Merged from [#4](https://github.com/Darknetzz/jotty-android/pull/4), thanks [@Emilien-Etadam](https://github.com/Emilien-Etadam)!)
-- **Category chips overflow** — Replaced fixed chip rows with scrollable `LazyRow` behavior so all categories remain reachable. (Merged from [#4](https://github.com/Darknetzz/jotty-android/pull/4), thanks [@Emilien-Etadam](https://github.com/Emilien-Etadam)!)
+- **Lifecycle cleanup** — Offline notes repository lifecycle is now ViewModel-owned with explicit cleanup so network callbacks/scopes are released correctly on destination teardown.
+- **Category chips overflow** — Replaced fixed chip rows with scrollable `LazyRow` behavior so all categories remain reachable.
 
 ### Technical
 
@@ -43,6 +43,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 - `gradle.properties` / wrapper: build scripts download `gradle-wrapper.jar` matching the version in `gradle-wrapper.properties` (e.g. 9.1.0) and validate the JAR manifest; `build.ps1` updated the same way.
 - `app/build.gradle.kts`: `testOptions.unitTests.isIncludeAndroidResources`, Room testing, Robolectric, coroutines-test; `androidTest` deps + `testInstrumentationRunner` for Compose UI tests.
 - `OfflineNotesRepository.kt`: constructor parameters for tests only (defaults unchanged for app use).
+
+### Credits
+
+- Offline improvements listed above were merged from [#4](https://github.com/Darknetzz/jotty-android/pull/4). Thanks [@Emilien-Etadam](https://github.com/Emilien-Etadam) for the contribution.
 
 ---
 

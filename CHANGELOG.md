@@ -4,6 +4,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+---
+
+## [1.3.0] - 2026-05-05
+
 ### Added
 
 - **App screenshots** — Added current application screenshots to the repository for clearer presentation in docs and project pages.
@@ -487,6 +491,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
 [1.2.9]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.9
+[1.3.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.0
 [1.2.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.3
 [1.1.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.2

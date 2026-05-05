@@ -45,13 +45,14 @@ import kotlinx.coroutines.launch
 fun OfflineEnabledChecklistsScreen(
     offlineRepository: OfflineChecklistsRepository,
     api: JottyApi,
+    vmKey: String,
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
-    val vm: OfflineEnabledChecklistsViewModel = viewModel {
+    val vm: OfflineEnabledChecklistsViewModel = viewModel(key = vmKey) {
         OfflineEnabledChecklistsViewModel(offlineRepository, api)
     }
 

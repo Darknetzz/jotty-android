@@ -26,6 +26,6 @@ class ApiClientTest {
     @Test
     fun normalizeBaseUrl_trims_trailing_slash() {
         assertEquals("https://jotty.example.com", ApiClient.normalizeBaseUrl("https://jotty.example.com/"))
-        assertEquals("https://jotty.example.com", ApiClient.normalizeBaseUrl("https://jotty.example.com/path/"))
+        assertEquals("https://jotty.example.com/path", ApiClient.normalizeBaseUrl("https://jotty.example.com/path/"))
     }
 }

@@ -2,7 +2,7 @@
 
 An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-based checklist and notes app.
 
-**Disclaimer:** This project is built mostly for personal use. Much of the code was written with AI assistance and may contain bugs or rough edges. If you find issues or want to improve things, issues and contributions are welcome.
+**Disclaimer:** This project is built mostly for personal use. Much of the code was written with AI assistance and may contain bugs or rough edges. If you find issues or want to improve things, issues and contributions are welcome. The web version of Jotty is very much mobile friendly and is probably sufficient for most people.
 
 ## Features
 
@@ -46,7 +46,14 @@ Version is defined in **`gradle.properties`** (single source of truth):
 - `VERSION_NAME` — user-visible version (e.g. `1.0.1`)
 - `VERSION_CODE` — integer, must increase each release (e.g. `2`)
 
-To cut a new release: update both in `gradle.properties`, add an entry to **`CHANGELOG.md`**, then build and tag (e.g. `v1.0.1`).
+Preferred flow (automated):
+
+- **Windows (PowerShell):** `.\release.ps1`
+- **Linux/macOS (bash):** `./release.sh`
+
+Both scripts can prompt for a version (default is current patch + 1), increment `VERSION_CODE`, and promote `CHANGELOG.md` from `Unreleased` to a dated release entry.
+
+Manual fallback: update both values in `gradle.properties`, add an entry to **`CHANGELOG.md`**, then build and tag (e.g. `v1.0.1`).
 
 **Signed release APK:** Copy `keystore.properties.example` to `keystore.properties`, create a keystore (see the example file for the `keytool` command), then run `.\build.ps1 -Release`. The release APK will be signed and installable. Keep your keystore and passwords safe and never commit them.
 

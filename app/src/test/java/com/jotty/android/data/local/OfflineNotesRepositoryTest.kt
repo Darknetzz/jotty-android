@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.ApiResponse
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.api.SuccessResponse
 import com.jotty.android.data.api.UpdateNoteRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest

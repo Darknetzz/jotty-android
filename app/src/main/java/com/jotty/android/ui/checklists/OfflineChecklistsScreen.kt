@@ -27,7 +27,7 @@ fun OfflineChecklistsScreen(
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsState(initial = true)
 
-    LaunchedEffect(offlineModeEnabled, instanceId) {
+    LaunchedEffect(offlineModeEnabled, instanceId, authFingerprint) {
         if (offlineModeEnabled) offlineRepository.syncChecklists()
     }
 
@@ -35,6 +35,7 @@ fun OfflineChecklistsScreen(
         OfflineEnabledChecklistsScreen(
             offlineRepository = offlineRepository,
             api = api,
+            vmKey = "$instanceId|$authFingerprint",
             settingsRepository = settingsRepository,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
         )

@@ -141,6 +141,7 @@ fun MainScreen(
                             api = currentApi,
                             settingsRepository = settingsRepository,
                             instanceId = instanceId,
+                            authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
                             swipeToDeleteEnabled = swipeToDeleteEnabled,
                         )
                     } else {
@@ -154,6 +155,7 @@ fun MainScreen(
                             api = currentApi,
                             settingsRepository = settingsRepository,
                             instanceId = instanceId,
+                            authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
                             initialNoteId = deepLinkNoteId?.value,
                             onDeepLinkConsumed = { deepLinkNoteId?.value = null },
                             swipeToDeleteEnabled = swipeToDeleteEnabled,

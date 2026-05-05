@@ -20,10 +20,6 @@ import com.jotty.android.data.local.OfflineNotesRepository
  * `viewModel()`. Changing instances destroys the old ViewModel (triggering close) and
  * creates a fresh one.
  *
- * Known limitation (CLAUDE.md issue #7): if the API key is rotated for the same instance
- * without changing the instance ID, [OfflineNotesRepository] keeps the stale [JottyApi]
- * until the ViewModel is recreated. A proper fix requires either DI or a mutable api holder
- * in the repository, but is left for a dedicated change to keep this diff focused.
  */
 class OfflineNotesViewModel(
     application: Application,

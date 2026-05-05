@@ -21,6 +21,7 @@ fun OfflineNotesScreen(
     api: JottyApi,
     settingsRepository: SettingsRepository,
     instanceId: String,
+    authFingerprint: String,
     initialNoteId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
@@ -28,7 +29,7 @@ fun OfflineNotesScreen(
 ) {
     val application = LocalContext.current.applicationContext as Application
     val vm: OfflineNotesViewModel = viewModel(
-        key = instanceId,
+        key = "$instanceId|$authFingerprint",
         factory = OfflineNotesViewModel.Factory(application, instanceId, api),
     )
     val offlineRepository = vm.repository

@@ -16,11 +16,12 @@ fun OfflineChecklistsScreen(
     api: JottyApi,
     settingsRepository: SettingsRepository,
     instanceId: String,
+    authFingerprint: String,
     swipeToDeleteEnabled: Boolean = false,
 ) {
     val application = LocalContext.current.applicationContext as Application
     val vm: OfflineChecklistsViewModel = viewModel(
-        key = instanceId,
+        key = "$instanceId|$authFingerprint",
         factory = OfflineChecklistsViewModel.Factory(application, instanceId, api),
     )
     val offlineRepository = vm.repository

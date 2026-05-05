@@ -6,6 +6,8 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ### Added
 
+- **App screenshots** — Added current application screenshots to the repository for clearer presentation in docs and project pages.
+- **Setup API key guidance** — Setup now includes clearer guidance for generating API keys, plus an action to open Jotty in the browser directly from the form. (`SetupScreen`, `strings.xml`.)
 - **Offline conflict review banner** — Notes now show a persistent local-copy warning with a **View copies** action when conflict copies are present, so conflict resolution is not lost after a snackbar disappears. (`OfflineEnabledNotesScreen`, `OfflineNotesRepository`, `strings.xml`.)
 - **Offline cleanup coverage** — Repository tests cover conflict-copy filtering and per-instance local note cleanup. (`OfflineNotesRepositoryTest`.)
 - **Clearer API error messages** — HTTP **401** and **403** map to dedicated strings (invalid API key / access denied). **SSL/TLS** failures map to a short message about HTTPS and certificates. (`ApiErrorHelper`, `strings.xml`, tests.)
@@ -14,6 +16,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - **UI smoke test** — Instrumented test checks that `MainActivity` shows a Compose root (`MainActivitySmokeTest`).
 - **`build.sh`** — Linux build script mirroring `build.ps1`: Gradle wrapper bootstrap (version read from `gradle-wrapper.properties`), Java 11+ discovery (`java` on `PATH`, `/usr/lib/jvm/*`, `/opt/android-studio/jbr`, etc.), Android SDK detection (`ANDROID_HOME`, `~/Android/Sdk`, `/opt/...`, scan for `platform-tools` under `/opt`), copies debug/release APK to `jotty-android.apk`.
 - **`local.properties.example`** — Documents `sdk.dir` and typical Studio vs SDK paths (including IDE under `/opt`).
+- **Offline checklists** — Added offline-mode support for checklists, mirroring notes behavior so checklist operations continue while disconnected and sync when connectivity returns.
 
 ### Changed
 
@@ -25,6 +28,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ### Fixed
 
+- **Account switching on same server** — Offline notes/checklists now recreate their ViewModel/repository when auth changes for the same instance ID, preventing stale API-key sessions from showing another account’s data. (`MainScreen`, `OfflineNotesScreen`, `OfflineChecklistsScreen`.)
 - **Removed-instance local data** — Removing a saved instance now clears that instance’s local offline notes from Room so stale data does not remain after credentials are removed. (`SetupScreen`, `OfflineNotesRepository`.)
 - **Layout height** — App content now uses the full height between the top and bottom bars; the root AnimatedContent and main NavHost use `fillMaxSize()` so there is no extra margin above or below the content area.
 - **Offline sync coroutine scope** — `OfflineNotesRepository` uses `SupervisorJob` + `CoroutineExceptionHandler` so background work is not torn down by a single failure. Optional `initialOnlineOverride` and `registerNetworkCallback` support unit tests without `ConnectivityManager`.
@@ -32,6 +36,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ### Technical
 
+- `build.ps1`: renamed `Ensure-AndroidSdk` to `Initialize-AndroidSdk` for naming clarity and consistency.
 - `gradle.properties` / wrapper: build scripts download `gradle-wrapper.jar` matching the version in `gradle-wrapper.properties` (e.g. 9.1.0) and validate the JAR manifest; `build.ps1` updated the same way.
 - `app/build.gradle.kts`: `testOptions.unitTests.isIncludeAndroidResources`, Room testing, Robolectric, coroutines-test; `androidTest` deps + `testInstrumentationRunner` for Compose UI tests.
 - `OfflineNotesRepository.kt`: constructor parameters for tests only (defaults unchanged for app use).

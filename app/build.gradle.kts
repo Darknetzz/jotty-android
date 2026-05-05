@@ -115,6 +115,9 @@ dependencies {
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
     implementation("org.bouncycastle:bcprov-jdk18on:1.79")
 
+    // Biometric authentication (note passphrase protection)
+    implementation("androidx.biometric:biometric:1.1.0")
+
     // Unit tests
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.test:core:1.7.0")

@@ -5,6 +5,7 @@ import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.UpdateNoteRequest
+import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.launch
@@ -26,6 +27,7 @@ fun OfflineNoteDetailScreen(
     debugLoggingEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     isOnline: Boolean = false,
+    biometricStore: BiometricPassphraseStore? = null,
 ) {
     val scope = rememberCoroutineScope()
     
@@ -111,5 +113,6 @@ fun OfflineNoteDetailScreen(
         onSaveFailed = onSaveFailed,
         debugLoggingEnabled = debugLoggingEnabled,
         imageLoader = imageLoader,
+        biometricStore = biometricStore,
     )
 }

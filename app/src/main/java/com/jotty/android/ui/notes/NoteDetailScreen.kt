@@ -2,6 +2,7 @@ package com.jotty.android.ui.notes
 
 import android.content.Intent
 import android.util.Log
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
@@ -19,22 +21,27 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import coil.ImageLoader
 import com.jotty.android.R
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.UpdateNoteRequest
+import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
@@ -55,6 +62,7 @@ internal fun NoteDetailScreen(
     onSaveFailed: () -> Unit = {},
     debugLoggingEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
+    biometricStore: BiometricPassphraseStore? = null,
 ) {
     var title by remember { mutableStateOf(note.title) }
     var content by remember { mutableStateOf(note.content) }
@@ -77,10 +85,68 @@ internal fun NoteDetailScreen(
         else -> content
     }
 
-    LaunchedEffect(note) {
+    var hasBiometricPassphrase by remember(note.id) {
+        mutableStateOf(biometricStore?.hasPassphrase(note.id) == true)
+    }
+    // Survives rotation (rememberSaveable) so we don't re-trigger after config change.
+    // Resets when note.id changes because note.id is a key.
+    var biometricAutoTriggered by rememberSaveable(note.id) { mutableStateOf(false) }
+
+    val activity = LocalContext.current as? FragmentActivity
+    val biometricTitle = stringResource(R.string.biometric_prompt_title)
+    val biometricSubtitle = stringResource(R.string.biometric_prompt_subtitle)
+    val biometricCancelStr = stringResource(R.string.cancel)
+
+    val biometricUnlockPrompt = remember(activity, biometricStore, note.id) {
+        if (activity == null || biometricStore == null) null
+        else {
+            val executor = ContextCompat.getMainExecutor(activity)
+            val noteId = note.id
+            BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
+                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                    val cipher = result.cryptoObject?.cipher ?: return
+                    val plaintext = biometricStore.loadPassphrase(noteId, cipher) ?: return
+                    val cleaned = stripInvisibleFromEdges(plaintext)
+                    decryptedContent = cleaned
+                    NoteDecryptionSession.put(noteId, cleaned)
+                }
+
+                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {}
+                override fun onAuthenticationFailed() {}
+            })
+        }
+    }
+
+    // Cancel any pending biometric auth when the note changes or the screen is disposed.
+    DisposableEffect(biometricUnlockPrompt) {
+        onDispose { biometricUnlockPrompt?.cancelAuthentication() }
+    }
+
+    fun launchBiometricUnlock() {
+        if (biometricUnlockPrompt == null || biometricStore == null) return
+        // getCipherForDecrypt touches the Keystore (binder) — run on IO to avoid ANR.
+        scope.launch {
+            val cipher = withContext(Dispatchers.IO) { biometricStore.getCipherForDecrypt(note.id) }
+            if (cipher == null) { hasBiometricPassphrase = false; return@launch }
+            biometricUnlockPrompt.authenticate(
+                BiometricPrompt.PromptInfo.Builder()
+                    .setTitle(biometricTitle)
+                    .setSubtitle(biometricSubtitle)
+                    .setNegativeButtonText(biometricCancelStr)
+                    .build(),
+                BiometricPrompt.CryptoObject(cipher),
+            )
+        }
+    }
+
+    LaunchedEffect(note.id) {
         title = stripInvisibleFromEdges(note.title)
         content = stripInvisibleFromEdges(note.content)
         decryptedContent = NoteDecryptionSession.get(note.id)?.let { stripInvisibleFromEdges(it) }
+        if (decryptedContent == null && hasBiometricPassphrase && !biometricAutoTriggered) {
+            biometricAutoTriggered = true
+            launchBiometricUnlock()
+        }
     }
 
     LaunchedEffect(note.encrypted, content, parsed) {
@@ -128,6 +194,11 @@ internal fun NoteDetailScreen(
                     }
                 }
                 if (isEncrypted && decryptedContent == null && isEncryptedByContent) {
+                    if (hasBiometricPassphrase) {
+                        IconButton(onClick = { launchBiometricUnlock() }) {
+                            Icon(Icons.Default.Fingerprint, contentDescription = stringResource(R.string.biometric_unlock))
+                        }
+                    }
                     IconButton(onClick = { showDecryptDialog = true }) {
                         Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_decrypt))
                     }
@@ -176,6 +247,7 @@ internal fun NoteDetailScreen(
                 encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
                 canDecryptInApp = isEncryptedByContent,
                 onDecryptClick = { showDecryptDialog = true },
+                onBiometricClick = if (hasBiometricPassphrase) {{ launchBiometricUnlock() }} else null,
             )
             isEditing -> NoteEditor(
                 title = title,
@@ -235,6 +307,8 @@ internal fun NoteDetailScreen(
         DecryptNoteDialog(
             encryptionMethod = parsed.encryptionMethod,
             encryptedBody = parsed.encryptedBody,
+            noteId = note.id,
+            biometricStore = biometricStore,
             onDismiss = {
                 showDecryptDialog = false
                 decryptError = null
@@ -248,6 +322,7 @@ internal fun NoteDetailScreen(
                 decryptError = null
                 decryptErrorDetail = null
             },
+            onBiometricSaved = { hasBiometricPassphrase = true },
             decryptError = decryptError,
             decryptErrorDetail = decryptErrorDetail,
             onDecryptError = { main, detail ->

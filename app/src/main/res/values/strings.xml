@@ -209,4 +209,16 @@
     <string name="stat_checklists">Checklists</string>
     <string name="stat_users">Users</string>
     <string name="stat_done_percent">Done %%</string>
+
+    <!-- Biometric passphrase protection -->
+    <string name="biometric_prompt_title">Unlock passphrase</string>
+    <string name="biometric_prompt_subtitle">Authenticate to decrypt this note</string>
+    <string name="biometric_prompt_save_title">Save passphrase</string>
+    <string name="biometric_prompt_save_subtitle">Authenticate to remember your passphrase securely</string>
+    <string name="biometric_save_passphrase">Remember with biometric</string>
+    <string name="biometric_unlock">Use biometric</string>
+    <string name="biometric_unavailable">Biometric not available</string>
+    <string name="biometric_error">Biometric authentication failed</string>
+    <string name="biometric_passphrase_saved">Passphrase saved — biometric will unlock it next time</string>
+    <string name="biometric_passphrase_forgotten">Remembered passphrase cleared</string>
 </resources>

@@ -28,6 +28,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
@@ -51,6 +52,7 @@ fun OfflineEnabledNotesScreen(
     onDeepLinkConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
+    biometricStore: BiometricPassphraseStore? = null,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -372,6 +374,7 @@ fun OfflineEnabledNotesScreen(
                         debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
                         isOnline = isOnline,
+                        biometricStore = biometricStore,
                     )
                 }
             }

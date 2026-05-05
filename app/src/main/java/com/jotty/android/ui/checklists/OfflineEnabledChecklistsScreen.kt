@@ -96,11 +96,11 @@ fun OfflineEnabledChecklistsScreen(
 
     LaunchedEffect(conflictsDetected) {
         if (conflictsDetected > 0) {
-            val msg = context.getString(R.string.sync_conflicts_detected, conflictsDetected)
+            val msg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
             scope.launch {
                 val result = snackbarHostState.showSnackbar(
                     message = msg,
-                    actionLabel = context.getString(R.string.view_conflicts),
+                    actionLabel = stringResource(R.string.view_conflicts),
                     duration = SnackbarDuration.Long,
                 )
                 if (result == SnackbarResult.ActionPerformed) vm.applyConflictSearchFilter()

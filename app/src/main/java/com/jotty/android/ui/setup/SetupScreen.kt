@@ -296,6 +296,7 @@ private fun InstanceForm(
     val uriHandler = LocalUriHandler.current
     val fillUrlAndKeyMsg = stringResource(R.string.fill_url_and_key)
     val openBrowserFailedMsg = stringResource(R.string.open_jotty_browser_failed)
+    val connectionFailedFmt = stringResource(R.string.connection_failed)
 
     val instanceColors: List<Long?> = listOf(
         null,
@@ -452,7 +453,7 @@ private fun InstanceForm(
                             settingsRepository.addInstance(instance, setAsCurrent = setAsCurrentOnConnect)
                             if (isEdit) onSaved?.invoke() else if (setAsCurrentOnConnect) onDone() else onSaved?.invoke()
                         } catch (e: Exception) {
-                            error = context.getString(R.string.connection_failed, ApiErrorHelper.userMessage(context, e))
+                            error = String.format(connectionFailedFmt, ApiErrorHelper.userMessage(context, e))
                         } finally {
                             loading = false
                         }

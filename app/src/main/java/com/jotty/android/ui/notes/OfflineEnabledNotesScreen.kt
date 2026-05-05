@@ -82,6 +82,8 @@ fun OfflineEnabledNotesScreen(
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
+    val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
+    val conflictActionLabel = stringResource(R.string.view_conflicts)
 
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
@@ -99,19 +101,15 @@ fun OfflineEnabledNotesScreen(
         }
     }
     
-    // Show conflict notification when conflicts are detected
     LaunchedEffect(conflictsDetected) {
         if (conflictsDetected > 0) {
-            val message = context.getString(R.string.sync_conflicts_detected, conflictsDetected)
             scope.launch {
                 val result = snackbarHostState.showSnackbar(
-                    message = message,
-                    actionLabel = context.getString(R.string.view_conflicts),
-                    duration = SnackbarDuration.Long
+                    message = conflictMsg,
+                    actionLabel = conflictActionLabel,
+                    duration = SnackbarDuration.Long,
                 )
-                if (result == SnackbarResult.ActionPerformed) {
-                    vm.applyConflictSearchFilter()
-                }
+                if (result == SnackbarResult.ActionPerformed) vm.applyConflictSearchFilter()
                 offlineRepository.clearConflictNotification()
             }
         }

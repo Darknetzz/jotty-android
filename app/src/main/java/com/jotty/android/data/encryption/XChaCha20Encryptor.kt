@@ -88,15 +88,17 @@ object XChaCha20Encryptor {
         return try {
             val cipher = ChaCha20Poly1305()
             cipher.init(true, ParametersWithIV(KeyParameter(subkey), nonce12))
-            val ciphertextThenTag = ByteArray(plaintext.size + TAG_BYTES)
-            cipher.processBytes(plaintext, 0, plaintext.size, ciphertextThenTag, 0)
-            cipher.doFinal(ciphertextThenTag, plaintext.size)
-            // Bouncy Castle outputs ciphertext||tag; libsodium secretbox expects tag||ciphertext
-            val tagThenCiphertext = ByteArray(ciphertextThenTag.size).apply {
-                System.arraycopy(ciphertextThenTag, plaintext.size, this, 0, TAG_BYTES)
-                System.arraycopy(ciphertextThenTag, 0, this, TAG_BYTES, plaintext.size)
+            // Use getOutputSize so the buffer is correct whether BC flushes in processBytes
+            // or buffers everything and flushes in doFinal (both are valid implementations).
+            val outBuf = ByteArray(cipher.getOutputSize(plaintext.size))
+            var outLen = cipher.processBytes(plaintext, 0, plaintext.size, outBuf, 0)
+            outLen += cipher.doFinal(outBuf, outLen)
+            // BC outputs ciphertext||tag (IETF order); libsodium secretbox expects tag||ciphertext.
+            val ciphertextLen = outLen - TAG_BYTES
+            ByteArray(outLen).apply {
+                System.arraycopy(outBuf, ciphertextLen, this, 0, TAG_BYTES)
+                System.arraycopy(outBuf, 0, this, TAG_BYTES, ciphertextLen)
             }
-            tagThenCiphertext
         } catch (_: Exception) {
             null
         }

@@ -2,8 +2,13 @@ package com.jotty.android.data.encryption
 
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.util.Base64
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34])
 class XChaCha20EncryptorTest {
 
     @Test

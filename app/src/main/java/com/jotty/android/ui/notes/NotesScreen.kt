@@ -23,6 +23,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
@@ -43,6 +44,7 @@ fun NotesScreen(
     onDeepLinkConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
+    biometricStore: BiometricPassphraseStore? = null,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -230,6 +232,7 @@ fun NotesScreen(
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     debugLoggingEnabled = debugLoggingEnabled,
                     imageLoader = imageLoader,
+                    biometricStore = biometricStore,
                 )
             }
         }

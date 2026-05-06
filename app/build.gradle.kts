@@ -117,6 +117,8 @@ dependencies {
 
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")
+    // FragmentActivity is required by BiometricPrompt; declared explicitly to avoid relying on transitive resolution.
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")

@@ -31,10 +31,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.LocalActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.jotty.android.R
@@ -197,7 +197,7 @@ internal fun DecryptNoteDialog(
     val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
     val decryptAuthFailedHint = stringResource(R.string.decrypt_auth_failed_hint)
 
-    val activity = LocalContext.current as? FragmentActivity
+    val activity = LocalActivity.current as? FragmentActivity
     val biometricSaveTitle = stringResource(R.string.biometric_prompt_save_title)
     val biometricSaveSubtitle = stringResource(R.string.biometric_prompt_save_subtitle)
     val biometricCancelStr = stringResource(R.string.cancel)

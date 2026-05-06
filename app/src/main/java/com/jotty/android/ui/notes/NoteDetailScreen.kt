@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.LocalActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import coil.ImageLoader
@@ -92,7 +93,7 @@ internal fun NoteDetailScreen(
     // Resets when note.id changes because note.id is a key.
     var biometricAutoTriggered by rememberSaveable(note.id) { mutableStateOf(false) }
 
-    val activity = LocalContext.current as? FragmentActivity
+    val activity = LocalActivity.current as? FragmentActivity
     val biometricTitle = stringResource(R.string.biometric_prompt_title)
     val biometricSubtitle = stringResource(R.string.biometric_prompt_subtitle)
     val biometricCancelStr = stringResource(R.string.cancel)

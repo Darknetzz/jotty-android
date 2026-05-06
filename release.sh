@@ -128,7 +128,19 @@ if new_text == text:
 
 link = f"[{version}]: https://github.com/Darknetzz/jotty-android/releases/tag/v{version}"
 if not re.search(rf"^\[{re.escape(version)}\]:\s+", new_text, flags=re.M):
-    new_text = new_text.rstrip() + "\n\n" + link + "\n"
+    lines = new_text.splitlines()
+    insert_at = next(
+        (
+            i for i, line in enumerate(lines)
+            if re.match(r"^\[\d+\.\d+(?:\.\d+)*(?:-[^\]]+)?\]:\s+", line)
+        ),
+        None,
+    )
+    if insert_at is None:
+        new_text = new_text.rstrip() + "\n\n" + link + "\n"
+    else:
+        lines.insert(insert_at, link)
+        new_text = "\n".join(lines) + ("\n" if new_text.endswith("\n") else "")
 
 open(path, "w", encoding="utf-8", newline="\n").write(new_text)
 PY

@@ -6,7 +6,9 @@
 [![Release APK](https://github.com/Darknetzz/jotty-android/actions/workflows/release-apk.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/release-apk.yml)
 [![Dev Latest APK](https://github.com/Darknetzz/jotty-android/actions/workflows/dev-latest.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/dev-latest.yml)
 
-An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-based checklist and notes app.
+An unofficial Android client for [Jotty](https://jotty.page/) — the self-hosted, file-based checklist and notes app.
+
+> This is an independent community project and is not an official Jotty app, and is not affiliated with or endorsed by the Jotty project.
 
 **Disclaimer:** This project is built mostly for personal use. Much of the code was written with AI assistance and may contain bugs or rough edges. If you find issues or want to improve things, issues and contributions are welcome. The web version of Jotty is very much mobile friendly and is probably sufficient for most people.
 

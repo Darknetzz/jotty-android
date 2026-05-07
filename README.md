@@ -1,5 +1,8 @@
 # Jotty Android
 
+[![Latest release](https://img.shields.io/github/v/release/Darknetzz/jotty-android?label=stable%20apk)](https://github.com/Darknetzz/jotty-android/releases/latest)
+[![Dev latest](https://img.shields.io/github/v/release/Darknetzz/jotty-android?include_prereleases&filter=dev-latest&label=dev-latest)](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+
 An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-based checklist and notes app.
 
 **Disclaimer:** This project is built mostly for personal use. Much of the code was written with AI assistance and may contain bugs or rough edges. If you find issues or want to improve things, issues and contributions are welcome. The web version of Jotty is very much mobile friendly and is probably sufficient for most people.
@@ -21,7 +24,12 @@ An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-bas
 
 ## Releases / Download
 
-Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. Download the latest `jotty-android-*.apk` and install on your device (enable “Install from unknown sources” if needed).
+Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. When a GitHub Release is published, CI builds a release APK and attaches it automatically.
+
+- **Stable release builds:** download the `jotty-android-*.apk` asset from the release you want.
+- **Rolling dev build:** use the [Dev Latest pre-release](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest), which is updated automatically on every push to `dev`.
+
+Install on your device by enabling "Install from unknown sources" if needed.
 
 ## Setup
 

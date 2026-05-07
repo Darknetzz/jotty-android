@@ -1,0 +1,42 @@
+name: Dev Latest APK
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  dev-latest-apk:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Build debug APK
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+
+      - name: Publish rolling dev-latest pre-release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: dev-latest
+          commit: ${{ github.sha }}
+          name: Dev Latest
+          body: |
+            Rolling pre-release build from `dev`.
+            Commit: ${{ github.sha }}
+            Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          prerelease: true
+          makeLatest: false
+          artifacts: app/build/outputs/apk/debug/*.apk
+          artifactErrorsFailBuild: true
+          allowUpdates: true
+          removeArtifacts: true
+          replacesArtifacts: true

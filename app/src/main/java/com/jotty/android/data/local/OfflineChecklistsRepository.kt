@@ -1,10 +1,6 @@
 package com.jotty.android.data.local
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import androidx.room.withTransaction
 import com.google.gson.Gson
 import com.jotty.android.data.api.AddItemRequest
@@ -14,18 +10,13 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.util.AppLog
-import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.UUID
@@ -44,7 +35,7 @@ private val gson = Gson()
  * replay silently skips such failing ops — acceptable for a single-user homelab app.
  */
 class OfflineChecklistsRepository(
-    private val context: Context,
+    context: Context,
     private val database: JottyDatabase,
     private val instanceId: String,
     private val api: JottyApi,
@@ -52,71 +43,23 @@ class OfflineChecklistsRepository(
     private val registerNetworkCallback: Boolean = true,
 ) {
     private val checklistDao = database.checklistDao()
+    private val runtime = OfflineRepositoryLifecycle(
+        context = context,
+        initialOnlineOverride = initialOnlineOverride,
+        registerNetworkCallback = registerNetworkCallback,
+        logTag = TAG,
+        instanceId = instanceId,
+        onNetworkAvailable = { syncChecklists() },
+    )
 
-    private val scopeExceptionHandler = CoroutineExceptionHandler { _, t ->
-        AppLog.d(TAG, "Background coroutine failed: ${t.message}")
-    }
-    private val coroutineScope =
-        CoroutineScope(SupervisorJob() + Dispatchers.IO + scopeExceptionHandler)
-
-    private val _isOnline = MutableStateFlow(initialOnlineOverride ?: checkConnectivity())
-    val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
-
-    private val _isSyncing = MutableStateFlow(false)
-    val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
-
-    private val _conflictsDetected = MutableStateFlow(0)
-    val conflictsDetected: StateFlow<Int> = _conflictsDetected.asStateFlow()
-
-    private val connectivityManager =
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
-
-    @Volatile private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    @Volatile private var closed = false
-
-    init {
-        if (registerNetworkCallback) {
-            connectivityManager?.let { cm ->
-                val req = NetworkRequest.Builder()
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    .build()
-                val cb = object : ConnectivityManager.NetworkCallback() {
-                    override fun onAvailable(network: Network) {
-                        if (closed) return
-                        AppLog.d(TAG, "Network available")
-                        _isOnline.value = true
-                        coroutineScope.launch { syncChecklists() }
-                    }
-
-                    override fun onLost(network: Network) {
-                        if (closed) return
-                        AppLog.d(TAG, "Network lost")
-                        _isOnline.value = false
-                    }
-                }
-                networkCallback = cb
-                cm.registerNetworkCallback(req, cb)
-                AppLog.d(TAG, "Network callback registered (instance: $instanceId)")
-            }
-        }
-    }
+    val isOnline: StateFlow<Boolean> = runtime.syncStatus.isOnline
+    val isSyncing: StateFlow<Boolean> = runtime.syncStatus.isSyncing
+    val conflictsDetected: StateFlow<Int> = runtime.syncStatus.conflictsDetected
+    private val _replayFailuresDetected = MutableStateFlow(0)
+    val replayFailuresDetected: StateFlow<Int> = _replayFailuresDetected.asStateFlow()
 
     fun close() {
-        if (closed) return
-        closed = true
-        networkCallback?.let {
-            connectivityManager?.unregisterNetworkCallback(it)
-            networkCallback = null
-        }
-        coroutineScope.cancel()
-        AppLog.d(TAG, "Closed (instance: $instanceId)")
-    }
-
-    private fun checkConnectivity(): Boolean {
-        val cm = connectivityManager ?: return false
-        val net = cm.activeNetwork ?: return false
-        val caps = cm.getNetworkCapabilities(net) ?: return false
-        return caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        runtime.close()
     }
 
     // ─── Flows ──────────────────────────────────────────────────────────────
@@ -126,7 +69,9 @@ class OfflineChecklistsRepository(
             .map { it.map { e -> e.toChecklist() } }
             .flowOn(Dispatchers.IO)
 
-    fun clearConflictNotification() { _conflictsDetected.value = 0 }
+    fun clearConflictNotification() { runtime.syncStatus.setConflictsDetected(0) }
+
+    fun clearReplayFailureNotification() { _replayFailuresDetected.value = 0 }
 
     // ─── CRUD ───────────────────────────────────────────────────────────────
 
@@ -169,7 +114,7 @@ class OfflineChecklistsRepository(
             } else {
                 checklistDao.markAsDeleted(id)
                 AppLog.d(TAG, "Checklist marked for deletion: $id")
-                if (_isOnline.value) syncDeletedChecklist(id)
+                if (isOnline.value) syncDeletedChecklist(id)
             }
         }
     }
@@ -182,7 +127,7 @@ class OfflineChecklistsRepository(
         parentIndex: String? = null,
     ): Result<Checklist> = withContext(Dispatchers.IO) {
         runCatching {
-            if (_isOnline.value) {
+            if (isOnline.value) {
                 val response = api.addChecklistItem(
                     checklistId,
                     AddItemRequest(text = text, parentIndex = parentIndex),
@@ -204,7 +149,7 @@ class OfflineChecklistsRepository(
     suspend fun checkItem(checklistId: String, path: String): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
-                if (_isOnline.value) {
+                if (isOnline.value) {
                     api.checkItem(checklistId, path)
                     refreshFromServer(checklistId)
                 } else {
@@ -216,7 +161,7 @@ class OfflineChecklistsRepository(
     suspend fun uncheckItem(checklistId: String, path: String): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
-                if (_isOnline.value) {
+                if (isOnline.value) {
                     api.uncheckItem(checklistId, path)
                     refreshFromServer(checklistId)
                 } else {
@@ -228,7 +173,7 @@ class OfflineChecklistsRepository(
     suspend fun deleteItem(checklistId: String, path: String): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
-                if (_isOnline.value) {
+                if (isOnline.value) {
                     api.deleteItem(checklistId, path)
                     refreshFromServer(checklistId)
                 } else {
@@ -243,7 +188,7 @@ class OfflineChecklistsRepository(
         text: String,
     ): Result<Checklist> = withContext(Dispatchers.IO) {
         runCatching {
-            if (_isOnline.value) {
+            if (isOnline.value) {
                 api.updateItem(checklistId, path, UpdateItemRequest(text = text))
                 refreshFromServer(checklistId)
             } else {
@@ -258,10 +203,11 @@ class OfflineChecklistsRepository(
     // ─── Sync ────────────────────────────────────────────────────────────────
 
     suspend fun syncChecklists(): Result<Unit> = withContext(Dispatchers.IO) {
-        if (_isSyncing.value) return@withContext Result.success(Unit)
-        if (!_isOnline.value) return@withContext Result.failure(Exception("Offline"))
+        if (isSyncing.value) return@withContext Result.success(Unit)
+        if (!isOnline.value) return@withContext Result.failure(Exception("Offline"))
 
-        _isSyncing.value = true
+        runtime.syncStatus.setSyncing(true)
+        _replayFailuresDetected.value = 0
         AppLog.d(TAG, "Starting sync…")
         try {
             val localBefore = checklistDao.getAllChecklists(instanceId).associateBy { it.id }
@@ -301,7 +247,7 @@ class OfflineChecklistsRepository(
                 checklistDao.insertAll(serverChecklists.map { it.toEntity(instanceId) })
                 if (conflictCopies.isNotEmpty()) checklistDao.insertAll(conflictCopies)
             }
-            _conflictsDetected.value = if (conflictCopies.isNotEmpty()) conflictCopies.size else 0
+            runtime.syncStatus.setConflictsDetected(if (conflictCopies.isNotEmpty()) conflictCopies.size else 0)
 
             AppLog.d(TAG, "Sync complete — ${serverChecklists.size} checklists from server")
             Result.success(Unit)
@@ -309,7 +255,7 @@ class OfflineChecklistsRepository(
             AppLog.d(TAG, "Sync failed: ${e.message}")
             Result.failure(e)
         } finally {
-            _isSyncing.value = false
+            runtime.syncStatus.setSyncing(false)
         }
     }
 
@@ -358,6 +304,7 @@ class OfflineChecklistsRepository(
     }
 
     private suspend fun replayPendingOps(entity: ChecklistEntity) {
+        var failedOps = 0
         for (op in entity.pendingOps()) {
             runCatching {
                 when (op.type) {
@@ -372,7 +319,15 @@ class OfflineChecklistsRepository(
                         entity.id, op.path!!, UpdateItemRequest(text = op.text ?: ""),
                     )
                 }
-            }.onFailure { AppLog.d(TAG, "Pending op ${op.type} failed (stale path?): ${it.message}") }
+            }.onFailure {
+                failedOps += 1
+                AppLog.d(TAG, "Pending op ${op.type} failed (stale path?): ${it.message}")
+            }
+        }
+
+        if (failedOps > 0) {
+            _replayFailuresDetected.value += failedOps
+            AppLog.d(TAG, "Replay completed with $failedOps failed operation(s)")
         }
     }
 

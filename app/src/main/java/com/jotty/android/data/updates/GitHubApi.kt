@@ -10,4 +10,8 @@ interface GitHubApi {
 
     @GET("repos/Darknetzz/jotty-android/releases/latest")
     suspend fun getLatestRelease(): GitHubReleaseResponse
+
+    /** Rolling dev build (GitHub Actions publishes tag `dev-latest`). */
+    @GET("repos/Darknetzz/jotty-android/releases/tags/dev-latest")
+    suspend fun getDevLatestRelease(): GitHubReleaseResponse
 }

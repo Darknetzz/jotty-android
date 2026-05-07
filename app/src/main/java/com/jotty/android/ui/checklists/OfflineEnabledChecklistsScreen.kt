@@ -60,6 +60,7 @@ fun OfflineEnabledChecklistsScreen(
     val isOnline by offlineRepository.isOnline.collectAsState()
     val isSyncing by offlineRepository.isSyncing.collectAsState()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsState()
+    val replayFailuresDetected by offlineRepository.replayFailuresDetected.collectAsState()
 
     val selectedList by vm.selectedList.collectAsState()
     val showCreateDialog by vm.showCreateDialog.collectAsState()
@@ -71,12 +72,15 @@ fun OfflineEnabledChecklistsScreen(
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
 
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
+    val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
+    val conflictActionLabel = stringResource(R.string.view_conflicts)
+    val replayFailedMsg = stringResource(R.string.sync_replay_ops_failed, replayFailuresDetected)
 
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
@@ -96,15 +100,26 @@ fun OfflineEnabledChecklistsScreen(
 
     LaunchedEffect(conflictsDetected) {
         if (conflictsDetected > 0) {
-            val msg = context.getString(R.string.sync_conflicts_detected, conflictsDetected)
             scope.launch {
                 val result = snackbarHostState.showSnackbar(
-                    message = msg,
-                    actionLabel = context.getString(R.string.view_conflicts),
+                    message = conflictMsg,
+                    actionLabel = conflictActionLabel,
                     duration = SnackbarDuration.Long,
                 )
                 if (result == SnackbarResult.ActionPerformed) vm.applyConflictSearchFilter()
                 offlineRepository.clearConflictNotification()
+            }
+        }
+    }
+
+    LaunchedEffect(replayFailuresDetected) {
+        if (replayFailuresDetected > 0) {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = replayFailedMsg,
+                    duration = SnackbarDuration.Long,
+                )
+                offlineRepository.clearReplayFailureNotification()
             }
         }
     }
@@ -341,7 +356,7 @@ fun OfflineEnabledChecklistsScreen(
     }
 }
 
-// ─── Checklist card ──────────────────────────────────────────────────────────
+// ─── Checklist card ───────────────────────────────────────────────────────────────────
 
 @Composable
 private fun OfflineChecklistCard(
@@ -417,7 +432,7 @@ private fun OfflineChecklistCard(
     }
 }
 
-// ─── Detail screen ───────────────────────────────────────────────────────────
+// ─── Detail screen ────────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -596,7 +611,7 @@ private fun OfflineChecklistDetailContent(
     }
 }
 
-// ─── Item row ────────────────────────────────────────────────────────────────
+// ─── Item row ─────────────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -679,7 +694,7 @@ private fun OfflineItemRow(
     }
 }
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────────────
 
 @Composable
 private fun SectionLabel(title: String) {

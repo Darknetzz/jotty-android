@@ -1,10 +1,10 @@
-# Offline Notes Support
+# Offline Notes & Checklists Support
 
 ## Overview
 
-Jotty Android now supports offline note-taking with automatic synchronization when you're back online. This feature allows you to:
+Jotty Android supports offline note-taking and checklist management with automatic synchronization when you're back online. This feature allows you to:
 
-- Create, edit, and delete notes without an internet connection
+- Create, edit, and delete notes and checklists without an internet connection
 - Have your changes automatically saved locally
 - Sync your changes to the Jotty server when connectivity is restored
 - Continue working seamlessly across offline and online states
@@ -13,7 +13,7 @@ Jotty Android now supports offline note-taking with automatic synchronization wh
 
 ### Local Storage
 
-When offline mode is enabled (which it is by default), the app stores notes locally using Room database. Each note is cached along with metadata indicating whether it needs to be synced to the server.
+When offline mode is enabled (which it is by default), the app stores notes and checklists locally using Room database. Local entries are cached with metadata indicating whether they need to be synced to the server.
 
 ### Connectivity Monitoring
 
@@ -117,7 +117,7 @@ Key implementation files:
 
 ## Limitations
 
-- **Checklists**: Currently only notes support offline mode; checklists require online connection
+- **Checklists**: Offline mode now supports checklists as well, but advanced checklist conflict UX is still simpler than notes
 - **Encryption**: Encrypted notes can be viewed offline but must be decrypted while online first
 - **Categories**: New categories created offline won't appear in filters until synced
 

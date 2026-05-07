@@ -28,6 +28,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
@@ -51,6 +52,7 @@ fun OfflineEnabledNotesScreen(
     onDeepLinkConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
+    biometricStore: BiometricPassphraseStore? = null,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -82,6 +84,8 @@ fun OfflineEnabledNotesScreen(
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
+    val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
+    val conflictActionLabel = stringResource(R.string.view_conflicts)
 
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
@@ -99,19 +103,15 @@ fun OfflineEnabledNotesScreen(
         }
     }
     
-    // Show conflict notification when conflicts are detected
     LaunchedEffect(conflictsDetected) {
         if (conflictsDetected > 0) {
-            val message = context.getString(R.string.sync_conflicts_detected, conflictsDetected)
             scope.launch {
                 val result = snackbarHostState.showSnackbar(
-                    message = message,
-                    actionLabel = context.getString(R.string.view_conflicts),
-                    duration = SnackbarDuration.Long
+                    message = conflictMsg,
+                    actionLabel = conflictActionLabel,
+                    duration = SnackbarDuration.Long,
                 )
-                if (result == SnackbarResult.ActionPerformed) {
-                    vm.applyConflictSearchFilter()
-                }
+                if (result == SnackbarResult.ActionPerformed) vm.applyConflictSearchFilter()
                 offlineRepository.clearConflictNotification()
             }
         }
@@ -374,6 +374,7 @@ fun OfflineEnabledNotesScreen(
                         debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
                         isOnline = isOnline,
+                        biometricStore = biometricStore,
                     )
                 }
             }

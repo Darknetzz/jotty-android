@@ -13,6 +13,7 @@ val keystoreProperties = Properties().apply {
         load(keystorePropertiesFile.inputStream())
     }
 }
+val devBuildSha = rootProject.findProperty("DEV_BUILD_SHA")?.toString()?.take(7)
 
 android {
     namespace = "com.jotty.android"
@@ -39,6 +40,11 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            if (!devBuildSha.isNullOrBlank()) {
+                versionNameSuffix = "-dev+$devBuildSha"
+            }
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(
@@ -114,6 +120,11 @@ dependencies {
 
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
     implementation("org.bouncycastle:bcprov-jdk18on:1.79")
+
+    // Biometric authentication (note passphrase protection)
+    implementation("androidx.biometric:biometric:1.1.0")
+    // FragmentActivity is required by BiometricPrompt; declared explicitly to avoid relying on transitive resolution.
+    implementation("androidx.fragment:fragment-ktx:1.8.5")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")

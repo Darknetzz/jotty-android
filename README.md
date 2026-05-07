@@ -1,6 +1,14 @@
 # Jotty Android
 
-An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-based checklist and notes app.
+[![Latest release](https://img.shields.io/github/v/release/Darknetzz/jotty-android?label=stable%20apk)](https://github.com/Darknetzz/jotty-android/releases/latest)
+[![Dev latest](https://img.shields.io/github/v/release/Darknetzz/jotty-android?include_prereleases&filter=dev-latest&label=dev-latest)](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+[![CI](https://github.com/Darknetzz/jotty-android/actions/workflows/ci.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/ci.yml)
+[![Release APK](https://github.com/Darknetzz/jotty-android/actions/workflows/release-apk.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/release-apk.yml)
+[![Dev Latest APK](https://github.com/Darknetzz/jotty-android/actions/workflows/dev-latest.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/dev-latest.yml)
+
+An unofficial Android client for [Jotty](https://jotty.page/) — the self-hosted, file-based checklist and notes app.
+
+> This is an independent community project and is not an official Jotty app, and is not affiliated with or endorsed by the Jotty project.
 
 **Disclaimer:** This project is built mostly for personal use. Much of the code was written with AI assistance and may contain bugs or rough edges. If you find issues or want to improve things, issues and contributions are welcome. The web version of Jotty is very much mobile friendly and is probably sufficient for most people.
 
@@ -8,20 +16,26 @@ An Android client for [Jotty](https://jotty.page/) — the self-hosted, file-bas
 
 - **Checklists** — Create, view, and manage checklists. Add items, check/uncheck tasks, and track progress.
 - **Notes** — Create and edit notes with Markdown support. View and save your content.
-- **Offline support** — Take notes without an internet connection. Changes sync automatically when you're back online.
+- **Offline support** — Work on notes and checklists without an internet connection. Changes sync automatically when you're back online.
 - **Connect to your server** — Works with any self-hosted Jotty instance. Configure server URL and API key once.
 
 ## Screenshots
 
 |  |  |
 |---|---|
-| <img src="images/Screenshot_20260505_111356_Jotty.png" alt="Settings screen with instance overview, theme mode, color theme, and content padding options" width="230" /><br />Adjust app preferences like theme mode, color palette, and layout density. | <img src="images/Screenshot_20260505_111502_Jotty.png" alt="Manage instances form for adding or editing a Jotty server with URL, API key, and accent color" width="230" /><br />Add or edit a server instance by entering name, URL, API key, and color. |
-| <img src="images/Screenshot_20260505_111515_Jotty.png" alt="Manage instances list with saved servers and actions for default, edit, delete, and add new instance" width="230" /><br />Manage saved instances, choose default, edit details, or remove entries. | <img src="images/Screenshot_20260505_111800_Jotty.png" alt="Settings screen showing connected instance, default-instance option, and appearance settings" width="230" /><br />Review connected instance details and set defaults and appearance options. |
-| <img src="images/f9647f9e-6846-472f-b12c-02f573450608.png" alt="Notes tab with search, category filters, and a list of note cards" width="230" /><br />Browse notes with search and category filters, including protected notes. | <img src="images/5a5fb2e8-9c47-420b-96e9-8d0fd6b3cb38.png" alt="Checklists tab with progress bars and completion counts for each checklist" width="230" /><br />Track checklist progress at a glance with per-list completion bars and counts. |
+| <img src="images/Screenshot_20260507_135939_Jotty.png" alt="Connect to Jotty setup form with name, server URL, API key, and color picker" width="230" /><br />Connect to Jotty by entering instance details and selecting an accent color. | <img src="images/Screenshot_20260505_111356_Jotty.png" alt="Settings screen with instance overview, theme mode, color theme, and content padding options" width="230" /><br />Adjust app preferences like theme mode, color palette, and layout density. |
+| <img src="images/Screenshot_20260505_111502_Jotty.png" alt="Manage instances form for adding or editing a Jotty server with URL, API key, and accent color" width="230" /><br />Add or edit a server instance by entering name, URL, API key, and color. | <img src="images/Screenshot_20260505_111515_Jotty.png" alt="Manage instances list with saved servers and actions for default, edit, delete, and add new instance" width="230" /><br />Manage saved instances, choose default, edit details, or remove entries. |
+| <img src="images/Screenshot_20260505_111800_Jotty.png" alt="Settings screen showing connected instance, default-instance option, and appearance settings" width="230" /><br />Review connected instance details and set defaults and appearance options. | <img src="images/f9647f9e-6846-472f-b12c-02f573450608.png" alt="Notes tab with search, category filters, and a list of note cards" width="230" /><br />Browse notes with search and category filters, including protected notes. |
+| <img src="images/5a5fb2e8-9c47-420b-96e9-8d0fd6b3cb38.png" alt="Checklists tab with progress bars and completion counts for each checklist" width="230" /><br />Track checklist progress at a glance with per-list completion bars and counts. |  |
 
 ## Releases / Download
 
-Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. Download the latest `jotty-android-*.apk` and install on your device (enable “Install from unknown sources” if needed).
+Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. When a GitHub Release is published, CI builds a release APK and attaches it automatically.
+
+- **Stable release builds:** download the `jotty-android-*.apk` asset from the release you want.
+- **Rolling dev build:** use the [Dev Latest pre-release](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest), which is updated automatically on every push to `dev`.
+
+Install on your device by enabling "Install from unknown sources" if needed.
 
 ## Setup
 
@@ -106,7 +120,8 @@ The server is decoding encrypted content with **hex** while the Android app (and
 - **Jetpack Compose** — UI
 - **Retrofit** — REST API client for Jotty
 - **Room** — Local database for offline storage
-- **DataStore** — Storing app settings and server credentials
+- **DataStore** — Storing app settings and instance metadata
+- **EncryptedSharedPreferences** — Secure API key storage (with DataStore fallback when unavailable)
 - **Navigation Compose** — Screen navigation
 
 ## Offline Support

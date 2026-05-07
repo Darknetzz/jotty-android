@@ -6,6 +6,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
 
 /**
@@ -27,7 +28,9 @@ fun OfflineNotesScreen(
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
 ) {
-    val application = LocalContext.current.applicationContext as Application
+    val context = LocalContext.current
+    val application = context.applicationContext as Application
+    val biometricStore = remember { BiometricPassphraseStore(context.applicationContext) }
     val vm: OfflineNotesViewModel = viewModel(
         key = "$instanceId|$authFingerprint",
         factory = OfflineNotesViewModel.Factory(application, instanceId, api),
@@ -50,6 +53,7 @@ fun OfflineNotesScreen(
             onDeepLinkConsumed = onDeepLinkConsumed,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
             imageLoader = imageLoader,
+            biometricStore = biometricStore,
         )
     } else {
         NotesScreen(
@@ -59,6 +63,7 @@ fun OfflineNotesScreen(
             onDeepLinkConsumed = onDeepLinkConsumed,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
             imageLoader = imageLoader,
+            biometricStore = biometricStore,
         )
     }
 }

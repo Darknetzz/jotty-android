@@ -306,8 +306,16 @@ class OfflineNotesRepositoryTest {
         val entityAfterEdit = database.noteDao().getNoteById(localId)
         assertTrue("isLocalOnly must survive offline edit", entityAfterEdit!!.isLocalOnly)
 
-        // Now go online and sync — must call createNote, never updateNote.
-        val syncResult = repo.syncNotes()
+        // Simulate going online: create a new repo pointing at the same DB and API with online=true.
+        val onlineRepo = OfflineNotesRepository(
+            context = context,
+            database = database,
+            instanceId = instanceId,
+            api = api,
+            initialOnlineOverride = true,
+            registerNetworkCallback = false,
+        )
+        val syncResult = onlineRepo.syncNotes()
         assertTrue(syncResult.isSuccess)
         assertTrue("createNote must be called when syncing a local-only note", createCalled)
         assertFalse("updateNote must not be called for a note never seen by the server", updateCalled)
@@ -380,7 +388,7 @@ class OfflineNotesRepositoryTest {
             ),
         )
 
-        OfflineNotesRepository.clearLocalNotes(context, instanceId)
+        OfflineNotesRepository.clearLocalNotes(context, instanceId, database)
 
         assertTrue(database.noteDao().getAllNotes(instanceId).isEmpty())
         assertEquals(1, database.noteDao().getAllNotes(otherInstanceId).size)

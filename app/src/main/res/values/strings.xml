@@ -173,6 +173,7 @@
     <string name="saved_locally">Saved locally</string>
     <string name="will_sync_when_online">Will sync when online</string>
     <string name="sync_conflicts_detected">%d conflict(s) detected. Local copies created to preserve your data.</string>
+    <string name="sync_replay_ops_failed">%d checklist change(s) could not be replayed automatically. Please review the checklist.</string>
     <string name="conflict_copy_pending">1 local copy needs review.</string>
     <string name="conflict_copies_pending">%d local copies need review.</string>
     <string name="view_conflicts">View copies</string>
@@ -192,15 +193,22 @@
     <string name="version_format">%1$s (%2$d)</string>
     <string name="view_source_github">View source on GitHub</string>
     <string name="check_for_updates">Check for updates</string>
+    <string name="update_channel_label">Update channel</string>
+    <string name="update_channel_stable">Stable</string>
+    <string name="update_channel_dev">Dev</string>
     <string name="checking_for_updates">Checking for updates…</string>
     <string name="update_available">Version %1$s is available</string>
     <string name="download_and_install">Download and install</string>
     <string name="you_are_up_to_date">You\'re on the latest version</string>
     <string name="update_check_error">Could not check for updates: %1$s</string>
+    <string name="update_check_dev_parse_error">Could not read dev build info from the release</string>
+    <string name="update_version_dev_format">Dev %1$s</string>
     <string name="downloading">Downloading…</string>
     <string name="install_failed">%1$s. You can install from the release page.</string>
     <string name="open_release_page">Open release page</string>
     <string name="whats_new">What\'s new</string>
+    <string name="about_easter_egg_title">Well spotted</string>
+    <string name="about_easter_egg_body">Seven taps on the version — you must really like release numbers. Thanks for using Jotty Android; now go tick something off your list.</string>
 
     <!-- Dashboard -->
     <string name="user_label">User</string>
@@ -209,4 +217,16 @@
     <string name="stat_checklists">Checklists</string>
     <string name="stat_users">Users</string>
     <string name="stat_done_percent">Done %%</string>
+
+    <!-- Biometric passphrase protection -->
+    <string name="biometric_prompt_title">Unlock passphrase</string>
+    <string name="biometric_prompt_subtitle">Authenticate to decrypt this note</string>
+    <string name="biometric_prompt_save_title">Save passphrase</string>
+    <string name="biometric_prompt_save_subtitle">Authenticate to remember your passphrase securely</string>
+    <string name="biometric_save_passphrase">Remember with biometric</string>
+    <string name="biometric_unlock">Use biometric</string>
+    <string name="biometric_unavailable">Biometric not available</string>
+    <string name="biometric_error">Biometric authentication failed</string>
+    <string name="biometric_passphrase_saved">Passphrase saved — biometric will unlock it next time</string>
+    <string name="biometric_passphrase_forgotten">Remembered passphrase cleared</string>
 </resources>

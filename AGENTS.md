@@ -5,7 +5,7 @@ This file helps AI agents and contributors work effectively on the project.
 ## Project summary
 
 - **What it is:** Android client for [Jotty](https://jotty.page/) (self-hosted checklists and notes).
-- **Stack:** Kotlin, Jetpack Compose, Retrofit, DataStore, Navigation Compose.
+- **Stack:** Kotlin, Jetpack Compose, Retrofit, Room, DataStore, Navigation Compose.
 - **API:** Jotty REST API; auth via `x-api-key` header. See [Jotty API](https://github.com/fccview/jotty/blob/main/howto/API.md).
 
 ## Codebase layout
@@ -48,14 +48,14 @@ app/src/main/java/com/jotty/android/
 
 ## Build and run
 
-- **Requirements:** JDK 17+, Android SDK 35. Min SDK 26.
+- **Requirements:** JDK 17+, Android SDK 36. Min SDK 26.
 - **Commands:** `./gradlew assembleDebug` or `./gradlew assembleRelease`. On Windows use `gradlew.bat` or the `build.ps1` script (handles wrapper and Java check).
 - **BuildConfig:** Must be enabled in `app/build.gradle.kts` (`buildFeatures { buildConfig = true }`) for `BuildConfig.VERSION_NAME` / `VERSION_CODE` (e.g. About screen).
 - **Tests:** `./gradlew test` runs JVM unit tests in `app/src/test/`.
 
 ## Feature notes
 
-- **Checklists:** Task projects use type `"task"` and `apiPath` for hierarchy. Progress "X / Y done" on detail. Checkbox = complete/uncomplete; tap task text = inline edit; delete button per row. Swipe row left to delete checklist (disabled by default; enable in Settings). Pull-to-refresh (swipe down), empty/error states.
+- **Checklists:** Task projects use type `"task"` and `apiPath` for hierarchy. Progress "X / Y done" on detail. Checkbox = complete/uncomplete; tap task text = inline edit; delete button per row. Swipe row left to delete checklist (disabled by default; enable in Settings). Pull-to-refresh (swipe down), empty/error states. Offline mode supports local checklist edits with sync on reconnect.
 - **Notes:** List: search, category filter chips, pull-to-refresh (swipe down), empty/error states. Swipe-to-delete disabled by default; enable in Settings. Plain notes show Markdown in view mode; export/share (title + content). Encrypted notes: lock icon, "Decrypt" for XChaCha20; decrypted content cached in session via `NoteDecryptionSession`; "Encrypt" action and `EncryptNoteDialog` (passphrase, min 12 chars) using `XChaCha20Encryptor` and frontmatter-wrapped body. **Encrypt and decrypt run on a background thread** (`Dispatchers.Default`) so the UI stays responsive; dialogs show a loading state during the operation. If encrypt returns null, the dialog shows an error. Swipe row left to delete note. PGP is not supported in-app.
 - **Instances:** Stored in `SettingsRepository`; optional `colorHex` per instance. Default instance: `defaultInstanceId` used when opening app with no current instance; star in Setup and Settings to set default. Add/edit/delete instances from Settings → "Manage instances" without disconnecting; "Disconnect" clears current instance only.
 - **Settings:** Health check (api.health()), "Set as default instance" row, theme, start screen tab, swipe to delete, content padding, **debug logging** (General; when enabled, `AppLog.d()` writes to logcat, e.g. decryption failure step), dashboard from `api/summary`, About.

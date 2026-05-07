@@ -1,6 +1,8 @@
 package com.jotty.android.ui.settings
 
+import android.os.SystemClock
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +20,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -27,8 +30,10 @@ import com.jotty.android.BuildConfig
 import com.jotty.android.R
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.data.updates.InstallResult
+import com.jotty.android.data.updates.UpdateChannel
 import com.jotty.android.data.updates.UpdateCheckResult
 import com.jotty.android.data.updates.UpdateChecker
+import com.jotty.android.data.updates.parseUpdateChannel
 import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.SummaryData
@@ -52,6 +57,7 @@ fun SettingsScreen(
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsState(initial = false)
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsState(initial = true)
+    val updateChannelPref by settingsRepository.updateChannel.collectAsState(initial = "stable")
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
@@ -444,6 +450,10 @@ fun SettingsScreen(
             versionName = BuildConfig.VERSION_NAME ?: "\u2014",
             versionCode = BuildConfig.VERSION_CODE,
             serverVersion = serverVersion,
+            updateChannelPref = updateChannelPref,
+            onUpdateChannelChange = { ch ->
+                scope.launch { settingsRepository.setUpdateChannel(ch) }
+            },
         )
     }
 }
@@ -548,6 +558,9 @@ private fun SettingsSectionSubtitle(title: String) {
 
 private const val GITHUB_REPO_URL = "https://github.com/Darknetzz/jotty-android"
 private const val GITHUB_RELEASES_URL = "$GITHUB_REPO_URL/releases"
+private const val GITHUB_DEV_RELEASE_URL = "$GITHUB_REPO_URL/releases/tag/dev-latest"
+private const val ABOUT_EASTER_EGG_TAPS = 7
+private const val ABOUT_EASTER_EGG_RESET_MS = 700L
 
 @Composable
 private fun AboutDialog(
@@ -555,12 +568,23 @@ private fun AboutDialog(
     versionName: String,
     versionCode: Int,
     serverVersion: String? = null,
+    updateChannelPref: String,
+    onUpdateChannelChange: (String) -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val parsedChannel = parseUpdateChannel(updateChannelPref)
+    val releasePageUrl = if (parsedChannel == UpdateChannel.Dev) GITHUB_DEV_RELEASE_URL else GITHUB_RELEASES_URL
     var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Idle) }
     var downloadProgress by remember { mutableStateOf<Float?>(null) }
+    var versionTapCount by remember { mutableIntStateOf(0) }
+    var versionLastTapElapsedMs by remember { mutableLongStateOf(0L) }
+    var showAboutEasterEgg by remember { mutableStateOf(false) }
+
+    LaunchedEffect(updateChannelPref) {
+        updateState = UpdateUiState.Idle
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -576,7 +600,25 @@ private fun AboutDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = {
+                                    val now = SystemClock.elapsedRealtime()
+                                    if (versionLastTapElapsedMs != 0L && now - versionLastTapElapsedMs > ABOUT_EASTER_EGG_RESET_MS) {
+                                        versionTapCount = 0
+                                    }
+                                    versionLastTapElapsedMs = now
+                                    versionTapCount++
+                                    if (versionTapCount >= ABOUT_EASTER_EGG_TAPS) {
+                                        versionTapCount = 0
+                                        versionLastTapElapsedMs = 0L
+                                        showAboutEasterEgg = true
+                                    }
+                                },
+                            )
+                        },
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium)
@@ -606,13 +648,31 @@ private fun AboutDialog(
                     Text(stringResource(R.string.view_source_github))
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                SettingsSectionSubtitle(stringResource(R.string.update_channel_label))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = parsedChannel == UpdateChannel.Stable,
+                        onClick = { onUpdateChannelChange("stable") },
+                        label = { Text(stringResource(R.string.update_channel_stable)) },
+                    )
+                    FilterChip(
+                        selected = parsedChannel == UpdateChannel.Dev,
+                        onClick = { onUpdateChannelChange("dev") },
+                        label = { Text(stringResource(R.string.update_channel_dev)) },
+                    )
+                }
                 when (val state = updateState) {
                     UpdateUiState.Idle -> {
                         TextButton(
                             onClick = {
                                 scope.launch {
                                     updateState = UpdateUiState.Checking
-                                    updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate(context))
+                                    updateState = UpdateUiState.Result(
+                                        UpdateChecker.checkForUpdate(context, parsedChannel),
+                                    )
                                 }
                             },
                             contentPadding = PaddingValues(0.dp),
@@ -674,7 +734,7 @@ private fun AboutDialog(
                                     downloadProgress = null
                                 }
                             },
-                            onOpenReleasePage = { uriHandler.openUri(GITHUB_RELEASES_URL) },
+                            onOpenReleasePage = { uriHandler.openUri(releasePageUrl) },
                         )
                         is UpdateCheckResult.UpToDate -> {
                             Text(
@@ -699,7 +759,9 @@ private fun AboutDialog(
                                 onClick = {
                                     scope.launch {
                                         updateState = UpdateUiState.Checking
-                                        updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate(context))
+                                        updateState = UpdateUiState.Result(
+                                            UpdateChecker.checkForUpdate(context, parsedChannel),
+                                        )
                                     }
                                 },
                                 contentPadding = PaddingValues(0.dp),
@@ -728,12 +790,30 @@ private fun AboutDialog(
                                 downloadProgress = null
                             }
                         },
-                        onOpenReleasePage = { uriHandler.openUri(GITHUB_RELEASES_URL) },
+                        onOpenReleasePage = { uriHandler.openUri(releasePageUrl) },
                     )
                 }
             }
         },
     )
+
+    if (showAboutEasterEgg) {
+        AlertDialog(
+            onDismissRequest = { showAboutEasterEgg = false },
+            confirmButton = {
+                TextButton(onClick = { showAboutEasterEgg = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            },
+            title = { Text(stringResource(R.string.about_easter_egg_title)) },
+            text = {
+                Text(
+                    stringResource(R.string.about_easter_egg_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+        )
+    }
 }
 
 @Composable

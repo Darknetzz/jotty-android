@@ -4,6 +4,18 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Shared offline repository runtime** — Introduced reusable `OfflineRepositoryLifecycle` and `SyncStatusState` to centralize connectivity callback wiring, coroutine scope ownership, sync state tracking, and lifecycle cleanup for offline repositories.
+- **Checklist replay failure feedback** — Checklist sync now tracks pending-operation replay failures (e.g. stale item paths) and surfaces a user-facing snackbar so silent skips are visible.
+- **Checklist offline repository tests** — Added focused JVM tests for checklist offline sync behavior, including offline failure and replay-failure counting paths.
+- **CI hardening** — CI now includes an Android instrumentation smoke-test job (emulator + `MainActivitySmokeTest`) and GitHub dependency vulnerability review on pull requests.
+
+### Changed
+
+- **DRY offline architecture** — Notes and checklists offline repositories now compose shared lifecycle/sync-state infrastructure instead of duplicating connectivity/scope/cleanup logic.
+- **CI lint coverage** — CI lint step now runs both debug and release variants (`lintDebug` + `lintRelease`) instead of a single generic lint invocation.
+
 ### Fixed
 
 - **Legacy credentials migration** — When encrypted API key storage ([EncryptedSharedPreferences](https://developer.android.com/reference/androidx/security/crypto/EncryptedSharedPreferences)) is unavailable on a device, migrating from legacy `server_url` / `api_key` preferences no longer clears those keys while saving an empty instance API key (which would lock the user out). The key remains in DataStore plaintext in that rare fallback path, consistent with other non-encrypted flows.

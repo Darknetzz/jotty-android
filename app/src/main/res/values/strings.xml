@@ -201,6 +201,8 @@
     <string name="install_failed">%1$s. You can install from the release page.</string>
     <string name="open_release_page">Open release page</string>
     <string name="whats_new">What\'s new</string>
+    <string name="about_easter_egg_title">Well spotted</string>
+    <string name="about_easter_egg_body">Seven taps on the version — you must really like release numbers. Thanks for using Jotty Android; now go tick something off your list.</string>
 
     <!-- Dashboard -->
     <string name="user_label">User</string>

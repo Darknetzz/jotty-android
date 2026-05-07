@@ -1,6 +1,8 @@
 package com.jotty.android.ui.settings
 
+import android.os.SystemClock
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,6 +20,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -548,6 +551,8 @@ private fun SettingsSectionSubtitle(title: String) {
 
 private const val GITHUB_REPO_URL = "https://github.com/Darknetzz/jotty-android"
 private const val GITHUB_RELEASES_URL = "$GITHUB_REPO_URL/releases"
+private const val ABOUT_EASTER_EGG_TAPS = 7
+private const val ABOUT_EASTER_EGG_RESET_MS = 700L
 
 @Composable
 private fun AboutDialog(
@@ -561,6 +566,9 @@ private fun AboutDialog(
     val scope = rememberCoroutineScope()
     var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Idle) }
     var downloadProgress by remember { mutableStateOf<Float?>(null) }
+    var versionTapCount by remember { mutableIntStateOf(0) }
+    var versionLastTapElapsedMs by remember { mutableLongStateOf(0L) }
+    var showAboutEasterEgg by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -576,7 +584,25 @@ private fun AboutDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .pointerInput(Unit) {
+                            detectTapGestures(
+                                onTap = {
+                                    val now = SystemClock.elapsedRealtime()
+                                    if (versionLastTapElapsedMs != 0L && now - versionLastTapElapsedMs > ABOUT_EASTER_EGG_RESET_MS) {
+                                        versionTapCount = 0
+                                    }
+                                    versionLastTapElapsedMs = now
+                                    versionTapCount++
+                                    if (versionTapCount >= ABOUT_EASTER_EGG_TAPS) {
+                                        versionTapCount = 0
+                                        versionLastTapElapsedMs = 0L
+                                        showAboutEasterEgg = true
+                                    }
+                                },
+                            )
+                        },
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium)
@@ -734,6 +760,24 @@ private fun AboutDialog(
             }
         },
     )
+
+    if (showAboutEasterEgg) {
+        AlertDialog(
+            onDismissRequest = { showAboutEasterEgg = false },
+            confirmButton = {
+                TextButton(onClick = { showAboutEasterEgg = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            },
+            title = { Text(stringResource(R.string.about_easter_egg_title)) },
+            text = {
+                Text(
+                    stringResource(R.string.about_easter_egg_body),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+        )
+    }
 }
 
 @Composable

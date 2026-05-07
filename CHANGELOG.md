@@ -4,6 +4,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- **GitHub Actions** — Updated CI and release workflows to action releases that target the Node 24 runtime (`actions/checkout` v6, `actions/setup-java` v5, `android-actions/setup-android` v4, `softprops/action-gh-release` v3; the instrumentation smoke-test job pins `reactivecircus/android-emulator-runner` v2.37.0, which moved to Node 24).
+
 ---
 
 ## [1.3.1] - 2026-05-07

@@ -6,6 +6,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ### Added
 
+- **Update channel (stable vs dev)** — About → “Check for updates” can target either the latest **stable** GitHub release or the rolling **`dev-latest`** pre-release. The choice is persisted in DataStore. Dev checks compare the release `Commit:` line to the app’s `-dev+` SHA suffix; stable checks compare semver using the base version (dev suffix stripped). (`UpdateChecker`, `GitHubApi`, `SettingsRepository`, `SettingsScreen`, `strings.xml`.)
 - **Shared offline repository runtime** — Introduced reusable `OfflineRepositoryLifecycle` and `SyncStatusState` to centralize connectivity callback wiring, coroutine scope ownership, sync state tracking, and lifecycle cleanup for offline repositories.
 - **Checklist replay failure feedback** — Checklist sync now tracks pending-operation replay failures (e.g. stale item paths) and surfaces a user-facing snackbar so silent skips are visible.
 - **Checklist offline repository tests** — Added focused JVM tests for checklist offline sync behavior, including offline failure and replay-failure counting paths.

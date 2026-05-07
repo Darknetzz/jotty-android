@@ -6,6 +6,88 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.3.0] - 2026-05-05
+
+### Added
+
+- **App screenshots** — Added current application screenshots to the repository for clearer presentation in docs and project pages.
+- **Setup API key guidance** — Setup now includes clearer guidance for generating API keys, plus an action to open Jotty in the browser directly from the form. (`SetupScreen`, `strings.xml`.)
+- **Offline conflict review banner** — Notes now show a persistent local-copy warning with a **View copies** action when conflict copies are present, so conflict resolution is not lost after a snackbar disappears. (`OfflineEnabledNotesScreen`, `OfflineNotesRepository`, `strings.xml`.)
+- **Offline cleanup coverage** — Repository tests cover conflict-copy filtering and per-instance local note cleanup. (`OfflineNotesRepositoryTest`.)
+- **Clearer API error messages** — HTTP **401** and **403** map to dedicated strings (invalid API key / access denied). **SSL/TLS** failures map to a short message about HTTPS and certificates. (`ApiErrorHelper`, `strings.xml`, tests.)
+- **Offline repository tests** — JVM tests with in-memory Room and a fake `JottyApi` cover sync, server replace, and conflict “(Local copy)” behavior. (`FakeJottyApi`, `OfflineNotesRepositoryTest`; Robolectric + test dependencies.)
+- **CI** — GitHub Actions workflow runs `./gradlew test` and `./gradlew lint` on push/PR (JDK 17 + Android SDK setup).
+- **UI smoke test** — Instrumented test checks that `MainActivity` shows a Compose root (`MainActivitySmokeTest`).
+- **`build.sh`** — Linux build script mirroring `build.ps1`: Gradle wrapper bootstrap (version read from `gradle-wrapper.properties`), Java 11+ discovery (`java` on `PATH`, `/usr/lib/jvm/*`, `/opt/android-studio/jbr`, etc.), Android SDK detection (`ANDROID_HOME`, `~/Android/Sdk`, `/opt/...`, scan for `platform-tools` under `/opt`), copies debug/release APK to `jotty-android.apk`.
+- **`local.properties.example`** — Documents `sdk.dir` and typical Studio vs SDK paths (including IDE under `/opt`).
+- **Offline checklists** — Added offline-mode support for checklists, mirroring notes behavior so checklist operations continue while disconnected and sync when connectivity returns.
+
+### Changed
+
+- **UX polish** — Startup and main-tab loading/error states now use shared centered components; tab titles live in the app bar; note detail shows the note title in the app bar. (`JottyApp`, `MainScreen`, `ListScreenComponents`, notes/checklists/settings screens.)
+- **Navigation clarity** — Settings → Manage instances keeps the Settings bottom-navigation item selected and uses the main app bar back affordance. (`MainScreen`, `SetupScreen`.)
+- **API error messages** — HTTP **404** maps to “Not found” and **429** maps to a rate-limit message. (`ApiErrorHelper`, `strings.xml`, tests.)
+- **Checklists & offline notes UI** — `ChecklistsViewModel` and `OfflineEnabledNotesViewModel` hold list/filter/selection state with `StateFlow`; screens collect via `viewModel { … }`. Notes search debouncing uses `Flow.debounce` with no delay for blank queries.
+- **Offline sync routing** — Replaced the fragile timestamp heuristic with an explicit `isLocalOnly` flag to correctly route create vs update during offline sync and avoid duplicate/lost notes.
+- **README** — Build requirements list Android SDK **36** to match `compileSdk` / `targetSdk`.
+
+### Fixed
+
+- **Account switching on same server** — Offline notes/checklists now recreate their ViewModel/repository when auth changes for the same instance ID, preventing stale API-key sessions from showing another account’s data. (`MainScreen`, `OfflineNotesScreen`, `OfflineChecklistsScreen`.)
+- **Removed-instance local data** — Removing a saved instance now clears that instance’s local offline notes from Room so stale data does not remain after credentials are removed. (`SetupScreen`, `OfflineNotesRepository`.)
+- **Layout height** — App content now uses the full height between the top and bottom bars; the root AnimatedContent and main NavHost use `fillMaxSize()` so there is no extra margin above or below the content area.
+- **Offline sync coroutine scope** — `OfflineNotesRepository` uses `SupervisorJob` + `CoroutineExceptionHandler` so background work is not torn down by a single failure. Optional `initialOnlineOverride` and `registerNetworkCallback` support unit tests without `ConnectivityManager`.
+- **`init` block** — Replaced invalid `return@init` with `if (registerNetworkCallback) { … }` so Kotlin compiles cleanly.
+- **Lifecycle cleanup** — Offline notes repository lifecycle is now ViewModel-owned with explicit cleanup so network callbacks/scopes are released correctly on destination teardown.
+- **Category chips overflow** — Replaced fixed chip rows with scrollable `LazyRow` behavior so all categories remain reachable.
+
+### Technical
+
+- `build.ps1`: renamed `Ensure-AndroidSdk` to `Initialize-AndroidSdk` for naming clarity and consistency.
+- `gradle.properties` / wrapper: build scripts download `gradle-wrapper.jar` matching the version in `gradle-wrapper.properties` (e.g. 9.1.0) and validate the JAR manifest; `build.ps1` updated the same way.
+- `app/build.gradle.kts`: `testOptions.unitTests.isIncludeAndroidResources`, Room testing, Robolectric, coroutines-test; `androidTest` deps + `testInstrumentationRunner` for Compose UI tests.
+- `OfflineNotesRepository.kt`: constructor parameters for tests only (defaults unchanged for app use).
+
+### Credits
+
+- Offline improvements listed above were merged from [#4](https://github.com/Darknetzz/jotty-android/pull/4). Thanks [@Emilien-Etadam](https://github.com/Emilien-Etadam) for the contribution.
+
+---
+
+## [1.2.9] - 2026-02-14
+
+### Added
+
+- **Offline notes** — Create, edit, and delete notes without an internet connection. Changes are saved locally and sync automatically when online.
+- **Conflict resolution** — When a note is edited both offline and on the server, the app detects the conflict and creates a local copy with a "(Local copy)" suffix so no data is lost. A snackbar notifies you and offers "View copies" to find conflict copies.
+- **Sync status indicators** — Notes screen shows connection status: cloud with checkmark (online), cloud with sync icon (syncing), or cloud off (offline).
+- **Settings → Offline mode** — Toggle to enable or disable offline support (General section). Default: on.
+
+### Changed
+
+- **Notes screen** — When offline mode is enabled, notes are stored in a local Room database and synced when connectivity returns. Refresh button is disabled when offline. "Saved locally" snackbar appears when saving offline.
+
+### Fixed
+
+- **Notes section crash** — Opening the Notes tab no longer crashes. The app now declares `ACCESS_NETWORK_STATE` so `ConnectivityManager` is available; `OfflineNotesRepository` handles a missing service safely (treats as offline). When the Notes tab is shown with no current instance, a loading placeholder is shown instead of empty content.
+- **Category labels wrapping** — Category names in filter chips (e.g. "Uncategorized") and on note cards no longer break across multiple lines; they stay on one line with ellipsis when space is limited.
+
+### Technical
+
+- `data/local/`: JottyDatabase, NoteEntity, NoteDao, OfflineNotesRepository.
+- `ui/notes/`: OfflineNotesScreen (wrapper), OfflineEnabledNotesScreen, OfflineNoteDetailScreen.
+- OfflineNotesRepository: connectivity monitoring via ConnectivityManager.NetworkCallback, auto-sync on network available.
+- SettingsRepository: `offlineModeEnabled`, KEY_OFFLINE_MODE.
+- ProGuard: keep rules for Room entities and DAOs.
+- Documentation: OFFLINE_NOTES.md, CONFLICT_RESOLUTION.md, UI_CHANGES.md.
+- strings.xml: `saved_locally`, `sync_conflicts_detected`, `view_conflicts`, `online`, `syncing`, `offline`, `offline_mode`, etc.
+- AndroidManifest: `ACCESS_NETWORK_STATE` permission.
+- OfflineNotesRepository: `ConnectivityManager` obtained with `as?`, callback registered only when non-null; `checkConnectivity()` returns false when service is unavailable.
+- MainScreen: Notes composable shows centered "Loading" when `instanceId` is null.
+- OfflineEnabledNotesScreen, NotesScreen, NoteCard: category label `Text` uses `maxLines = 1`, `overflow = TextOverflow.Ellipsis`.
+
+---
+
 ## [1.2.8] - 2026-02-09
 
 ### Fixed
@@ -408,6 +490,8 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.2.9]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.9
+[1.3.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.0
 [1.2.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.4
 [1.2.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.3
 [1.1.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.2

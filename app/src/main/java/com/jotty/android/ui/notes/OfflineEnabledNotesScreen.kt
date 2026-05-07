@@ -3,6 +3,7 @@ package com.jotty.android.ui.notes
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Note
@@ -12,12 +13,15 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import com.jotty.android.R
@@ -27,13 +31,11 @@ import com.jotty.android.data.api.Note
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.util.ApiErrorHelper
-import com.jotty.android.util.AppLog
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-private const val SEARCH_DEBOUNCE_DELAY_MS = 400L
 
 /**
  * Notes screen with offline support.
@@ -52,23 +54,27 @@ fun OfflineEnabledNotesScreen(
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
-    
+
+    val vm: OfflineEnabledNotesViewModel = viewModel {
+        OfflineEnabledNotesViewModel(offlineRepository, api)
+    }
+
     // Observe notes from local database
     val notes by offlineRepository.getNotesFlow().collectAsState(initial = emptyList())
+    val conflictCopies by offlineRepository.getConflictCopiesFlow().collectAsState(initial = emptyList())
     val isOnline by offlineRepository.isOnline.collectAsState()
     val isSyncing by offlineRepository.isSyncing.collectAsState()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsState()
-    
-    var selectedNote by remember { mutableStateOf<Note?>(null) }
+
+    val selectedNote by vm.selectedNote.collectAsState()
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
-    var showCreateDialog by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
-    var debouncedSearchQuery by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
-    var noteCategories by remember { mutableStateOf<List<String>>(emptyList()) }
-    var filteredNotes by remember { mutableStateOf<List<Note>>(emptyList()) }
-    
+    val showCreateDialog by vm.showCreateDialog.collectAsState()
+    val searchQuery by vm.searchQuery.collectAsState()
+    val selectedCategory by vm.selectedCategory.collectAsState()
+    val noteCategories by vm.noteCategories.collectAsState()
+    val filteredNotes by vm.filteredNotes.collectAsState()
+
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -76,6 +82,22 @@ fun OfflineEnabledNotesScreen(
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
+
+    fun requestSync(showLoading: Boolean = true) {
+        scope.launch {
+            if (!isOnline) return@launch
+            if (showLoading) loading = true
+            error = null
+            val result = offlineRepository.syncNotes()
+            if (result.isFailure) {
+                error = ApiErrorHelper.userMessage(
+                    context,
+                    result.exceptionOrNull() ?: Exception("Sync failed"),
+                )
+            }
+            if (showLoading) loading = false
+        }
+    }
     
     // Show conflict notification when conflicts are detected
     LaunchedEffect(conflictsDetected) {
@@ -88,52 +110,23 @@ fun OfflineEnabledNotesScreen(
                     duration = SnackbarDuration.Long
                 )
                 if (result == SnackbarResult.ActionPerformed) {
-                    // Filter to show notes with "(Local copy)" in title
-                    searchQuery = "(Local copy)"
+                    vm.applyConflictSearchFilter()
                 }
                 offlineRepository.clearConflictNotification()
             }
         }
     }
 
-    // Debounce search query
-    LaunchedEffect(searchQuery) {
-        delay(SEARCH_DEBOUNCE_DELAY_MS)
-        debouncedSearchQuery = searchQuery
-    }
-
-    // Filter notes by search and category
-    LaunchedEffect(notes, debouncedSearchQuery, selectedCategory) {
-        filteredNotes = when {
-            debouncedSearchQuery.isNotBlank() -> {
-                offlineRepository.searchNotes(debouncedSearchQuery)
-            }
-            selectedCategory != null -> {
-                offlineRepository.getNotesByCategory(selectedCategory!!)
-            }
-            else -> notes
-        }
-    }
-
     // Load categories
-    LaunchedEffect(Unit) {
-        try {
-            if (isOnline) {
-                noteCategories = api.getCategories().categories.notes.map { it.name }.distinct()
-            } else {
-                // Get categories from local notes
-                noteCategories = notes.map { it.category }.distinct()
-            }
-        } catch (_: Exception) {
-            noteCategories = notes.map { it.category }.distinct()
-        }
+    LaunchedEffect(isOnline, notes) {
+        vm.loadCategories(isOnline, notes)
     }
 
     // Handle deep link
     LaunchedEffect(filteredNotes, initialNoteId) {
         val id = initialNoteId ?: return@LaunchedEffect
         filteredNotes.find { it.id == id }?.let { note ->
-            selectedNote = note
+            vm.setSelectedNote(note)
             onDeepLinkConsumed()
         }
     }
@@ -145,20 +138,23 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
-    BackHandler(enabled = selectedNote != null) { selectedNote = null }
+    BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = MainNestedScaffoldContentWindowInsets,
     ) { innerPadding ->
         Column(
             Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp, vertical = contentVerticalDp.dp)
+                .mainScreenTabContentPadding(
+                    topComfortDp = contentVerticalDp,
+                    scaffoldInnerPadding = innerPadding,
+                ),
         ) {
             when (val note = selectedNote) {
                 null -> {
-                    // Header with title, sync status, and actions
+                    // Header with sync status and actions; the app bar owns the screen title.
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -168,17 +164,16 @@ fun OfflineEnabledNotesScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                stringResource(R.string.nav_notes),
-                                style = MaterialTheme.typography.titleLarge,
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            // Sync status indicator
+                            val statusText = when {
+                                isSyncing -> stringResource(R.string.syncing)
+                                isOnline -> stringResource(R.string.online)
+                                else -> stringResource(R.string.offline)
+                            }
                             when {
                                 isSyncing -> {
                                     Icon(
                                         Icons.Default.CloudQueue,
-                                        contentDescription = stringResource(R.string.syncing),
+                                        contentDescription = statusText,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -186,7 +181,7 @@ fun OfflineEnabledNotesScreen(
                                 isOnline -> {
                                     Icon(
                                         Icons.Default.CloudDone,
-                                        contentDescription = stringResource(R.string.online),
+                                        contentDescription = statusText,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
@@ -194,22 +189,21 @@ fun OfflineEnabledNotesScreen(
                                 else -> {
                                     Icon(
                                         Icons.Default.CloudOff,
-                                        contentDescription = stringResource(R.string.offline),
+                                        contentDescription = statusText,
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
+                            Text(
+                                statusText,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         Row {
                             IconButton(
-                                onClick = {
-                                    scope.launch {
-                                        if (isOnline) {
-                                            offlineRepository.syncNotes()
-                                        }
-                                    }
-                                },
+                                onClick = { requestSync(showLoading = false) },
                                 enabled = isOnline && !isSyncing
                             ) {
                                 Icon(
@@ -217,7 +211,7 @@ fun OfflineEnabledNotesScreen(
                                     contentDescription = stringResource(R.string.cd_refresh)
                                 )
                             }
-                            IconButton(onClick = { showCreateDialog = true }) {
+                            IconButton(onClick = { vm.setShowCreateDialog(true) }) {
                                 Icon(
                                     Icons.Default.Add,
                                     contentDescription = stringResource(R.string.cd_add)
@@ -229,7 +223,7 @@ fun OfflineEnabledNotesScreen(
                     // Search bar
                     OutlinedTextField(
                         value = searchQuery,
-                        onValueChange = { searchQuery = it },
+                        onValueChange = { vm.setSearchQuery(it) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp),
@@ -245,23 +239,72 @@ fun OfflineEnabledNotesScreen(
 
                     // Category filter chips
                     if (noteCategories.isNotEmpty()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            FilterChip(
-                                selected = selectedCategory == null,
-                                onClick = { selectedCategory = null },
-                                label = { Text(stringResource(R.string.all_categories)) },
-                            )
-                            noteCategories.forEach { cat ->
+                            item {
+                                FilterChip(
+                                    selected = selectedCategory == null,
+                                    onClick = { vm.setSelectedCategory(null) },
+                                    label = {
+                                        Text(
+                                            stringResource(R.string.all_categories),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                )
+                            }
+                            items(noteCategories, key = { it }) { cat ->
                                 FilterChip(
                                     selected = selectedCategory == cat,
-                                    onClick = { selectedCategory = if (selectedCategory == cat) null else cat },
-                                    label = { Text(cat) },
+                                    onClick = { vm.toggleCategoryChip(cat) },
+                                    label = {
+                                        Text(
+                                            cat,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
                                 )
+                            }
+                        }
+                    }
+
+                    if (conflictCopies.isNotEmpty()) {
+                        ElevatedCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            colors = CardDefaults.elevatedCardColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            ),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                                Text(
+                                    text = if (conflictCopies.size == 1) {
+                                        stringResource(R.string.conflict_copy_pending)
+                                    } else {
+                                        stringResource(R.string.conflict_copies_pending, conflictCopies.size)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                                TextButton(onClick = { vm.applyConflictSearchFilter() }) {
+                                    Text(stringResource(R.string.view_conflicts))
+                                }
                             }
                         }
                     }
@@ -273,15 +316,14 @@ fun OfflineEnabledNotesScreen(
                         loading = loading,
                         error = error,
                         isEmpty = filteredNotes.isEmpty(),
-                        emptyTitle = stringResource(R.string.no_notes_yet),
-                        emptyMessage = stringResource(R.string.tap_add_note),
-                        emptyIcon = Icons.AutoMirrored.Filled.Note,
                         onRetry = {
-                            scope.launch {
-                                if (isOnline) {
-                                    offlineRepository.syncNotes()
-                                }
-                            }
+                            requestSync()
+                        },
+                        emptyIcon = Icons.AutoMirrored.Filled.Note,
+                        emptyTitle = stringResource(R.string.no_notes_yet),
+                        emptySubtitle = stringResource(R.string.tap_add_note),
+                        onRefresh = {
+                            requestSync()
                         },
                         content = {
                             LazyColumn(
@@ -299,14 +341,14 @@ fun OfflineEnabledNotesScreen(
                                                 } else if (!isOnline) {
                                                     snackbarHostState.showSnackbar(savedLocallyMsg)
                                                 }
-                                                if (selectedNote?.id == n.id) selectedNote = null
+                                                if (selectedNote?.id == n.id) vm.setSelectedNote(null)
                                             }
                                         },
                                         scope = scope,
                                     ) {
                                         NoteCard(
                                             note = n,
-                                            onClick = { selectedNote = n },
+                                            onClick = { vm.setSelectedNote(n) },
                                         )
                                     }
                                 }
@@ -320,14 +362,12 @@ fun OfflineEnabledNotesScreen(
                         note = note,
                         offlineRepository = offlineRepository,
                         api = api,
-                        onBack = { selectedNote = null },
-                        onUpdate = { updatedNote -> 
-                            selectedNote = updatedNote
-                            // Notes list auto-updates via Flow
+                        onBack = { vm.setSelectedNote(null) },
+                        onUpdate = { updatedNote ->
+                            vm.setSelectedNote(updatedNote)
                         },
-                        onDelete = { 
-                            selectedNote = null
-                            // Notes list auto-updates via Flow
+                        onDelete = {
+                            vm.setSelectedNote(null)
                         },
                         onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                         onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
@@ -345,7 +385,7 @@ fun OfflineEnabledNotesScreen(
         var title by remember { mutableStateOf("") }
         val untitled = stringResource(R.string.untitled)
         AlertDialog(
-            onDismissRequest = { showCreateDialog = false },
+            onDismissRequest = { vm.setShowCreateDialog(false) },
             title = { Text(stringResource(R.string.new_note)) },
             text = {
                 OutlinedTextField(
@@ -365,8 +405,8 @@ fun OfflineEnabledNotesScreen(
                                 category = API_CATEGORY_UNCATEGORIZED
                             )
                             if (result.isSuccess) {
-                                selectedNote = result.getOrNull()
-                                showCreateDialog = false
+                                vm.setSelectedNote(result.getOrNull())
+                                vm.setShowCreateDialog(false)
                                 if (!isOnline) {
                                     snackbarHostState.showSnackbar(savedLocallyMsg)
                                 }
@@ -380,7 +420,7 @@ fun OfflineEnabledNotesScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCreateDialog = false }) {
+                TextButton(onClick = { vm.setShowCreateDialog(false) }) {
                     Text(stringResource(R.string.cancel))
                 }
             },

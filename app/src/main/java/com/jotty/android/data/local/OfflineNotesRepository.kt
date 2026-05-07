@@ -10,12 +10,16 @@ import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.CreateNoteRequest
 import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.util.AppLog
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,13 +33,21 @@ class OfflineNotesRepository(
     private val context: Context,
     private val database: JottyDatabase,
     private val instanceId: String,
-    private val api: JottyApi
+    private val api: JottyApi,
+    /** When non-null, used instead of [checkConnectivity] for initial online state (e.g. unit tests). */
+    initialOnlineOverride: Boolean? = null,
+    /** Set false in tests to avoid registering a network callback. */
+    private val registerNetworkCallback: Boolean = true,
 ) {
     private val noteDao = database.noteDao()
-    private val coroutineScope = CoroutineScope(Dispatchers.IO)
+
+    private val scopeExceptionHandler = CoroutineExceptionHandler { _, t ->
+        AppLog.d("OfflineNotesRepository", "Background coroutine failed: ${t.message}")
+    }
+    private val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + scopeExceptionHandler)
 
     // Track connectivity state
-    private val _isOnline = MutableStateFlow(checkConnectivity())
+    private val _isOnline = MutableStateFlow(initialOnlineOverride ?: checkConnectivity())
     val isOnline: StateFlow<Boolean> = _isOnline.asStateFlow()
 
     // Track sync state
@@ -46,47 +58,90 @@ class OfflineNotesRepository(
     private val _conflictsDetected = MutableStateFlow(0)
     val conflictsDetected: StateFlow<Int> = _conflictsDetected.asStateFlow()
 
-    private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    private val connectivityManager =
+        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+
+    // @Volatile: read from the main thread (close) and the callback thread concurrently.
+    // Null when registerNetworkCallback=false (tests).
+    @Volatile private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    @Volatile private var closed = false
 
     init {
-        // Register connectivity callback
-        val networkRequest = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
+        if (registerNetworkCallback) {
+            connectivityManager?.let { cm ->
+                val networkRequest = NetworkRequest.Builder()
+                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                    .build()
+                val callback = object : ConnectivityManager.NetworkCallback() {
+                    override fun onAvailable(network: Network) {
+                        if (closed) return
+                        AppLog.d("OfflineNotesRepository", "Network available")
+                        _isOnline.value = true
+                        coroutineScope.launch { syncNotes() }
+                    }
 
-        connectivityManager.registerNetworkCallback(networkRequest, object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                AppLog.d("OfflineNotesRepository", "Network available")
-                _isOnline.value = true
-                // Auto-sync when coming online
-                coroutineScope.launch {
-                    syncNotes()
+                    override fun onLost(network: Network) {
+                        if (closed) return
+                        AppLog.d("OfflineNotesRepository", "Network lost")
+                        _isOnline.value = false
+                    }
                 }
+                networkCallback = callback
+                cm.registerNetworkCallback(networkRequest, callback)
+                AppLog.d("OfflineNotesRepository", "Network callback registered (instance: $instanceId)")
             }
+        }
+    }
 
-            override fun onLost(network: Network) {
-                AppLog.d("OfflineNotesRepository", "Network lost")
-                _isOnline.value = false
-            }
-        })
+    /**
+     * Releases resources held by this repository: unregisters the network callback and
+     * cancels the background coroutine scope. Must be called by the owner when it is
+     * destroyed (e.g. [OfflineNotesViewModel.onCleared]) to prevent leaks.
+     * Safe to call multiple times.
+     */
+    fun close() {
+        if (closed) return
+        closed = true
+        networkCallback?.let {
+            connectivityManager?.unregisterNetworkCallback(it)
+            networkCallback = null
+        }
+        coroutineScope.cancel()
+        AppLog.d("OfflineNotesRepository", "Closed (instance: $instanceId)")
     }
 
     /**
      * Check current connectivity status.
+     * Returns false if ConnectivityManager is unavailable (e.g. missing ACCESS_NETWORK_STATE).
      */
     private fun checkConnectivity(): Boolean {
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        val cm = connectivityManager ?: return false
+        val network = cm.activeNetwork ?: return false
+        val capabilities = cm.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     /**
      * Get all notes as Flow (observes changes).
+     * Uses flowOn(IO) so Room queries run off the main thread.
      */
     fun getNotesFlow(): Flow<List<Note>> {
-        return noteDao.getAllNotesFlow(instanceId).map { entities ->
-            entities.map { it.toNote() }
-        }
+        return noteDao.getAllNotesFlow(instanceId)
+            .map { entities -> entities.map { it.toNote() } }
+            .flowOn(Dispatchers.IO)
+    }
+
+    /**
+     * Local conflict copies are kept until users review and delete or merge them.
+     */
+    fun getConflictCopiesFlow(): Flow<List<Note>> {
+        return noteDao.getAllNotesFlow(instanceId)
+            .map { entities ->
+                entities
+                    .filter { it.title.endsWith(LOCAL_COPY_SUFFIX) }
+                    .map { it.toNote() }
+            }
+            .flowOn(Dispatchers.IO)
     }
 
     /**
@@ -119,9 +174,10 @@ class OfflineNotesRepository(
                 createdAt = now,
                 updatedAt = now,
                 encrypted = null,
-                isDirty = true, // Mark as dirty for sync
+                isDirty = true,
                 isDeleted = false,
-                instanceId = instanceId
+                instanceId = instanceId,
+                isLocalOnly = true,
             )
 
             // Save locally
@@ -175,18 +231,22 @@ class OfflineNotesRepository(
 
     /**
      * Delete a note (works offline).
+     * If the note only exists locally (never synced), it is hard-deleted immediately —
+     * no server call is made since the server has never seen this ID.
      */
     suspend fun deleteNote(noteId: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            // Mark as deleted (soft delete for sync)
-            noteDao.markAsDeleted(noteId)
-            AppLog.d("OfflineNotesRepository", "Note marked for deletion: $noteId")
-
-            // Try to sync if online
-            if (_isOnline.value) {
-                syncDeletedNote(noteId)
+            val note = noteDao.getNoteById(noteId)
+            if (note != null && note.isLocalOnly) {
+                noteDao.deleteNote(noteId)
+                AppLog.d("OfflineNotesRepository", "Local-only note hard-deleted: $noteId")
+            } else {
+                noteDao.markAsDeleted(noteId)
+                AppLog.d("OfflineNotesRepository", "Note marked for deletion: $noteId")
+                if (_isOnline.value) {
+                    syncDeletedNote(noteId)
+                }
             }
-
             Result.success(Unit)
         } catch (e: Exception) {
             AppLog.d("OfflineNotesRepository", "Failed to delete note: ${e.message}")
@@ -245,7 +305,7 @@ class OfflineNotesRepository(
                             // Create a copy of the local version to preserve data
                             val localCopy = localNote.copy(
                                 id = UUID.randomUUID().toString(), // New ID for the copy
-                                title = "${localNote.title} (Local copy)",
+                                title = "${localNote.title}$LOCAL_COPY_SUFFIX",
                                 isDirty = false, // Don't try to sync the copy
                                 isDeleted = false
                             )
@@ -292,45 +352,39 @@ class OfflineNotesRepository(
 
     /**
      * Sync a single note to the server.
+     * Uses [NoteEntity.isLocalOnly] to decide between create and update — a note is local-only
+     * when it was created offline and has never been pushed to the server, regardless of timestamps.
      */
     private suspend fun syncNote(note: NoteEntity) {
         try {
-            // Check if this is a new note (starts with random UUID) or an existing one
-            val isNew = note.createdAt == note.updatedAt && note.isDirty
-
-            if (isNew) {
-                // Create new note on server
+            if (note.isLocalOnly) {
                 val request = CreateNoteRequest(
                     title = note.title,
                     content = note.content,
                     category = note.category
                 )
                 val response = api.createNote(request)
-                
                 if (response.data != null) {
-                    // Replace local temp ID with server ID
+                    // Swap the local temporary ID for the server-assigned ID.
                     noteDao.deleteNote(note.id)
                     noteDao.insertNote(response.data.toEntity(instanceId, isDirty = false))
                     AppLog.d("OfflineNotesRepository", "Note created on server: ${response.data.id}")
                 }
             } else {
-                // Update existing note on server
                 val request = UpdateNoteRequest(
                     title = note.title,
                     content = note.content,
                     category = note.category
                 )
                 val response = api.updateNote(note.id, request)
-                
                 if (response.data != null) {
-                    // Update local note with server response
                     noteDao.insertNote(response.data.toEntity(instanceId, isDirty = false))
                     AppLog.d("OfflineNotesRepository", "Note updated on server: ${note.id}")
                 }
             }
         } catch (e: Exception) {
             AppLog.d("OfflineNotesRepository", "Failed to sync note ${note.id}: ${e.message}")
-            // Keep note marked as dirty for next sync attempt
+            // Keep note marked as dirty for next sync attempt.
         }
     }
 
@@ -376,5 +430,16 @@ class OfflineNotesRepository(
     suspend fun clearAllNotes() = withContext(Dispatchers.IO) {
         noteDao.deleteAllNotes(instanceId)
         AppLog.d("OfflineNotesRepository", "All notes cleared for instance: $instanceId")
+    }
+
+    companion object {
+        const val LOCAL_COPY_SUFFIX = " (Local copy)"
+
+        suspend fun clearLocalNotes(context: Context, instanceId: String) = withContext(Dispatchers.IO) {
+            JottyDatabase.getDatabase(context.applicationContext)
+                .noteDao()
+                .deleteAllNotes(instanceId)
+            AppLog.d("OfflineNotesRepository", "All notes cleared for removed instance: $instanceId")
+        }
     }
 }

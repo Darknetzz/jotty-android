@@ -89,7 +89,8 @@ class XChaCha20EncryptorTest {
         val passphrase = "pass"
         val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
         val regex = """"data"\s*:\s*"([^"]+)"""".toRegex()
-        val dataB64 = regex.find(encryptedJson)?.groupValues?.get(1) ?: fail("no data in JSON")
+        val dataB64 = regex.find(encryptedJson)?.groupValues?.get(1)
+            ?: throw AssertionError("no data in JSON")
         val data = Base64.getDecoder().decode(dataB64)
         assertTrue(data.size >= 16)
         val ciphertextThenTag = ByteArray(data.size).apply {

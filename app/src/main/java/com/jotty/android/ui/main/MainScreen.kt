@@ -2,15 +2,14 @@ package com.jotty.android.ui.main
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -20,7 +19,8 @@ import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
-import com.jotty.android.ui.checklists.ChecklistsScreen
+import com.jotty.android.ui.checklists.OfflineChecklistsScreen
+import com.jotty.android.ui.common.LoadingState
 import com.jotty.android.ui.notes.OfflineNotesScreen
 import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.ui.settings.SettingsScreen
@@ -62,6 +62,19 @@ fun MainScreen(
     val serverUrl = settingsRepository.serverUrl.collectAsState(initial = null).value
     val apiKey = settingsRepository.apiKey.collectAsState(initial = null).value
     val swipeToDeleteEnabled = settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false).value
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+    val selectedRoute = when (currentRoute) {
+        ROUTE_MANAGE_INSTANCES -> MainRoute.Settings.route
+        else -> currentRoute
+    }
+    val titleRes = when (currentRoute) {
+        MainRoute.Checklists.route -> MainRoute.Checklists.titleRes
+        MainRoute.Notes.route -> MainRoute.Notes.titleRes
+        MainRoute.Settings.route -> MainRoute.Settings.titleRes
+        ROUTE_MANAGE_INSTANCES -> R.string.manage_instances
+        else -> R.string.app_name
+    }
 
     val imageLoader = remember(context, serverUrl, apiKey) {
         createNoteImageLoader(context, serverUrl, apiKey)
@@ -76,7 +89,14 @@ fun MainScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                title = { Text(stringResource(titleRes)) },
+                navigationIcon = {
+                    if (currentRoute == ROUTE_MANAGE_INSTANCES) {
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -85,14 +105,11 @@ fun MainScreen(
         },
         bottomBar = {
             NavigationBar {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-
                 listOf(MainRoute.Checklists, MainRoute.Notes, MainRoute.Settings).forEach { route ->
                     NavigationBarItem(
-                        selected = currentRoute == route.route,
+                        selected = selectedRoute == route.route,
                         onClick = {
-                            if (currentRoute != route.route) {
+                            if (selectedRoute != route.route) {
                                 navController.navigate(route.route) {
                                     popUpTo(MainRoute.Checklists.route) { saveState = true }
                                     launchSingleTop = true
@@ -110,23 +127,26 @@ fun MainScreen(
         val currentApi = api
         val currentStart = startDestination
         when {
-            currentApi == null -> Box(Modifier.fillMaxSize()) {
-                Text(stringResource(R.string.loading))
-            }
-            currentStart == null -> Box(Modifier.fillMaxSize()) {
-                CircularProgressIndicator(Modifier.align(Alignment.Center))
-            }
+            currentApi == null -> LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
+            currentStart == null -> LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
             else -> NavHost(
                 navController = navController,
                 startDestination = currentStart,
-                modifier = Modifier.padding(padding),
+                modifier = Modifier.fillMaxSize().padding(padding),
             ) {
                 composable(MainRoute.Checklists.route) {
-                    ChecklistsScreen(
-                        api = currentApi,
-                        settingsRepository = settingsRepository,
-                        swipeToDeleteEnabled = swipeToDeleteEnabled,
-                    )
+                    val instanceId = currentInstance?.id
+                    if (instanceId != null) {
+                        OfflineChecklistsScreen(
+                            api = currentApi,
+                            settingsRepository = settingsRepository,
+                            instanceId = instanceId,
+                            authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
+                            swipeToDeleteEnabled = swipeToDeleteEnabled,
+                        )
+                    } else {
+                        LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
+                    }
                 }
                 composable(MainRoute.Notes.route) {
                     val instanceId = currentInstance?.id
@@ -135,11 +155,14 @@ fun MainScreen(
                             api = currentApi,
                             settingsRepository = settingsRepository,
                             instanceId = instanceId,
+                            authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
                             initialNoteId = deepLinkNoteId?.value,
                             onDeepLinkConsumed = { deepLinkNoteId?.value = null },
                             swipeToDeleteEnabled = swipeToDeleteEnabled,
                             imageLoader = imageLoader,
                         )
+                    } else {
+                        LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
                     }
                 }
                 composable(MainRoute.Settings.route) {
@@ -155,6 +178,7 @@ fun MainScreen(
                         settingsRepository = settingsRepository,
                         onConfigured = { /* no-op; we stay in manage mode */ },
                         standaloneMode = true,
+                        showStandaloneHeader = false,
                         onBack = { navController.popBackStack() },
                     )
                 }

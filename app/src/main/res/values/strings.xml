@@ -32,7 +32,12 @@
     <string name="connection_timed_out">Connection timed out</string>
     <string name="network_error">Network error</string>
     <string name="server_error">Server error</string>
+    <string name="error_not_found">Not found</string>
+    <string name="error_rate_limited">Too many requests. Try again later.</string>
     <string name="request_failed">Request failed</string>
+    <string name="error_invalid_api_key">Invalid or expired API key</string>
+    <string name="error_access_denied">Access denied</string>
+    <string name="error_ssl_or_certificate">Secure connection failed. Check HTTPS URL and certificate.</string>
     <string name="save_failed">Couldn\'t save. Please try again.</string>
     <string name="delete_failed">Couldn\'t delete. Please try again.</string>
     <string name="install_failed_fallback">Install failed</string>
@@ -106,6 +111,9 @@
     <string name="server_url_placeholder">https://jotty.example.com</string>
     <string name="api_key">API Key</string>
     <string name="api_key_placeholder">ck_…</string>
+    <string name="api_key_setup_hint">Jotty Android uses an API key instead of your account password. Log in to Jotty in a browser, open Profile &gt; Settings, generate an API key, then paste it here.</string>
+    <string name="open_jotty_in_browser">Open Jotty to generate an API key</string>
+    <string name="open_jotty_browser_failed">Couldn\'t open Jotty in your browser.</string>
     <string name="show">Show</string>
     <string name="hide">Hide</string>
     <string name="color">Color</string>
@@ -165,6 +173,8 @@
     <string name="saved_locally">Saved locally</string>
     <string name="will_sync_when_online">Will sync when online</string>
     <string name="sync_conflicts_detected">%d conflict(s) detected. Local copies created to preserve your data.</string>
+    <string name="conflict_copy_pending">1 local copy needs review.</string>
+    <string name="conflict_copies_pending">%d local copies need review.</string>
     <string name="view_conflicts">View copies</string>
     <string name="account">Account</string>
     <string name="manage_instances">Manage instances</string>

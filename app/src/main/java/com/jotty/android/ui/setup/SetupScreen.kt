@@ -23,6 +23,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -30,8 +31,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
+import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -41,6 +44,7 @@ fun SetupScreen(
     settingsRepository: SettingsRepository,
     onConfigured: () -> Unit,
     standaloneMode: Boolean = false,
+    showStandaloneHeader: Boolean = true,
     onBack: (() -> Unit)? = null,
 ) {
     val instances by settingsRepository.instances.collectAsState(initial = emptyList())
@@ -49,6 +53,7 @@ fun SetupScreen(
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     var showAddForm by remember { mutableStateOf(instances.isEmpty()) }
     val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current.applicationContext
 
     LaunchedEffect(instances) {
         if (instances.isNotEmpty() && showAddForm) showAddForm = false
@@ -57,9 +62,18 @@ fun SetupScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 24.dp, vertical = contentVerticalDp.dp),
+            .then(
+                if (standaloneMode) {
+                    Modifier.mainScreenTabContentPadding(
+                        topComfortDp = contentVerticalDp,
+                        horizontal = 24.dp,
+                    )
+                } else {
+                    Modifier.padding(horizontal = 24.dp, vertical = contentVerticalDp.dp)
+                },
+            ),
     ) {
-        if (standaloneMode && onBack != null) {
+        if (standaloneMode && showStandaloneHeader && onBack != null) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -157,6 +171,7 @@ fun SetupScreen(
                             TextButton(
                                 onClick = {
                                     scope.launch {
+                                        OfflineNotesRepository.clearLocalNotes(appContext, instance.id)
                                         settingsRepository.removeInstance(instance.id)
                                         instanceToDelete = null
                                     }
@@ -278,7 +293,9 @@ private fun InstanceForm(
     val scope = rememberCoroutineScope()
     val isEdit = initialInstance != null
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val fillUrlAndKeyMsg = stringResource(R.string.fill_url_and_key)
+    val openBrowserFailedMsg = stringResource(R.string.open_jotty_browser_failed)
 
     val instanceColors: List<Long?> = listOf(
         null,
@@ -332,6 +349,27 @@ private fun InstanceForm(
             },
             isError = error != null,
         )
+        Text(
+            text = stringResource(R.string.api_key_setup_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        TextButton(
+            onClick = {
+                val url = serverUrl.trim()
+                if (url.isBlank()) {
+                    error = fillUrlAndKeyMsg
+                } else {
+                    runCatching { uriHandler.openUri(browserUrlFromServerUrl(url)) }
+                        .onFailure { error = openBrowserFailedMsg }
+                }
+            },
+            enabled = !loading,
+            contentPadding = PaddingValues(horizontal = 0.dp),
+        ) {
+            Text(stringResource(R.string.open_jotty_in_browser))
+        }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(R.string.color),
@@ -437,4 +475,9 @@ private fun InstanceForm(
             }
         }
     }
+}
+
+private fun browserUrlFromServerUrl(serverUrl: String): String {
+    val trimmed = serverUrl.trim().trimEnd('/')
+    return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
 }

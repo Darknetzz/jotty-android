@@ -1,5 +1,6 @@
 package com.jotty.android.data.local
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.jotty.android.data.api.Note
@@ -17,9 +18,14 @@ data class NoteEntity(
     val createdAt: String,
     val updatedAt: String,
     val encrypted: Boolean?,
-    val isDirty: Boolean = false, // True if locally modified and needs sync
-    val isDeleted: Boolean = false, // True if marked for deletion
-    val instanceId: String, // Which Jotty instance this note belongs to
+    val isDirty: Boolean = false,
+    val isDeleted: Boolean = false,
+    val instanceId: String,
+    // True for notes created offline that have never been pushed to the server.
+    // Used instead of the fragile createdAt == updatedAt heuristic to decide
+    // whether syncNote() should call createNote or updateNote.
+    @ColumnInfo(defaultValue = "0")
+    val isLocalOnly: Boolean = false,
 )
 
 /**

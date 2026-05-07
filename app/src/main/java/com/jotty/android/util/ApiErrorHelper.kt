@@ -6,6 +6,7 @@ import retrofit2.HttpException
 import java.io.IOException
 import java.net.SocketTimeoutException
 import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 
 /**
  * Maps exceptions to short, user-friendly messages suitable for UI (Snackbar, error state).
@@ -20,8 +21,13 @@ object ApiErrorHelper {
     internal fun errorMessageResId(t: Throwable): Int = when (t) {
         is UnknownHostException -> R.string.no_internet_connection
         is SocketTimeoutException -> R.string.connection_timed_out
+        is SSLException -> R.string.error_ssl_or_certificate
         is IOException -> R.string.network_error
         is HttpException -> when (t.code()) {
+            401 -> R.string.error_invalid_api_key
+            403 -> R.string.error_access_denied
+            404 -> R.string.error_not_found
+            429 -> R.string.error_rate_limited
             in 500..599 -> R.string.server_error
             else -> R.string.request_failed
         }

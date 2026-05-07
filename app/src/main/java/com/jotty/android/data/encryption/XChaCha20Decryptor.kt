@@ -87,7 +87,7 @@ object XChaCha20Decryptor {
             AppLog.d("encryption", "Decrypt: parse failed — $reason")
             return DecryptResult(null, reason)
         }
-        val payload = parsed.first!!
+        val payload = requireNotNull(parsed.first)
         val (salt, nonce, data) = Triple(payload.salt, payload.nonce, payload.data)
         // Jotty web uses IETF AEAD (ciphertext||tag). App uses libsodium secretbox (tag||ciphertext). Try the right one first.
         val preferLibsodiumOrder = !payload.usedHex

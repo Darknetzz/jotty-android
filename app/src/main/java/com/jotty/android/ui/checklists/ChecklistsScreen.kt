@@ -16,6 +16,8 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.lifecycle.viewmodel.compose.viewModel
+import android.app.Application
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,8 +36,8 @@ import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
-import com.jotty.android.util.ApiErrorHelper
-import com.jotty.android.util.AppLog
+import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.mainScreenTabContentPadding
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -47,68 +49,56 @@ fun ChecklistsScreen(
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
-    var checklists by remember { mutableStateOf<List<Checklist>>(emptyList()) }
-    var selectedList by remember { mutableStateOf<Checklist?>(null) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var showCreateDialog by remember { mutableStateOf(false) }
+    val application = LocalContext.current.applicationContext as Application
+    val vm: ChecklistsViewModel = viewModel { ChecklistsViewModel(application, api) }
+    val checklists by vm.checklists.collectAsState()
+    val selectedList by vm.selectedList.collectAsState()
+    val loading by vm.loading.collectAsState()
+    val error by vm.error.collectAsState()
+    val showCreateDialog by vm.showCreateDialog.collectAsState()
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
 
-    fun loadChecklists() {
-        scope.launch {
-            loading = true
-            error = null
-            try {
-                checklists = api.getChecklists().checklists
-                AppLog.d("checklists", "Loaded ${checklists.size} checklists")
-            } catch (e: Exception) {
-                AppLog.e("checklists", "Load failed", e)
-                error = ApiErrorHelper.userMessage(context, e)
-            } finally {
-                loading = false
-            }
-        }
-    }
+    LaunchedEffect(Unit) { vm.loadChecklists() }
 
-    LaunchedEffect(Unit) { loadChecklists() }
-
-    BackHandler(enabled = selectedList != null) { selectedList = null }
+    BackHandler(enabled = selectedList != null) { vm.setSelectedList(null) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = MainNestedScaffoldContentWindowInsets,
     ) { innerPadding ->
-    Column(Modifier.fillMaxSize().padding(innerPadding).padding(horizontal = 16.dp, vertical = contentVerticalDp.dp)) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .mainScreenTabContentPadding(
+                topComfortDp = contentVerticalDp,
+                scaffoldInnerPadding = innerPadding,
+            ),
+    ) {
         val currentList = selectedList
         if (currentList != null) {
             ChecklistDetailScreen(
                 checklist = currentList,
                 api = api,
-                onBack = { selectedList = null },
-                onUpdate = { loadChecklists(); selectedList = it },
-                onDelete = { loadChecklists(); selectedList = null },
+                onBack = { vm.setSelectedList(null) },
+                onUpdate = { vm.loadChecklists(); vm.setSelectedList(it) },
+                onDelete = { vm.loadChecklists(); vm.setSelectedList(null) },
                 onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                 onDeleteFailed = { scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) } },
             )
         } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    stringResource(R.string.nav_checklists),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
                 Row {
-                    IconButton(onClick = { loadChecklists() }) {
+                    IconButton(onClick = { vm.loadChecklists() }) {
                         Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
                     }
-                    IconButton(onClick = { showCreateDialog = true }) {
+                    IconButton(onClick = { vm.setShowCreateDialog(true) }) {
                         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
                     }
                 }
@@ -118,11 +108,11 @@ fun ChecklistsScreen(
                 loading = loading,
                 error = error,
                 isEmpty = checklists.isEmpty(),
-                onRetry = { loadChecklists() },
+                onRetry = { vm.loadChecklists() },
                 emptyIcon = Icons.Default.Checklist,
                 emptyTitle = stringResource(R.string.no_checklists_yet),
                 emptySubtitle = stringResource(R.string.tap_add_checklist),
-                onRefresh = { loadChecklists() },
+                onRefresh = { vm.loadChecklists() },
                 content = {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -131,17 +121,10 @@ fun ChecklistsScreen(
                         items(checklists, key = { it.id }) { list ->
                             ChecklistCard(
                                 checklist = list,
-                                onClick = { selectedList = list },
+                                onClick = { vm.setSelectedList(list) },
                                 onDelete = {
-                                    scope.launch {
-                                        try {
-                                            api.deleteChecklist(list.id)
-                                            checklists = checklists.filter { it.id != list.id }
-                                            if (selectedList?.id == list.id) selectedList = null
-                                        } catch (e: Exception) {
-                                            AppLog.e("checklists", "Delete checklist failed", e)
-                                            snackbarHostState.showSnackbar(deleteFailedMsg)
-                                        }
+                                    vm.deleteChecklist(list.id) {
+                                        scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) }
                                     }
                                 },
                             )
@@ -157,7 +140,7 @@ fun ChecklistsScreen(
         var title by remember { mutableStateOf("") }
         var isProjectType by remember { mutableStateOf(false) }
         AlertDialog(
-            onDismissRequest = { showCreateDialog = false },
+            onDismissRequest = { vm.setShowCreateDialog(false) },
             title = { Text(stringResource(R.string.new_checklist)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -187,30 +170,18 @@ fun ChecklistsScreen(
                 val untitled = stringResource(R.string.untitled)
                 TextButton(
                     onClick = {
-                        scope.launch {
-                            try {
-                                val created = api.createChecklist(
-                                    com.jotty.android.data.api.CreateChecklistRequest(
-                                        title = title.ifBlank { untitled },
-                                        type = if (isProjectType) "task" else "simple",
-                                    ),
-                                )
-                                if (created.success) {
-                                    loadChecklists()
-                                    selectedList = created.data
-                                    showCreateDialog = false
-                                }
-                            } catch (_: Exception) {
-                                scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) }
-                            }
-                        }
+                        vm.createChecklist(
+                            title = title.ifBlank { untitled },
+                            projectTaskType = isProjectType,
+                            onFailure = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
+                        )
                     },
                 ) {
                     Text(stringResource(R.string.create))
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showCreateDialog = false }) {
+                TextButton(onClick = { vm.setShowCreateDialog(false) }) {
                     Text(stringResource(R.string.cancel))
                 }
             },

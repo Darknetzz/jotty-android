@@ -60,6 +60,7 @@ fun OfflineEnabledChecklistsScreen(
     val isOnline by offlineRepository.isOnline.collectAsState()
     val isSyncing by offlineRepository.isSyncing.collectAsState()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsState()
+    val replayFailuresDetected by offlineRepository.replayFailuresDetected.collectAsState()
 
     val selectedList by vm.selectedList.collectAsState()
     val showCreateDialog by vm.showCreateDialog.collectAsState()
@@ -79,6 +80,7 @@ fun OfflineEnabledChecklistsScreen(
     val savedLocallyMsg = stringResource(R.string.saved_locally)
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
+    val replayFailedMsg = stringResource(R.string.sync_replay_ops_failed, replayFailuresDetected)
 
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
@@ -106,6 +108,18 @@ fun OfflineEnabledChecklistsScreen(
                 )
                 if (result == SnackbarResult.ActionPerformed) vm.applyConflictSearchFilter()
                 offlineRepository.clearConflictNotification()
+            }
+        }
+    }
+
+    LaunchedEffect(replayFailuresDetected) {
+        if (replayFailuresDetected > 0) {
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = replayFailedMsg,
+                    duration = SnackbarDuration.Long,
+                )
+                offlineRepository.clearReplayFailureNotification()
             }
         }
     }

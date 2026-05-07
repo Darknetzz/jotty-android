@@ -173,6 +173,7 @@
     <string name="saved_locally">Saved locally</string>
     <string name="will_sync_when_online">Will sync when online</string>
     <string name="sync_conflicts_detected">%d conflict(s) detected. Local copies created to preserve your data.</string>
+    <string name="sync_replay_ops_failed">%d checklist change(s) could not be replayed automatically. Please review the checklist.</string>
     <string name="conflict_copy_pending">1 local copy needs review.</string>
     <string name="conflict_copies_pending">%d local copies need review.</string>
     <string name="view_conflicts">View copies</string>

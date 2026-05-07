@@ -30,8 +30,10 @@ import com.jotty.android.BuildConfig
 import com.jotty.android.R
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.data.updates.InstallResult
+import com.jotty.android.data.updates.UpdateChannel
 import com.jotty.android.data.updates.UpdateCheckResult
 import com.jotty.android.data.updates.UpdateChecker
+import com.jotty.android.data.updates.parseUpdateChannel
 import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.SummaryData
@@ -55,6 +57,7 @@ fun SettingsScreen(
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
     val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsState(initial = false)
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsState(initial = true)
+    val updateChannelPref by settingsRepository.updateChannel.collectAsState(initial = "stable")
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
@@ -447,6 +450,10 @@ fun SettingsScreen(
             versionName = BuildConfig.VERSION_NAME ?: "\u2014",
             versionCode = BuildConfig.VERSION_CODE,
             serverVersion = serverVersion,
+            updateChannelPref = updateChannelPref,
+            onUpdateChannelChange = { ch ->
+                scope.launch { settingsRepository.setUpdateChannel(ch) }
+            },
         )
     }
 }
@@ -551,6 +558,7 @@ private fun SettingsSectionSubtitle(title: String) {
 
 private const val GITHUB_REPO_URL = "https://github.com/Darknetzz/jotty-android"
 private const val GITHUB_RELEASES_URL = "$GITHUB_REPO_URL/releases"
+private const val GITHUB_DEV_RELEASE_URL = "$GITHUB_REPO_URL/releases/tag/dev-latest"
 private const val ABOUT_EASTER_EGG_TAPS = 7
 private const val ABOUT_EASTER_EGG_RESET_MS = 700L
 
@@ -560,15 +568,23 @@ private fun AboutDialog(
     versionName: String,
     versionCode: Int,
     serverVersion: String? = null,
+    updateChannelPref: String,
+    onUpdateChannelChange: (String) -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val parsedChannel = parseUpdateChannel(updateChannelPref)
+    val releasePageUrl = if (parsedChannel == UpdateChannel.Dev) GITHUB_DEV_RELEASE_URL else GITHUB_RELEASES_URL
     var updateState by remember { mutableStateOf<UpdateUiState>(UpdateUiState.Idle) }
     var downloadProgress by remember { mutableStateOf<Float?>(null) }
     var versionTapCount by remember { mutableIntStateOf(0) }
     var versionLastTapElapsedMs by remember { mutableLongStateOf(0L) }
     var showAboutEasterEgg by remember { mutableStateOf(false) }
+
+    LaunchedEffect(updateChannelPref) {
+        updateState = UpdateUiState.Idle
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -632,13 +648,31 @@ private fun AboutDialog(
                     Text(stringResource(R.string.view_source_github))
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                SettingsSectionSubtitle(stringResource(R.string.update_channel_label))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = parsedChannel == UpdateChannel.Stable,
+                        onClick = { onUpdateChannelChange("stable") },
+                        label = { Text(stringResource(R.string.update_channel_stable)) },
+                    )
+                    FilterChip(
+                        selected = parsedChannel == UpdateChannel.Dev,
+                        onClick = { onUpdateChannelChange("dev") },
+                        label = { Text(stringResource(R.string.update_channel_dev)) },
+                    )
+                }
                 when (val state = updateState) {
                     UpdateUiState.Idle -> {
                         TextButton(
                             onClick = {
                                 scope.launch {
                                     updateState = UpdateUiState.Checking
-                                    updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate(context))
+                                    updateState = UpdateUiState.Result(
+                                        UpdateChecker.checkForUpdate(context, parsedChannel),
+                                    )
                                 }
                             },
                             contentPadding = PaddingValues(0.dp),
@@ -700,7 +734,7 @@ private fun AboutDialog(
                                     downloadProgress = null
                                 }
                             },
-                            onOpenReleasePage = { uriHandler.openUri(GITHUB_RELEASES_URL) },
+                            onOpenReleasePage = { uriHandler.openUri(releasePageUrl) },
                         )
                         is UpdateCheckResult.UpToDate -> {
                             Text(
@@ -725,7 +759,9 @@ private fun AboutDialog(
                                 onClick = {
                                     scope.launch {
                                         updateState = UpdateUiState.Checking
-                                        updateState = UpdateUiState.Result(UpdateChecker.checkForUpdate(context))
+                                        updateState = UpdateUiState.Result(
+                                            UpdateChecker.checkForUpdate(context, parsedChannel),
+                                        )
                                     }
                                 },
                                 contentPadding = PaddingValues(0.dp),
@@ -754,7 +790,7 @@ private fun AboutDialog(
                                 downloadProgress = null
                             }
                         },
-                        onOpenReleasePage = { uriHandler.openUri(GITHUB_RELEASES_URL) },
+                        onOpenReleasePage = { uriHandler.openUri(releasePageUrl) },
                     )
                 }
             }

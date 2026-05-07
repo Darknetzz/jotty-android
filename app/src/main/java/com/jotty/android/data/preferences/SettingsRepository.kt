@@ -93,6 +93,14 @@ class SettingsRepository(
     }.catch { emit(true) }
 
     /**
+     * GitHub update check channel: `"stable"` (latest semver release) or `"dev"` (`dev-latest` pre-release).
+     * Default stable.
+     */
+    val updateChannel: Flow<String> = context.jottySettingsDataStore.data.map { prefs ->
+        prefs[KEY_UPDATE_CHANNEL].takeIf { !it.isNullOrBlank() } ?: "stable"
+    }.catch { emit("stable") }
+
+    /**
      * Adds or updates an instance. When [setAsCurrent] is true, also sets it as the current instance.
      *
      * When [ApiKeyStore.isEncrypted] is true (typical):
@@ -187,6 +195,13 @@ class SettingsRepository(
 
     suspend fun setOfflineModeEnabled(value: Boolean) {
         context.jottySettingsDataStore.edit { it[KEY_OFFLINE_MODE] = value }
+    }
+
+    suspend fun setUpdateChannel(value: String) {
+        context.jottySettingsDataStore.edit {
+            val v = value.lowercase().trim()
+            if (v == "stable") it.remove(KEY_UPDATE_CHANNEL) else it[KEY_UPDATE_CHANNEL] = v
+        }
     }
 
     /** Clear all data (instances + app preferences) including encrypted API keys. */
@@ -321,6 +336,7 @@ class SettingsRepository(
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
         private val KEY_DEBUG_LOGGING = booleanPreferencesKey("debug_logging_enabled")
         private val KEY_OFFLINE_MODE = booleanPreferencesKey("offline_mode_enabled")
+        private val KEY_UPDATE_CHANNEL = stringPreferencesKey("update_channel")
 
         private fun parseInstances(json: String?): List<JottyInstance>? {
             if (json.isNullOrBlank()) return null

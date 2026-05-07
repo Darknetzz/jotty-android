@@ -193,11 +193,16 @@
     <string name="version_format">%1$s (%2$d)</string>
     <string name="view_source_github">View source on GitHub</string>
     <string name="check_for_updates">Check for updates</string>
+    <string name="update_channel_label">Update channel</string>
+    <string name="update_channel_stable">Stable</string>
+    <string name="update_channel_dev">Dev</string>
     <string name="checking_for_updates">Checking for updates…</string>
     <string name="update_available">Version %1$s is available</string>
     <string name="download_and_install">Download and install</string>
     <string name="you_are_up_to_date">You\'re on the latest version</string>
     <string name="update_check_error">Could not check for updates: %1$s</string>
+    <string name="update_check_dev_parse_error">Could not read dev build info from the release</string>
+    <string name="update_version_dev_format">Dev %1$s</string>
     <string name="downloading">Downloading…</string>
     <string name="install_failed">%1$s. You can install from the release page.</string>
     <string name="open_release_page">Open release page</string>

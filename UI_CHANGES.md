@@ -1,10 +1,10 @@
-# Offline Notes Feature - UI Changes
+# Offline Mode UI Changes
 
 ## Visual Elements Added
 
 ### 1. Sync Status Indicators (Notes Screen Header)
 
-Located next to the "Notes" title, showing real-time connection status:
+Shown in offline-enabled screens (for example, in Notes), showing real-time connection status:
 
 **Online & Synced**
 ```
@@ -50,7 +50,7 @@ Notes [Cloud-Off Icon]
 │ Saved locally           │
 └─────────────────────────┘
 ```
-- Appears when creating/editing/deleting notes offline
+- Appears when creating/editing/deleting content offline (for example, notes and checklists)
 - Confirms data is safely stored locally
 - Auto-dismisses after a few seconds
 
@@ -66,7 +66,7 @@ Works when you don't have internet connection.
 ```
 
 **When Enabled (default)**
-- Notes stored locally in Room database
+- Notes and checklists stored locally in Room database
 - Automatic sync when online
 - Can work completely offline
 
@@ -161,7 +161,7 @@ When sync fails (rare):
 - No sync indicators
 - Failed silently when offline
 - Lost work if connection dropped
-- Had to be online to use Notes
+- Had to be online for normal operations
 
 **After (Offline-Enabled)**
 - Clear sync status always visible

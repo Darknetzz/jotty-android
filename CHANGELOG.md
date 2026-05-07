@@ -4,6 +4,14 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **Legacy credentials migration** — When encrypted API key storage ([EncryptedSharedPreferences](https://developer.android.com/reference/androidx/security/crypto/EncryptedSharedPreferences)) is unavailable on a device, migrating from legacy `server_url` / `api_key` preferences no longer clears those keys while saving an empty instance API key (which would lock the user out). The key remains in DataStore plaintext in that rare fallback path, consistent with other non-encrypted flows.
+
+### Credits
+
+- Encrypted API key storage, biometric note passphrase storage, XChaCha20 encryptor fix, and related changes were merged from [#5](https://github.com/Darknetzz/jotty-android/pull/5). Thanks [@Emilien-Etadam](https://github.com/Emilien-Etadam) for driving the contribution.
+
 ---
 
 ## [1.3.0] - 2026-05-05

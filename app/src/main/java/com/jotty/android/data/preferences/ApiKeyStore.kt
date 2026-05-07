@@ -8,6 +8,15 @@ import com.jotty.android.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+/** Backing store for instance API keys; default implementation is [ApiKeyStore]. */
+interface ApiKeyStorage {
+    val isEncrypted: Boolean
+    fun getApiKey(instanceId: String): String?
+    suspend fun setApiKey(instanceId: String, apiKey: String)
+    suspend fun removeApiKey(instanceId: String)
+    suspend fun clearAll()
+}
+
 /**
  * Stores API keys in [EncryptedSharedPreferences] backed by the Android Keystore
  * (AES256-GCM master key, AES256-SIV key encryption, AES256-GCM value encryption).
@@ -20,7 +29,7 @@ import kotlinx.coroutines.withContext
  * [encryptedPrefs] is initialised lazily so the Keystore I/O happens on the first
  * background access rather than on the main-thread constructor call.
  */
-class ApiKeyStore(private val context: Context) {
+class ApiKeyStore(private val context: Context) : ApiKeyStorage {
 
     private val encryptedPrefs: SharedPreferences? by lazy {
         runCatching {
@@ -45,10 +54,10 @@ class ApiKeyStore(private val context: Context) {
      * `false` means the Android Keystore is unavailable; API keys are not migrated and
      * remain in their current storage location (DataStore plain text).
      */
-    val isEncrypted: Boolean get() = encryptedPrefs != null
+    override val isEncrypted: Boolean get() = encryptedPrefs != null
 
     /** Returns the encrypted API key for [instanceId], or `null` if absent or encryption unavailable. */
-    fun getApiKey(instanceId: String): String? =
+    override fun getApiKey(instanceId: String): String? =
         encryptedPrefs?.getString(prefKey(instanceId), null)?.takeIf { it.isNotBlank() }
 
     /**
@@ -57,7 +66,7 @@ class ApiKeyStore(private val context: Context) {
      * a crash between the two leaves a key in the encrypted store (harmless orphan)
      * rather than an instance with no key.
      */
-    suspend fun setApiKey(instanceId: String, apiKey: String) {
+    override suspend fun setApiKey(instanceId: String, apiKey: String) {
         if (apiKey.isBlank()) return
         withContext(Dispatchers.IO) {
             encryptedPrefs?.edit()?.putString(prefKey(instanceId), apiKey)?.commit()
@@ -65,14 +74,14 @@ class ApiKeyStore(private val context: Context) {
     }
 
     /** Removes the key for [instanceId] durably. */
-    suspend fun removeApiKey(instanceId: String) {
+    override suspend fun removeApiKey(instanceId: String) {
         withContext(Dispatchers.IO) {
             encryptedPrefs?.edit()?.remove(prefKey(instanceId))?.commit()
         }
     }
 
     /** Removes all stored API keys. Call from [SettingsRepository.clearAll]. */
-    suspend fun clearAll() {
+    override suspend fun clearAll() {
         withContext(Dispatchers.IO) {
             encryptedPrefs?.edit()?.clear()?.commit()
         }

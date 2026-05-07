@@ -4,6 +4,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+---
+
+## [1.3.1] - 2026-05-07
+
 ### Added
 
 - **Update channel (stable vs dev)** — About → “Check for updates” can target either the latest **stable** GitHub release or the rolling **`dev-latest`** pre-release. The choice is persisted in DataStore. Dev checks compare the release `Commit:` line to the app’s `-dev+` SHA suffix; stable checks compare semver using the base version (dev suffix stripped). (`UpdateChecker`, `GitHubApi`, `SettingsRepository`, `SettingsScreen`, `strings.xml`.)
@@ -20,6 +24,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 ### Fixed
 
 - **Legacy credentials migration** — When encrypted API key storage ([EncryptedSharedPreferences](https://developer.android.com/reference/androidx/security/crypto/EncryptedSharedPreferences)) is unavailable on a device, migrating from legacy `server_url` / `api_key` preferences no longer clears those keys while saving an empty instance API key (which would lock the user out). The key remains in DataStore plaintext in that rare fallback path, consistent with other non-encrypted flows.
+
+### Technical
+
+- **Update-channel parser tests** — `UpdateCheckerTest` covers `parseUpdateChannel`, base-version stripping, dev SHA extraction, dev release-body parsing, and local-vs-remote SHA matching used by the new update channel.
 
 ### Credits
 
@@ -511,14 +519,25 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.0
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.2.9]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.9
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.2.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.4
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.2.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.3
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.1.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.2
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.1.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.1
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.1.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.0
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.0.2-1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2-1
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.0.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.0.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.1
+[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.0.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.0

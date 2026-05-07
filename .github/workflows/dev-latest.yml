@@ -21,7 +21,7 @@ jobs:
       - uses: android-actions/setup-android@v3
 
       - name: Build debug APK
-        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon -PDEV_BUILD_SHA=${GITHUB_SHA}
 
       - name: Rename debug APK for release asset
         run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/jotty-android-debug.apk

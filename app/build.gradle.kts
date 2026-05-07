@@ -13,6 +13,7 @@ val keystoreProperties = Properties().apply {
         load(keystorePropertiesFile.inputStream())
     }
 }
+val devBuildSha = rootProject.findProperty("DEV_BUILD_SHA")?.toString()?.take(7)
 
 android {
     namespace = "com.jotty.android"
@@ -39,6 +40,11 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            if (!devBuildSha.isNullOrBlank()) {
+                versionNameSuffix = "-dev+$devBuildSha"
+            }
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(

@@ -4,9 +4,27 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Instrumentation performance baseline** — Added `PerformanceBaselineTest` to measure and log startup-to-first-frame and Notes-tab open timing in CI, with loose guardrails to catch major regressions early.
+- **Sync diagnostics metadata** — Offline repositories now expose last sync attempt time, last successful sync time, last sync duration, and last sync error for UI diagnostics and triage.
+- **Sync status micro-copy** — Added localized strings for “Last sync”, sync duration, and last sync error details shown in offline-enabled list screens.
+- **Checklist search copy** — Added dedicated “Search checklists” placeholder text for clearer checklist filtering UX.
+- **Sync status tests** — Added `SyncStatusStateTest` coverage for sync timing/error transitions.
+
 ### Changed
 
 - **GitHub Actions** — Updated CI and release workflows to action releases that target the Node 24 runtime (`actions/checkout` v6, `actions/setup-java` v5, `android-actions/setup-android` v4, `softprops/action-gh-release` v3; the instrumentation smoke-test job pins `reactivecircus/android-emulator-runner` v2.37.0, which moved to Node 24).
+- **CI smoke suite coverage** — The instrumentation smoke job now runs both `MainActivitySmokeTest` and `PerformanceBaselineTest`.
+- **DRY list-screen state handling** — Notes and checklists offline list screens now use shared `ListScreenState`/`rememberListScreenState` and shared `OfflineSyncStatusRow` from `ui/common`.
+- **Offline list UX consistency** — Notes and checklists now render a shared sync status row with a subtle “Last sync” timestamp.
+- **Note card rendering performance** — `NoteCard` now memoizes expensive derived values (encrypted detection, stripped content preview, formatted date) to reduce avoidable recomputation during list updates/scrolling.
+- **CHANGELOG link footer** — Normalized release reference links so each version appears once and maps correctly.
+
+### Fixed
+
+- **Checklist search placeholder mismatch** — Checklist search no longer uses the notes-specific placeholder text.
+- **Delete confidence for notes** — Note deletion now offers an undo snackbar action to reduce accidental loss.
 
 ---
 

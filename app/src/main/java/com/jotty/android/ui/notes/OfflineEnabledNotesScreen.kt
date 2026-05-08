@@ -8,10 +8,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.CloudQueue
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
@@ -32,7 +28,9 @@ import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.OfflineSyncStatusRow
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.util.ApiErrorHelper
@@ -67,10 +65,12 @@ fun OfflineEnabledNotesScreen(
     val isOnline by offlineRepository.isOnline.collectAsState()
     val isSyncing by offlineRepository.isSyncing.collectAsState()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsState()
+    val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsState()
+    val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsState()
+    val lastSyncError by offlineRepository.lastSyncError.collectAsState()
 
     val selectedNote by vm.selectedNote.collectAsState()
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val screenState = rememberListScreenState()
     val showCreateDialog by vm.showCreateDialog.collectAsState()
     val searchQuery by vm.searchQuery.collectAsState()
     val selectedCategory by vm.selectedCategory.collectAsState()
@@ -84,22 +84,26 @@ fun OfflineEnabledNotesScreen(
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
+    val noteDeletedMsg = stringResource(R.string.note_deleted)
+    val undoActionLabel = stringResource(R.string.undo)
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
+    val syncDurationLabel = stringResource(R.string.sync_duration)
+    val syncLastErrorLabel = stringResource(R.string.sync_last_error)
 
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
             if (!isOnline) return@launch
-            if (showLoading) loading = true
-            error = null
+            if (showLoading) screenState.loading = true
+            screenState.errorMessage = null
             val result = offlineRepository.syncNotes()
             if (result.isFailure) {
-                error = ApiErrorHelper.userMessage(
+                screenState.errorMessage = ApiErrorHelper.userMessage(
                     context,
                     result.exceptionOrNull() ?: Exception("Sync failed"),
                 )
             }
-            if (showLoading) loading = false
+            if (showLoading) screenState.loading = false
         }
     }
     
@@ -131,8 +135,8 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
-    LaunchedEffect(filteredNotes, loading, initialNoteId) {
-        if (!loading && initialNoteId != null && filteredNotes.isNotEmpty() && filteredNotes.none { it.id == initialNoteId }) {
+    LaunchedEffect(filteredNotes, screenState.loading, initialNoteId) {
+        if (!screenState.loading && initialNoteId != null && filteredNotes.isNotEmpty() && filteredNotes.none { it.id == initialNoteId }) {
             scope.launch { snackbarHostState.showSnackbar(noteNotFoundMsg) }
             onDeepLinkConsumed()
         }
@@ -155,69 +159,33 @@ fun OfflineEnabledNotesScreen(
             when (val note = selectedNote) {
                 null -> {
                     // Header with sync status and actions; the app bar owns the screen title.
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            val statusText = when {
-                                isSyncing -> stringResource(R.string.syncing)
-                                isOnline -> stringResource(R.string.online)
-                                else -> stringResource(R.string.offline)
-                            }
-                            when {
-                                isSyncing -> {
-                                    Icon(
-                                        Icons.Default.CloudQueue,
-                                        contentDescription = statusText,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                isOnline -> {
-                                    Icon(
-                                        Icons.Default.CloudDone,
-                                        contentDescription = statusText,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                else -> {
-                                    Icon(
-                                        Icons.Default.CloudOff,
-                                        contentDescription = statusText,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                statusText,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        Row {
-                            IconButton(
-                                onClick = { requestSync(showLoading = false) },
-                                enabled = isOnline && !isSyncing
-                            ) {
-                                Icon(
-                                    Icons.Default.Refresh,
-                                    contentDescription = stringResource(R.string.cd_refresh)
-                                )
-                            }
+                    OfflineSyncStatusRow(
+                        isOnline = isOnline,
+                        isSyncing = isSyncing,
+                        lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+                        onRefresh = { requestSync(showLoading = false) },
+                        trailingActions = {
                             IconButton(onClick = { vm.setShowCreateDialog(true) }) {
                                 Icon(
                                     Icons.Default.Add,
-                                    contentDescription = stringResource(R.string.cd_add)
+                                    contentDescription = stringResource(R.string.cd_add),
                                 )
                             }
-                        }
+                        },
+                    )
+                    if (lastSyncDurationText != null || lastSyncError != null) {
+                        Text(
+                            text = buildString {
+                                if (lastSyncDurationText != null) append("$syncDurationLabel: $lastSyncDurationText")
+                                if (lastSyncError != null) {
+                                    if (isNotEmpty()) append(" • ")
+                                    append("$syncLastErrorLabel: $lastSyncError")
+                                }
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
                     }
 
                     // Search bar
@@ -313,8 +281,8 @@ fun OfflineEnabledNotesScreen(
 
                     // Notes list
                     ListScreenContent(
-                        loading = loading,
-                        error = error,
+                        loading = screenState.loading,
+                        error = screenState.errorMessage,
                         isEmpty = filteredNotes.isEmpty(),
                         onRetry = {
                             requestSync()
@@ -338,8 +306,25 @@ fun OfflineEnabledNotesScreen(
                                                 val result = offlineRepository.deleteNote(n.id)
                                                 if (result.isFailure) {
                                                     snackbarHostState.showSnackbar(deleteFailedMsg)
-                                                } else if (!isOnline) {
-                                                    snackbarHostState.showSnackbar(savedLocallyMsg)
+                                                } else {
+                                                    val snackbarResult = snackbarHostState.showSnackbar(
+                                                        message = noteDeletedMsg,
+                                                        actionLabel = undoActionLabel,
+                                                    )
+                                                    if (snackbarResult == SnackbarResult.ActionPerformed) {
+                                                        val undoResult = offlineRepository.createNote(
+                                                            title = n.title,
+                                                            content = n.content ?: "",
+                                                            category = n.category,
+                                                        )
+                                                        if (undoResult.isFailure) {
+                                                            snackbarHostState.showSnackbar(saveFailedMsg)
+                                                        } else if (!isOnline) {
+                                                            snackbarHostState.showSnackbar(savedLocallyMsg)
+                                                        }
+                                                    } else if (!isOnline) {
+                                                        snackbarHostState.showSnackbar(savedLocallyMsg)
+                                                    }
                                                 }
                                                 if (selectedNote?.id == n.id) vm.setSelectedNote(null)
                                             }

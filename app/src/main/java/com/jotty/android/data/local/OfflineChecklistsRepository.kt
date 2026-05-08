@@ -55,6 +55,10 @@ class OfflineChecklistsRepository(
     val isOnline: StateFlow<Boolean> = runtime.syncStatus.isOnline
     val isSyncing: StateFlow<Boolean> = runtime.syncStatus.isSyncing
     val conflictsDetected: StateFlow<Int> = runtime.syncStatus.conflictsDetected
+    val lastSyncAttemptEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncAttemptEpochMs
+    val lastSyncSuccessEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncSuccessEpochMs
+    val lastSyncDurationText: StateFlow<String?> = runtime.syncStatus.lastSyncDurationText
+    val lastSyncError: StateFlow<String?> = runtime.syncStatus.lastSyncError
     private val _replayFailuresDetected = MutableStateFlow(0)
     val replayFailuresDetected: StateFlow<Int> = _replayFailuresDetected.asStateFlow()
 
@@ -207,6 +211,7 @@ class OfflineChecklistsRepository(
         if (!isOnline.value) return@withContext Result.failure(Exception("Offline"))
 
         runtime.syncStatus.setSyncing(true)
+        runtime.syncStatus.markSyncStarted()
         _replayFailuresDetected.value = 0
         AppLog.d(TAG, "Starting sync…")
         try {
@@ -248,10 +253,12 @@ class OfflineChecklistsRepository(
                 if (conflictCopies.isNotEmpty()) checklistDao.insertAll(conflictCopies)
             }
             runtime.syncStatus.setConflictsDetected(if (conflictCopies.isNotEmpty()) conflictCopies.size else 0)
+            runtime.syncStatus.markSyncCompleted(success = true)
 
             AppLog.d(TAG, "Sync complete — ${serverChecklists.size} checklists from server")
             Result.success(Unit)
         } catch (e: Exception) {
+            runtime.syncStatus.markSyncCompleted(success = false, errorMessage = e.message)
             AppLog.d(TAG, "Sync failed: ${e.message}")
             Result.failure(e)
         } finally {

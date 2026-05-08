@@ -36,6 +36,8 @@ import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.OfflineSyncStatusRow
+import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
@@ -61,6 +63,9 @@ fun OfflineEnabledChecklistsScreen(
     val isSyncing by offlineRepository.isSyncing.collectAsState()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsState()
     val replayFailuresDetected by offlineRepository.replayFailuresDetected.collectAsState()
+    val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsState()
+    val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsState()
+    val lastSyncError by offlineRepository.lastSyncError.collectAsState()
 
     val selectedList by vm.selectedList.collectAsState()
     val showCreateDialog by vm.showCreateDialog.collectAsState()
@@ -69,8 +74,7 @@ fun OfflineEnabledChecklistsScreen(
     val checklistCategories by vm.checklistCategories.collectAsState()
     val filteredChecklists by vm.filteredChecklists.collectAsState()
 
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf<String?>(null) }
+    val screenState = rememberListScreenState()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -81,20 +85,22 @@ fun OfflineEnabledChecklistsScreen(
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
     val replayFailedMsg = stringResource(R.string.sync_replay_ops_failed, replayFailuresDetected)
+    val syncDurationLabel = stringResource(R.string.sync_duration)
+    val syncLastErrorLabel = stringResource(R.string.sync_last_error)
 
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
             if (!isOnline) return@launch
-            if (showLoading) loading = true
-            error = null
+            if (showLoading) screenState.loading = true
+            screenState.errorMessage = null
             val result = offlineRepository.syncChecklists()
             if (result.isFailure) {
-                error = ApiErrorHelper.userMessage(
+                screenState.errorMessage = ApiErrorHelper.userMessage(
                     context,
                     result.exceptionOrNull() ?: Exception("Sync failed"),
                 )
             }
-            if (showLoading) loading = false
+            if (showLoading) screenState.loading = false
         }
     }
 
@@ -166,54 +172,30 @@ fun OfflineEnabledChecklistsScreen(
                 )
             } else {
                 // Header row: status + actions
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        val statusText = when {
-                            isSyncing -> stringResource(R.string.syncing)
-                            isOnline -> stringResource(R.string.online)
-                            else -> stringResource(R.string.offline)
-                        }
-                        when {
-                            isSyncing -> Icon(
-                                Icons.Default.CloudQueue, contentDescription = statusText,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                            isOnline -> Icon(
-                                Icons.Default.CloudDone, contentDescription = statusText,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                            else -> Icon(
-                                Icons.Default.CloudOff, contentDescription = statusText,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp),
-                            )
-                        }
-                        Text(
-                            statusText,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Row {
-                        IconButton(
-                            onClick = { requestSync(showLoading = false) },
-                            enabled = isOnline && !isSyncing,
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
-                        }
+                OfflineSyncStatusRow(
+                    isOnline = isOnline,
+                    isSyncing = isSyncing,
+                    lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+                    onRefresh = { requestSync(showLoading = false) },
+                    trailingActions = {
                         IconButton(onClick = { vm.setShowCreateDialog(true) }) {
                             Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
                         }
-                    }
+                    },
+                )
+                if (lastSyncDurationText != null || lastSyncError != null) {
+                    Text(
+                        text = buildString {
+                            if (lastSyncDurationText != null) append("$syncDurationLabel: $lastSyncDurationText")
+                            if (lastSyncError != null) {
+                                if (isNotEmpty()) append(" • ")
+                                append("$syncLastErrorLabel: $lastSyncError")
+                            }
+                        },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
                 }
 
                 // Search bar
@@ -221,8 +203,8 @@ fun OfflineEnabledChecklistsScreen(
                     value = searchQuery,
                     onValueChange = { vm.setSearchQuery(it) },
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    placeholder = { Text(stringResource(R.string.search_notes)) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    placeholder = { Text(stringResource(R.string.search_checklists)) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
                     singleLine = true,
                 )
 
@@ -261,8 +243,8 @@ fun OfflineEnabledChecklistsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 ListScreenContent(
-                    loading = loading,
-                    error = error,
+                    loading = screenState.loading,
+                    error = screenState.errorMessage,
                     isEmpty = filteredChecklists.isEmpty(),
                     onRetry = { requestSync() },
                     emptyIcon = Icons.Default.Checklist,

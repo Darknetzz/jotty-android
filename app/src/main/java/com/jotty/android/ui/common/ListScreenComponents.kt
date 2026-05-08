@@ -3,7 +3,11 @@ package com.jotty.android.ui.common
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -15,7 +19,23 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
+
+@Stable
+class ListScreenState(
+    loading: Boolean = false,
+    errorMessage: String? = null,
+) {
+    var loading by mutableStateOf(loading)
+    var errorMessage by mutableStateOf(errorMessage)
+}
+
+@Composable
+fun rememberListScreenState(
+    loading: Boolean = false,
+    errorMessage: String? = null,
+): ListScreenState = remember { ListScreenState(loading, errorMessage) }
 
 /** Centered loading spinner for list screens. */
 @Composable
@@ -34,6 +54,79 @@ fun LoadingState(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun OfflineSyncStatusRow(
+    isOnline: Boolean,
+    isSyncing: Boolean,
+    lastSyncAttemptEpochMs: Long?,
+    onRefresh: () -> Unit,
+    trailingActions: @Composable RowScope.() -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val statusText = when {
+        isSyncing -> stringResource(R.string.syncing)
+        isOnline -> stringResource(R.string.online)
+        else -> stringResource(R.string.offline)
+    }
+    val lastSyncText = remember(lastSyncAttemptEpochMs) {
+        lastSyncAttemptEpochMs?.let {
+            DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
+        }
+    }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            when {
+                isSyncing -> Icon(
+                    Icons.Default.CloudQueue,
+                    contentDescription = statusText,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                isOnline -> Icon(
+                    Icons.Default.CloudDone,
+                    contentDescription = statusText,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+                else -> Icon(
+                    Icons.Default.CloudOff,
+                    contentDescription = statusText,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
+            Column {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (lastSyncText != null) {
+                    Text(
+                        text = stringResource(R.string.last_sync_attempt_at, lastSyncText),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        Row {
+            IconButton(onClick = onRefresh, enabled = isOnline && !isSyncing) {
+                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
+            }
+            trailingActions()
         }
     }
 }

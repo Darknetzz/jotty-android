@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 /**
  * Shared sync status for offline repositories.
@@ -29,6 +31,20 @@ class SyncStatusState(initialOnline: Boolean) {
     private val _conflictsDetected = MutableStateFlow(0)
     val conflictsDetected: StateFlow<Int> = _conflictsDetected.asStateFlow()
 
+    private val _lastSyncAttemptEpochMs = MutableStateFlow<Long?>(null)
+    val lastSyncAttemptEpochMs: StateFlow<Long?> = _lastSyncAttemptEpochMs.asStateFlow()
+
+    private val _lastSyncSuccessEpochMs = MutableStateFlow<Long?>(null)
+    val lastSyncSuccessEpochMs: StateFlow<Long?> = _lastSyncSuccessEpochMs.asStateFlow()
+
+    private val _lastSyncDurationText = MutableStateFlow<String?>(null)
+    val lastSyncDurationText: StateFlow<String?> = _lastSyncDurationText.asStateFlow()
+
+    private val _lastSyncError = MutableStateFlow<String?>(null)
+    val lastSyncError: StateFlow<String?> = _lastSyncError.asStateFlow()
+
+    private var syncStartedEpochMs: Long? = null
+
     fun setOnline(value: Boolean) {
         _isOnline.value = value
     }
@@ -39,6 +55,27 @@ class SyncStatusState(initialOnline: Boolean) {
 
     fun setConflictsDetected(value: Int) {
         _conflictsDetected.value = value
+    }
+
+    fun markSyncStarted(nowEpochMs: Long = System.currentTimeMillis()) {
+        syncStartedEpochMs = nowEpochMs
+        _lastSyncAttemptEpochMs.value = nowEpochMs
+        _lastSyncError.value = null
+    }
+
+    fun markSyncCompleted(success: Boolean, errorMessage: String? = null, nowEpochMs: Long = System.currentTimeMillis()) {
+        val startedAt = syncStartedEpochMs
+        syncStartedEpochMs = null
+        if (startedAt != null) {
+            val elapsedMs = (nowEpochMs - startedAt).coerceAtLeast(0L)
+            _lastSyncDurationText.value = elapsedMs.toDuration(DurationUnit.MILLISECONDS).toString()
+        }
+        if (success) {
+            _lastSyncSuccessEpochMs.value = nowEpochMs
+            _lastSyncError.value = null
+        } else {
+            _lastSyncError.value = errorMessage
+        }
     }
 }
 

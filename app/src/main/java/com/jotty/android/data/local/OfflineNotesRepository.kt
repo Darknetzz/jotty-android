@@ -41,6 +41,10 @@ class OfflineNotesRepository(
     val isOnline: StateFlow<Boolean> = runtime.syncStatus.isOnline
     val isSyncing: StateFlow<Boolean> = runtime.syncStatus.isSyncing
     val conflictsDetected: StateFlow<Int> = runtime.syncStatus.conflictsDetected
+    val lastSyncAttemptEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncAttemptEpochMs
+    val lastSyncSuccessEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncSuccessEpochMs
+    val lastSyncDurationText: StateFlow<String?> = runtime.syncStatus.lastSyncDurationText
+    val lastSyncError: StateFlow<String?> = runtime.syncStatus.lastSyncError
 
     /**
      * Releases resources held by this repository: unregisters the network callback and
@@ -202,6 +206,7 @@ class OfflineNotesRepository(
         }
 
         runtime.syncStatus.setSyncing(true)
+        runtime.syncStatus.markSyncStarted()
         AppLog.d("OfflineNotesRepository", "Starting sync...")
 
         try {
@@ -260,10 +265,12 @@ class OfflineNotesRepository(
                 AppLog.d("OfflineNotesRepository", "Synced ${serverNotes.size} notes from server")
             }
 
+            runtime.syncStatus.markSyncCompleted(success = true)
             runtime.syncStatus.setSyncing(false)
             AppLog.d("OfflineNotesRepository", "Sync complete")
             Result.success(Unit)
         } catch (e: Exception) {
+            runtime.syncStatus.markSyncCompleted(success = false, errorMessage = e.message)
             runtime.syncStatus.setSyncing(false)
             AppLog.d("OfflineNotesRepository", "Sync failed: ${e.message}")
             Result.failure(e)

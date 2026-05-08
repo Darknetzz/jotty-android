@@ -43,7 +43,7 @@ jobs:
           api-level: 34
           arch: x86_64
           profile: pixel_6
-          script: ./gradlew connectedDebugAndroidTest --no-daemon -Pandroid.testInstrumentationRunnerArguments.class=com.jotty.android.MainActivitySmokeTest
+          script: ./gradlew connectedDebugAndroidTest --no-daemon -Pandroid.testInstrumentationRunnerArguments.class=com.jotty.android.MainActivitySmokeTest,com.jotty.android.PerformanceBaselineTest
 
   dependency-review:
     if: github.event_name == 'pull_request'

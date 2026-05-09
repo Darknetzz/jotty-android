@@ -71,6 +71,8 @@ Manual fallback: update both values in `gradle.properties`, add an entry to **`C
 
 **Signed release APK:** Copy `keystore.properties.example` to `keystore.properties`, create a keystore (see the example file for the `keytool` command), then run `.\build.ps1 -Release`. The release APK will be signed and installable. Keep your keystore and passwords safe and never commit them.
 
+**GitHub Releases (maintainers):** Configure repository secrets `RELEASE_KEYSTORE_BASE64` (your `.keystore` file, base64-encoded), `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, and `RELEASE_KEY_PASSWORD` — same values as local `keystore.properties`. Without these, CI publishes an unsigned APK that devices will reject. After secrets are set, re-run the workflow or publish a new release to attach `jotty-android-{version}.apk`.
+
 ## Building
 
 ### Requirements

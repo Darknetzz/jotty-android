@@ -45,6 +45,7 @@ app/src/main/java/com/jotty/android/
 
 - **Single source of truth:** `gradle.properties` — `VERSION_NAME` and `VERSION_CODE`. The app reads these; `BuildConfig` is generated from them (`buildConfig = true` in `app/build.gradle.kts`).
 - **Releasing:** Bump `VERSION_NAME` and `VERSION_CODE` in `gradle.properties`, add a section to `CHANGELOG.md` (Keep a Changelog style), then build and tag (e.g. `v1.0.2`).
+- **GitHub release APK:** The `release-apk` workflow must have repository secrets set or CI uploads an **unsigned** APK (`app-release-unsigned.apk`), which **cannot be installed** on phones. Required secrets: `RELEASE_KEYSTORE_BASE64` (base64 of the same keystore file used locally, e.g. `base64 -w0 jotty-release.keystore` on Linux), `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`. These mirror `keystore.properties` / `keystore.properties.example`. The workflow attaches `jotty-android-{VERSION_NAME}.apk` (signed).
 
 ## Build and run
 

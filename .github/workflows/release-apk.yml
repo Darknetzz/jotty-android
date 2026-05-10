@@ -20,52 +20,24 @@ jobs:
 
       - uses: android-actions/setup-android@v4
 
-      # Without keystore.properties the build emits app-release-unsigned.apk, which is not installable on devices.
-      - name: Configure release signing
-        env:
-          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          if [ -z "${RELEASE_KEYSTORE_BASE64:-}" ]; then
-            echo "::error title=Missing signing secrets::Add repository secrets RELEASE_KEYSTORE_BASE64 (base64-encoded keystore file), RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, and RELEASE_KEY_PASSWORD. See README / AGENTS.md. Unsigned APKs cannot be installed."
-            exit 1
-          fi
-          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > jotty-release.keystore
-          {
-            echo "storeFile=jotty-release.keystore"
-            echo "storePassword=${RELEASE_STORE_PASSWORD}"
-            echo "keyAlias=${RELEASE_KEY_ALIAS}"
-            echo "keyPassword=${RELEASE_KEY_PASSWORD}"
-          } > keystore.properties
-
       - name: Read version name
         id: ver
         run: |
           VERSION_NAME=$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2-)
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Build release APK
-        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
-
-      - name: Verify signed APK
-        run: |
-          set -euo pipefail
-          if [ ! -f app/build/outputs/apk/release/app-release.apk ]; then
-            echo "::error::Expected signed app-release.apk was not produced. Check signing secrets and keystore."
-            ls -la app/build/outputs/apk/release/ || true
-            exit 1
-          fi
+      # Debug APK is signed with the CI debug keystore and installable without repo secrets.
+      # For a minified release-signed APK, build locally with keystore.properties (see README).
+      - name: Build debug APK
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
 
       - name: Prepare release asset filename
-        run: cp app/build/outputs/apk/release/app-release.apk "jotty-android-${{ steps.ver.outputs.VERSION_NAME }}.apk"
+        run: cp app/build/outputs/apk/debug/app-debug.apk "jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-debug.apk"
 
       - name: Attach APK to GitHub release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.release.tag_name }}
-          files: jotty-android-${{ steps.ver.outputs.VERSION_NAME }}.apk
+          files: jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-debug.apk
           fail_on_unmatched_files: true
           overwrite_files: true

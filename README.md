@@ -30,9 +30,9 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 
 ## Releases / Download
 
-Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. When a GitHub Release is published, CI builds a release APK and attaches it automatically.
+Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. When a GitHub Release is published, CI builds a **debug** APK (signed with the CI debug key, installable without maintainer secrets) and attaches **`jotty-android-{version}-debug.apk`**.
 
-- **Stable release builds:** download the `jotty-android-*.apk` asset from the release you want.
+- **Stable release builds:** download `jotty-android-*-debug.apk` from the release you want.
 - **Rolling dev build:** use the [Dev Latest pre-release](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest), which is updated automatically on every push to `dev`.
 
 Install on your device by enabling "Install from unknown sources" if needed.
@@ -70,8 +70,6 @@ Both scripts can prompt for a version (default is current patch + 1), increment 
 Manual fallback: update both values in `gradle.properties`, add an entry to **`CHANGELOG.md`**, then build and tag (e.g. `v1.0.1`).
 
 **Signed release APK:** Copy `keystore.properties.example` to `keystore.properties`, create a keystore (see the example file for the `keytool` command), then run `.\build.ps1 -Release`. The release APK will be signed and installable. Keep your keystore and passwords safe and never commit them.
-
-**GitHub Releases (maintainers):** Configure repository secrets `RELEASE_KEYSTORE_BASE64` (your `.keystore` file, base64-encoded), `RELEASE_STORE_PASSWORD`, `RELEASE_KEY_ALIAS`, and `RELEASE_KEY_PASSWORD` — same values as local `keystore.properties`. Without these, CI publishes an unsigned APK that devices will reject. After secrets are set, re-run the workflow or publish a new release to attach `jotty-android-{version}.apk`.
 
 ## Building
 

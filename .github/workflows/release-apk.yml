@@ -3,6 +3,12 @@ name: Release APK
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag of the release to attach the APK to (e.g. v1.3.1)"
+        required: true
+        type: string
 
 jobs:
   release-apk:
@@ -11,6 +17,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
 
       - uses: actions/setup-java@v5
         with:
@@ -37,7 +45,7 @@ jobs:
       - name: Attach APK to GitHub release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.event.release.tag_name }}
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
           files: jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-debug.apk
           fail_on_unmatched_files: true
           overwrite_files: true

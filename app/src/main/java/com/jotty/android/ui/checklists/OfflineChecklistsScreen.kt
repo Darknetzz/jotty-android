@@ -21,10 +21,11 @@ fun OfflineChecklistsScreen(
     swipeToDeleteEnabled: Boolean = false,
 ) {
     val application = LocalContext.current.applicationContext as Application
-    val vm: OfflineChecklistsViewModel = viewModel(
-        key = "$instanceId|$authFingerprint",
-        factory = OfflineChecklistsViewModel.Factory(application, instanceId, api),
-    )
+    val vm: OfflineChecklistsViewModel =
+        viewModel(
+            key = "$instanceId|$authFingerprint",
+            factory = OfflineChecklistsViewModel.Factory(application, instanceId, api),
+        )
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
 

@@ -8,23 +8,24 @@ import org.junit.Test
  * Unit tests for NoteEntity conversions.
  */
 class NoteEntityTest {
-
     @Test
     fun `toEntity converts Note to NoteEntity correctly`() {
-        val note = Note(
-            id = "test-id",
-            title = "Test Note",
-            category = "Test Category",
-            content = "Test content",
-            createdAt = "2024-01-01T00:00:00Z",
-            updatedAt = "2024-01-01T00:00:00Z",
-            encrypted = false
-        )
+        val note =
+            Note(
+                id = "test-id",
+                title = "Test Note",
+                category = "Test Category",
+                content = "Test content",
+                createdAt = "2024-01-01T00:00:00Z",
+                updatedAt = "2024-01-01T00:00:00Z",
+                encrypted = false,
+            )
 
-        val entity = note.toEntity(
-            instanceId = "instance-123",
-            isDirty = true
-        )
+        val entity =
+            note.toEntity(
+                instanceId = "instance-123",
+                isDirty = true,
+            )
 
         assertEquals("test-id", entity.id)
         assertEquals("Test Note", entity.title)
@@ -40,18 +41,19 @@ class NoteEntityTest {
 
     @Test
     fun `toNote converts NoteEntity to Note correctly`() {
-        val entity = NoteEntity(
-            id = "test-id",
-            title = "Test Note",
-            category = "Test Category",
-            content = "Test content",
-            createdAt = "2024-01-01T00:00:00Z",
-            updatedAt = "2024-01-01T00:00:00Z",
-            encrypted = true,
-            isDirty = true,
-            isDeleted = false,
-            instanceId = "instance-123"
-        )
+        val entity =
+            NoteEntity(
+                id = "test-id",
+                title = "Test Note",
+                category = "Test Category",
+                content = "Test content",
+                createdAt = "2024-01-01T00:00:00Z",
+                updatedAt = "2024-01-01T00:00:00Z",
+                encrypted = true,
+                isDirty = true,
+                isDeleted = false,
+                instanceId = "instance-123",
+            )
 
         val note = entity.toNote()
 
@@ -66,15 +68,16 @@ class NoteEntityTest {
 
     @Test
     fun `toEntity sets default values correctly`() {
-        val note = Note(
-            id = "test-id",
-            title = "Test Note",
-            category = "Uncategorized",
-            content = "",
-            createdAt = "2024-01-01T00:00:00Z",
-            updatedAt = "2024-01-01T00:00:00Z",
-            encrypted = null
-        )
+        val note =
+            Note(
+                id = "test-id",
+                title = "Test Note",
+                category = "Uncategorized",
+                content = "",
+                createdAt = "2024-01-01T00:00:00Z",
+                updatedAt = "2024-01-01T00:00:00Z",
+                encrypted = null,
+            )
 
         val entity = note.toEntity(instanceId = "instance-123")
 
@@ -86,15 +89,16 @@ class NoteEntityTest {
 
     @Test
     fun `round trip conversion preserves data`() {
-        val originalNote = Note(
-            id = "test-id",
-            title = "Test Note",
-            category = "Test Category",
-            content = "Test content with special chars: 中文, emoji 🎉",
-            createdAt = "2024-01-01T00:00:00Z",
-            updatedAt = "2024-01-02T00:00:00Z",
-            encrypted = true
-        )
+        val originalNote =
+            Note(
+                id = "test-id",
+                title = "Test Note",
+                category = "Test Category",
+                content = "Test content with special chars: 中文, emoji 🎉",
+                createdAt = "2024-01-01T00:00:00Z",
+                updatedAt = "2024-01-02T00:00:00Z",
+                encrypted = true,
+            )
 
         val entity = originalNote.toEntity(instanceId = "instance-123")
         val convertedNote = entity.toNote()
@@ -111,25 +115,27 @@ class NoteEntityTest {
 
     @Test
     fun `creating local copy for conflict appends suffix to title`() {
-        val originalEntity = NoteEntity(
-            id = "original-id",
-            title = "My Note",
-            category = "Work",
-            content = "Original content edited offline",
-            createdAt = "2024-01-01T00:00:00Z",
-            updatedAt = "2024-01-02T10:00:00Z",
-            encrypted = false,
-            isDirty = true,
-            isDeleted = false,
-            instanceId = "instance-123"
-        )
+        val originalEntity =
+            NoteEntity(
+                id = "original-id",
+                title = "My Note",
+                category = "Work",
+                content = "Original content edited offline",
+                createdAt = "2024-01-01T00:00:00Z",
+                updatedAt = "2024-01-02T10:00:00Z",
+                encrypted = false,
+                isDirty = true,
+                isDeleted = false,
+                instanceId = "instance-123",
+            )
 
         // Simulate creating a local copy for conflict resolution
-        val localCopy = originalEntity.copy(
-            id = "new-uuid-for-copy",
-            title = "${originalEntity.title} (Local copy)",
-            isDirty = false
-        )
+        val localCopy =
+            originalEntity.copy(
+                id = "new-uuid-for-copy",
+                title = "${originalEntity.title} (Local copy)",
+                isDirty = false,
+            )
 
         assertEquals("new-uuid-for-copy", localCopy.id)
         assertEquals("My Note (Local copy)", localCopy.title)

@@ -30,7 +30,7 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 
 ## Releases / Download
 
-Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. When a GitHub Release is published, CI builds a **debug** APK (signed with the CI debug key, installable without maintainer secrets) and attaches **`jotty-android-{version}-debug.apk`**.
+Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. When a GitHub Release is published, CI builds a **debug** APK (signed with the CI debug key, installable without maintainer secrets) and attaches **`jotty-android-{version}-debug.apk`**. If you add repository secrets **`ANDROID_KEYSTORE_B64`** (base64-encoded `.jks`), **`ANDROID_KEYSTORE_PASSWORD`**, **`ANDROID_KEY_ALIAS`**, and **`ANDROID_KEY_PASSWORD`**, the same workflow also builds **`jotty-android-{version}-release.apk`** (minified, release-signed) and attaches it alongside the debug APK.
 
 - **Stable release builds:** download `jotty-android-*-debug.apk` from the release you want.
 - **Rolling dev build:** use the [Dev Latest pre-release](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest), which is updated automatically on every push to `dev`.
@@ -87,7 +87,7 @@ If the wrapper is missing (e.g. `gradle-wrapper.jar`), create it:
 
 ```bash
 # With Gradle installed:
-gradle wrapper --gradle-version 8.9
+gradle wrapper --gradle-version 9.1.0
 ```
 
 ### Build commands

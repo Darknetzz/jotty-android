@@ -63,7 +63,11 @@ class SyncStatusState(initialOnline: Boolean) {
         _lastSyncError.value = null
     }
 
-    fun markSyncCompleted(success: Boolean, errorMessage: String? = null, nowEpochMs: Long = System.currentTimeMillis()) {
+    fun markSyncCompleted(
+        success: Boolean,
+        errorMessage: String? = null,
+        nowEpochMs: Long = System.currentTimeMillis(),
+    ) {
         val startedAt = syncStartedEpochMs
         syncStartedEpochMs = null
         if (startedAt != null) {
@@ -90,9 +94,10 @@ class OfflineRepositoryLifecycle(
     private val instanceId: String,
     private val onNetworkAvailable: suspend () -> Unit,
 ) {
-    private val scopeExceptionHandler = CoroutineExceptionHandler { _, t ->
-        AppLog.d(logTag, "Background coroutine failed: ${t.message}")
-    }
+    private val scopeExceptionHandler =
+        CoroutineExceptionHandler { _, t ->
+            AppLog.d(logTag, "Background coroutine failed: ${t.message}")
+        }
 
     val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + scopeExceptionHandler)
     val syncStatus = SyncStatusState(initialOnlineOverride ?: checkConnectivity())
@@ -101,28 +106,31 @@ class OfflineRepositoryLifecycle(
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
 
     @Volatile private var networkCallback: ConnectivityManager.NetworkCallback? = null
+
     @Volatile private var closed = false
 
     init {
         if (registerNetworkCallback) {
             connectivityManager?.let { cm ->
-                val networkRequest = NetworkRequest.Builder()
-                    .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    .build()
-                val callback = object : ConnectivityManager.NetworkCallback() {
-                    override fun onAvailable(network: Network) {
-                        if (closed) return
-                        AppLog.d(logTag, "Network available")
-                        syncStatus.setOnline(true)
-                        coroutineScope.launch { onNetworkAvailable() }
-                    }
+                val networkRequest =
+                    NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .build()
+                val callback =
+                    object : ConnectivityManager.NetworkCallback() {
+                        override fun onAvailable(network: Network) {
+                            if (closed) return
+                            AppLog.d(logTag, "Network available")
+                            syncStatus.setOnline(true)
+                            coroutineScope.launch { onNetworkAvailable() }
+                        }
 
-                    override fun onLost(network: Network) {
-                        if (closed) return
-                        AppLog.d(logTag, "Network lost")
-                        syncStatus.setOnline(false)
+                        override fun onLost(network: Network) {
+                            if (closed) return
+                            AppLog.d(logTag, "Network lost")
+                            syncStatus.setOnline(false)
+                        }
                     }
-                }
                 networkCallback = callback
                 cm.registerNetworkCallback(networkRequest, callback)
                 AppLog.d(logTag, "Network callback registered (instance: $instanceId)")

@@ -17,16 +17,16 @@ import kotlin.system.measureTimeMillis
 
 @RunWith(AndroidJUnit4::class)
 class PerformanceBaselineTest {
-
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
     fun baseline_coldStartToFirstFrame() {
-        val elapsedMs = measureTimeMillis {
-            composeRule.waitForIdle()
-            composeRule.onRoot().assertIsDisplayed()
-        }
+        val elapsedMs =
+            measureTimeMillis {
+                composeRule.waitForIdle()
+                composeRule.onRoot().assertIsDisplayed()
+            }
         println("PERF_BASELINE startup_ms=$elapsedMs")
         // Loose guardrail to catch pathological regressions while avoiding flaky CI.
         assertTrue("Startup took too long: ${elapsedMs}ms", elapsedMs < 15000)
@@ -41,11 +41,12 @@ class PerformanceBaselineTest {
             return
         }
 
-        val elapsedMs = measureTimeMillis {
-            composeRule.onNodeWithText(notesLabel).assertIsDisplayed().performClick()
-            composeRule.waitForIdle()
-            composeRule.onNodeWithText(notesLabel).assertIsDisplayed()
-        }
+        val elapsedMs =
+            measureTimeMillis {
+                composeRule.onNodeWithText(notesLabel).assertIsDisplayed().performClick()
+                composeRule.waitForIdle()
+                composeRule.onNodeWithText(notesLabel).assertIsDisplayed()
+            }
         println("PERF_BASELINE notes_tab_open_ms=$elapsedMs")
         assertTrue("Notes tab open took too long: ${elapsedMs}ms", elapsedMs < 15000)
     }

@@ -14,7 +14,6 @@ import java.util.Base64
  * Uses libsodium secretbox format (tag then ciphertext) so notes encrypted here decrypt in the Jotty web app.
  */
 object XChaCha20Encryptor {
-
     private const val ARGON2_ITERATIONS = 2
     private const val ARGON2_MEMORY_KB = 65536
     private const val ARGON2_PARALLELISM = 1
@@ -29,23 +28,48 @@ object XChaCha20Encryptor {
      * Encrypts [plaintext] with [passphrase]. Returns JSON body (no frontmatter).
      * Passphrase is trimmed so it matches decryption behavior.
      */
-    fun encrypt(plaintext: String, passphrase: String): String? {
-        val trimmed = passphrase.trim()
-        if (trimmed.isEmpty()) return null
-        val salt = ByteArray(SALT_BYTES).apply { random.nextBytes(this) }
-        val nonce24 = ByteArray(NONCE_BYTES).apply { random.nextBytes(this) }
-        val key = deriveKey(trimmed, salt) ?: return null
-        val ciphertextAndTag = encryptXChaCha20Poly1305(key, nonce24, plaintext.toByteArray(Charsets.UTF_8)) ?: return null
-        val saltB64 = Base64.getEncoder().encodeToString(salt)
-        val nonceB64 = Base64.getEncoder().encodeToString(nonce24)
-        val dataB64 = Base64.getEncoder().encodeToString(ciphertextAndTag)
-        return """{"alg":"xchacha20","salt":"$saltB64","nonce":"$nonceB64","data":"$dataB64"}"""
+    fun encrypt(
+        plaintext: String,
+        passphrase: CharArray,
+    ): String? {
+        val trimmed = passphrase.copyTrimmedOrNull() ?: return null
+        return try {
+            val salt = ByteArray(SALT_BYTES).apply { random.nextBytes(this) }
+            val nonce24 = ByteArray(NONCE_BYTES).apply { random.nextBytes(this) }
+            val key = deriveKey(trimmed, salt) ?: return null
+            val ciphertextAndTag =
+                encryptXChaCha20Poly1305(key, nonce24, plaintext.toByteArray(Charsets.UTF_8)) ?: return null
+            val saltB64 = Base64.getEncoder().encodeToString(salt)
+            val nonceB64 = Base64.getEncoder().encodeToString(nonce24)
+            val dataB64 = Base64.getEncoder().encodeToString(ciphertextAndTag)
+            """{"alg":"xchacha20","salt":"$saltB64","nonce":"$nonceB64","data":"$dataB64"}"""
+        } finally {
+            trimmed.clearPassphrase()
+        }
+    }
+
+    /** Convenience for tests and callers that only have a [String]; clears a temporary [CharArray]. */
+    fun encrypt(
+        plaintext: String,
+        passphrase: String,
+    ): String? {
+        val buf = passphrase.toCharArray()
+        return try {
+            encrypt(plaintext, buf)
+        } finally {
+            buf.clearPassphrase()
+        }
     }
 
     /**
      * Builds full note content with YAML frontmatter for Jotty (encrypted: true, encryptionMethod: xchacha).
      */
-    fun wrapWithFrontmatter(noteId: String, noteTitle: String, category: String, encryptedBodyJson: String): String {
+    fun wrapWithFrontmatter(
+        noteId: String,
+        noteTitle: String,
+        category: String,
+        encryptedBodyJson: String,
+    ): String {
         return """
             |---
             |uuid: $noteId
@@ -54,22 +78,31 @@ object XChaCha20Encryptor {
             |encryptionMethod: xchacha
             |---
             |$encryptedBodyJson
-        """.trimMargin()
+            """.trimMargin()
     }
 
-    private fun deriveKey(passphrase: String, salt: ByteArray): ByteArray? {
+    private fun deriveKey(
+        passphrase: CharArray,
+        salt: ByteArray,
+    ): ByteArray? {
         return try {
-            val params = Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
-                .withVersion(Argon2Parameters.ARGON2_VERSION_13)
-                .withIterations(ARGON2_ITERATIONS)
-                .withMemoryAsKB(ARGON2_MEMORY_KB)
-                .withParallelism(ARGON2_PARALLELISM)
-                .withSalt(salt)
-                .build()
+            val params =
+                Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
+                    .withVersion(Argon2Parameters.ARGON2_VERSION_13)
+                    .withIterations(ARGON2_ITERATIONS)
+                    .withMemoryAsKB(ARGON2_MEMORY_KB)
+                    .withParallelism(ARGON2_PARALLELISM)
+                    .withSalt(salt)
+                    .build()
             val generator = Argon2BytesGenerator()
             generator.init(params)
             val key = ByteArray(KEY_BYTES)
-            generator.generateBytes(passphrase.toByteArray(Charsets.UTF_8), key, 0, key.size)
+            val pwBytes = utf8Encode(passphrase)
+            try {
+                generator.generateBytes(pwBytes, key, 0, key.size)
+            } finally {
+                pwBytes.fill(0)
+            }
             key
         } catch (_: Exception) {
             null
@@ -80,7 +113,11 @@ object XChaCha20Encryptor {
      * Encrypts with XChaCha20-Poly1305. Returns payload in libsodium secretbox order:
      * tag (16 bytes) then ciphertext, so the Jotty web app can decrypt.
      */
-    private fun encryptXChaCha20Poly1305(key: ByteArray, nonce24: ByteArray, plaintext: ByteArray): ByteArray? {
+    private fun encryptXChaCha20Poly1305(
+        key: ByteArray,
+        nonce24: ByteArray,
+        plaintext: ByteArray,
+    ): ByteArray? {
         if (nonce24.size != NONCE_BYTES || key.size != KEY_BYTES) return null
         val subkey = XChaCha20Decryptor.hChaCha20Block(key, nonce24.copyOfRange(0, 16)) ?: return null
         // Match libsodium: npub2[0..3]=0, npub2[4..11]=nonce24[16..23]

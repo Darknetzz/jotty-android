@@ -44,9 +44,10 @@ class OfflineChecklistsRepositoryTest {
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        database = Room.inMemoryDatabaseBuilder(context, JottyDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
+        database =
+            Room.inMemoryDatabaseBuilder(context, JottyDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
     }
 
     @After
@@ -55,69 +56,75 @@ class OfflineChecklistsRepositoryTest {
     }
 
     @Test
-    fun syncChecklists_whenOffline_returnsFailure() = runTest {
-        val repo = OfflineChecklistsRepository(
-            context = context,
-            database = database,
-            instanceId = instanceId,
-            api = FakeChecklistApi(),
-            initialOnlineOverride = false,
-            registerNetworkCallback = false,
-        )
+    fun syncChecklists_whenOffline_returnsFailure() =
+        runTest {
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    registerNetworkCallback = false,
+                )
 
-        val result = repo.syncChecklists()
+            val result = repo.syncChecklists()
 
-        assertTrue(result.isFailure)
-    }
+            assertTrue(result.isFailure)
+        }
 
     @Test
-    fun syncChecklists_whenPendingReplayFails_tracksReplayFailureCount() = runTest {
-        database.checklistDao().insert(
-            ChecklistEntity(
-                id = "list-1",
-                title = "Local list",
-                category = API_CATEGORY_UNCATEGORIZED,
-                type = "simple",
-                itemsJson = Gson().toJson(listOf(ChecklistItem(index = 0, text = "A"))),
-                pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "DELETE", path = "99"))),
-                createdAt = "c",
-                updatedAt = "u",
-                isDirty = true,
-                isDeleted = false,
-                instanceId = instanceId,
-                isLocalOnly = false,
-            ),
-        )
-
-        val api = FakeChecklistApi(
-            remoteChecklists = mutableListOf(
-                Checklist(
+    fun syncChecklists_whenPendingReplayFails_tracksReplayFailureCount() =
+        runTest {
+            database.checklistDao().insert(
+                ChecklistEntity(
                     id = "list-1",
-                    title = "Server list",
+                    title = "Local list",
                     category = API_CATEGORY_UNCATEGORIZED,
                     type = "simple",
-                    items = listOf(ChecklistItem(index = 0, text = "A")),
+                    itemsJson = Gson().toJson(listOf(ChecklistItem(index = 0, text = "A"))),
+                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "DELETE", path = "99"))),
                     createdAt = "c",
                     updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
                 ),
-            ),
-            onDeleteItem = { _, _ -> throw IllegalStateException("stale path") },
-        )
+            )
 
-        val repo = OfflineChecklistsRepository(
-            context = context,
-            database = database,
-            instanceId = instanceId,
-            api = api,
-            initialOnlineOverride = true,
-            registerNetworkCallback = false,
-        )
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists =
+                        mutableListOf(
+                            Checklist(
+                                id = "list-1",
+                                title = "Server list",
+                                category = API_CATEGORY_UNCATEGORIZED,
+                                type = "simple",
+                                items = listOf(ChecklistItem(index = 0, text = "A")),
+                                createdAt = "c",
+                                updatedAt = "u",
+                            ),
+                        ),
+                    onDeleteItem = { _, _ -> throw IllegalStateException("stale path") },
+                )
 
-        val result = repo.syncChecklists()
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    registerNetworkCallback = false,
+                )
 
-        assertTrue(result.isSuccess)
-        assertEquals(1, repo.replayFailuresDetected.value)
-    }
+            val result = repo.syncChecklists()
+
+            assertTrue(result.isSuccess)
+            assertEquals(1, repo.replayFailuresDetected.value)
+        }
 }
 
 private class FakeChecklistApi(
@@ -126,29 +133,37 @@ private class FakeChecklistApi(
 ) : JottyApi {
     override suspend fun health(): HealthResponse = HealthResponse("ok", "1", "")
 
-    override suspend fun getChecklists(category: String?, type: String?, search: String?): ChecklistsResponse =
-        ChecklistsResponse(remoteChecklists.toList())
+    override suspend fun getChecklists(
+        category: String?,
+        type: String?,
+        search: String?,
+    ): ChecklistsResponse = ChecklistsResponse(remoteChecklists.toList())
 
     override suspend fun createChecklist(body: CreateChecklistRequest): ApiResponse<Checklist> {
-        val created = Checklist(
-            id = "server-${remoteChecklists.size + 1}",
-            title = body.title,
-            category = body.category ?: API_CATEGORY_UNCATEGORIZED,
-            type = body.type,
-            items = emptyList(),
-            createdAt = "c",
-            updatedAt = "u",
-        )
+        val created =
+            Checklist(
+                id = "server-${remoteChecklists.size + 1}",
+                title = body.title,
+                category = body.category ?: API_CATEGORY_UNCATEGORIZED,
+                type = body.type,
+                items = emptyList(),
+                createdAt = "c",
+                updatedAt = "u",
+            )
         remoteChecklists.add(created)
         return ApiResponse(true, created)
     }
 
-    override suspend fun updateChecklist(listId: String, body: UpdateChecklistRequest): ApiResponse<Checklist> {
+    override suspend fun updateChecklist(
+        listId: String,
+        body: UpdateChecklistRequest,
+    ): ApiResponse<Checklist> {
         val existing = remoteChecklists.first { it.id == listId }
-        val updated = existing.copy(
-            title = body.title ?: existing.title,
-            category = body.category ?: existing.category,
-        )
+        val updated =
+            existing.copy(
+                title = body.title ?: existing.title,
+                category = body.category ?: existing.category,
+            )
         remoteChecklists.replaceAll { if (it.id == listId) updated else it }
         return ApiResponse(true, updated)
     }
@@ -158,31 +173,47 @@ private class FakeChecklistApi(
         return SuccessResponse(true)
     }
 
-    override suspend fun addChecklistItem(listId: String, body: AddItemRequest): SuccessResponse = SuccessResponse(true)
+    override suspend fun addChecklistItem(
+        listId: String,
+        body: AddItemRequest,
+    ): SuccessResponse = SuccessResponse(true)
 
-    override suspend fun checkItem(listId: String, itemIndex: String): SuccessResponse = SuccessResponse(true)
+    override suspend fun checkItem(
+        listId: String,
+        itemIndex: String,
+    ): SuccessResponse = SuccessResponse(true)
 
-    override suspend fun uncheckItem(listId: String, itemIndex: String): SuccessResponse = SuccessResponse(true)
+    override suspend fun uncheckItem(
+        listId: String,
+        itemIndex: String,
+    ): SuccessResponse = SuccessResponse(true)
 
-    override suspend fun updateItem(listId: String, itemIndex: String, body: UpdateItemRequest): SuccessResponse =
-        SuccessResponse(true)
+    override suspend fun updateItem(
+        listId: String,
+        itemIndex: String,
+        body: UpdateItemRequest,
+    ): SuccessResponse = SuccessResponse(true)
 
-    override suspend fun deleteItem(listId: String, itemIndex: String): SuccessResponse =
-        onDeleteItem(listId, itemIndex)
+    override suspend fun deleteItem(
+        listId: String,
+        itemIndex: String,
+    ): SuccessResponse = onDeleteItem(listId, itemIndex)
 
-    override suspend fun getNotes(category: String?, search: String?): NotesResponse = NotesResponse(emptyList())
+    override suspend fun getNotes(
+        category: String?,
+        search: String?,
+    ): NotesResponse = NotesResponse(emptyList())
 
-    override suspend fun createNote(body: CreateNoteRequest): ApiResponse<Note> =
-        error("not used in checklist tests")
+    override suspend fun createNote(body: CreateNoteRequest): ApiResponse<Note> = error("not used in checklist tests")
 
-    override suspend fun updateNote(noteId: String, body: UpdateNoteRequest): ApiResponse<Note> =
-        error("not used in checklist tests")
+    override suspend fun updateNote(
+        noteId: String,
+        body: UpdateNoteRequest,
+    ): ApiResponse<Note> = error("not used in checklist tests")
 
-    override suspend fun deleteNote(noteId: String): SuccessResponse =
-        error("not used in checklist tests")
+    override suspend fun deleteNote(noteId: String): SuccessResponse = error("not used in checklist tests")
 
-    override suspend fun getCategories(): CategoriesResponse =
-        CategoriesResponse(Categories(notes = emptyList(), checklists = emptyList()))
+    override suspend fun getCategories(): CategoriesResponse = CategoriesResponse(Categories(notes = emptyList(), checklists = emptyList()))
 
     override suspend fun getAdminOverview(): AdminOverviewResponse = AdminOverviewResponse()
 

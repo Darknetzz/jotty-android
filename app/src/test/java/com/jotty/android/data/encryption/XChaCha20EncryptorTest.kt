@@ -10,7 +10,6 @@ import java.util.Base64
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class XChaCha20EncryptorTest {
-
     @Test
     fun `wrapWithFrontmatter produces valid YAML frontmatter`() {
         val body = """{"alg":"xchacha20","salt":"abc","nonce":"def","data":"ghi"}"""
@@ -94,14 +93,16 @@ class XChaCha20EncryptorTest {
         val passphrase = "pass"
         val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
         val regex = """"data"\s*:\s*"([^"]+)"""".toRegex()
-        val dataB64 = regex.find(encryptedJson)?.groupValues?.get(1)
-            ?: throw AssertionError("no data in JSON")
+        val dataB64 =
+            regex.find(encryptedJson)?.groupValues?.get(1)
+                ?: throw AssertionError("no data in JSON")
         val data = Base64.getDecoder().decode(dataB64)
         assertTrue(data.size >= 16)
-        val ciphertextThenTag = ByteArray(data.size).apply {
-            System.arraycopy(data, 16, this, 0, data.size - 16)
-            System.arraycopy(data, 0, this, data.size - 16, 16)
-        }
+        val ciphertextThenTag =
+            ByteArray(data.size).apply {
+                System.arraycopy(data, 16, this, 0, data.size - 16)
+                System.arraycopy(data, 0, this, data.size - 16, 16)
+            }
         val bcOrderB64 = Base64.getEncoder().encodeToString(ciphertextThenTag)
         val bcOrderJson = encryptedJson.replace("\"$dataB64\"", "\"$bcOrderB64\"")
         val decrypted = XChaCha20Decryptor.decrypt(bcOrderJson, passphrase)
@@ -112,13 +113,16 @@ class XChaCha20EncryptorTest {
     @Test
     fun `decrypt parses hex-encoded JSON from Jotty web and fails at auth not parse`() {
         // Web app stores salt/nonce/data as hex. Minimal valid-length hex payload (wrong key → auth fail, not parse).
-        val hexJson = """{"alg":"xchacha20","salt":"00000000000000000000000000000000","nonce":"000000000000000000000000000000000000000000000000","data":"0000000000000000000000000000000000000000000000000000000000000000"}"""
+        val hexJson =
+            """{"alg":"xchacha20","salt":"00000000000000000000000000000000",""" +
+                """"nonce":"000000000000000000000000000000000000000000000000",""" +
+                """"data":"0000000000000000000000000000000000000000000000000000000000000000"}"""
         val result = XChaCha20Decryptor.decryptWithReason(hexJson, "any passphrase")
         assertNull(result.plaintext)
         assertNotNull(result.failureReason)
         assertTrue(
             "Expected auth failure (hex parsed), not parse failure: ${result.failureReason}",
-            result.failureReason!!.contains("Auth failed") || result.failureReason!!.contains("Key derivation")
+            result.failureReason!!.contains("Auth failed") || result.failureReason!!.contains("Key derivation"),
         )
     }
 }

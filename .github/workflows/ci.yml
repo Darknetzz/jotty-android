@@ -15,14 +15,34 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+          cache: gradle
 
       - uses: android-actions/setup-android@v4
 
       - name: Unit tests
         run: chmod +x gradlew && ./gradlew test --no-daemon
 
+      - name: Upload unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/
+
       - name: Lint (debug + release)
         run: ./gradlew lintDebug lintRelease --no-daemon
+
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-release.html
+
+      - name: ktlint
+        run: ./gradlew ktlintCheck --no-daemon
 
   android-smoke-test:
     runs-on: ubuntu-latest

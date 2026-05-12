@@ -17,7 +17,6 @@ class ChecklistsViewModel(
     application: Application,
     private val api: JottyApi,
 ) : AndroidViewModel(application) {
-
     private val _checklists = MutableStateFlow<List<Checklist>>(emptyList())
     val checklists: StateFlow<List<Checklist>> = _checklists.asStateFlow()
 
@@ -57,7 +56,10 @@ class ChecklistsViewModel(
         }
     }
 
-    fun deleteChecklist(id: String, onError: () -> Unit) {
+    fun deleteChecklist(
+        id: String,
+        onError: () -> Unit,
+    ) {
         viewModelScope.launch {
             try {
                 deleteChecklistSuspend(id)
@@ -78,13 +80,17 @@ class ChecklistsViewModel(
     }
 
     /** Recreate a checklist after undo; returns false if the server rejected the create. */
-    suspend fun recreateChecklistAfterUndo(title: String, type: String): Boolean {
-        val created = api.createChecklist(
-            CreateChecklistRequest(
-                title = title,
-                type = type,
-            ),
-        )
+    suspend fun recreateChecklistAfterUndo(
+        title: String,
+        type: String,
+    ): Boolean {
+        val created =
+            api.createChecklist(
+                CreateChecklistRequest(
+                    title = title,
+                    type = type,
+                ),
+            )
         return if (created.success && created.data != null) {
             loadChecklists()
             true
@@ -93,15 +99,20 @@ class ChecklistsViewModel(
         }
     }
 
-    fun createChecklist(title: String, projectTaskType: Boolean, onFailure: () -> Unit) {
+    fun createChecklist(
+        title: String,
+        projectTaskType: Boolean,
+        onFailure: () -> Unit,
+    ) {
         viewModelScope.launch {
             try {
-                val created = api.createChecklist(
-                    CreateChecklistRequest(
-                        title = title,
-                        type = if (projectTaskType) "task" else "simple",
-                    ),
-                )
+                val created =
+                    api.createChecklist(
+                        CreateChecklistRequest(
+                            title = title,
+                            type = if (projectTaskType) "task" else "simple",
+                        ),
+                    )
                 if (created.success) {
                     _selectedList.value = created.data
                     _showCreateDialog.value = false

@@ -3,7 +3,6 @@ package com.jotty.android.data.api
 import retrofit2.http.*
 
 interface JottyApi {
-
     @GET("api/health")
     suspend fun health(): HealthResponse
 
@@ -26,7 +25,9 @@ interface JottyApi {
     ): ApiResponse<Checklist>
 
     @DELETE("api/checklists/{listId}")
-    suspend fun deleteChecklist(@Path("listId") listId: String): SuccessResponse
+    suspend fun deleteChecklist(
+        @Path("listId") listId: String,
+    ): SuccessResponse
 
     @POST("api/checklists/{listId}/items")
     suspend fun addChecklistItem(
@@ -66,7 +67,9 @@ interface JottyApi {
     ): NotesResponse
 
     @POST("api/notes")
-    suspend fun createNote(@Body body: CreateNoteRequest): ApiResponse<Note>
+    suspend fun createNote(
+        @Body body: CreateNoteRequest,
+    ): ApiResponse<Note>
 
     @PUT("api/notes/{noteId}")
     suspend fun updateNote(
@@ -75,7 +78,9 @@ interface JottyApi {
     ): ApiResponse<Note>
 
     @DELETE("api/notes/{noteId}")
-    suspend fun deleteNote(@Path("noteId") noteId: String): SuccessResponse
+    suspend fun deleteNote(
+        @Path("noteId") noteId: String,
+    ): SuccessResponse
 
     @GET("api/categories")
     suspend fun getCategories(): CategoriesResponse

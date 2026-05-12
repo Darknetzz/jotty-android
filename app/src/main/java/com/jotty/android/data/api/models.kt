@@ -130,13 +130,16 @@ data class SummaryData(
 )
 
 data class SummaryNotes(val total: Int? = null)
+
 data class SummaryChecklists(val total: Int? = null)
+
 data class SummaryItems(
     val total: Int? = null,
     val completed: Int? = null,
     val pending: Int? = null,
     val completionRate: Int? = null,
 )
+
 data class SummaryTasks(
     val total: Int? = null,
     val completed: Int? = null,

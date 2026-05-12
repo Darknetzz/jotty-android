@@ -18,13 +18,13 @@ class OfflineChecklistsViewModel(
     instanceId: String,
     api: JottyApi,
 ) : AndroidViewModel(application) {
-
-    val repository: OfflineChecklistsRepository = OfflineChecklistsRepository(
-        context = application,
-        database = JottyDatabase.getDatabase(application),
-        instanceId = instanceId,
-        api = api,
-    )
+    val repository: OfflineChecklistsRepository =
+        OfflineChecklistsRepository(
+            context = application,
+            database = JottyDatabase.getDatabase(application),
+            instanceId = instanceId,
+            api = api,
+        )
 
     override fun onCleared() {
         repository.close()
@@ -36,7 +36,6 @@ class OfflineChecklistsViewModel(
         private val api: JottyApi,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            OfflineChecklistsViewModel(application, instanceId, api) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = OfflineChecklistsViewModel(application, instanceId, api) as T
     }
 }

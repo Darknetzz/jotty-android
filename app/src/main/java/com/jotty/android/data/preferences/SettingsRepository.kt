@@ -1,8 +1,8 @@
 package com.jotty.android.data.preferences
 
 import android.content.Context
-import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -19,7 +19,6 @@ class SettingsRepository(
     private val context: Context,
     private val apiKeyStore: ApiKeyStorage = ApiKeyStore(context),
 ) {
-
     // API keys are stored in hardware-backed EncryptedSharedPreferences when available.
     // The instances JSON in DataStore stores apiKey as "" after migration to encrypted storage.
 
@@ -30,24 +29,28 @@ class SettingsRepository(
         return if (stored != null) copy(apiKey = stored) else this
     }
 
-    val instances: Flow<List<JottyInstance>> = context.jottySettingsDataStore.data.map { prefs ->
-        parseInstances(prefs[KEY_INSTANCES]).orEmpty().map { it.withStoredApiKey() }
-    }.catch { emit(emptyList()) }
+    val instances: Flow<List<JottyInstance>> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            parseInstances(prefs[KEY_INSTANCES]).orEmpty().map { it.withStoredApiKey() }
+        }.catch { emit(emptyList()) }
 
-    val currentInstanceId: Flow<String?> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_CURRENT_INSTANCE_ID].takeIf { !it.isNullOrBlank() }
-    }.catch { emit(null) }
+    val currentInstanceId: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_CURRENT_INSTANCE_ID].takeIf { !it.isNullOrBlank() }
+        }.catch { emit(null) }
 
     /** Default instance to select when opening app (e.g. after install). */
-    val defaultInstanceId: Flow<String?> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_DEFAULT_INSTANCE_ID].takeIf { !it.isNullOrBlank() }
-    }.catch { emit(null) }
+    val defaultInstanceId: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_DEFAULT_INSTANCE_ID].takeIf { !it.isNullOrBlank() }
+        }.catch { emit(null) }
 
-    val currentInstance: Flow<JottyInstance?> = context.jottySettingsDataStore.data.map { prefs ->
-        val list = parseInstances(prefs[KEY_INSTANCES]) ?: emptyList()
-        val id = prefs[KEY_CURRENT_INSTANCE_ID]?.takeIf { it.isNotBlank() }
-        list.find { it.id == id }?.withStoredApiKey()
-    }.catch { emit(null) }
+    val currentInstance: Flow<JottyInstance?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            val list = parseInstances(prefs[KEY_INSTANCES]) ?: emptyList()
+            val id = prefs[KEY_CURRENT_INSTANCE_ID]?.takeIf { it.isNotBlank() }
+            list.find { it.id == id }?.withStoredApiKey()
+        }.catch { emit(null) }
 
     val serverUrl: Flow<String?> = currentInstance.map { it?.serverUrl }
     val apiKey: Flow<String?> = currentInstance.map { it?.apiKey }
@@ -55,50 +58,58 @@ class SettingsRepository(
     val isConfigured: Flow<Boolean> = currentInstance.map { it != null }
 
     /** Theme mode: null/"system" = follow system; "light"; "dark". */
-    val themeMode: Flow<String?> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_THEME_MODE].takeIf { !it.isNullOrBlank() }
-            ?: migrateThemeModeFromLegacy(prefs[KEY_THEME])
-    }.catch { emit(null) }
+    val themeMode: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_THEME_MODE].takeIf { !it.isNullOrBlank() }
+                ?: migrateThemeModeFromLegacy(prefs[KEY_THEME])
+        }.catch { emit(null) }
 
     /** Theme color: "default", "amoled", "sepia", "midnight", "rose", "ocean", "forest". Default "default". */
-    val themeColor: Flow<String> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_THEME_COLOR].takeIf { !it.isNullOrBlank() }
-            ?: migrateThemeColorFromLegacy(prefs[KEY_THEME])
-            ?: "default"
-    }.catch { emit("default") }
+    val themeColor: Flow<String> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_THEME_COLOR].takeIf { !it.isNullOrBlank() }
+                ?: migrateThemeColorFromLegacy(prefs[KEY_THEME])
+                ?: "default"
+        }.catch { emit("default") }
 
     /** Start tab: "checklists", "notes", "settings". Default checklists. */
-    val startTab: Flow<String?> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_START_TAB].takeIf { !it.isNullOrBlank() }
-    }.catch { emit(null) }
+    val startTab: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_START_TAB].takeIf { !it.isNullOrBlank() }
+        }.catch { emit(null) }
 
     /** Swipe to delete list/note rows. Default false. */
-    val swipeToDeleteEnabled: Flow<Boolean> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_SWIPE_TO_DELETE] ?: false
-    }.catch { emit(false) }
+    val swipeToDeleteEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_SWIPE_TO_DELETE] ?: false
+        }.catch { emit(false) }
 
     /** Content padding: "compact" (8dp vertical) or "comfortable" (16dp vertical). Default "comfortable". */
-    val contentPaddingMode: Flow<String> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_CONTENT_PADDING].takeIf { !it.isNullOrBlank() } ?: "comfortable"
-    }.catch { emit("comfortable") }
+    val contentPaddingMode: Flow<String> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_CONTENT_PADDING].takeIf { !it.isNullOrBlank() } ?: "comfortable"
+        }.catch { emit("comfortable") }
 
     /** Debug logging (e.g. decryption failure step). When enabled, AppLog.d() writes to logcat. Default false. */
-    val debugLoggingEnabled: Flow<Boolean> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_DEBUG_LOGGING] ?: false
-    }.catch { emit(false) }
+    val debugLoggingEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_DEBUG_LOGGING] ?: false
+        }.catch { emit(false) }
 
     /** Offline mode: enable local storage and sync. Default true. */
-    val offlineModeEnabled: Flow<Boolean> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_OFFLINE_MODE] ?: true
-    }.catch { emit(true) }
+    val offlineModeEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_OFFLINE_MODE] ?: true
+        }.catch { emit(true) }
 
     /**
      * GitHub update check channel: `"stable"` (latest semver release) or `"dev"` (`dev-latest` pre-release).
      * Default stable.
      */
-    val updateChannel: Flow<String> = context.jottySettingsDataStore.data.map { prefs ->
-        prefs[KEY_UPDATE_CHANNEL].takeIf { !it.isNullOrBlank() } ?: "stable"
-    }.catch { emit("stable") }
+    val updateChannel: Flow<String> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_UPDATE_CHANNEL].takeIf { !it.isNullOrBlank() } ?: "stable"
+        }.catch { emit("stable") }
 
     /**
      * Adds or updates an instance. When [setAsCurrent] is true, also sets it as the current instance.
@@ -110,7 +121,10 @@ class SettingsRepository(
      *
      * When encryption is unavailable: instance is stored as-is in DataStore (plain text).
      */
-    suspend fun addInstance(instance: JottyInstance, setAsCurrent: Boolean = true) {
+    suspend fun addInstance(
+        instance: JottyInstance,
+        setAsCurrent: Boolean = true,
+    ) {
         val encrypted = apiKeyStore.isEncrypted
         if (encrypted) {
             apiKeyStore.setApiKey(instance.id, instance.apiKey) // commit + Dispatchers.IO inside
@@ -118,8 +132,11 @@ class SettingsRepository(
         context.jottySettingsDataStore.edit { prefs ->
             val toStore = if (encrypted) instance.copy(apiKey = "") else instance
             val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty().toMutableList()
-            if (list.none { it.id == toStore.id }) list.add(toStore)
-            else list[list.indexOfFirst { it.id == toStore.id }] = toStore
+            if (list.none { it.id == toStore.id }) {
+                list.add(toStore)
+            } else {
+                list[list.indexOfFirst { it.id == toStore.id }] = toStore
+            }
             prefs[KEY_INSTANCES] = gson.toJson(list)
             if (setAsCurrent) prefs[KEY_CURRENT_INSTANCE_ID] = instance.id
         }
@@ -133,10 +150,14 @@ class SettingsRepository(
             prefs[KEY_INSTANCES] = gson.toJson(list)
             if (prefs[KEY_CURRENT_INSTANCE_ID] == id) {
                 val defaultId = prefs[KEY_DEFAULT_INSTANCE_ID]?.takeIf { it != id }
-                val fallback = defaultId?.takeIf { list.any { inst -> inst.id == defaultId } }
-                    ?: list.firstOrNull()?.id
-                if (fallback != null) prefs[KEY_CURRENT_INSTANCE_ID] = fallback
-                else prefs.remove(KEY_CURRENT_INSTANCE_ID)
+                val fallback =
+                    defaultId?.takeIf { list.any { inst -> inst.id == defaultId } }
+                        ?: list.firstOrNull()?.id
+                if (fallback != null) {
+                    prefs[KEY_CURRENT_INSTANCE_ID] = fallback
+                } else {
+                    prefs.remove(KEY_CURRENT_INSTANCE_ID)
+                }
             }
             if (prefs[KEY_DEFAULT_INSTANCE_ID] == id) prefs.remove(KEY_DEFAULT_INSTANCE_ID)
         }
@@ -225,12 +246,13 @@ class SettingsRepository(
         val key = prefs[KEY_API_KEY]?.takeIf { it.isNotBlank() } ?: return
         val trimmedKey = key.trim()
         val encrypted = apiKeyStore.isEncrypted
-        val instance = JottyInstance(
-            id = UUID.randomUUID().toString(),
-            name = "Jotty",
-            serverUrl = url.trim(),
-            apiKey = if (encrypted) "" else trimmedKey,
-        )
+        val instance =
+            JottyInstance(
+                id = UUID.randomUUID().toString(),
+                name = "Jotty",
+                serverUrl = url.trim(),
+                apiKey = if (encrypted) "" else trimmedKey,
+            )
         if (encrypted) {
             // Write encrypted key (commit, durable) before DataStore edit.
             // A crash after this write and before the edit leaves a harmless orphan key;
@@ -281,17 +303,18 @@ class SettingsRepository(
         context.jottySettingsDataStore.edit { prefs ->
             val old = prefs[KEY_THEME]?.takeIf { it.isNotBlank() } ?: return@edit
             if (prefs[KEY_THEME_MODE] != null) return@edit
-            val (mode, color) = when (old) {
-                "light" -> "light" to "default"
-                "dark" -> "dark" to "default"
-                "amoled" -> "dark" to "amoled"
-                "sepia" -> "light" to "sepia"
-                "midnight" -> "dark" to "midnight"
-                "rose" -> "light" to "rose"
-                "ocean" -> "light" to "ocean"
-                "forest" -> "light" to "forest"
-                else -> null to "default"
-            }
+            val (mode, color) =
+                when (old) {
+                    "light" -> "light" to "default"
+                    "dark" -> "dark" to "default"
+                    "amoled" -> "dark" to "amoled"
+                    "sepia" -> "light" to "sepia"
+                    "midnight" -> "dark" to "midnight"
+                    "rose" -> "light" to "rose"
+                    "ocean" -> "light" to "ocean"
+                    "forest" -> "light" to "forest"
+                    else -> null to "default"
+                }
             if (mode != null) prefs[KEY_THEME_MODE] = mode
             if (color != "default") prefs[KEY_THEME_COLOR] = color
             prefs.remove(KEY_THEME)
@@ -331,6 +354,7 @@ class SettingsRepository(
                 else -> "default"
             }
         }
+
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")

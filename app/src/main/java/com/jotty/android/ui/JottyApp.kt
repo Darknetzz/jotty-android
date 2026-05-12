@@ -49,15 +49,17 @@ fun JottyAppContent(
         label = "nav",
     ) { phase ->
         when (phase) {
-            "main" -> MainScreen(
-                settingsRepository = settingsRepository,
-                onDisconnect = { rootPhase = "setup" },
-                deepLinkNoteId = deepLinkNoteId,
-            )
-            "setup" -> SetupScreen(
-                settingsRepository = settingsRepository,
-                onConfigured = { rootPhase = "main" },
-            )
+            "main" ->
+                MainScreen(
+                    settingsRepository = settingsRepository,
+                    onDisconnect = { rootPhase = "setup" },
+                    deepLinkNoteId = deepLinkNoteId,
+                )
+            "setup" ->
+                SetupScreen(
+                    settingsRepository = settingsRepository,
+                    onConfigured = { rootPhase = "main" },
+                )
             else -> LoadingState(Modifier.fillMaxSize())
         }
     }

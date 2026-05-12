@@ -11,29 +11,29 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import kotlinx.coroutines.flow.first
 import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
-import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.checklists.OfflineChecklistsScreen
 import com.jotty.android.ui.common.LoadingState
 import com.jotty.android.ui.notes.OfflineNotesScreen
-import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.ui.settings.SettingsScreen
+import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.util.createNoteImageLoader
-import coil.ImageLoader
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.first
 
 private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
 
 sealed class MainRoute(val route: String, val titleRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     data object Checklists : MainRoute("checklists", R.string.nav_checklists, Icons.Default.Checklist)
+
     data object Notes : MainRoute("notes", R.string.nav_notes, Icons.AutoMirrored.Filled.Note)
+
     data object Settings : MainRoute("settings", R.string.nav_settings, Icons.Default.Settings)
 }
 
@@ -68,27 +68,37 @@ fun MainScreen(
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    val selectedRoute = when (currentRoute) {
-        ROUTE_MANAGE_INSTANCES -> MainRoute.Settings.route
-        else -> currentRoute
-    }
-    val titleRes = when (currentRoute) {
-        MainRoute.Checklists.route -> MainRoute.Checklists.titleRes
-        MainRoute.Notes.route -> MainRoute.Notes.titleRes
-        MainRoute.Settings.route -> MainRoute.Settings.titleRes
-        ROUTE_MANAGE_INSTANCES -> R.string.manage_instances
-        else -> R.string.app_name
-    }
+    val selectedRoute =
+        when (currentRoute) {
+            ROUTE_MANAGE_INSTANCES -> MainRoute.Settings.route
+            else -> currentRoute
+        }
+    val titleRes =
+        when (currentRoute) {
+            MainRoute.Checklists.route -> MainRoute.Checklists.titleRes
+            MainRoute.Notes.route -> MainRoute.Notes.titleRes
+            MainRoute.Settings.route -> MainRoute.Settings.titleRes
+            ROUTE_MANAGE_INSTANCES -> R.string.manage_instances
+            else -> R.string.app_name
+        }
 
-    val imageLoader = remember(context, serverUrl, apiKey) {
-        createNoteImageLoader(context, serverUrl, apiKey)
-    }
+    val imageLoader =
+        remember(context, serverUrl, apiKey) {
+            val url = serverUrl
+            val key = apiKey
+            createNoteImageLoader(context, url, key)
+        }
 
-    val api = remember(serverUrl, apiKey) {
-        if (!serverUrl.isNullOrBlank() && !apiKey.isNullOrBlank()) {
-            ApiClient.create(serverUrl, apiKey)
-        } else null
-    }
+    val api =
+        remember(serverUrl, apiKey) {
+            val url = serverUrl
+            val key = apiKey
+            if (!url.isNullOrBlank() && !key.isNullOrBlank()) {
+                ApiClient.create(url, key)
+            } else {
+                null
+            }
+        }
 
     Scaffold(
         topBar = {
@@ -101,10 +111,11 @@ fun MainScreen(
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface,
-                ),
+                colors =
+                    TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
             )
         },
         bottomBar = {
@@ -133,60 +144,61 @@ fun MainScreen(
         when {
             currentApi == null -> LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
             currentStart == null -> LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
-            else -> NavHost(
-                navController = navController,
-                startDestination = currentStart,
-                modifier = Modifier.fillMaxSize().padding(padding),
-            ) {
-                composable(MainRoute.Checklists.route) {
-                    val instanceId = currentInstance?.id
-                    if (instanceId != null) {
-                        OfflineChecklistsScreen(
+            else ->
+                NavHost(
+                    navController = navController,
+                    startDestination = currentStart,
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                ) {
+                    composable(MainRoute.Checklists.route) {
+                        val instanceId = currentInstance?.id
+                        if (instanceId != null) {
+                            OfflineChecklistsScreen(
+                                api = currentApi,
+                                settingsRepository = settingsRepository,
+                                instanceId = instanceId,
+                                authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
+                                swipeToDeleteEnabled = swipeToDeleteEnabled,
+                            )
+                        } else {
+                            LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
+                        }
+                    }
+                    composable(MainRoute.Notes.route) {
+                        val instanceId = currentInstance?.id
+                        if (instanceId != null) {
+                            OfflineNotesScreen(
+                                api = currentApi,
+                                settingsRepository = settingsRepository,
+                                instanceId = instanceId,
+                                authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
+                                initialNoteId = deepLinkNoteId?.value,
+                                onDeepLinkConsumed = { deepLinkNoteId?.value = null },
+                                swipeToDeleteEnabled = swipeToDeleteEnabled,
+                                imageLoader = imageLoader,
+                            )
+                        } else {
+                            LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
+                        }
+                    }
+                    composable(MainRoute.Settings.route) {
+                        SettingsScreen(
                             api = currentApi,
                             settingsRepository = settingsRepository,
-                            instanceId = instanceId,
-                            authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
-                            swipeToDeleteEnabled = swipeToDeleteEnabled,
+                            onDisconnect = onDisconnect,
+                            onManageInstances = { navController.navigate(ROUTE_MANAGE_INSTANCES) },
                         )
-                    } else {
-                        LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
                     }
-                }
-                composable(MainRoute.Notes.route) {
-                    val instanceId = currentInstance?.id
-                    if (instanceId != null) {
-                        OfflineNotesScreen(
-                            api = currentApi,
+                    composable(ROUTE_MANAGE_INSTANCES) {
+                        SetupScreen(
                             settingsRepository = settingsRepository,
-                            instanceId = instanceId,
-                            authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
-                            initialNoteId = deepLinkNoteId?.value,
-                            onDeepLinkConsumed = { deepLinkNoteId?.value = null },
-                            swipeToDeleteEnabled = swipeToDeleteEnabled,
-                            imageLoader = imageLoader,
+                            onConfigured = { /* no-op; we stay in manage mode */ },
+                            standaloneMode = true,
+                            showStandaloneHeader = false,
+                            onBack = { navController.popBackStack() },
                         )
-                    } else {
-                        LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
                     }
                 }
-                composable(MainRoute.Settings.route) {
-                    SettingsScreen(
-                        api = currentApi,
-                        settingsRepository = settingsRepository,
-                        onDisconnect = onDisconnect,
-                        onManageInstances = { navController.navigate(ROUTE_MANAGE_INSTANCES) },
-                    )
-                }
-                composable(ROUTE_MANAGE_INSTANCES) {
-                    SetupScreen(
-                        settingsRepository = settingsRepository,
-                        onConfigured = { /* no-op; we stay in manage mode */ },
-                        standaloneMode = true,
-                        showStandaloneHeader = false,
-                        onBack = { navController.popBackStack() },
-                    )
-                }
-            }
         }
     }
 }

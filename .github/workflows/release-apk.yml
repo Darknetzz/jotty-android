@@ -35,17 +35,51 @@ jobs:
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
       # Debug APK is signed with the CI debug keystore and installable without repo secrets.
-      # For a minified release-signed APK, build locally with keystore.properties (see README).
+      # Optional: set ANDROID_KEYSTORE_B64 (base64 .jks), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
+      # ANDROID_KEY_PASSWORD as repository secrets to also attach a minified release-signed APK.
+      - name: Decode release keystore (optional)
+        id: signing
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -e
+          if [ -z "$ANDROID_KEYSTORE_B64" ]; then
+            echo "have_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/ci-release.keystore"
+          {
+            echo "storeFile=$GITHUB_WORKSPACE/ci-release.keystore"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > keystore.properties
+          echo "have_release=true" >> "$GITHUB_OUTPUT"
+
       - name: Build debug APK
         run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
 
-      - name: Prepare release asset filename
-        run: cp app/build/outputs/apk/debug/app-debug.apk "jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-debug.apk"
+      - name: Build release APK (optional signing secrets)
+        if: steps.signing.outputs.have_release == 'true'
+        run: ./gradlew assembleRelease --no-daemon
 
-      - name: Attach APK to GitHub release
+      - name: Prepare release assets
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk "jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-debug.apk"
+          REL="app/build/outputs/apk/release/app-release.apk"
+          if [ -f "$REL" ]; then
+            cp "$REL" "jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-release.apk"
+          fi
+
+      - name: Attach APK(s) to GitHub release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
-          files: jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-debug.apk
-          fail_on_unmatched_files: true
+          files: |
+            jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-debug.apk
+            jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-release.apk
+          fail_on_unmatched_files: false
           overwrite_files: true

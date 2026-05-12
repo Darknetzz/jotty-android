@@ -9,21 +9,23 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlin.OptIn
 
 /**
  * Holds list / search / filter / selection state for the online-only [NotesScreen].
  */
+@OptIn(FlowPreview::class)
 class NotesViewModel(
     application: Application,
     private val api: JottyApi,
 ) : AndroidViewModel(application) {
-
     private val app = application
 
     private val _notes = MutableStateFlow<List<Note>>(emptyList())
@@ -94,10 +96,11 @@ class NotesViewModel(
             _loading.value = true
             _error.value = null
             try {
-                _notes.value = api.getNotes(
-                    category = _selectedCategory.value,
-                    search = _debouncedSearchQuery.value.takeIf { it.isNotBlank() },
-                ).notes.orEmpty()
+                _notes.value =
+                    api.getNotes(
+                        category = _selectedCategory.value,
+                        search = _debouncedSearchQuery.value.takeIf { it.isNotBlank() },
+                    ).notes.orEmpty()
                 AppLog.d("notes", "Loaded ${_notes.value.size} notes")
             } catch (e: Exception) {
                 AppLog.e("notes", "Load failed", e)
@@ -120,8 +123,7 @@ class NotesViewModel(
         private val api: JottyApi,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            NotesViewModel(application, api) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = NotesViewModel(application, api) as T
     }
 
     private companion object {

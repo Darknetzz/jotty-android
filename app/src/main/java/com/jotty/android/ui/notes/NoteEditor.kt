@@ -2,7 +2,6 @@ package com.jotty.android.ui.notes
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -28,10 +27,11 @@ internal fun NoteEditor(
 ) {
     val scrollState = rememberScrollState()
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         OutlinedTextField(
@@ -45,9 +45,10 @@ internal fun NoteEditor(
         OutlinedTextField(
             value = content,
             onValueChange = onContentChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 200.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 200.dp),
             placeholder = { Text(stringResource(R.string.write_your_note)) },
             supportingText = {
                 Text(

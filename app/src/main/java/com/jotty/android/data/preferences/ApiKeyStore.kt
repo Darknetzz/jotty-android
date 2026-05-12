@@ -11,9 +11,16 @@ import kotlinx.coroutines.withContext
 /** Backing store for instance API keys; default implementation is [ApiKeyStore]. */
 interface ApiKeyStorage {
     val isEncrypted: Boolean
+
     fun getApiKey(instanceId: String): String?
-    suspend fun setApiKey(instanceId: String, apiKey: String)
+
+    suspend fun setApiKey(
+        instanceId: String,
+        apiKey: String,
+    )
+
     suspend fun removeApiKey(instanceId: String)
+
     suspend fun clearAll()
 }
 
@@ -30,12 +37,12 @@ interface ApiKeyStorage {
  * background access rather than on the main-thread constructor call.
  */
 class ApiKeyStore(private val context: Context) : ApiKeyStorage {
-
     private val encryptedPrefs: SharedPreferences? by lazy {
         runCatching {
-            val masterKey = MasterKey.Builder(context.applicationContext)
-                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                .build()
+            val masterKey =
+                MasterKey.Builder(context.applicationContext)
+                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                    .build()
             EncryptedSharedPreferences.create(
                 context.applicationContext,
                 PREFS_NAME,
@@ -57,8 +64,7 @@ class ApiKeyStore(private val context: Context) : ApiKeyStorage {
     override val isEncrypted: Boolean get() = encryptedPrefs != null
 
     /** Returns the encrypted API key for [instanceId], or `null` if absent or encryption unavailable. */
-    override fun getApiKey(instanceId: String): String? =
-        encryptedPrefs?.getString(prefKey(instanceId), null)?.takeIf { it.isNotBlank() }
+    override fun getApiKey(instanceId: String): String? = encryptedPrefs?.getString(prefKey(instanceId), null)?.takeIf { it.isNotBlank() }
 
     /**
      * Persists [apiKey] using [commit] (durable, blocking) on [Dispatchers.IO].
@@ -66,7 +72,10 @@ class ApiKeyStore(private val context: Context) : ApiKeyStorage {
      * a crash between the two leaves a key in the encrypted store (harmless orphan)
      * rather than an instance with no key.
      */
-    override suspend fun setApiKey(instanceId: String, apiKey: String) {
+    override suspend fun setApiKey(
+        instanceId: String,
+        apiKey: String,
+    ) {
         if (apiKey.isBlank()) return
         withContext(Dispatchers.IO) {
             encryptedPrefs?.edit()?.putString(prefKey(instanceId), apiKey)?.commit()

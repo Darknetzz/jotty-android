@@ -1,9 +1,12 @@
 package com.jotty.android.ui.setup
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -14,27 +17,24 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
@@ -61,18 +61,19 @@ fun SetupScreen(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .then(
-                if (standaloneMode) {
-                    Modifier.mainScreenTabContentPadding(
-                        topComfortDp = contentVerticalDp,
-                        horizontal = 24.dp,
-                    )
-                } else {
-                    Modifier.padding(horizontal = 24.dp, vertical = contentVerticalDp.dp)
-                },
-            ),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .then(
+                    if (standaloneMode) {
+                        Modifier.mainScreenTabContentPadding(
+                            topComfortDp = contentVerticalDp,
+                            horizontal = 24.dp,
+                        )
+                    } else {
+                        Modifier.padding(horizontal = 24.dp, vertical = contentVerticalDp.dp)
+                    },
+                ),
     ) {
         if (standaloneMode && showStandaloneHeader && onBack != null) {
             Row(
@@ -121,7 +122,12 @@ fun SetupScreen(
                 settingsRepository = settingsRepository,
                 setAsCurrentOnConnect = !standaloneMode,
                 onDone = onConfigured,
-                onSaved = if (standaloneMode) { { showAddForm = false } } else null,
+                onSaved =
+                    if (standaloneMode) {
+                        { showAddForm = false }
+                    } else {
+                        null
+                    },
                 onCancel = { if (instances.isNotEmpty()) showAddForm = false },
             )
         } else {
@@ -223,12 +229,13 @@ private fun InstanceCard(
         ) {
             if (instance.colorHex != null) {
                 Box(
-                    modifier = Modifier
-                        .size(12.dp)
-                        .background(
-                            Color((instance.colorHex.toInt() and 0xFFFFFF) or 0xFF000000.toInt()),
-                            CircleShape,
-                        ),
+                    modifier =
+                        Modifier
+                            .size(12.dp)
+                            .background(
+                                Color((instance.colorHex.toInt() and 0xFFFFFF) or 0xFF000000.toInt()),
+                                CircleShape,
+                            ),
                 )
             }
             Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link))
@@ -251,7 +258,14 @@ private fun InstanceCard(
             ) {
                 Icon(
                     if (isDefault) Icons.Default.Star else Icons.Outlined.Star,
-                    contentDescription = if (isDefault) stringResource(R.string.default_instance) else stringResource(R.string.set_as_default_instance),
+                    contentDescription =
+                        if (isDefault) {
+                            stringResource(
+                                R.string.default_instance,
+                            )
+                        } else {
+                            stringResource(R.string.set_as_default_instance)
+                        },
                     tint = if (isDefault) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -299,14 +313,15 @@ private fun InstanceForm(
     val openBrowserFailedMsg = stringResource(R.string.open_jotty_browser_failed)
     val connectionFailedFmt = stringResource(R.string.connection_failed)
 
-    val instanceColors: List<Long?> = listOf(
-        null,
-        0xFF6200EEL,
-        0xFF03DAC6L,
-        0xFF018786L,
-        0xFFBB86FCL,
-        0xFFCF6679L,
-    )
+    val instanceColors: List<Long?> =
+        listOf(
+            null,
+            0xFF6200EEL,
+            0xFF03DAC6L,
+            0xFF018786L,
+            0xFFBB86FCL,
+            0xFFCF6679L,
+        )
 
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         if (isEdit) {
@@ -319,7 +334,10 @@ private fun InstanceForm(
         }
         OutlinedTextField(
             value = name,
-            onValueChange = { name = it; error = null },
+            onValueChange = {
+                name = it
+                error = null
+            },
             label = { Text(stringResource(R.string.name)) },
             placeholder = { Text(stringResource(R.string.name_placeholder)) },
             singleLine = true,
@@ -328,7 +346,10 @@ private fun InstanceForm(
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = serverUrl,
-            onValueChange = { serverUrl = it; error = null },
+            onValueChange = {
+                serverUrl = it
+                error = null
+            },
             label = { Text(stringResource(R.string.server_url)) },
             placeholder = { Text(stringResource(R.string.server_url_placeholder)) },
             singleLine = true,
@@ -338,7 +359,10 @@ private fun InstanceForm(
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = apiKey,
-            onValueChange = { apiKey = it; error = null },
+            onValueChange = {
+                apiKey = it
+                error = null
+            },
             label = { Text(stringResource(R.string.api_key)) },
             placeholder = { Text(stringResource(R.string.api_key_placeholder)) },
             singleLine = true,
@@ -385,20 +409,28 @@ private fun InstanceForm(
             instanceColors.forEach { hex ->
                 val selected = colorHex == hex
                 Surface(
-                    modifier = Modifier
-                        .size(if (hex == null) 36.dp else 32.dp)
-                        .clip(CircleShape)
-                        .then(
-                            if (hex != null) Modifier.background(Color(((hex and 0xFFFFFFFFL).toInt() and 0xFFFFFF) or 0xFF000000.toInt()))
-                            else Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
-                        )
-                        .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier),
+                    modifier =
+                        Modifier
+                            .size(if (hex == null) 36.dp else 32.dp)
+                            .clip(CircleShape)
+                            .then(
+                                if (hex != null) {
+                                    Modifier.background(Color(((hex and 0xFFFFFFFFL).toInt() and 0xFFFFFF) or 0xFF000000.toInt()))
+                                } else {
+                                    Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+                                },
+                            )
+                            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier),
                     shape = CircleShape,
                     onClick = { colorHex = hex },
                 ) {
                     if (hex == null) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(stringResource(R.string.no_color), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                stringResource(R.string.no_color),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
@@ -444,15 +476,22 @@ private fun InstanceForm(
                             val api = ApiClient.create(url, key)
                             api.health()
 
-                            val instance = JottyInstance(
-                                id = initialInstance?.id ?: UUID.randomUUID().toString(),
-                                name = name.ifBlank { url.replace(Regex("^https?://"), "").split("/").firstOrNull() ?: "Jotty" },
-                                serverUrl = url,
-                                apiKey = key,
-                                colorHex = colorHex,
-                            )
+                            val instance =
+                                JottyInstance(
+                                    id = initialInstance?.id ?: UUID.randomUUID().toString(),
+                                    name = name.ifBlank { url.replace(Regex("^https?://"), "").split("/").firstOrNull() ?: "Jotty" },
+                                    serverUrl = url,
+                                    apiKey = key,
+                                    colorHex = colorHex,
+                                )
                             settingsRepository.addInstance(instance, setAsCurrent = setAsCurrentOnConnect)
-                            if (isEdit) onSaved?.invoke() else if (setAsCurrentOnConnect) onDone() else onSaved?.invoke()
+                            if (isEdit) {
+                                onSaved?.invoke()
+                            } else if (setAsCurrentOnConnect) {
+                                onDone()
+                            } else {
+                                onSaved?.invoke()
+                            }
                         } catch (e: Exception) {
                             error = String.format(connectionFailedFmt, ApiErrorHelper.userMessage(context, e))
                         } finally {

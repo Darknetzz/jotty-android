@@ -5,7 +5,6 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NoteDecryptionSessionTest {
-
     @After
     fun tearDown() {
         NoteDecryptionSession.clear()

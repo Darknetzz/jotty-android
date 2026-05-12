@@ -6,7 +6,6 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class SyncStatusStateTest {
-
     @Test
     fun markSyncCompleted_success_setsAttemptSuccessAndDuration() {
         val state = SyncStatusState(initialOnline = true)

@@ -4,13 +4,19 @@ package com.jotty.android.util
  * Invisible/special Unicode that often render as "?" or cause layout issues.
  * BOM (U+FEFF) and zero-width characters are common when pasting from web/Word.
  */
-private val INVISIBLE_EDGE_CHARS = setOf(
-    '\uFEFF', // BOM (byte order mark)
-    '\u200B', // zero-width space
-    '\u200C', // zero-width non-joiner
-    '\u200D', // zero-width joiner
-    '\u2060', // word joiner
-)
+private val INVISIBLE_EDGE_CHARS =
+    setOf(
+        // BOM (byte order mark)
+        '\uFEFF',
+        // zero-width space
+        '\u200B',
+        // zero-width non-joiner
+        '\u200C',
+        // zero-width joiner
+        '\u200D',
+        // word joiner
+        '\u2060',
+    )
 
 /**
  * Strips BOM and zero-width (and similar) characters from the start and end of [s].
@@ -28,10 +34,11 @@ fun stripInvisibleFromEdges(s: String): String {
  * Formats an ISO-style date string (e.g. from API) for display.
  * Returns date part only (YYYY-MM-DD) when possible, otherwise first 10 chars.
  */
-fun formatNoteDate(updatedAt: String): String = try {
-    val iso = updatedAt.replace("Z", "+00:00")
-    val i = iso.indexOf('T')
-    if (i > 0) iso.substring(0, i) else updatedAt.take(10)
-} catch (_: Exception) {
-    updatedAt.take(10)
-}
+fun formatNoteDate(updatedAt: String): String =
+    try {
+        val iso = updatedAt.replace("Z", "+00:00")
+        val i = iso.indexOf('T')
+        if (i > 0) iso.substring(0, i) else updatedAt.take(10)
+    } catch (_: Exception) {
+        updatedAt.take(10)
+    }

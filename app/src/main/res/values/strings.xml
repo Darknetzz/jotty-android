@@ -71,12 +71,14 @@
     <string name="no_notes_yet">No notes yet</string>
     <string name="tap_add_note">Tap + to add a note</string>
     <string name="note_not_found">Note not found</string>
+    <string name="note_deleted">Note deleted</string>
     <string name="checklist_deleted">Checklist deleted</string>
     <string name="encrypted">Encrypted</string>
     <string name="no_content">No content</string>
     <string name="export_share">Export / Share</string>
     <string name="export_note">Export note</string>
     <string name="edit">Edit</string>
+    <string name="more_options">More options</string>
     <string name="decrypt">Decrypt</string>
     <string name="encrypt">Encrypt</string>
     <string name="write_your_note">Write your note…</string>

@@ -28,10 +28,11 @@ internal fun NoteView(
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 16.dp),
     ) {
         Text(
             text = title,
@@ -43,9 +44,10 @@ internal fun NoteView(
             MarkdownText(
                 markdown = content,
                 modifier = Modifier.fillMaxWidth(),
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
-                ),
+                style =
+                    MaterialTheme.typography.bodyLarge.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                    ),
                 syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
                 syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 imageLoader = imageLoader,

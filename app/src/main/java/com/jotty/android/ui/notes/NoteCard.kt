@@ -29,16 +29,24 @@ import com.jotty.android.util.formatNoteDate
 import com.jotty.android.util.stripInvisibleFromEdges
 
 @Composable
-internal fun NoteCard(note: Note, onClick: () -> Unit) {
+internal fun NoteCard(
+    note: Note,
+    onClick: () -> Unit,
+) {
     val titleText = remember(note.title) { stripInvisibleFromEdges(note.title) }
     val strippedContent = remember(note.content) { stripInvisibleFromEdges(note.content) }
-    val isEncrypted = remember(note.encrypted, note.content) {
-        note.encrypted == true || NoteEncryption.isEncrypted(note.content)
-    }
-    val contentPreview = remember(strippedContent, isEncrypted) {
-        if (isEncrypted || strippedContent.isBlank()) null
-        else strippedContent.take(100) + if (strippedContent.length > 100) "\u2026" else ""
-    }
+    val isEncrypted =
+        remember(note.encrypted, note.content) {
+            note.encrypted == true || NoteEncryption.isEncrypted(note.content)
+        }
+    val contentPreview =
+        remember(strippedContent, isEncrypted) {
+            if (isEncrypted || strippedContent.isBlank()) {
+                null
+            } else {
+                strippedContent.take(100) + if (strippedContent.length > 100) "\u2026" else ""
+            }
+        }
     val updatedAtText = remember(note.updatedAt) { formatNoteDate(note.updatedAt) }
     Card(
         onClick = onClick,
@@ -46,9 +54,10 @@ internal fun NoteCard(note: Note, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             Text(
                 text = titleText,

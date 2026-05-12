@@ -15,10 +15,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
@@ -27,13 +28,12 @@ import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.ui.common.ListScreenContent
-import com.jotty.android.ui.common.OfflineSyncStatusRow
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
-import com.jotty.android.ui.common.rememberListScreenState
-import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.ui.common.OfflineSyncStatusRow
 import com.jotty.android.ui.common.SwipeToDeleteContainer
+import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
 
@@ -56,9 +56,10 @@ fun OfflineEnabledNotesScreen(
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
-    val vm: OfflineEnabledNotesViewModel = viewModel {
-        OfflineEnabledNotesViewModel(offlineRepository, api)
-    }
+    val vm: OfflineEnabledNotesViewModel =
+        viewModel {
+            OfflineEnabledNotesViewModel(offlineRepository, api)
+        }
 
     // Observe notes from local database
     val notes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -99,23 +100,25 @@ fun OfflineEnabledNotesScreen(
             screenState.errorMessage = null
             val result = offlineRepository.syncNotes()
             if (result.isFailure) {
-                screenState.errorMessage = ApiErrorHelper.userMessage(
-                    context,
-                    result.exceptionOrNull() ?: Exception("Sync failed"),
-                )
+                screenState.errorMessage =
+                    ApiErrorHelper.userMessage(
+                        context,
+                        result.exceptionOrNull() ?: Exception("Sync failed"),
+                    )
             }
             if (showLoading) screenState.loading = false
         }
     }
-    
+
     LaunchedEffect(conflictsDetected) {
         if (conflictsDetected > 0) {
             scope.launch {
-                val result = snackbarHostState.showSnackbar(
-                    message = conflictMsg,
-                    actionLabel = conflictActionLabel,
-                    duration = SnackbarDuration.Long,
-                )
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message = conflictMsg,
+                        actionLabel = conflictActionLabel,
+                        duration = SnackbarDuration.Long,
+                    )
                 if (result == SnackbarResult.ActionPerformed) vm.applyConflictSearchFilter()
                 offlineRepository.clearConflictNotification()
             }
@@ -176,13 +179,14 @@ fun OfflineEnabledNotesScreen(
                     )
                     if (lastSyncDurationText != null || lastSyncError != null) {
                         Text(
-                            text = buildString {
-                                if (lastSyncDurationText != null) append("$syncDurationLabel: $lastSyncDurationText")
-                                if (lastSyncError != null) {
-                                    if (isNotEmpty()) append(" • ")
-                                    append("$syncLastErrorLabel: $lastSyncError")
-                                }
-                            },
+                            text =
+                                buildString {
+                                    if (lastSyncDurationText != null) append("$syncDurationLabel: $lastSyncDurationText")
+                                    if (lastSyncError != null) {
+                                        if (isNotEmpty()) append(" • ")
+                                        append("$syncLastErrorLabel: $lastSyncError")
+                                    }
+                                },
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 4.dp),
@@ -193,14 +197,15 @@ fun OfflineEnabledNotesScreen(
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { vm.setSearchQuery(it) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 8.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 8.dp),
                         placeholder = { Text(stringResource(R.string.search_notes)) },
                         leadingIcon = {
                             Icon(
                                 Icons.Default.Search,
-                                contentDescription = stringResource(R.string.cd_search)
+                                contentDescription = stringResource(R.string.cd_search),
                             )
                         },
                         singleLine = true,
@@ -244,12 +249,14 @@ fun OfflineEnabledNotesScreen(
 
                     if (conflictCopies.isNotEmpty()) {
                         ElevatedCard(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 8.dp),
-                            colors = CardDefaults.elevatedCardColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            ),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                            colors =
+                                CardDefaults.elevatedCardColors(
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                ),
                         ) {
                             Row(
                                 modifier = Modifier.padding(12.dp),
@@ -262,11 +269,12 @@ fun OfflineEnabledNotesScreen(
                                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                                 )
                                 Text(
-                                    text = if (conflictCopies.size == 1) {
-                                        stringResource(R.string.conflict_copy_pending)
-                                    } else {
-                                        stringResource(R.string.conflict_copies_pending, conflictCopies.size)
-                                    },
+                                    text =
+                                        if (conflictCopies.size == 1) {
+                                            stringResource(R.string.conflict_copy_pending)
+                                        } else {
+                                            stringResource(R.string.conflict_copies_pending, conflictCopies.size)
+                                        },
                                     modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -308,16 +316,18 @@ fun OfflineEnabledNotesScreen(
                                                 if (result.isFailure) {
                                                     snackbarHostState.showSnackbar(deleteFailedMsg)
                                                 } else {
-                                                    val snackbarResult = snackbarHostState.showSnackbar(
-                                                        message = noteDeletedMsg,
-                                                        actionLabel = undoActionLabel,
-                                                    )
-                                                    if (snackbarResult == SnackbarResult.ActionPerformed) {
-                                                        val undoResult = offlineRepository.createNote(
-                                                            title = n.title,
-                                                            content = n.content ?: "",
-                                                            category = n.category,
+                                                    val snackbarResult =
+                                                        snackbarHostState.showSnackbar(
+                                                            message = noteDeletedMsg,
+                                                            actionLabel = undoActionLabel,
                                                         )
+                                                    if (snackbarResult == SnackbarResult.ActionPerformed) {
+                                                        val undoResult =
+                                                            offlineRepository.createNote(
+                                                                title = n.title,
+                                                                content = n.content ?: "",
+                                                                category = n.category,
+                                                            )
                                                         if (undoResult.isFailure) {
                                                             snackbarHostState.showSnackbar(saveFailedMsg)
                                                         } else if (!isOnline) {
@@ -385,11 +395,12 @@ fun OfflineEnabledNotesScreen(
                 TextButton(
                     onClick = {
                         scope.launch {
-                            val result = offlineRepository.createNote(
-                                title = title.ifBlank { untitled },
-                                content = "",
-                                category = API_CATEGORY_UNCATEGORIZED
-                            )
+                            val result =
+                                offlineRepository.createNote(
+                                    title = title.ifBlank { untitled },
+                                    content = "",
+                                    category = API_CATEGORY_UNCATEGORIZED,
+                                )
                             if (result.isSuccess) {
                                 vm.setSelectedNote(result.getOrNull())
                                 vm.setShowCreateDialog(false)

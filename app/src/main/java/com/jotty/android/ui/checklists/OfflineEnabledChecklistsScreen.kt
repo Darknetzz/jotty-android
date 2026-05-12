@@ -27,6 +27,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
@@ -34,13 +35,12 @@ import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.preferences.SettingsRepository
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.OfflineSyncStatusRow
 import com.jotty.android.ui.common.SwipeToDeleteContainer
-import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
 
@@ -56,9 +56,10 @@ fun OfflineEnabledChecklistsScreen(
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
-    val vm: OfflineEnabledChecklistsViewModel = viewModel(key = vmKey) {
-        OfflineEnabledChecklistsViewModel(offlineRepository, api)
-    }
+    val vm: OfflineEnabledChecklistsViewModel =
+        viewModel(key = vmKey) {
+            OfflineEnabledChecklistsViewModel(offlineRepository, api)
+        }
 
     val checklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
     val isOnline by offlineRepository.isOnline.collectAsStateWithLifecycle()
@@ -102,23 +103,26 @@ fun OfflineEnabledChecklistsScreen(
         if (selectedList?.id == snap.id) {
             vm.setSelectedList(null)
         }
-        val snackbarResult = snackbarHostState.showSnackbar(
-            message = checklistDeletedMsg,
-            actionLabel = undoActionLabel,
-            duration = SnackbarDuration.Short,
-        )
-        if (snackbarResult == SnackbarResult.ActionPerformed) {
-            val type = if (snap.type.equals("task", ignoreCase = true) ||
-                snap.type.equals("project", ignoreCase = true)
-            ) {
-                "task"
-            } else {
-                "simple"
-            }
-            val undoResult = offlineRepository.createChecklist(
-                title = snap.title,
-                type = type,
+        val snackbarResult =
+            snackbarHostState.showSnackbar(
+                message = checklistDeletedMsg,
+                actionLabel = undoActionLabel,
+                duration = SnackbarDuration.Short,
             )
+        if (snackbarResult == SnackbarResult.ActionPerformed) {
+            val type =
+                if (snap.type.equals("task", ignoreCase = true) ||
+                    snap.type.equals("project", ignoreCase = true)
+                ) {
+                    "task"
+                } else {
+                    "simple"
+                }
+            val undoResult =
+                offlineRepository.createChecklist(
+                    title = snap.title,
+                    type = type,
+                )
             if (undoResult.isFailure) {
                 snackbarHostState.showSnackbar(saveFailedMsg)
             } else if (!isOnline) {
@@ -136,10 +140,11 @@ fun OfflineEnabledChecklistsScreen(
             screenState.errorMessage = null
             val result = offlineRepository.syncChecklists()
             if (result.isFailure) {
-                screenState.errorMessage = ApiErrorHelper.userMessage(
-                    context,
-                    result.exceptionOrNull() ?: Exception("Sync failed"),
-                )
+                screenState.errorMessage =
+                    ApiErrorHelper.userMessage(
+                        context,
+                        result.exceptionOrNull() ?: Exception("Sync failed"),
+                    )
             }
             if (showLoading) screenState.loading = false
         }
@@ -148,11 +153,12 @@ fun OfflineEnabledChecklistsScreen(
     LaunchedEffect(conflictsDetected) {
         if (conflictsDetected > 0) {
             scope.launch {
-                val result = snackbarHostState.showSnackbar(
-                    message = conflictMsg,
-                    actionLabel = conflictActionLabel,
-                    duration = SnackbarDuration.Long,
-                )
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message = conflictMsg,
+                        actionLabel = conflictActionLabel,
+                        duration = SnackbarDuration.Long,
+                    )
                 if (result == SnackbarResult.ActionPerformed) vm.applyConflictSearchFilter()
                 offlineRepository.clearConflictNotification()
             }
@@ -226,13 +232,14 @@ fun OfflineEnabledChecklistsScreen(
                 )
                 if (lastSyncDurationText != null || lastSyncError != null) {
                     Text(
-                        text = buildString {
-                            if (lastSyncDurationText != null) append("$syncDurationLabel: $lastSyncDurationText")
-                            if (lastSyncError != null) {
-                                if (isNotEmpty()) append(" • ")
-                                append("$syncLastErrorLabel: $lastSyncError")
-                            }
-                        },
+                        text =
+                            buildString {
+                                if (lastSyncDurationText != null) append("$syncDurationLabel: $lastSyncDurationText")
+                                if (lastSyncError != null) {
+                                    if (isNotEmpty()) append(" • ")
+                                    append("$syncLastErrorLabel: $lastSyncError")
+                                }
+                            },
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
@@ -359,10 +366,11 @@ fun OfflineEnabledChecklistsScreen(
                 TextButton(
                     onClick = {
                         scope.launch {
-                            val result = offlineRepository.createChecklist(
-                                title = title.ifBlank { untitled },
-                                type = if (isProjectType) "task" else "simple",
-                            )
+                            val result =
+                                offlineRepository.createChecklist(
+                                    title = title.ifBlank { untitled },
+                                    type = if (isProjectType) "task" else "simple",
+                                )
                             if (result.isSuccess) {
                                 vm.setSelectedList(result.getOrNull())
                                 vm.setShowCreateDialog(false)
@@ -395,8 +403,9 @@ private fun OfflineChecklistCard(
     val completed = checklist.items.count { it.completed }
     val total = checklist.items.size
     val progress = if (total > 0) completed.toFloat() / total else 0f
-    val isProject = checklist.type.equals("project", ignoreCase = true) ||
-        checklist.type.equals("task", ignoreCase = true)
+    val isProject =
+        checklist.type.equals("project", ignoreCase = true) ||
+            checklist.type.equals("task", ignoreCase = true)
 
     Card(
         onClick = onClick,
@@ -413,11 +422,12 @@ private fun OfflineChecklistCard(
                         text = checklist.title,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .pointerInput(Unit) {
-                                detectTapGestures(onLongPress = { menuExpanded = true })
-                            },
+                        modifier =
+                            Modifier
+                                .weight(1f, fill = false)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(onLongPress = { menuExpanded = true })
+                                },
                     )
                     if (isProject) {
                         Text(
@@ -425,6 +435,12 @@ private fun OfflineChecklistCard(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = stringResource(R.string.more_options),
                         )
                     }
                 }
@@ -448,11 +464,17 @@ private fun OfflineChecklistCard(
             ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.edit)) },
-                    onClick = { menuExpanded = false; onClick() },
+                    onClick = {
+                        menuExpanded = false
+                        onClick()
+                    },
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.delete)) },
-                    onClick = { menuExpanded = false; onDelete() },
+                    onClick = {
+                        menuExpanded = false
+                        onDelete()
+                    },
                 )
             }
         }
@@ -481,11 +503,13 @@ private fun OfflineChecklistDetailContent(
     var newItemText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
-    val isProject = liveChecklist.type.equals("project", ignoreCase = true) ||
-        liveChecklist.type.equals("task", ignoreCase = true)
-    val flatItems = remember(items, isProject) {
-        if (isProject) flattenItems(items) else items.mapIndexed { i, item -> FlatChecklistItem(item, 0, "$i") }
-    }
+    val isProject =
+        liveChecklist.type.equals("project", ignoreCase = true) ||
+            liveChecklist.type.equals("task", ignoreCase = true)
+    val flatItems =
+        remember(items, isProject) {
+            if (isProject) flattenItems(items) else items.mapIndexed { i, item -> FlatChecklistItem(item, 0, "$i") }
+        }
     val toDo = flatItems.filter { !it.item.completed }
     val done = flatItems.filter { it.item.completed }
 
@@ -524,17 +548,18 @@ private fun OfflineChecklistDetailContent(
                 placeholder = { Text(stringResource(R.string.add_item)) },
                 modifier = Modifier.weight(1f),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        if (newItemText.isNotBlank()) {
-                            val text = newItemText
-                            newItemText = ""
-                            scope.launch {
-                                handleResult(offlineRepository.addItem(liveChecklist.id, text))
+                keyboardActions =
+                    KeyboardActions(
+                        onDone = {
+                            if (newItemText.isNotBlank()) {
+                                val text = newItemText
+                                newItemText = ""
+                                scope.launch {
+                                    handleResult(offlineRepository.addItem(liveChecklist.id, text))
+                                }
                             }
-                        }
-                    },
-                ),
+                        },
+                    ),
             )
             IconButton(
                 onClick = {
@@ -592,15 +617,18 @@ private fun OfflineChecklistDetailContent(
                             handleResult(offlineRepository.updateItem(liveChecklist.id, flat.apiPath, text))
                         }
                     },
-                    onAddSubItem = if (isProject && flat.depth == 0) {
-                        {
-                            scope.launch {
-                                handleResult(
-                                    offlineRepository.addItem(liveChecklist.id, "", parentIndex = flat.apiPath),
-                                )
+                    onAddSubItem =
+                        if (isProject && flat.depth == 0) {
+                            {
+                                scope.launch {
+                                    handleResult(
+                                        offlineRepository.addItem(liveChecklist.id, "", parentIndex = flat.apiPath),
+                                    )
+                                }
                             }
-                        }
-                    } else null,
+                        } else {
+                            null
+                        },
                 )
             }
             item(key = "header-done") {
@@ -675,31 +703,41 @@ private fun OfflineItemRow(
             OutlinedTextField(
                 value = editText,
                 onValueChange = { editText = it },
-                modifier = Modifier
-                    .weight(1f)
-                    .focusRequester(focusRequester),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        focusManager.clearFocus()
-                        val trimmed = editText.trim()
-                        if (trimmed.isNotBlank()) onUpdate(trimmed)
-                        isEditing = false
-                    },
-                ),
+                keyboardActions =
+                    KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
+                            val trimmed = editText.trim()
+                            if (trimmed.isNotBlank()) onUpdate(trimmed)
+                            isEditing = false
+                        },
+                    ),
             )
         } else {
             Text(
                 text = item.text.ifBlank { stringResource(R.string.item_placeholder) },
                 style = MaterialTheme.typography.bodyLarge,
                 textDecoration = if (item.completed) TextDecoration.LineThrough else null,
-                color = if (item.completed) MaterialTheme.colorScheme.onSurfaceVariant
-                else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { isEditing = true; editText = item.text },
+                color =
+                    if (item.completed) {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    },
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .clickable {
+                            isEditing = true
+                            editText = item.text
+                        },
             )
         }
         if (isProject && depth == 0 && onAddSubItem != null) {
@@ -739,8 +777,9 @@ private fun flattenItems(
     items: List<ChecklistItem>,
     depth: Int = 0,
     parentPath: String = "",
-): List<FlatChecklistItem> = items.flatMapIndexed { index, item ->
-    val path = if (parentPath.isEmpty()) "$index" else "$parentPath.$index"
-    listOf(FlatChecklistItem(item, depth, path)) +
-        flattenItems(item.children.orEmpty(), depth + 1, path)
-}
+): List<FlatChecklistItem> =
+    items.flatMapIndexed { index, item ->
+        val path = if (parentPath.isEmpty()) "$index" else "$parentPath.$index"
+        listOf(FlatChecklistItem(item, depth, path)) +
+            flattenItems(item.children.orEmpty(), depth + 1, path)
+    }

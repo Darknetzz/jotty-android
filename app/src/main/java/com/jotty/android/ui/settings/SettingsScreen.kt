@@ -25,20 +25,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import dev.jeziellago.compose.markdowntext.MarkdownText
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.BuildConfig
 import com.jotty.android.R
-import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.data.api.AdminOverviewResponse
+import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.api.SummaryData
+import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.data.updates.InstallResult
 import com.jotty.android.data.updates.UpdateChannel
 import com.jotty.android.data.updates.UpdateCheckResult
 import com.jotty.android.data.updates.UpdateChecker
 import com.jotty.android.data.updates.parseUpdateChannel
-import com.jotty.android.data.api.AdminOverviewResponse
-import com.jotty.android.data.api.JottyApi
-import com.jotty.android.data.api.SummaryData
-import com.jotty.android.data.preferences.SettingsRepository
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.jotty.android.ui.common.mainScreenTabContentPadding
+import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -111,337 +111,347 @@ fun SettingsScreen(
     ) {
         val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .mainScreenTabContentPadding(topComfortDp = contentVerticalDp)
-                .verticalScroll(rememberScrollState()),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .mainScreenTabContentPadding(topComfortDp = contentVerticalDp)
+                    .verticalScroll(rememberScrollState()),
         ) {
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        // ─── Overview (connection + dashboard) ─────────────────────────────────
-        SettingsSectionTitle(stringResource(R.string.settings_category_overview))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            Column {
-                ListItem(
-                    headlineContent = { Text(currentInstance?.name ?: stringResource(R.string.instance_label)) },
-                    supportingContent = {
-                        Column {
-                            Text(currentInstance?.serverUrl ?: "\u2014", maxLines = 2)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = when (healthOk) {
-                                    true -> stringResource(R.string.connected)
-                                    false -> stringResource(R.string.server_unreachable)
-                                    null -> "\u2014"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = when (healthOk) {
-                                    true -> MaterialTheme.colorScheme.primary
-                                    false -> MaterialTheme.colorScheme.error
-                                    null -> MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
-                        }
-                    },
-                    leadingContent = { Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link)) },
-                )
-                HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.manage_instances)) },
-                    supportingContent = {
-                        Text(
-                            stringResource(R.string.manage_instances_description),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    leadingContent = { Icon(Icons.Default.ManageAccounts, contentDescription = stringResource(R.string.manage_instances)) },
-                    modifier = Modifier.clickable(onClick = onManageInstances),
-                )
-                if (currentInstance != null) {
+            // ─── Overview (connection + dashboard) ─────────────────────────────────
+            SettingsSectionTitle(stringResource(R.string.settings_category_overview))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Column {
+                    ListItem(
+                        headlineContent = { Text(currentInstance?.name ?: stringResource(R.string.instance_label)) },
+                        supportingContent = {
+                            Column {
+                                Text(currentInstance?.serverUrl ?: "\u2014", maxLines = 2)
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text =
+                                        when (healthOk) {
+                                            true -> stringResource(R.string.connected)
+                                            false -> stringResource(R.string.server_unreachable)
+                                            null -> "\u2014"
+                                        },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color =
+                                        when (healthOk) {
+                                            true -> MaterialTheme.colorScheme.primary
+                                            false -> MaterialTheme.colorScheme.error
+                                            null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                )
+                            }
+                        },
+                        leadingContent = { Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link)) },
+                    )
                     HorizontalDivider()
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.set_as_default_instance)) },
+                        headlineContent = { Text(stringResource(R.string.manage_instances)) },
                         supportingContent = {
                             Text(
-                                stringResource(R.string.open_to_default_instance),
+                                stringResource(R.string.manage_instances_description),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         },
                         leadingContent = {
                             Icon(
-                                Icons.Default.Star,
-                                contentDescription = stringResource(R.string.set_as_default_instance),
-                                tint = if (defaultInstanceId == currentInstance?.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                Icons.Default.ManageAccounts,
+                                contentDescription = stringResource(R.string.manage_instances),
                             )
                         },
-                        modifier = Modifier.clickable {
-                            scope.launch {
-                                settingsRepository.setDefaultInstanceId(currentInstance?.id)
-                            }
-                        },
+                        modifier = Modifier.clickable(onClick = onManageInstances),
                     )
+                    if (currentInstance != null) {
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.set_as_default_instance)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.open_to_default_instance),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.Star,
+                                    contentDescription = stringResource(R.string.set_as_default_instance),
+                                    tint = if (defaultInstanceId == currentInstance?.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            },
+                            modifier =
+                                Modifier.clickable {
+                                    scope.launch {
+                                        settingsRepository.setDefaultInstanceId(currentInstance?.id)
+                                    }
+                                },
+                        )
+                    }
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        // ─── General (appearance & behavior) ───────────────────────────────────
-        SettingsSectionTitle(stringResource(R.string.settings_category_general))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        ) {
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.theme_mode_label)) },
-                supportingContent = {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        listOf(
-                            null to R.string.theme_system,
-                            "light" to R.string.theme_light,
-                            "dark" to R.string.theme_dark,
-                        ).forEach { (value, labelRes) ->
-                            val isSelected = when (value) {
-                                null -> themeMode.isNullOrBlank()
-                                else -> themeMode == value
-                            }
-                            FilterChip(
-                                selected = isSelected,
-                                onClick = {
-                                    scope.launch {
-                                        settingsRepository.setThemeMode(value)
-                                    }
-                                },
-                                label = { Text(stringResource(labelRes)) },
-                            )
-                        }
-                    }
-                },
-            )
-            HorizontalDivider()
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.theme_color_label)) },
-                supportingContent = {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        listOf(
-                            "default" to R.string.theme_color_default,
-                            "amoled" to R.string.theme_amoled,
-                            "sepia" to R.string.theme_sepia,
-                            "midnight" to R.string.theme_midnight,
-                            "rose" to R.string.theme_rose,
-                            "ocean" to R.string.theme_ocean,
-                            "forest" to R.string.theme_forest,
-                        ).forEach { (value, labelRes) ->
-                            FilterChip(
-                                selected = themeColor == value,
-                                onClick = {
-                                    scope.launch {
-                                        settingsRepository.setThemeColor(value)
-                                    }
-                                },
-                                label = { Text(stringResource(labelRes)) },
-                            )
-                        }
-                    }
-                },
-            )
-            HorizontalDivider()
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.content_padding)) },
-                supportingContent = {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        listOf(
-                            "comfortable" to R.string.content_padding_comfortable,
-                            "compact" to R.string.content_padding_compact,
-                        ).forEach { (value, labelRes) ->
-                            FilterChip(
-                                selected = contentPaddingMode == value,
-                                onClick = {
-                                    scope.launch {
-                                        settingsRepository.setContentPaddingMode(value)
-                                    }
-                                },
-                                label = { Text(stringResource(labelRes)) },
-                            )
-                        }
-                    }
-                },
-            )
-            HorizontalDivider()
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.start_screen)) },
-                supportingContent = {
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        listOf(
-                            "checklists" to R.string.nav_checklists,
-                            "notes" to R.string.nav_notes,
-                            "settings" to R.string.nav_settings,
-                        ).forEach { (value, labelRes) ->
-                            FilterChip(
-                                selected = (startTab ?: "checklists") == value,
-                                onClick = {
-                                    scope.launch {
-                                        settingsRepository.setStartTab(value)
-                                    }
-                                },
-                                label = { Text(stringResource(labelRes)) },
-                            )
-                        }
-                    }
-                },
-            )
-            HorizontalDivider()
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
-                supportingContent = {
-                    Text(
-                        stringResource(R.string.swipe_to_delete_description),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = swipeToDeleteEnabled,
-                        onCheckedChange = {
-                            scope.launch {
-                                settingsRepository.setSwipeToDeleteEnabled(it)
-                            }
-                        },
-                    )
-                },
-            )
-            HorizontalDivider()
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.debug_logging)) },
-                supportingContent = {
-                    Text(
-                        stringResource(R.string.debug_logging_description),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = debugLoggingEnabled,
-                        onCheckedChange = {
-                            scope.launch {
-                                settingsRepository.setDebugLoggingEnabled(it)
-                            }
-                        },
-                    )
-                },
-            )
-            
-            HorizontalDivider()
-            
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.offline_mode)) },
-                supportingContent = {
-                    Text(
-                        stringResource(R.string.offline_mode_description),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = offlineModeEnabled,
-                        onCheckedChange = {
-                            scope.launch {
-                                settingsRepository.setOfflineModeEnabled(it)
-                            }
-                        },
-                    )
-                },
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Account
-        SettingsSectionTitle(stringResource(R.string.account))
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = {
-                scope.launch {
-                    settingsRepository.disconnect()
-                    onDisconnect()
-                }
-            },
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            // ─── General (appearance & behavior) ───────────────────────────────────
+            SettingsSectionTitle(stringResource(R.string.settings_category_general))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
-                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = stringResource(R.string.disconnect))
-                Column {
-                    Text(stringResource(R.string.disconnect), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.disconnect_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.theme_mode_label)) },
+                    supportingContent = {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(
+                                null to R.string.theme_system,
+                                "light" to R.string.theme_light,
+                                "dark" to R.string.theme_dark,
+                            ).forEach { (value, labelRes) ->
+                                val isSelected =
+                                    when (value) {
+                                        null -> themeMode.isNullOrBlank()
+                                        else -> themeMode == value
+                                    }
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        scope.launch {
+                                            settingsRepository.setThemeMode(value)
+                                        }
+                                    },
+                                    label = { Text(stringResource(labelRes)) },
+                                )
+                            }
+                        }
+                    },
+                )
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.theme_color_label)) },
+                    supportingContent = {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(
+                                "default" to R.string.theme_color_default,
+                                "amoled" to R.string.theme_amoled,
+                                "sepia" to R.string.theme_sepia,
+                                "midnight" to R.string.theme_midnight,
+                                "rose" to R.string.theme_rose,
+                                "ocean" to R.string.theme_ocean,
+                                "forest" to R.string.theme_forest,
+                            ).forEach { (value, labelRes) ->
+                                FilterChip(
+                                    selected = themeColor == value,
+                                    onClick = {
+                                        scope.launch {
+                                            settingsRepository.setThemeColor(value)
+                                        }
+                                    },
+                                    label = { Text(stringResource(labelRes)) },
+                                )
+                            }
+                        }
+                    },
+                )
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.content_padding)) },
+                    supportingContent = {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(
+                                "comfortable" to R.string.content_padding_comfortable,
+                                "compact" to R.string.content_padding_compact,
+                            ).forEach { (value, labelRes) ->
+                                FilterChip(
+                                    selected = contentPaddingMode == value,
+                                    onClick = {
+                                        scope.launch {
+                                            settingsRepository.setContentPaddingMode(value)
+                                        }
+                                    },
+                                    label = { Text(stringResource(labelRes)) },
+                                )
+                            }
+                        }
+                    },
+                )
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.start_screen)) },
+                    supportingContent = {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(
+                                "checklists" to R.string.nav_checklists,
+                                "notes" to R.string.nav_notes,
+                                "settings" to R.string.nav_settings,
+                            ).forEach { (value, labelRes) ->
+                                FilterChip(
+                                    selected = (startTab ?: "checklists") == value,
+                                    onClick = {
+                                        scope.launch {
+                                            settingsRepository.setStartTab(value)
+                                        }
+                                    },
+                                    label = { Text(stringResource(labelRes)) },
+                                )
+                            }
+                        }
+                    },
+                )
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.swipe_to_delete_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = swipeToDeleteEnabled,
+                            onCheckedChange = {
+                                scope.launch {
+                                    settingsRepository.setSwipeToDeleteEnabled(it)
+                                }
+                            },
+                        )
+                    },
+                )
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.debug_logging)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.debug_logging_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = debugLoggingEnabled,
+                            onCheckedChange = {
+                                scope.launch {
+                                    settingsRepository.setDebugLoggingEnabled(it)
+                                }
+                            },
+                        )
+                    },
+                )
+
+                HorizontalDivider()
+
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.offline_mode)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.offline_mode_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = offlineModeEnabled,
+                            onCheckedChange = {
+                                scope.launch {
+                                    settingsRepository.setOfflineModeEnabled(it)
+                                }
+                            },
+                        )
+                    },
+                )
             }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        // About
-        SettingsSectionTitle(stringResource(R.string.about))
-        OutlinedCard(
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { showAboutDialog = true },
-        ) {
-            Row(
-                modifier = Modifier.padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            // Account
+            SettingsSectionTitle(stringResource(R.string.account))
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = {
+                    scope.launch {
+                        settingsRepository.disconnect()
+                        onDisconnect()
+                    }
+                },
             ) {
-                Icon(Icons.Default.Info, contentDescription = stringResource(R.string.about))
-                Column {
-                    Text(stringResource(R.string.about), style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        stringResource(R.string.about_description),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = stringResource(R.string.disconnect))
+                    Column {
+                        Text(stringResource(R.string.disconnect), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            stringResource(R.string.disconnect_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
-        }
-        if (summary != null || adminOverview != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
-            summary?.let { DashboardSummaryCard(it) }
-            if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
-            adminOverview?.let { AdminOverviewCard(it) }
-        }
 
-        Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Text(
-            stringResource(R.string.jotty_footer),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+            // About
+            SettingsSectionTitle(stringResource(R.string.about))
+            OutlinedCard(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { showAboutDialog = true },
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Icon(Icons.Default.Info, contentDescription = stringResource(R.string.about))
+                    Column {
+                        Text(stringResource(R.string.about), style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            stringResource(R.string.about_description),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+            if (summary != null || adminOverview != null) {
+                Spacer(modifier = Modifier.height(12.dp))
+                SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
+                summary?.let { DashboardSummaryCard(it) }
+                if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
+                adminOverview?.let { AdminOverviewCard(it) }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text(
+                stringResource(R.string.jotty_footer),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 
@@ -461,9 +471,13 @@ fun SettingsScreen(
 
 private sealed class UpdateUiState {
     data object Idle : UpdateUiState()
+
     data object Checking : UpdateUiState()
+
     data object Downloading : UpdateUiState()
+
     data class Result(val value: UpdateCheckResult) : UpdateUiState()
+
     data class InstallFailed(
         val versionName: String,
         val downloadUrl: String,
@@ -491,7 +505,11 @@ private fun DashboardSummaryCard(summary: SummaryData) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(stringResource(R.string.user_label), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(
+                        stringResource(R.string.user_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
                     Text(u, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
@@ -530,7 +548,10 @@ private fun AdminOverviewCard(overview: AdminOverviewResponse) {
 }
 
 @Composable
-private fun StatChip(label: String, value: Int) {
+private fun StatChip(
+    label: String,
+    value: Int,
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text("$value", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
         Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -601,25 +622,26 @@ private fun AboutDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = {
-                                    val now = SystemClock.elapsedRealtime()
-                                    if (versionLastTapElapsedMs != 0L && now - versionLastTapElapsedMs > ABOUT_EASTER_EGG_RESET_MS) {
-                                        versionTapCount = 0
-                                    }
-                                    versionLastTapElapsedMs = now
-                                    versionTapCount++
-                                    if (versionTapCount >= ABOUT_EASTER_EGG_TAPS) {
-                                        versionTapCount = 0
-                                        versionLastTapElapsedMs = 0L
-                                        showAboutEasterEgg = true
-                                    }
-                                },
-                            )
-                        },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onTap = {
+                                        val now = SystemClock.elapsedRealtime()
+                                        if (versionLastTapElapsedMs != 0L && now - versionLastTapElapsedMs > ABOUT_EASTER_EGG_RESET_MS) {
+                                            versionTapCount = 0
+                                        }
+                                        versionLastTapElapsedMs = now
+                                        versionTapCount++
+                                        if (versionTapCount >= ABOUT_EASTER_EGG_TAPS) {
+                                            versionTapCount = 0
+                                            versionLastTapElapsedMs = 0L
+                                            showAboutEasterEgg = true
+                                        }
+                                    },
+                                )
+                            },
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium)
@@ -671,9 +693,10 @@ private fun AboutDialog(
                             onClick = {
                                 scope.launch {
                                     updateState = UpdateUiState.Checking
-                                    updateState = UpdateUiState.Result(
-                                        UpdateChecker.checkForUpdate(context, parsedChannel),
-                                    )
+                                    updateState =
+                                        UpdateUiState.Result(
+                                            UpdateChecker.checkForUpdate(context, parsedChannel),
+                                        )
                                 }
                             },
                             contentPadding = PaddingValues(0.dp),
@@ -696,8 +719,11 @@ private fun AboutDialog(
                             ) {
                                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                                 Text(
-                                    if (state is UpdateUiState.Downloading) stringResource(R.string.downloading)
-                                    else stringResource(R.string.checking_for_updates),
+                                    if (state is UpdateUiState.Downloading) {
+                                        stringResource(R.string.downloading)
+                                    } else {
+                                        stringResource(R.string.checking_for_updates)
+                                    },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -714,85 +740,99 @@ private fun AboutDialog(
                             }
                         }
                     }
-                    is UpdateUiState.Result -> when (val r = state.value) {
-                        is UpdateCheckResult.UpdateAvailable -> UpdateAvailableContent(
-                            versionName = r.versionName,
-                            downloadUrl = r.downloadUrl,
-                            releaseNotes = r.releaseNotes,
-                            installFailedMessage = null,
+                    is UpdateUiState.Result ->
+                        when (val r = state.value) {
+                            is UpdateCheckResult.UpdateAvailable ->
+                                UpdateAvailableContent(
+                                    versionName = r.versionName,
+                                    downloadUrl = r.downloadUrl,
+                                    releaseNotes = r.releaseNotes,
+                                    installFailedMessage = null,
+                                    onDownloadAndInstall = {
+                                        scope.launch {
+                                            updateState = UpdateUiState.Downloading
+                                            downloadProgress = null
+                                            when (
+                                                val result =
+                                                    UpdateChecker.downloadAndInstall(context, r.downloadUrl) { p ->
+                                                        downloadProgress = p
+                                                    }
+                                            ) {
+                                                is InstallResult.Started -> updateState = UpdateUiState.Idle
+                                                is InstallResult.Failed ->
+                                                    updateState =
+                                                        UpdateUiState.InstallFailed(
+                                                            r.versionName, r.downloadUrl, result.userMessage, r.releaseNotes,
+                                                        )
+                                            }
+                                            downloadProgress = null
+                                        }
+                                    },
+                                    onOpenReleasePage = { uriHandler.openUri(releasePageUrl) },
+                                )
+                            is UpdateCheckResult.UpToDate -> {
+                                Text(
+                                    stringResource(R.string.you_are_up_to_date),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                TextButton(
+                                    onClick = { updateState = UpdateUiState.Idle },
+                                    contentPadding = PaddingValues(0.dp),
+                                ) {
+                                    Text(stringResource(R.string.check_for_updates))
+                                }
+                            }
+                            is UpdateCheckResult.Error -> {
+                                Text(
+                                    stringResource(R.string.update_check_error, r.message),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                                TextButton(
+                                    onClick = {
+                                        scope.launch {
+                                            updateState = UpdateUiState.Checking
+                                            updateState =
+                                                UpdateUiState.Result(
+                                                    UpdateChecker.checkForUpdate(context, parsedChannel),
+                                                )
+                                        }
+                                    },
+                                    contentPadding = PaddingValues(0.dp),
+                                ) {
+                                    Text(stringResource(R.string.retry))
+                                }
+                            }
+                        }
+                    is UpdateUiState.InstallFailed ->
+                        UpdateAvailableContent(
+                            versionName = state.versionName,
+                            downloadUrl = state.downloadUrl,
+                            releaseNotes = state.releaseNotes,
+                            installFailedMessage = state.userMessage,
                             onDownloadAndInstall = {
                                 scope.launch {
                                     updateState = UpdateUiState.Downloading
                                     downloadProgress = null
-                                    when (val result = UpdateChecker.downloadAndInstall(context, r.downloadUrl) { p ->
-                                        downloadProgress = p
-                                    }) {
+                                    when (
+                                        val result =
+                                            UpdateChecker.downloadAndInstall(context, state.downloadUrl) { p ->
+                                                downloadProgress = p
+                                            }
+                                    ) {
                                         is InstallResult.Started -> updateState = UpdateUiState.Idle
-                                        is InstallResult.Failed -> updateState = UpdateUiState.InstallFailed(
-                                            r.versionName, r.downloadUrl, result.userMessage, r.releaseNotes,
-                                        )
+                                        is InstallResult.Failed ->
+                                            updateState =
+                                                UpdateUiState.InstallFailed(
+                                                    state.versionName, state.downloadUrl, result.userMessage, state.releaseNotes,
+                                                )
                                     }
                                     downloadProgress = null
                                 }
                             },
                             onOpenReleasePage = { uriHandler.openUri(releasePageUrl) },
                         )
-                        is UpdateCheckResult.UpToDate -> {
-                            Text(
-                                stringResource(R.string.you_are_up_to_date),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            TextButton(
-                                onClick = { updateState = UpdateUiState.Idle },
-                                contentPadding = PaddingValues(0.dp),
-                            ) {
-                                Text(stringResource(R.string.check_for_updates))
-                            }
-                        }
-                        is UpdateCheckResult.Error -> {
-                            Text(
-                                stringResource(R.string.update_check_error, r.message),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                            TextButton(
-                                onClick = {
-                                    scope.launch {
-                                        updateState = UpdateUiState.Checking
-                                        updateState = UpdateUiState.Result(
-                                            UpdateChecker.checkForUpdate(context, parsedChannel),
-                                        )
-                                    }
-                                },
-                                contentPadding = PaddingValues(0.dp),
-                            ) {
-                                Text(stringResource(R.string.retry))
-                            }
-                        }
-                    }
-                    is UpdateUiState.InstallFailed -> UpdateAvailableContent(
-                        versionName = state.versionName,
-                        downloadUrl = state.downloadUrl,
-                        releaseNotes = state.releaseNotes,
-                        installFailedMessage = state.userMessage,
-                        onDownloadAndInstall = {
-                            scope.launch {
-                                updateState = UpdateUiState.Downloading
-                                downloadProgress = null
-                                when (val result = UpdateChecker.downloadAndInstall(context, state.downloadUrl) { p ->
-                                    downloadProgress = p
-                                }) {
-                                    is InstallResult.Started -> updateState = UpdateUiState.Idle
-                                    is InstallResult.Failed -> updateState = UpdateUiState.InstallFailed(
-                                        state.versionName, state.downloadUrl, result.userMessage, state.releaseNotes,
-                                    )
-                                }
-                                downloadProgress = null
-                            }
-                        },
-                        onOpenReleasePage = { uriHandler.openUri(releasePageUrl) },
-                    )
                 }
             }
         },
@@ -840,17 +880,19 @@ private fun UpdateAvailableContent(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 120.dp)
-                        .verticalScroll(rememberScrollState()),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 120.dp)
+                            .verticalScroll(rememberScrollState()),
                 ) {
                     MarkdownText(
                         markdown = notes,
                         modifier = Modifier.fillMaxWidth(),
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        ),
+                        style =
+                            MaterialTheme.typography.bodySmall.copy(
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                         syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
                         syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

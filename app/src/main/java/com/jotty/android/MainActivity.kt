@@ -3,21 +3,20 @@ package com.jotty.android
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
-import androidx.fragment.app.FragmentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.ui.JottyAppContent
 import com.jotty.android.ui.theme.JottyTheme
 
 class MainActivity : FragmentActivity() {
-
     /** Shared mutable state for deep-link note ID, updated by both onCreate and onNewIntent. */
     private val deepLinkNoteId = mutableStateOf<String?>(null)
 
@@ -56,7 +55,6 @@ class MainActivity : FragmentActivity() {
 
     companion object {
         /** Parses note id from jotty-android://open/note/{id} */
-        fun parseDeepLinkNoteId(intent: Intent?): String? =
-            intent?.data?.lastPathSegment?.takeIf { it.isNotBlank() && it != "note" }
+        fun parseDeepLinkNoteId(intent: Intent?): String? = intent?.data?.lastPathSegment?.takeIf { it.isNotBlank() && it != "note" }
     }
 }

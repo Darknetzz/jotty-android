@@ -11,8 +11,8 @@ import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,8 +22,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import coil.ImageLoader
 import com.jotty.android.R
-import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.CreateNoteRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
@@ -34,7 +34,6 @@ import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.AppLog
-import coil.ImageLoader
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,7 +63,6 @@ fun NotesScreen(
     val noteCategories by vm.noteCategories.collectAsStateWithLifecycle()
 
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
@@ -183,20 +181,22 @@ fun NotesScreen(
                                                 api.deleteNote(n.id)
                                                 vm.removeNoteFromList(n.id)
                                                 scope.launch {
-                                                    val result = snackbarHostState.showSnackbar(
-                                                        message = noteDeletedMsg,
-                                                        actionLabel = undoActionLabel,
-                                                        duration = SnackbarDuration.Short,
-                                                    )
+                                                    val result =
+                                                        snackbarHostState.showSnackbar(
+                                                            message = noteDeletedMsg,
+                                                            actionLabel = undoActionLabel,
+                                                            duration = SnackbarDuration.Short,
+                                                        )
                                                     if (result == SnackbarResult.ActionPerformed) {
                                                         try {
-                                                            val resp = api.createNote(
-                                                                CreateNoteRequest(
-                                                                    title = snapshot.title,
-                                                                    content = snapshot.content,
-                                                                    category = snapshot.category,
-                                                                ),
-                                                            )
+                                                            val resp =
+                                                                api.createNote(
+                                                                    CreateNoteRequest(
+                                                                        title = snapshot.title,
+                                                                        content = snapshot.content,
+                                                                        category = snapshot.category,
+                                                                    ),
+                                                                )
                                                             if (resp.success && resp.data != null) {
                                                                 vm.loadNotes()
                                                             } else {
@@ -230,8 +230,14 @@ fun NotesScreen(
                         note = note,
                         api = api,
                         onBack = { vm.setSelectedNote(null) },
-                        onUpdate = { vm.setSelectedNote(it); vm.loadNotes() },
-                        onDelete = { vm.setSelectedNote(null); vm.loadNotes() },
+                        onUpdate = {
+                            vm.setSelectedNote(it)
+                            vm.loadNotes()
+                        },
+                        onDelete = {
+                            vm.setSelectedNote(null)
+                            vm.loadNotes()
+                        },
                         onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                         debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
@@ -261,11 +267,12 @@ fun NotesScreen(
                     onClick = {
                         scope.launch {
                             try {
-                                val created = api.createNote(
-                                    CreateNoteRequest(
-                                        title = title.ifBlank { untitled },
-                                    ),
-                                )
+                                val created =
+                                    api.createNote(
+                                        CreateNoteRequest(
+                                            title = title.ifBlank { untitled },
+                                        ),
+                                    )
                                 if (created.success) {
                                     vm.loadNotes()
                                     vm.setSelectedNote(created.data)

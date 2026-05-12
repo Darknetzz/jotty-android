@@ -7,7 +7,6 @@ import retrofit2.http.GET
  * Base URL: https://api.github.com/
  */
 interface GitHubApi {
-
     @GET("repos/Darknetzz/jotty-android/releases/latest")
     suspend fun getLatestRelease(): GitHubReleaseResponse
 

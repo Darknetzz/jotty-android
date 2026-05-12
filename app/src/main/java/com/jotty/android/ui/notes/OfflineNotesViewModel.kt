@@ -26,13 +26,13 @@ class OfflineNotesViewModel(
     instanceId: String,
     api: JottyApi,
 ) : AndroidViewModel(application) {
-
-    val repository: OfflineNotesRepository = OfflineNotesRepository(
-        context = application,
-        database = JottyDatabase.getDatabase(application),
-        instanceId = instanceId,
-        api = api,
-    )
+    val repository: OfflineNotesRepository =
+        OfflineNotesRepository(
+            context = application,
+            database = JottyDatabase.getDatabase(application),
+            instanceId = instanceId,
+            api = api,
+        )
 
     override fun onCleared() {
         repository.close()
@@ -44,7 +44,6 @@ class OfflineNotesViewModel(
         private val api: JottyApi,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
-        override fun <T : ViewModel> create(modelClass: Class<T>): T =
-            OfflineNotesViewModel(application, instanceId, api) as T
+        override fun <T : ViewModel> create(modelClass: Class<T>): T = OfflineNotesViewModel(application, instanceId, api) as T
     }
 }

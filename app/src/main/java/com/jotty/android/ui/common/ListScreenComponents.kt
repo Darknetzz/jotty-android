@@ -66,16 +66,18 @@ fun OfflineSyncStatusRow(
     trailingActions: @Composable RowScope.() -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val statusText = when {
-        isSyncing -> stringResource(R.string.syncing)
-        isOnline -> stringResource(R.string.online)
-        else -> stringResource(R.string.offline)
-    }
-    val lastSyncText = remember(lastSyncAttemptEpochMs) {
-        lastSyncAttemptEpochMs?.let {
-            DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
+    val statusText =
+        when {
+            isSyncing -> stringResource(R.string.syncing)
+            isOnline -> stringResource(R.string.online)
+            else -> stringResource(R.string.offline)
         }
-    }
+    val lastSyncText =
+        remember(lastSyncAttemptEpochMs) {
+            lastSyncAttemptEpochMs?.let {
+                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
+            }
+        }
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -87,24 +89,27 @@ fun OfflineSyncStatusRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             when {
-                isSyncing -> Icon(
-                    Icons.Default.CloudQueue,
-                    contentDescription = statusText,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-                isOnline -> Icon(
-                    Icons.Default.CloudDone,
-                    contentDescription = statusText,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp),
-                )
-                else -> Icon(
-                    Icons.Default.CloudOff,
-                    contentDescription = statusText,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp),
-                )
+                isSyncing ->
+                    Icon(
+                        Icons.Default.CloudQueue,
+                        contentDescription = statusText,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                isOnline ->
+                    Icon(
+                        Icons.Default.CloudDone,
+                        contentDescription = statusText,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                else ->
+                    Icon(
+                        Icons.Default.CloudOff,
+                        contentDescription = statusText,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
             }
             Column {
                 Text(
@@ -171,18 +176,20 @@ fun ListScreenContent(
     when {
         loading && isEmpty -> LoadingState()
         error != null -> ErrorState(message = error, onRetry = onRetry)
-        isEmpty -> EmptyState(
-            icon = emptyIcon,
-            title = emptyTitle,
-            subtitle = emptySubtitle,
-        )
-        else -> PullToRefreshBox(
-            isRefreshing = loading,
-            onRefresh = onRefresh,
-            state = pullRefreshState,
-        ) {
-            content()
-        }
+        isEmpty ->
+            EmptyState(
+                icon = emptyIcon,
+                title = emptyTitle,
+                subtitle = emptySubtitle,
+            )
+        else ->
+            PullToRefreshBox(
+                isRefreshing = loading,
+                onRefresh = onRefresh,
+                state = pullRefreshState,
+            ) {
+                content()
+            }
     }
 }
 
@@ -245,10 +252,11 @@ fun SwipeToDeleteContainer(
             enableDismissFromStartToEnd = false,
             backgroundContent = {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.error)
-                        .padding(horizontal = 20.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.error)
+                            .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     Icon(

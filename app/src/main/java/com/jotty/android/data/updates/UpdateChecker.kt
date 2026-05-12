@@ -29,7 +29,7 @@ fun parseUpdateChannel(value: String?): UpdateChannel =
     when (value?.lowercase()?.trim()) {
         "dev" -> UpdateChannel.Dev
         else -> UpdateChannel.Stable
-}
+    }
 
 /**
  * Result of checking for updates.
@@ -40,7 +40,9 @@ sealed class UpdateCheckResult {
         val downloadUrl: String,
         val releaseNotes: String? = null,
     ) : UpdateCheckResult()
+
     data object UpToDate : UpdateCheckResult()
+
     data class Error(val message: String) : UpdateCheckResult()
 }
 
@@ -49,11 +51,11 @@ sealed class UpdateCheckResult {
  */
 sealed class InstallResult {
     data object Started : InstallResult()
+
     data class Failed(val userMessage: String) : InstallResult()
 }
 
 object UpdateChecker {
-
     private const val GITHUB_API_BASE = "https://api.github.com/"
     private const val TAG = "UpdateChecker"
 
@@ -65,29 +67,31 @@ object UpdateChecker {
 
     private val cache = ConcurrentHashMap<UpdateChannel, CacheEntry>()
 
-    private val githubClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .addInterceptor { chain ->
-            chain.proceed(
-                chain.request().newBuilder()
-                    .addHeader("User-Agent", userAgent)
-                    .build()
-            )
-        }
-        .build()
+    private val githubClient =
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .addHeader("User-Agent", userAgent)
+                        .build(),
+                )
+            }
+            .build()
 
-    private val downloadClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(2, TimeUnit.MINUTES)
-        .addInterceptor { chain ->
-            chain.proceed(
-                chain.request().newBuilder()
-                    .addHeader("User-Agent", userAgent)
-                    .build()
-            )
-        }
-        .build()
+    private val downloadClient =
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(2, TimeUnit.MINUTES)
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .addHeader("User-Agent", userAgent)
+                        .build(),
+                )
+            }
+            .build()
 
     private val githubApi: GitHubApi by lazy {
         Retrofit.Builder()
@@ -106,31 +110,34 @@ object UpdateChecker {
     suspend fun checkForUpdate(
         context: Context,
         channel: UpdateChannel = UpdateChannel.Stable,
-    ): UpdateCheckResult = withContext(Dispatchers.IO) {
-        val now = System.currentTimeMillis()
-        cache[channel]?.let { entry ->
-            if (now - entry.at < CACHE_TTL_MS && entry.result !is UpdateCheckResult.Error) {
-                return@withContext entry.result
+    ): UpdateCheckResult =
+        withContext(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            cache[channel]?.let { entry ->
+                if (now - entry.at < CACHE_TTL_MS && entry.result !is UpdateCheckResult.Error) {
+                    return@withContext entry.result
+                }
+            }
+            try {
+                val result =
+                    when (channel) {
+                        UpdateChannel.Stable -> checkStableRelease(context)
+                        UpdateChannel.Dev -> checkDevRelease(context)
+                    }
+                cache[channel] = CacheEntry(now, result)
+                result
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Check for update failed", e)
+                UpdateCheckResult.Error(ApiErrorHelper.userMessage(context, e))
             }
         }
-        try {
-            val result = when (channel) {
-                UpdateChannel.Stable -> checkStableRelease(context)
-                UpdateChannel.Dev -> checkDevRelease(context)
-            }
-            cache[channel] = CacheEntry(now, result)
-            result
-        } catch (e: Exception) {
-            AppLog.e(TAG, "Check for update failed", e)
-            UpdateCheckResult.Error(ApiErrorHelper.userMessage(context, e))
-        }
-    }
 
     private suspend fun checkStableRelease(context: Context): UpdateCheckResult {
         val release = githubApi.getLatestRelease()
         val latestVersion = release.tagName.removePrefix("v").trim()
-        val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
-            ?: return UpdateCheckResult.Error(context.getString(R.string.no_apk_in_release))
+        val apkAsset =
+            release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+                ?: return UpdateCheckResult.Error(context.getString(R.string.no_apk_in_release))
 
         val current = BuildConfig.VERSION_NAME?.trim() ?: "0.0.0"
         val baseCurrent = baseVersionNameWithoutDevSuffix(current)
@@ -147,11 +154,13 @@ object UpdateChecker {
 
     private suspend fun checkDevRelease(context: Context): UpdateCheckResult {
         val release = githubApi.getDevLatestRelease()
-        val apkAsset = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
-            ?: return UpdateCheckResult.Error(context.getString(R.string.no_apk_in_release))
+        val apkAsset =
+            release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+                ?: return UpdateCheckResult.Error(context.getString(R.string.no_apk_in_release))
 
-        val remoteCommit = commitFromDevReleaseBody(release.body)
-            ?: return UpdateCheckResult.Error(context.getString(R.string.update_check_dev_parse_error))
+        val remoteCommit =
+            commitFromDevReleaseBody(release.body)
+                ?: return UpdateCheckResult.Error(context.getString(R.string.update_check_dev_parse_error))
 
         val current = BuildConfig.VERSION_NAME?.trim() ?: "0.0.0"
         if (localDevBuildMatchesRemote(current, remoteCommit)) {
@@ -171,8 +180,9 @@ object UpdateChecker {
         return if (idx > 0) versionName.substring(0, idx).trim() else versionName.trim()
     }
 
-    internal fun shortShaFromDevVersionName(versionName: String): String? =
-        Regex("""-dev\+([a-fA-F0-9]+)$""").find(versionName)?.groupValues?.get(1)?.lowercase()
+    internal fun shortShaFromDevVersionName(versionName: String): String? {
+        return Regex("""-dev\+([a-fA-F0-9]+)$""").find(versionName)?.groupValues?.get(1)?.lowercase()
+    }
 
     internal fun commitFromDevReleaseBody(body: String?): String? {
         if (body.isNullOrBlank()) return null
@@ -180,7 +190,10 @@ object UpdateChecker {
         return m.groupValues[1].lowercase()
     }
 
-    internal fun localDevBuildMatchesRemote(versionName: String, remoteCommitFull: String): Boolean {
+    internal fun localDevBuildMatchesRemote(
+        versionName: String,
+        remoteCommitFull: String,
+    ): Boolean {
         val localSha = shortShaFromDevVersionName(versionName) ?: return false
         val remote = remoteCommitFull.lowercase()
         return remote.startsWith(localSha) || localSha.startsWith(remote.take(localSha.length))
@@ -189,7 +202,10 @@ object UpdateChecker {
     /**
      * Returns true if [newVersion] is strictly greater than [currentVersion] (e.g. "1.2.0" > "1.1.2").
      */
-    fun isNewerVersion(newVersion: String, currentVersion: String): Boolean {
+    fun isNewerVersion(
+        newVersion: String,
+        currentVersion: String,
+    ): Boolean {
         val newParts = parseVersionParts(newVersion)
         val currentParts = parseVersionParts(currentVersion)
         for (i in 0 until maxOf(newParts.size, currentParts.size)) {
@@ -200,8 +216,9 @@ object UpdateChecker {
         return false
     }
 
-    private fun parseVersionParts(version: String): List<Int> =
-        version.split(".").map { it.filter { c -> c.isDigit() }.toIntOrNull() ?: 0 }.ifEmpty { listOf(0) }
+    private fun parseVersionParts(version: String): List<Int> {
+        return version.split(".").map { it.filter { c -> c.isDigit() }.toIntOrNull() ?: 0 }.ifEmpty { listOf(0) }
+    }
 
     /**
      * Downloads the APK from [downloadUrl] to app cache and starts the system installer.
@@ -211,67 +228,75 @@ object UpdateChecker {
         context: Context,
         downloadUrl: String,
         onProgress: ((Float) -> Unit)? = null,
-    ): InstallResult = withContext(Dispatchers.IO) {
-        val apkFile = File(context.cacheDir, "updates").apply { mkdirs() }
-            .let { File(it, "jotty-android-update.apk") }
-        try {
-            val request = Request.Builder().url(downloadUrl).build()
-            downloadClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    AppLog.e(TAG, "Download failed: ${response.code}")
-                    return@withContext InstallResult.Failed("Download failed (${response.code})")
-                }
-                val body = response.body ?: run {
-                    AppLog.e(TAG, "Download body null")
-                    return@withContext InstallResult.Failed("Download failed")
-                }
-                val totalBytes = body.contentLength()
-                body.byteStream().use { input ->
-                    apkFile.outputStream().use { output ->
-                        val buffer = ByteArray(8192)
-                        var bytesRead = 0L
-                        var n: Int
-                        while (input.read(buffer).also { n = it } != -1) {
-                            output.write(buffer, 0, n)
-                            bytesRead += n
-                            if (totalBytes > 0 && onProgress != null) {
-                                val p = (bytesRead.toFloat() / totalBytes).coerceIn(0f, 1f)
-                                withContext(Dispatchers.Main) { onProgress(p) }
+    ): InstallResult =
+        withContext(Dispatchers.IO) {
+            val apkFile =
+                File(context.cacheDir, "updates").apply { mkdirs() }
+                    .let { File(it, "jotty-android-update.apk") }
+            try {
+                val request = Request.Builder().url(downloadUrl).build()
+                downloadClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        AppLog.e(TAG, "Download failed: ${response.code}")
+                        return@withContext InstallResult.Failed("Download failed (${response.code})")
+                    }
+                    val body =
+                        response.body ?: run {
+                            AppLog.e(TAG, "Download body null")
+                            return@withContext InstallResult.Failed("Download failed")
+                        }
+                    val totalBytes = body.contentLength()
+                    body.byteStream().use { input ->
+                        apkFile.outputStream().use { output ->
+                            val buffer = ByteArray(8192)
+                            var bytesRead = 0L
+                            var n: Int
+                            while (input.read(buffer).also { n = it } != -1) {
+                                output.write(buffer, 0, n)
+                                bytesRead += n
+                                if (totalBytes > 0 && onProgress != null) {
+                                    val p = (bytesRead.toFloat() / totalBytes).coerceIn(0f, 1f)
+                                    withContext(Dispatchers.Main) { onProgress(p) }
+                                }
                             }
                         }
                     }
                 }
-            }
-            withContext(Dispatchers.Main) {
-                installApk(context, apkFile)
-            }
-        } catch (e: Exception) {
-            AppLog.e(TAG, "Download or install failed", e)
-            InstallResult.Failed(ApiErrorHelper.userMessage(context, e))
-        }
-    }
-
-    private fun installApk(context: Context, apkFile: File): InstallResult {
-        return try {
-            val uri: Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    apkFile,
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                Uri.fromFile(apkFile)
-            }
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                    addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+                withContext(Dispatchers.Main) {
+                    installApk(context, apkFile)
                 }
+            } catch (e: Exception) {
+                AppLog.e(TAG, "Download or install failed", e)
+                InstallResult.Failed(ApiErrorHelper.userMessage(context, e))
             }
+        }
+
+    private fun installApk(
+        context: Context,
+        apkFile: File,
+    ): InstallResult {
+        return try {
+            val uri: Uri =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        apkFile,
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    Uri.fromFile(apkFile)
+                }
+            val intent =
+                Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
+                    }
+                }
             context.startActivity(intent)
             InstallResult.Started
         } catch (e: Exception) {

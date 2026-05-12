@@ -34,9 +34,11 @@ import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.preferences.SettingsRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.OfflineSyncStatusRow
+import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
@@ -51,28 +53,28 @@ fun OfflineEnabledChecklistsScreen(
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
 ) {
-    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
+    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
     val vm: OfflineEnabledChecklistsViewModel = viewModel(key = vmKey) {
         OfflineEnabledChecklistsViewModel(offlineRepository, api)
     }
 
-    val checklists by offlineRepository.getChecklistsFlow().collectAsState(initial = emptyList())
-    val isOnline by offlineRepository.isOnline.collectAsState()
-    val isSyncing by offlineRepository.isSyncing.collectAsState()
-    val conflictsDetected by offlineRepository.conflictsDetected.collectAsState()
-    val replayFailuresDetected by offlineRepository.replayFailuresDetected.collectAsState()
-    val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsState()
-    val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsState()
-    val lastSyncError by offlineRepository.lastSyncError.collectAsState()
+    val checklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
+    val isOnline by offlineRepository.isOnline.collectAsStateWithLifecycle()
+    val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
+    val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
+    val replayFailuresDetected by offlineRepository.replayFailuresDetected.collectAsStateWithLifecycle()
+    val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsStateWithLifecycle()
+    val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsStateWithLifecycle()
+    val lastSyncError by offlineRepository.lastSyncError.collectAsStateWithLifecycle()
 
-    val selectedList by vm.selectedList.collectAsState()
-    val showCreateDialog by vm.showCreateDialog.collectAsState()
-    val searchQuery by vm.searchQuery.collectAsState()
-    val selectedCategory by vm.selectedCategory.collectAsState()
-    val checklistCategories by vm.checklistCategories.collectAsState()
-    val filteredChecklists by vm.filteredChecklists.collectAsState()
+    val selectedList by vm.selectedList.collectAsStateWithLifecycle()
+    val showCreateDialog by vm.showCreateDialog.collectAsStateWithLifecycle()
+    val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
+    val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
+    val checklistCategories by vm.checklistCategories.collectAsStateWithLifecycle()
+    val filteredChecklists by vm.filteredChecklists.collectAsStateWithLifecycle()
 
     val screenState = rememberListScreenState()
 
@@ -87,6 +89,45 @@ fun OfflineEnabledChecklistsScreen(
     val replayFailedMsg = stringResource(R.string.sync_replay_ops_failed, replayFailuresDetected)
     val syncDurationLabel = stringResource(R.string.sync_duration)
     val syncLastErrorLabel = stringResource(R.string.sync_last_error)
+    val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
+    val undoActionLabel = stringResource(R.string.undo)
+
+    suspend fun offlineDeleteWithUndo(list: Checklist) {
+        val snap = list
+        val result = offlineRepository.deleteChecklist(snap.id)
+        if (result.isFailure) {
+            snackbarHostState.showSnackbar(deleteFailedMsg)
+            return
+        }
+        if (selectedList?.id == snap.id) {
+            vm.setSelectedList(null)
+        }
+        val snackbarResult = snackbarHostState.showSnackbar(
+            message = checklistDeletedMsg,
+            actionLabel = undoActionLabel,
+            duration = SnackbarDuration.Short,
+        )
+        if (snackbarResult == SnackbarResult.ActionPerformed) {
+            val type = if (snap.type.equals("task", ignoreCase = true) ||
+                snap.type.equals("project", ignoreCase = true)
+            ) {
+                "task"
+            } else {
+                "simple"
+            }
+            val undoResult = offlineRepository.createChecklist(
+                title = snap.title,
+                type = type,
+            )
+            if (undoResult.isFailure) {
+                snackbarHostState.showSnackbar(saveFailedMsg)
+            } else if (!isOnline) {
+                snackbarHostState.showSnackbar(savedLocallyMsg)
+            }
+        } else if (!isOnline) {
+            snackbarHostState.showSnackbar(savedLocallyMsg)
+        }
+    }
 
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
@@ -257,20 +298,24 @@ fun OfflineEnabledChecklistsScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             items(filteredChecklists, key = { it.id }) { list ->
-                                OfflineChecklistCard(
-                                    checklist = list,
-                                    onClick = { vm.setSelectedList(list) },
-                                    onDelete = {
-                                        scope.launch {
-                                            val result = offlineRepository.deleteChecklist(list.id)
-                                            if (result.isFailure) {
-                                                snackbarHostState.showSnackbar(deleteFailedMsg)
-                                            } else if (!isOnline) {
-                                                snackbarHostState.showSnackbar(savedLocallyMsg)
-                                            }
-                                        }
-                                    },
-                                )
+                                if (swipeToDeleteEnabled) {
+                                    SwipeToDeleteContainer(
+                                        enabled = true,
+                                        onDelete = { offlineDeleteWithUndo(list) },
+                                    ) {
+                                        OfflineChecklistCard(
+                                            checklist = list,
+                                            onClick = { vm.setSelectedList(list) },
+                                            onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
+                                        )
+                                    }
+                                } else {
+                                    OfflineChecklistCard(
+                                        checklist = list,
+                                        onClick = { vm.setSelectedList(list) },
+                                        onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
+                                    )
+                                }
                             }
                         }
                     },
@@ -429,7 +474,7 @@ private fun OfflineChecklistDetailContent(
     onSavedLocally: () -> Unit,
 ) {
     // Drive item list from the repository flow so offline mutations are reflected immediately.
-    val allChecklists by offlineRepository.getChecklistsFlow().collectAsState(initial = emptyList())
+    val allChecklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
     val liveChecklist = allChecklists.find { it.id == checklist.id } ?: checklist
     val items = liveChecklist.items
 

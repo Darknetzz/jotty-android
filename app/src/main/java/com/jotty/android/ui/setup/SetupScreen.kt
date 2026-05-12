@@ -34,6 +34,7 @@ import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
@@ -47,9 +48,9 @@ fun SetupScreen(
     showStandaloneHeader: Boolean = true,
     onBack: (() -> Unit)? = null,
 ) {
-    val instances by settingsRepository.instances.collectAsState(initial = emptyList())
-    val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
-    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
+    val instances by settingsRepository.instances.collectAsStateWithLifecycle(initialValue = emptyList())
+    val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsStateWithLifecycle(initialValue = null)
+    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     var showAddForm by remember { mutableStateOf(instances.isEmpty()) }
     val scope = rememberCoroutineScope()

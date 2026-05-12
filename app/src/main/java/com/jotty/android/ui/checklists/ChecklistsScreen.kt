@@ -35,8 +35,10 @@ import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import kotlinx.coroutines.launch
 
@@ -47,19 +49,46 @@ fun ChecklistsScreen(
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
 ) {
-    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
+    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     val application = LocalContext.current.applicationContext as Application
     val vm: ChecklistsViewModel = viewModel { ChecklistsViewModel(application, api) }
-    val checklists by vm.checklists.collectAsState()
-    val selectedList by vm.selectedList.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val error by vm.error.collectAsState()
-    val showCreateDialog by vm.showCreateDialog.collectAsState()
+    val checklists by vm.checklists.collectAsStateWithLifecycle()
+    val selectedList by vm.selectedList.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val error by vm.error.collectAsStateWithLifecycle()
+    val showCreateDialog by vm.showCreateDialog.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
+    val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
+    val undoLabel = stringResource(R.string.undo)
+
+    suspend fun deleteWithUndoForList(list: Checklist) {
+        try {
+            vm.deleteChecklistSuspend(list.id)
+            val result = snackbarHostState.showSnackbar(
+                message = checklistDeletedMsg,
+                actionLabel = undoLabel,
+                duration = SnackbarDuration.Short,
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                val type = if (list.type.equals("task", ignoreCase = true) ||
+                    list.type.equals("project", ignoreCase = true)
+                ) {
+                    "task"
+                } else {
+                    "simple"
+                }
+                if (!vm.recreateChecklistAfterUndo(list.title, type)) {
+                    snackbarHostState.showSnackbar(saveFailedMsg)
+                }
+            }
+        } catch (_: Exception) {
+            snackbarHostState.showSnackbar(deleteFailedMsg)
+        }
+    }
 
     LaunchedEffect(Unit) { vm.loadChecklists() }
 
@@ -119,15 +148,24 @@ fun ChecklistsScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(checklists, key = { it.id }) { list ->
-                            ChecklistCard(
-                                checklist = list,
-                                onClick = { vm.setSelectedList(list) },
-                                onDelete = {
-                                    vm.deleteChecklist(list.id) {
-                                        scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) }
-                                    }
-                                },
-                            )
+                            if (swipeToDeleteEnabled) {
+                                SwipeToDeleteContainer(
+                                    enabled = true,
+                                    onDelete = { deleteWithUndoForList(list) },
+                                ) {
+                                    ChecklistCard(
+                                        checklist = list,
+                                        onClick = { vm.setSelectedList(list) },
+                                        onDelete = { scope.launch { deleteWithUndoForList(list) } },
+                                    )
+                                }
+                            } else {
+                                ChecklistCard(
+                                    checklist = list,
+                                    onClick = { vm.setSelectedList(list) },
+                                    onDelete = { scope.launch { deleteWithUndoForList(list) } },
+                                )
+                            }
                         }
                     }
                 },

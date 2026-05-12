@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.LoadingState
@@ -23,39 +24,41 @@ fun JottyAppContent(
     settingsRepository: SettingsRepository,
     deepLinkNoteId: MutableState<String?>? = null,
 ) {
-    var isConfigured by remember { mutableStateOf<Boolean?>(null) }
+    var rootPhase by rememberSaveable { mutableStateOf("loading") }
 
     LaunchedEffect(Unit) {
-        settingsRepository.migrateFromLegacyIfNeeded()
-        settingsRepository.migrateThemeToModeAndColorIfNeeded()
-        settingsRepository.migrateApiKeysToEncryptedStoreIfNeeded()
-        val currentId = settingsRepository.currentInstanceId.first()
-        val defaultId = settingsRepository.defaultInstanceId.first()
-        if (currentId == null && defaultId != null) {
-            settingsRepository.setCurrentInstanceId(defaultId)
+        if (rootPhase == "loading") {
+            settingsRepository.migrateFromLegacyIfNeeded()
+            settingsRepository.migrateThemeToModeAndColorIfNeeded()
+            settingsRepository.migrateApiKeysToEncryptedStoreIfNeeded()
+            val currentId = settingsRepository.currentInstanceId.first()
+            val defaultId = settingsRepository.defaultInstanceId.first()
+            if (currentId == null && defaultId != null) {
+                settingsRepository.setCurrentInstanceId(defaultId)
+            }
+            rootPhase = if (settingsRepository.isConfigured.first()) "main" else "setup"
         }
-        isConfigured = settingsRepository.isConfigured.first()
     }
 
     AnimatedContent(
-        targetState = isConfigured,
+        targetState = rootPhase,
         modifier = Modifier.fillMaxSize(),
         transitionSpec = {
             fadeIn() togetherWith fadeOut()
         },
         label = "nav",
-    ) { configured ->
-        when (configured) {
-            true -> MainScreen(
+    ) { phase ->
+        when (phase) {
+            "main" -> MainScreen(
                 settingsRepository = settingsRepository,
-                onDisconnect = { isConfigured = false },
+                onDisconnect = { rootPhase = "setup" },
                 deepLinkNoteId = deepLinkNoteId,
             )
-            false -> SetupScreen(
+            "setup" -> SetupScreen(
                 settingsRepository = settingsRepository,
-                onConfigured = { isConfigured = true },
+                onConfigured = { rootPhase = "main" },
             )
-            null -> LoadingState(Modifier.fillMaxSize())
+            else -> LoadingState(Modifier.fillMaxSize())
         }
     }
 }

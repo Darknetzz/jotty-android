@@ -361,6 +361,57 @@ class OfflineNotesRepositoryTest {
     }
 
     @Test
+    fun syncNotes_whenPushFails_doesNotWipeLocalNotesWithServerSnapshot() = runTest {
+        val serverOnly = Note(
+            id = "server-only",
+            title = "Server",
+            category = API_CATEGORY_UNCATEGORIZED,
+            content = "server-body",
+            createdAt = "c",
+            updatedAt = "u",
+        )
+        val api = FakeJottyApi(
+            notesFromGet = listOf(serverOnly),
+            updateNoteHandler = { _, _ ->
+                throw RuntimeException("simulated push failure")
+            },
+        )
+        database.noteDao().insertNote(
+            NoteEntity(
+                id = "n1",
+                title = "LocalTitle",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "local-body",
+                createdAt = "2020-01-01T00:00:00Z",
+                updatedAt = "2024-06-01T00:00:00Z",
+                encrypted = null,
+                isDirty = true,
+                isDeleted = false,
+                instanceId = instanceId,
+                isLocalOnly = false,
+            ),
+        )
+        val repo = OfflineNotesRepository(
+            context = context,
+            database = database,
+            instanceId = instanceId,
+            api = api,
+            initialOnlineOverride = true,
+            registerNetworkCallback = false,
+        )
+
+        assertTrue(repo.syncNotes().isFailure)
+
+        val stored = database.noteDao().getAllNotes(instanceId)
+        assertEquals(1, stored.size)
+        val row = stored.single()
+        assertEquals("n1", row.id)
+        assertTrue(row.isDirty)
+        assertEquals("LocalTitle", row.title)
+        assertEquals("local-body", row.content)
+    }
+
+    @Test
     fun clearLocalNotes_deletesOnlyRequestedInstance() = runTest {
         val otherInstanceId = "other-instance"
         database.noteDao().insertNotes(

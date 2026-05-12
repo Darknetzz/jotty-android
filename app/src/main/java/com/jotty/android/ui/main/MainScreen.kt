@@ -7,6 +7,7 @@ import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -26,6 +27,7 @@ import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.ui.settings.SettingsScreen
 import com.jotty.android.util.createNoteImageLoader
 import coil.ImageLoader
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
 
@@ -43,9 +45,11 @@ fun MainScreen(
     deepLinkNoteId: MutableState<String?>? = null,
 ) {
     val navController = rememberNavController()
-    var startDestination by remember { mutableStateOf<String?>(null) }
+    var startDestination by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        startDestination = settingsRepository.startTab.first() ?: MainRoute.Checklists.route
+        if (startDestination == null) {
+            startDestination = settingsRepository.startTab.first() ?: MainRoute.Checklists.route
+        }
     }
     LaunchedEffect(deepLinkNoteId?.value) {
         val id = deepLinkNoteId?.value
@@ -58,10 +62,10 @@ fun MainScreen(
         }
     }
     val context = LocalContext.current
-    val currentInstance = settingsRepository.currentInstance.collectAsState(initial = null).value
-    val serverUrl = settingsRepository.serverUrl.collectAsState(initial = null).value
-    val apiKey = settingsRepository.apiKey.collectAsState(initial = null).value
-    val swipeToDeleteEnabled = settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false).value
+    val currentInstance by settingsRepository.currentInstance.collectAsStateWithLifecycle(initialValue = null)
+    val serverUrl by settingsRepository.serverUrl.collectAsStateWithLifecycle(initialValue = null)
+    val apiKey by settingsRepository.apiKey.collectAsStateWithLifecycle(initialValue = null)
+    val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val selectedRoute = when (currentRoute) {

@@ -3,6 +3,7 @@ package com.jotty.android.ui.notes
 import android.app.Application
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
@@ -36,7 +37,7 @@ fun OfflineNotesScreen(
         factory = OfflineNotesViewModel.Factory(application, instanceId, api),
     )
     val offlineRepository = vm.repository
-    val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsState(initial = true)
+    val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
 
     LaunchedEffect(offlineModeEnabled, instanceId) {
         if (offlineModeEnabled) {

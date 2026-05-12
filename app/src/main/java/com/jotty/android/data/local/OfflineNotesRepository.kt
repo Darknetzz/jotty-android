@@ -5,6 +5,7 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.CreateNoteRequest
 import com.jotty.android.data.api.UpdateNoteRequest
+import com.jotty.android.R
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -12,6 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import androidx.room.withTransaction
 import java.util.UUID
 
 /**
@@ -28,6 +30,7 @@ class OfflineNotesRepository(
     /** Set false in tests to avoid registering a network callback. */
     private val registerNetworkCallback: Boolean = true,
 ) {
+    private val appContext = context.applicationContext
     private val noteDao = database.noteDao()
     private val runtime = OfflineRepositoryLifecycle(
         context = context,
@@ -226,6 +229,15 @@ class OfflineNotesRepository(
                 }
             }
 
+            val stillDirty = noteDao.getDirtyNotes(instanceId)
+            if (stillDirty.isNotEmpty()) {
+                val msg = appContext.getString(R.string.sync_push_failed_kept_local, stillDirty.size)
+                AppLog.d("OfflineNotesRepository", msg)
+                runtime.syncStatus.markSyncCompleted(success = false, errorMessage = msg)
+                runtime.syncStatus.setSyncing(false)
+                return@withContext Result.failure(Exception(msg))
+            }
+
             // 2. Fetch all notes from server
             val response = api.getNotes()
             if (response.notes != null) {
@@ -251,11 +263,15 @@ class OfflineNotesRepository(
                     }
                 }
                 
-                // 4. Update database: replace with server notes + add conflict copies
-                noteDao.deleteAllNotes(instanceId)
-                noteDao.insertNotes(serverNotes)
+                // 4. Update database: replace with server notes + add conflict copies (atomic)
+                database.withTransaction {
+                    noteDao.deleteAllNotes(instanceId)
+                    noteDao.insertNotes(serverNotes)
+                    if (conflictCopies.isNotEmpty()) {
+                        noteDao.insertNotes(conflictCopies)
+                    }
+                }
                 if (conflictCopies.isNotEmpty()) {
-                    noteDao.insertNotes(conflictCopies)
                     runtime.syncStatus.setConflictsDetected(conflictCopies.size)
                     AppLog.d("OfflineNotesRepository", "Created ${conflictCopies.size} local copies due to conflicts")
                 } else {

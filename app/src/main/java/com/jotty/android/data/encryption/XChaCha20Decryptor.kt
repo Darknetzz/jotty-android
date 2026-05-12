@@ -79,7 +79,9 @@ object XChaCha20Decryptor {
     private fun decryptWithReasonOrThrow(encryptedBodyJson: String, passphrase: String): DecryptResult {
         var json = encryptedBodyJson.trim().trimStart('\uFEFF')
         json = stripMarkdownCodeFence(json)
-        Log.i(LOG_TAG, "Decrypt attempt: jsonLength=${json.length}, passphraseLength=${passphrase.length}, jsonStart=${json.take(80).replace("\n", " ")}")
+        if (AppLog.isDebugEnabled()) {
+            Log.i(LOG_TAG, "Decrypt attempt: jsonLength=${json.length}")
+        }
         val parsed = parseEncryptedBody(json)
         if (parsed.first == null) {
             val reason = parsed.second ?: FAILURE_PARSE
@@ -120,16 +122,18 @@ object XChaCha20Decryptor {
                 for (nonce24 in nonce24Candidates) {
                     val result = decryptXChaCha20Poly1305(key, nonce24, data, preferLibsodiumOrder)
                     if (result != null) {
-                        if (pass != passphrase.trim()) {
-                            Log.i(LOG_TAG, "Decrypt success with untrimmed passphrase")
+                        if (AppLog.isDebugEnabled()) {
+                            if (pass != passphrase.trim()) {
+                                Log.i(LOG_TAG, "Decrypt success with untrimmed passphrase")
+                            }
+                            if (preset.iterations != ARGON2_ITERATIONS || preset.memoryKb != ARGON2_MEMORY_KB || preset.parallelism != ARGON2_PARALLELISM) {
+                                Log.i(LOG_TAG, "Decrypt success with Argon2 fallback (iterations=${preset.iterations}, memoryKb=${preset.memoryKb}, parallelism=${preset.parallelism})")
+                            }
+                            if (nonce.size > 24 && nonce24 === nonce24Candidates.getOrNull(1)) {
+                                Log.i(LOG_TAG, "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
+                            }
+                            Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
                         }
-                        if (preset.iterations != ARGON2_ITERATIONS || preset.memoryKb != ARGON2_MEMORY_KB || preset.parallelism != ARGON2_PARALLELISM) {
-                            Log.i(LOG_TAG, "Decrypt success with Argon2 fallback (iterations=${preset.iterations}, memoryKb=${preset.memoryKb}, parallelism=${preset.parallelism})")
-                        }
-                        if (nonce.size > 24 && nonce24 === nonce24Candidates.getOrNull(1)) {
-                            Log.i(LOG_TAG, "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
-                        }
-                        Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
                         return DecryptResult(result, null)
                     }
                 }
@@ -189,7 +193,7 @@ object XChaCha20Decryptor {
             }
             val (salt, saltHex) = decodeBase64OrHexWithSource(saltStr)
             if (salt == null) {
-                Log.w(LOG_TAG, "Parse: salt decode failed (length=${saltStr.length}, sample=${saltStr.take(20)})")
+                Log.w(LOG_TAG, "Parse: salt decode failed (length=${saltStr.length})")
                 AppLog.d("encryption", "Parse: salt decode failed; first chars: ${saltStr.take(30)}")
                 return null to "Invalid base64/hex in salt"
             }
@@ -205,7 +209,9 @@ object XChaCha20Decryptor {
             }
             val usedHex = saltHex || nonceHex || dataHex
             if (usedHex) {
-                Log.i(LOG_TAG, "Parse: payload from hex (Jotty web format); salt=${salt.size}B nonce=${nonce.size}B data=${data.size}B")
+                if (AppLog.isDebugEnabled()) {
+                    Log.i(LOG_TAG, "Parse: payload from hex (Jotty web format); salt=${salt.size}B nonce=${nonce.size}B data=${data.size}B")
+                }
                 AppLog.d("encryption", "Parse: hex payload (web); will try IETF order first")
             }
             if (nonce.size < 24) {
@@ -213,7 +219,9 @@ object XChaCha20Decryptor {
                 return null to "Nonce must be at least 24 bytes (got ${nonce.size})"
             }
             if (nonce.size > 24) {
-                Log.i(LOG_TAG, "Parse: nonce size ${nonce.size}; will try first 24 and last 24 bytes")
+                if (AppLog.isDebugEnabled()) {
+                    Log.i(LOG_TAG, "Parse: nonce size ${nonce.size}; will try first 24 and last 24 bytes")
+                }
             }
             if (data.size < TAG_BYTES) {
                 Log.w(LOG_TAG, "Parse: data size ${data.size} < TAG_BYTES ($TAG_BYTES)")

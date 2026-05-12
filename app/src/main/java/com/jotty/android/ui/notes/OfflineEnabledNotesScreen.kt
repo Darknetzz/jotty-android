@@ -27,6 +27,7 @@ import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.OfflineSyncStatusRow
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
@@ -52,7 +53,7 @@ fun OfflineEnabledNotesScreen(
     imageLoader: ImageLoader? = null,
     biometricStore: BiometricPassphraseStore? = null,
 ) {
-    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
+    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
     val vm: OfflineEnabledNotesViewModel = viewModel {
@@ -60,22 +61,22 @@ fun OfflineEnabledNotesScreen(
     }
 
     // Observe notes from local database
-    val notes by offlineRepository.getNotesFlow().collectAsState(initial = emptyList())
-    val conflictCopies by offlineRepository.getConflictCopiesFlow().collectAsState(initial = emptyList())
-    val isOnline by offlineRepository.isOnline.collectAsState()
-    val isSyncing by offlineRepository.isSyncing.collectAsState()
-    val conflictsDetected by offlineRepository.conflictsDetected.collectAsState()
-    val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsState()
-    val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsState()
-    val lastSyncError by offlineRepository.lastSyncError.collectAsState()
+    val notes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
+    val conflictCopies by offlineRepository.getConflictCopiesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
+    val isOnline by offlineRepository.isOnline.collectAsStateWithLifecycle()
+    val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
+    val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
+    val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsStateWithLifecycle()
+    val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsStateWithLifecycle()
+    val lastSyncError by offlineRepository.lastSyncError.collectAsStateWithLifecycle()
 
-    val selectedNote by vm.selectedNote.collectAsState()
+    val selectedNote by vm.selectedNote.collectAsStateWithLifecycle()
     val screenState = rememberListScreenState()
-    val showCreateDialog by vm.showCreateDialog.collectAsState()
-    val searchQuery by vm.searchQuery.collectAsState()
-    val selectedCategory by vm.selectedCategory.collectAsState()
-    val noteCategories by vm.noteCategories.collectAsState()
-    val filteredNotes by vm.filteredNotes.collectAsState()
+    val showCreateDialog by vm.showCreateDialog.collectAsStateWithLifecycle()
+    val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
+    val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
+    val noteCategories by vm.noteCategories.collectAsStateWithLifecycle()
+    val filteredNotes by vm.filteredNotes.collectAsStateWithLifecycle()
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -329,7 +330,6 @@ fun OfflineEnabledNotesScreen(
                                                 if (selectedNote?.id == n.id) vm.setSelectedNote(null)
                                             }
                                         },
-                                        scope = scope,
                                     ) {
                                         NoteCard(
                                             note = n,
@@ -342,7 +342,7 @@ fun OfflineEnabledNotesScreen(
                     )
                 }
                 else -> {
-                    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsState(initial = false)
+                    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
                     OfflineNoteDetailScreen(
                         note = note,
                         offlineRepository = offlineRepository,

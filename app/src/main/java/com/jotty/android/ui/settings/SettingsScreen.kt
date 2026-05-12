@@ -38,6 +38,7 @@ import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.SummaryData
 import com.jotty.android.data.preferences.SettingsRepository
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -49,16 +50,16 @@ fun SettingsScreen(
     onManageInstances: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
-    val currentInstance by settingsRepository.currentInstance.collectAsState(initial = null)
-    val themeMode by settingsRepository.themeMode.collectAsState(initial = null)
-    val themeColor by settingsRepository.themeColor.collectAsState(initial = "default")
-    val startTab by settingsRepository.startTab.collectAsState(initial = null)
-    val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsState(initial = false)
-    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsState(initial = "comfortable")
-    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsState(initial = false)
-    val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsState(initial = true)
-    val updateChannelPref by settingsRepository.updateChannel.collectAsState(initial = "stable")
-    val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsState(initial = null)
+    val currentInstance by settingsRepository.currentInstance.collectAsStateWithLifecycle(initialValue = null)
+    val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = null)
+    val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
+    val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
+    val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
+    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val updateChannelPref by settingsRepository.updateChannel.collectAsStateWithLifecycle(initialValue = "stable")
+    val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsStateWithLifecycle(initialValue = null)
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
     var healthOk by remember { mutableStateOf<Boolean?>(null) }

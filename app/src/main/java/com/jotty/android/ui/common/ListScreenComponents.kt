@@ -18,7 +18,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
-import kotlinx.coroutines.CoroutineScope
 import java.text.DateFormat
 import java.util.Date
 
@@ -230,7 +229,6 @@ fun EmptyState(
 fun SwipeToDeleteContainer(
     enabled: Boolean,
     onDelete: suspend () -> Unit,
-    scope: CoroutineScope,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {

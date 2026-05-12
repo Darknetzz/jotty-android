@@ -118,7 +118,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.7.1")
 
     // WorkManager for background sync
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
 
     // Markdown rendering for notes (images via Coil)
     implementation("com.github.jeziellago:compose-markdown:0.5.8")

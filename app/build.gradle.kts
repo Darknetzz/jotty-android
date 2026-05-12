@@ -110,7 +110,7 @@ dependencies {
     // Secure storage for API key
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
 
     // Room for offline storage
     implementation("androidx.room:room-runtime:2.7.1")

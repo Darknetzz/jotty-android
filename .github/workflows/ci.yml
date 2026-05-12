@@ -74,4 +74,4 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Dependency vulnerability review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5

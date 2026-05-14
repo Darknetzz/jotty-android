@@ -1,5 +1,6 @@
 package com.jotty.android.data.encryption
 
+import com.jotty.android.util.AppLog
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.modes.ChaCha20Poly1305
 import org.bouncycastle.crypto.params.Argon2Parameters
@@ -10,13 +11,23 @@ import java.util.Base64
 
 /**
  * Encrypts plaintext with XChaCha20-Poly1305 for Jotty.
- * Output format: JSON with "alg","salt","nonce","data" (base64). Same params as XChaCha20Decryptor.
+ * Output format: JSON with "alg", optional Argon2 "t"/"m"/"p", "salt", "nonce", "data" (base64).
+ * [t]/[m]/[p] are always written so decryptors (app and Jotty web) use the same Argon2 cost as this build.
  * Uses libsodium secretbox format (tag then ciphertext) so notes encrypted here decrypt in the Jotty web app.
  */
 object XChaCha20Encryptor {
-    private const val ARGON2_ITERATIONS = 2
-    private const val ARGON2_MEMORY_KB = 65536
-    private const val ARGON2_PARALLELISM = 1
+    private data class Argon2Dims(
+        val iterations: Int,
+        val memoryKb: Int,
+        val parallelism: Int,
+    )
+
+    /** Match libsodium INTERACTIVE-style default when 64 MiB is available. */
+    private val ARGON_PRIMARY = Argon2Dims(iterations = 2, memoryKb = 65536, parallelism = 1)
+
+    /** Fallback when 64 MiB Argon2 cannot run (low RAM devices); still in [XChaCha20Decryptor] preset list. */
+    private val ARGON_FALLBACK = Argon2Dims(iterations = 2, memoryKb = 32768, parallelism = 1)
+
     private const val KEY_BYTES = 32
     private const val SALT_BYTES = 16
     private const val NONCE_BYTES = 24
@@ -34,15 +45,14 @@ object XChaCha20Encryptor {
     ): String? {
         val trimmed = passphrase.copyTrimmedOrNull() ?: return null
         return try {
-            val salt = ByteArray(SALT_BYTES).apply { random.nextBytes(this) }
-            val nonce24 = ByteArray(NONCE_BYTES).apply { random.nextBytes(this) }
-            val key = deriveKey(trimmed, salt) ?: return null
-            val ciphertextAndTag =
-                encryptXChaCha20Poly1305(key, nonce24, plaintext.toByteArray(Charsets.UTF_8)) ?: return null
-            val saltB64 = Base64.getEncoder().encodeToString(salt)
-            val nonceB64 = Base64.getEncoder().encodeToString(nonce24)
-            val dataB64 = Base64.getEncoder().encodeToString(ciphertextAndTag)
-            """{"alg":"xchacha20","salt":"$saltB64","nonce":"$nonceB64","data":"$dataB64"}"""
+            encryptAttempt(plaintext, trimmed, ARGON_PRIMARY)
+                ?: run {
+                    AppLog.d("encryption", "Encrypt: retrying with Argon2 memoryKb=${ARGON_FALLBACK.memoryKb}")
+                    encryptAttempt(plaintext, trimmed, ARGON_FALLBACK)
+                }
+        } catch (_: OutOfMemoryError) {
+            AppLog.d("encryption", "Encrypt: OutOfMemoryError — retrying with Argon2 memoryKb=${ARGON_FALLBACK.memoryKb}")
+            encryptAttempt(plaintext, trimmed, ARGON_FALLBACK)
         } finally {
             trimmed.clearPassphrase()
         }
@@ -81,17 +91,38 @@ object XChaCha20Encryptor {
             """.trimMargin()
     }
 
+    private fun encryptAttempt(
+        plaintext: String,
+        passphrase: CharArray,
+        dims: Argon2Dims,
+    ): String? {
+        return try {
+            val salt = ByteArray(SALT_BYTES).apply { random.nextBytes(this) }
+            val nonce24 = ByteArray(NONCE_BYTES).apply { random.nextBytes(this) }
+            val key = deriveKey(passphrase, salt, dims) ?: return null
+            val ciphertextAndTag =
+                encryptXChaCha20Poly1305(key, nonce24, plaintext.toByteArray(Charsets.UTF_8)) ?: return null
+            val saltB64 = Base64.getEncoder().encodeToString(salt)
+            val nonceB64 = Base64.getEncoder().encodeToString(nonce24)
+            val dataB64 = Base64.getEncoder().encodeToString(ciphertextAndTag)
+            """{"alg":"xchacha20","t":${dims.iterations},"m":${dims.memoryKb},"p":${dims.parallelism},"salt":"$saltB64","nonce":"$nonceB64","data":"$dataB64"}"""
+        } catch (_: OutOfMemoryError) {
+            null
+        }
+    }
+
     private fun deriveKey(
         passphrase: CharArray,
         salt: ByteArray,
+        dims: Argon2Dims,
     ): ByteArray? {
         return try {
             val params =
                 Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
                     .withVersion(Argon2Parameters.ARGON2_VERSION_13)
-                    .withIterations(ARGON2_ITERATIONS)
-                    .withMemoryAsKB(ARGON2_MEMORY_KB)
-                    .withParallelism(ARGON2_PARALLELISM)
+                    .withIterations(dims.iterations)
+                    .withMemoryAsKB(dims.memoryKb)
+                    .withParallelism(dims.parallelism)
                     .withSalt(salt)
                     .build()
             val generator = Argon2BytesGenerator()

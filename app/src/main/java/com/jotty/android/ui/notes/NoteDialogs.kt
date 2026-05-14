@@ -163,11 +163,13 @@ internal fun EncryptNoteDialog(
             TextButton(
                 onClick = {
                     if (isEncrypting) return@TextButton
+                    val pTrim = passphrase.trim()
+                    val cTrim = confirm.trim()
                     when {
-                        passphrase.length < 12 -> error = errorShort
-                        passphrase != confirm -> error = errorMismatch
+                        pTrim.length < 12 -> error = errorShort
+                        pTrim != cTrim -> error = errorMismatch
                         else -> {
-                            val p = passphrase.toCharArray()
+                            val p = pTrim.toCharArray()
                             passphrase = ""
                             confirm = ""
                             onEncrypt(p)

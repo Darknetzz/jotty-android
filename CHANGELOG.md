@@ -21,7 +21,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - **Room index (notes)** — `@Index("instanceId")` on `NoteEntity` with migration **3 → 4**.
 - **Monochrome adaptive icon** — Themed launcher icon layer in `ic_launcher` / `ic_launcher_round` adaptive XML.
 - **CI artifacts** — Unit test HTML reports and lint HTML reports uploaded from the main CI job.
-- **Optional release APK on GitHub Releases** — When repository secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` are set, the release workflow also builds and attaches a minified **release-signed** APK next to the debug APK.
+- **Release-signed GitHub APK** — When repository secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` are set, the release workflow builds only a minified **`jotty-android-{version}.apk`** signed with that keystore (in-place updates; [#9](https://github.com/Darknetzz/jotty-android/issues/9)). Without secrets, a debug APK is attached and the workflow summary notes the signing gap.
 
 ### Changed
 

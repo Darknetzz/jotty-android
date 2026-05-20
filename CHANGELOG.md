@@ -50,7 +50,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - **Offline checklist pending ops** — Pending op lists are **deduplicated** when applying and replaying to reduce duplicate side effects on retries.
 - **README** — Gradle wrapper bootstrap example uses **Gradle 9.1.0** to match `gradle-wrapper.properties`.
 - **R8** — **`android.r8.strictFullModeForKeepRules=true`** in `gradle.properties` (release minify verified with current keep rules).
-- **Stable release APK** — Download **`jotty-android-{version}.apk`** from GitHub Releases (release-signed). Updating from an older **debug-signed** release APK may show “App not installed”; uninstall once, then install the new APK (server data is unaffected).
+- **Stable release APK** — Download **`jotty-android-{version}.apk`** from GitHub Releases (release-signed). Updating from an older **debug-signed** release APK may show “App not installed”; uninstall once, then install the new APK. Uninstall removes **on-device** data (saved instances, API keys, offline cache); notes and checklists on your **Jotty server** are unchanged—you will need to connect again.
 
 ### Fixed
 

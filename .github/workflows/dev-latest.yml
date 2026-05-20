@@ -26,6 +26,13 @@ jobs:
       - name: Rename debug APK for release asset
         run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/jotty-android-debug.apk
 
+      - name: Reset dev-latest release and tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete dev-latest --cleanup-tag --yes || true
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/dev-latest" || true
+
       - name: Publish rolling dev-latest pre-release
         uses: ncipollo/release-action@v1
         with:
@@ -40,6 +47,6 @@ jobs:
           makeLatest: false
           artifacts: app/build/outputs/apk/debug/jotty-android-debug.apk
           artifactErrorsFailBuild: true
-          allowUpdates: true
+          allowUpdates: false
           removeArtifacts: true
           replacesArtifacts: true

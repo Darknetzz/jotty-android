@@ -7,7 +7,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.jotty.android.R
+import com.jotty.android.ui.common.ConfirmDeleteDialog
+import com.jotty.android.ui.common.DeleteDropdownMenuItem
+import com.jotty.android.ui.common.RenameDropdownMenuItem
 
 @Composable
 fun ChecklistDetailHeader(
@@ -34,7 +36,20 @@ fun ChecklistDetailHeader(
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val displayTitle = title.ifBlank { stringResource(R.string.untitled) }
+    val deleteConfirmMessage = stringResource(R.string.delete_checklist_confirm, displayTitle)
+
+    if (showDeleteConfirm) {
+        ConfirmDeleteDialog(
+            message = deleteConfirmMessage,
+            onDismiss = { showDeleteConfirm = false },
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            },
+        )
+    }
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -57,18 +72,16 @@ fun ChecklistDetailHeader(
             expanded = menuExpanded,
             onDismissRequest = { menuExpanded = false },
         ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.rename)) },
+            RenameDropdownMenuItem(
                 onClick = {
                     menuExpanded = false
                     onRename()
                 },
             )
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.delete)) },
+            DeleteDropdownMenuItem(
                 onClick = {
                     menuExpanded = false
-                    onDelete()
+                    showDeleteConfirm = true
                 },
             )
         }

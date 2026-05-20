@@ -308,8 +308,14 @@ fun OfflineEnabledNotesScreen(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
                                 items(filteredNotes, key = { it.id }) { n ->
+                                    val noteDeleteConfirm =
+                                        stringResource(
+                                            R.string.delete_note_confirm,
+                                            n.title.ifBlank { stringResource(R.string.untitled) },
+                                        )
                                     SwipeToDeleteContainer(
                                         enabled = swipeToDeleteEnabled,
+                                        deleteConfirmMessage = noteDeleteConfirm,
                                         onDelete = {
                                             scope.launch {
                                                 val result = offlineRepository.deleteNote(n.id)

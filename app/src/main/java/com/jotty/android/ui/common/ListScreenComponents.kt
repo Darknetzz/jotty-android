@@ -12,7 +12,9 @@ import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -237,14 +239,35 @@ fun SwipeToDeleteContainer(
     enabled: Boolean,
     onDelete: suspend () -> Unit,
     modifier: Modifier = Modifier,
+    deleteConfirmMessage: String? = null,
     content: @Composable () -> Unit,
 ) {
     if (enabled) {
         val dismissState = rememberSwipeToDismissBoxState()
+        var showDeleteConfirm by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        val resolvedConfirmMessage =
+            deleteConfirmMessage ?: stringResource(R.string.delete_confirm_generic)
         LaunchedEffect(dismissState.currentValue) {
             if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
+                showDeleteConfirm = true
             }
+        }
+        if (showDeleteConfirm) {
+            ConfirmDeleteDialog(
+                message = resolvedConfirmMessage,
+                onDismiss = {
+                    showDeleteConfirm = false
+                    scope.launch { dismissState.reset() }
+                },
+                onConfirm = {
+                    showDeleteConfirm = false
+                    scope.launch {
+                        onDelete()
+                        dismissState.reset()
+                    }
+                },
+            )
         }
         SwipeToDismissBox(
             state = dismissState,

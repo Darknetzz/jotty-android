@@ -39,6 +39,9 @@ import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.ConfirmDeleteDialog
+import com.jotty.android.ui.common.DeleteDropdownMenuItem
+import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.SwipeToDeleteContainer
@@ -157,9 +160,15 @@ fun ChecklistsScreen(
                         ) {
                             items(checklists, key = { it.id }) { list ->
                                 if (swipeToDeleteEnabled) {
+                                    val swipeDeleteConfirm =
+                                        stringResource(
+                                            R.string.delete_checklist_confirm,
+                                            list.title.ifBlank { stringResource(R.string.untitled) },
+                                        )
                                     SwipeToDeleteContainer(
                                         enabled = true,
                                         onDelete = { deleteWithUndoForList(list) },
+                                        deleteConfirmMessage = swipeDeleteConfirm,
                                     ) {
                                         ChecklistCard(
                                             checklist = list,
@@ -242,6 +251,8 @@ private fun ChecklistCard(
     onDelete: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val displayTitle = checklist.title.ifBlank { stringResource(R.string.untitled) }
     val completed = checklist.items.count { it.completed }
     val total = checklist.items.size
     val progress = if (total > 0) completed.toFloat() / total else 0f
@@ -249,6 +260,18 @@ private fun ChecklistCard(
     val isProject =
         checklist.type.equals("project", ignoreCase = true) ||
             checklist.type.equals("task", ignoreCase = true)
+
+    if (showDeleteConfirm) {
+        ConfirmDeleteDialog(
+            message = stringResource(R.string.delete_checklist_confirm, displayTitle),
+            onDismiss = { showDeleteConfirm = false },
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            },
+        )
+    }
+
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -304,18 +327,16 @@ private fun ChecklistCard(
                 expanded = menuExpanded,
                 onDismissRequest = { menuExpanded = false },
             ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.edit)) },
+                EditDropdownMenuItem(
                     onClick = {
                         menuExpanded = false
                         onClick()
                     },
                 )
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.delete)) },
+                DeleteDropdownMenuItem(
                     onClick = {
                         menuExpanded = false
-                        onDelete()
+                        showDeleteConfirm = true
                     },
                 )
             }
@@ -625,6 +646,8 @@ private fun ChecklistItemRow(
     onAddSubItem: (() -> Unit)? = null,
 ) {
     val indent = (depth * 20).dp
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val taskLabel = item.text.ifBlank { stringResource(R.string.item_placeholder) }
     var isEditing by remember { mutableStateOf(false) }
     var editText by remember(item.text) { mutableStateOf(item.text) }
     val focusRequester = remember { FocusRequester() }
@@ -632,6 +655,17 @@ private fun ChecklistItemRow(
 
     LaunchedEffect(isEditing) {
         if (isEditing) focusRequester.requestFocus()
+    }
+
+    if (showDeleteConfirm) {
+        ConfirmDeleteDialog(
+            message = stringResource(R.string.delete_task_named_confirm, taskLabel),
+            onDismiss = { showDeleteConfirm = false },
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            },
+        )
     }
 
     Row(
@@ -697,7 +731,7 @@ private fun ChecklistItemRow(
             }
         }
         IconButton(
-            onClick = onDelete,
+            onClick = { showDeleteConfirm = true },
             modifier = Modifier.size(48.dp),
         ) {
             Icon(

@@ -66,6 +66,12 @@
     <string name="item_placeholder">…</string>
     <string name="rename">Rename</string>
     <string name="rename_checklist">Rename checklist</string>
+    <string name="confirm_delete_title">Delete?</string>
+    <string name="delete_confirm_generic">This cannot be undone.</string>
+    <string name="delete_checklist_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="delete_task_confirm">Delete this task? This cannot be undone.</string>
+    <string name="delete_task_named_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="delete_note_confirm">Delete \"%1$s\"? This cannot be undone.</string>
 
     <!-- Notes -->
     <string name="new_note">New note</string>

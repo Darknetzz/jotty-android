@@ -4,6 +4,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+---
+
+## [1.3.2] - 2026-05-20
+
 ### Added
 
 - **Checklist detail actions** — Rename and delete a checklist from the detail screen overflow menu (online and offline).
@@ -22,6 +26,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - **Monochrome adaptive icon** — Themed launcher icon layer in `ic_launcher` / `ic_launcher_round` adaptive XML.
 - **CI artifacts** — Unit test HTML reports and lint HTML reports uploaded from the main CI job.
 - **Release-signed GitHub APK** — When repository secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` are set, the release workflow builds only a minified **`jotty-android-{version}.apk`** signed with that keystore (in-place updates; [#9](https://github.com/Darknetzz/jotty-android/issues/9)). Without secrets, a debug APK is attached and the workflow summary notes the signing gap.
+- **Release keystore helper** — `create-release-keystore.ps1` to create or configure `keystore.properties` for local release builds (see `keystore.properties.example`).
 
 ### Changed
 
@@ -45,6 +50,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - **Offline checklist pending ops** — Pending op lists are **deduplicated** when applying and replaying to reduce duplicate side effects on retries.
 - **README** — Gradle wrapper bootstrap example uses **Gradle 9.1.0** to match `gradle-wrapper.properties`.
 - **R8** — **`android.r8.strictFullModeForKeepRules=true`** in `gradle.properties` (release minify verified with current keep rules).
+- **Stable release APK** — Download **`jotty-android-{version}.apk`** from GitHub Releases (release-signed). Updating from an older **debug-signed** release APK may show “App not installed”; uninstall once, then install the new APK (server data is unaffected).
 
 ### Fixed
 
@@ -573,6 +579,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.3.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.2
 [1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.0
 [1.2.9]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.9

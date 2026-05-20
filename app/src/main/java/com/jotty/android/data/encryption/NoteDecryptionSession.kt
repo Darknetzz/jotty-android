@@ -11,7 +11,19 @@ object NoteDecryptionSession {
     private val cache = ConcurrentHashMap<String, String>()
 
     fun get(noteId: String): String? = cache[noteId]
-    fun put(noteId: String, plainText: String) { cache[noteId] = plainText }
-    fun remove(noteId: String) { cache.remove(noteId) }
-    fun clear() { cache.clear() }
+
+    fun put(
+        noteId: String,
+        plainText: String,
+    ) {
+        cache[noteId] = plainText
+    }
+
+    fun remove(noteId: String) {
+        cache.remove(noteId)
+    }
+
+    fun clear() {
+        cache.clear()
+    }
 }

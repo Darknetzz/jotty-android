@@ -8,33 +8,37 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object ApiClient {
-
     private const val HEADER_API_KEY = "x-api-key"
 
-    fun create(baseUrl: String, apiKey: String): JottyApi {
+    fun create(
+        baseUrl: String,
+        apiKey: String,
+    ): JottyApi {
         val normalizedBase = normalizeBaseUrl(baseUrl)
 
-        val client = OkHttpClient.Builder()
-            .addInterceptor { chain ->
-                chain.proceed(
-                    chain.request().newBuilder()
-                        .addHeader(HEADER_API_KEY, apiKey)
-                        .build()
-                )
-            }
-            .apply {
-                if (BuildConfig.DEBUG) {
-                    addInterceptor(
-                        HttpLoggingInterceptor().apply {
-                            level = HttpLoggingInterceptor.Level.BODY
-                        }
+        val client =
+            OkHttpClient.Builder()
+                .addInterceptor { chain ->
+                    chain.proceed(
+                        chain.request().newBuilder()
+                            .addHeader(HEADER_API_KEY, apiKey)
+                            .build(),
                     )
                 }
-            }
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
+                .apply {
+                    if (BuildConfig.DEBUG) {
+                        addInterceptor(
+                            HttpLoggingInterceptor().apply {
+                                level = HttpLoggingInterceptor.Level.HEADERS
+                                redactHeader(HEADER_API_KEY)
+                            },
+                        )
+                    }
+                }
+                .connectTimeout(30, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
+                .build()
 
         return Retrofit.Builder()
             .baseUrl("$normalizedBase/")

@@ -13,7 +13,6 @@ import java.net.UnknownHostException
 import javax.net.ssl.SSLException
 
 class ApiErrorHelperTest {
-
     @Test
     fun errorMessageResId_unknownHost_returns_no_internet() {
         assertEquals(

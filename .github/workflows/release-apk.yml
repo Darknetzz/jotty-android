@@ -3,6 +3,12 @@ name: Release APK
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Git tag of the release to attach the APK to (e.g. v1.3.1)"
+        required: true
+        type: string
 
 jobs:
   release-apk:
@@ -10,23 +16,90 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
           cache: gradle
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
+
+      - name: Read version name
+        id: ver
+        run: |
+          VERSION_NAME=$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2-)
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
+      # Release signing: one keystore for every GitHub release so in-place updates work.
+      # Set ANDROID_KEYSTORE_B64 (base64 .jks), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
+      # ANDROID_KEY_PASSWORD as repository secrets. Without them, only a debug APK is attached
+      # (fine for forks; updates may fail if users mix debug/local and release-signed installs).
+      - name: Decode release keystore
+        id: signing
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -e
+          if [ -z "$ANDROID_KEYSTORE_B64" ]; then
+            echo "have_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          for var in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!var}" ]; then
+              echo "::error::ANDROID_KEYSTORE_B64 is set but $var is missing. Set all four signing secrets."
+              exit 1
+            fi
+          done
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/ci-release.keystore"
+          {
+            echo "storeFile=$GITHUB_WORKSPACE/ci-release.keystore"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > keystore.properties
+          echo "have_release=true" >> "$GITHUB_OUTPUT"
 
       - name: Build release APK
+        if: steps.signing.outputs.have_release == 'true'
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
 
+      - name: Build debug APK (no release keystore)
+        if: steps.signing.outputs.have_release != 'true'
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare release assets
+        run: |
+          VERSION="${{ steps.ver.outputs.VERSION_NAME }}"
+          if [ "${{ steps.signing.outputs.have_release }}" = "true" ]; then
+            cp app/build/outputs/apk/release/app-release.apk "jotty-android-${VERSION}.apk"
+          else
+            cp app/build/outputs/apk/debug/app-debug.apk "jotty-android-${VERSION}-debug.apk"
+          fi
+
+      - name: Signing reminder (no release keystore)
+        if: steps.signing.outputs.have_release != 'true'
+        run: |
+          {
+            echo "## Release APK signing"
+            echo ""
+            echo "No release keystore secrets were configured. Attached **debug-signed** APK only."
+            echo "Users who install different builds (local debug, old CI debug, release-signed) may see"
+            echo "**App not installed** when updating. Configure signing secrets — see \`keystore.properties.example\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Attach APK to GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ github.event.release.tag_name }}
-          files: app/build/outputs/apk/release/*.apk
-          fail_on_unmatched_files: true
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.release.tag_name }}
+          files: |
+            jotty-android-${{ steps.ver.outputs.VERSION_NAME }}.apk
+            jotty-android-${{ steps.ver.outputs.VERSION_NAME }}-debug.apk
+          fail_on_unmatched_files: false
           overwrite_files: true

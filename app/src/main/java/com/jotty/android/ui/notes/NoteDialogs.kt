@@ -1,8 +1,8 @@
 package com.jotty.android.ui.notes
 
+import androidx.activity.compose.LocalActivity
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Arrangement
-import java.util.concurrent.atomic.AtomicBoolean
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,15 +34,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.activity.compose.LocalActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.jotty.android.R
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.encryption.XChaCha20Decryptor
+import com.jotty.android.data.encryption.clearPassphrase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 
 @Composable
 internal fun EncryptedNotePlaceholder(
@@ -52,9 +53,10 @@ internal fun EncryptedNotePlaceholder(
     onBiometricClick: (() -> Unit)? = null,
 ) {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -72,11 +74,12 @@ internal fun EncryptedNotePlaceholder(
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = when {
-                encryptionMethod == "pgp" -> stringResource(R.string.pgp_not_supported)
-                canDecryptInApp -> stringResource(R.string.enter_passphrase_to_view)
-                else -> stringResource(R.string.use_web_app_to_decrypt)
-            },
+            text =
+                when {
+                    encryptionMethod == "pgp" -> stringResource(R.string.pgp_not_supported)
+                    canDecryptInApp -> stringResource(R.string.enter_passphrase_to_view)
+                    else -> stringResource(R.string.use_web_app_to_decrypt)
+                },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -110,7 +113,7 @@ internal fun EncryptNoteDialog(
     onDismiss: () -> Unit,
     isEncrypting: Boolean = false,
     encryptError: String? = null,
-    onEncrypt: (String) -> Unit,
+    onEncrypt: (CharArray) -> Unit,
 ) {
     var passphrase by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
@@ -130,7 +133,10 @@ internal fun EncryptNoteDialog(
                 )
                 OutlinedTextField(
                     value = passphrase,
-                    onValueChange = { passphrase = it; error = null },
+                    onValueChange = {
+                        passphrase = it
+                        error = null
+                    },
                     label = { Text(stringResource(R.string.passphrase)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -139,7 +145,10 @@ internal fun EncryptNoteDialog(
                 )
                 OutlinedTextField(
                     value = confirm,
-                    onValueChange = { confirm = it; error = null },
+                    onValueChange = {
+                        confirm = it
+                        error = null
+                    },
                     label = { Text(stringResource(R.string.confirm_passphrase)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -157,7 +166,12 @@ internal fun EncryptNoteDialog(
                     when {
                         passphrase.length < 12 -> error = errorShort
                         passphrase != confirm -> error = errorMismatch
-                        else -> onEncrypt(passphrase)
+                        else -> {
+                            val p = passphrase.toCharArray()
+                            passphrase = ""
+                            confirm = ""
+                            onEncrypt(p)
+                        }
                     }
                 },
                 enabled = !isEncrypting,
@@ -190,7 +204,7 @@ internal fun DecryptNoteDialog(
     var passphrase by remember { mutableStateOf("") }
     var isDecrypting by remember { mutableStateOf(false) }
     // Non-null when decryption succeeded and we're offering to save with biometric.
-    var offerBiometric by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var offerBiometric by remember { mutableStateOf<Pair<CharArray, String>?>(null) }
     // Guards against double-delivery of decrypted content when multiple dismiss paths race.
     val offerConsumed = remember { AtomicBoolean(false) }
     val scope = rememberCoroutineScope()
@@ -206,35 +220,49 @@ internal fun DecryptNoteDialog(
     val currentOnDecrypted = rememberUpdatedState(onDecrypted)
     val currentOnBiometricSaved = rememberUpdatedState(onBiometricSaved)
 
-    val biometricSavePrompt = remember(activity, biometricStore, noteId) {
-        if (activity == null || biometricStore == null || noteId.isBlank()) null
-        else {
-            val executor = ContextCompat.getMainExecutor(activity)
-            BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    val cipher = result.cryptoObject?.cipher
-                    val (pass, plaintext) = currentOffer.value ?: return
-                    if (cipher != null) {
-                        biometricStore.savePassphrase(noteId, pass, cipher)
-                        currentOnBiometricSaved.value()
-                    }
-                    if (offerConsumed.compareAndSet(false, true)) {
-                        currentOnDecrypted.value(plaintext)
-                    }
-                }
+    val biometricSavePrompt =
+        remember(activity, biometricStore, noteId) {
+            if (activity == null || biometricStore == null || noteId.isBlank()) {
+                null
+            } else {
+                val executor = ContextCompat.getMainExecutor(activity)
+                BiometricPrompt(
+                    activity,
+                    executor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                            val cipher = result.cryptoObject?.cipher
+                            val offer = currentOffer.value ?: return
+                            val pass = offer.first
+                            val plaintext = offer.second
+                            if (cipher != null) {
+                                biometricStore.savePassphrase(noteId, pass, cipher)
+                                currentOnBiometricSaved.value()
+                            }
+                            pass.clearPassphrase()
+                            if (offerConsumed.compareAndSet(false, true)) {
+                                currentOnDecrypted.value(plaintext)
+                            }
+                        }
 
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
-                    // User cancelled or hardware error — passphrase was already verified, so still deliver it.
-                    val plaintext = currentOffer.value?.second ?: return
-                    if (offerConsumed.compareAndSet(false, true)) {
-                        currentOnDecrypted.value(plaintext)
-                    }
-                }
+                        override fun onAuthenticationError(
+                            errorCode: Int,
+                            errString: CharSequence,
+                        ) {
+                            // User cancelled or hardware error — passphrase was already verified, so still deliver it.
+                            val offer = currentOffer.value ?: return
+                            val plaintext = offer.second
+                            offer.first.clearPassphrase()
+                            if (offerConsumed.compareAndSet(false, true)) {
+                                currentOnDecrypted.value(plaintext)
+                            }
+                        }
 
-                override fun onAuthenticationFailed() {}
-            })
+                        override fun onAuthenticationFailed() {}
+                    },
+                )
+            }
         }
-    }
 
     if (encryptionMethod != "xchacha") {
         AlertDialog(
@@ -248,10 +276,14 @@ internal fun DecryptNoteDialog(
 
     if (offerBiometric != null) {
         fun deliverFromOffer(plaintext: String) {
+            offerBiometric?.first?.clearPassphrase()
             if (offerConsumed.compareAndSet(false, true)) onDecrypted(plaintext)
         }
         AlertDialog(
-            onDismissRequest = { offerBiometric?.second?.let { deliverFromOffer(it) } },
+            onDismissRequest = {
+                offerBiometric?.first?.clearPassphrase()
+                offerBiometric?.second?.let { deliverFromOffer(it) }
+            },
             title = { Text(stringResource(R.string.biometric_save_passphrase)) },
             text = { Text(stringResource(R.string.biometric_prompt_save_subtitle)) },
             confirmButton = {
@@ -259,9 +291,10 @@ internal fun DecryptNoteDialog(
                     val plaintext = offerBiometric?.second ?: return@TextButton
                     scope.launch {
                         // Keystore cipher creation may touch binder/disk — keep off main thread.
-                        val cipher = withContext(Dispatchers.IO) {
-                            biometricStore?.getCipherForEncrypt(noteId)
-                        }
+                        val cipher =
+                            withContext(Dispatchers.IO) {
+                                biometricStore?.getCipherForEncrypt(noteId)
+                            }
                         if (cipher != null && biometricSavePrompt != null) {
                             biometricSavePrompt.authenticate(
                                 BiometricPrompt.PromptInfo.Builder()
@@ -272,6 +305,7 @@ internal fun DecryptNoteDialog(
                                 BiometricPrompt.CryptoObject(cipher),
                             )
                         } else {
+                            offerBiometric?.first?.clearPassphrase()
                             deliverFromOffer(plaintext)
                         }
                     }
@@ -307,20 +341,23 @@ internal fun DecryptNoteDialog(
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     isError = decryptError != null,
-                    supportingText = if (decryptError != null) {
-                        {
-                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Text(decryptError, color = MaterialTheme.colorScheme.error)
-                                if (decryptErrorDetail != null) {
-                                    Text(
-                                        decryptErrorDetail,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error,
-                                    )
+                    supportingText =
+                        if (decryptError != null) {
+                            {
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(decryptError, color = MaterialTheme.colorScheme.error)
+                                    if (decryptErrorDetail != null) {
+                                        Text(
+                                            decryptErrorDetail,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    } else null,
+                        } else {
+                            null
+                        },
                     enabled = !isDecrypting,
                 )
             }
@@ -331,33 +368,55 @@ internal fun DecryptNoteDialog(
                     if (isDecrypting) return@TextButton
                     isDecrypting = true
                     onDecryptError(null, null)
-                    val pass = passphrase
+                    val passChars = passphrase.toCharArray()
+                    passphrase = ""
                     val showDetail = debugLoggingEnabled
                     scope.launch {
-                        val result = withContext(Dispatchers.Default) {
-                            XChaCha20Decryptor.decryptWithReason(encryptedBody, pass)
-                        }
-                        withContext(Dispatchers.Main) {
-                            isDecrypting = false
-                            val plaintext = result.plaintext
-                            if (plaintext != null) {
-                                val canOffer = biometricStore != null && biometricSavePrompt != null
-                                    && noteId.isNotBlank() && biometricStore.isAvailable()
-                                    && !biometricStore.hasPassphrase(noteId)
-                                if (canOffer) {
-                                    offerConsumed.set(false)
-                                    offerBiometric = Pair(pass, plaintext)
+                        val passCopy = passChars.copyOf()
+                        try {
+                            val result =
+                                withContext(Dispatchers.Default) {
+                                    XChaCha20Decryptor.decryptWithReason(encryptedBody, passChars)
+                                }
+                            withContext(Dispatchers.Main) {
+                                isDecrypting = false
+                                val plaintext = result.plaintext
+                                if (plaintext != null) {
+                                    val canOffer =
+                                        biometricStore != null && biometricSavePrompt != null &&
+                                            noteId.isNotBlank() && biometricStore.isAvailable() &&
+                                            !biometricStore.hasPassphrase(noteId)
+                                    if (canOffer) {
+                                        offerConsumed.set(false)
+                                        offerBiometric = Pair(passCopy, plaintext)
+                                    } else {
+                                        passCopy.clearPassphrase()
+                                        onDecrypted(plaintext)
+                                    }
                                 } else {
-                                    onDecrypted(plaintext)
+                                    passCopy.clearPassphrase()
+                                    val detail =
+                                        when {
+                                            result.failureReason?.contains("Auth failed") == true ->
+                                                if (showDetail) {
+                                                    result.failureReason + "\n\n" + decryptAuthFailedHint
+                                                } else {
+                                                    decryptAuthFailedHint
+                                                }
+                                            showDetail -> result.failureReason
+                                            else -> null
+                                        }
+                                    onDecryptError(decryptFailedMsg, detail)
                                 }
-                            } else {
-                                val detail = when {
-                                    result.failureReason?.contains("Auth failed") == true ->
-                                        if (showDetail) result.failureReason + "\n\n" + decryptAuthFailedHint else decryptAuthFailedHint
-                                    showDetail -> result.failureReason
-                                    else -> null
-                                }
-                                onDecryptError(decryptFailedMsg, detail)
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                isDecrypting = false
+                                passCopy.clearPassphrase()
+                                onDecryptError(
+                                    decryptFailedMsg,
+                                    if (showDetail) e.message else null,
+                                )
                             }
                         }
                     }

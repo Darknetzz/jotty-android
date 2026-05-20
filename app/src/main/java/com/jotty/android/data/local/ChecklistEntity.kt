@@ -17,10 +17,14 @@ private val gson = Gson()
  * Paths may be stale if the server was modified concurrently; failing ops are skipped.
  */
 data class PendingItemOp(
-    val type: String,          // CHECK, UNCHECK, ADD, DELETE, UPDATE_TEXT
-    val path: String? = null,  // positional path for existing-item ops
-    val text: String? = null,  // ADD / UPDATE_TEXT
-    val parentIndex: String? = null, // ADD with parent (project type)
+    /** CHECK, UNCHECK, ADD, DELETE, UPDATE_TEXT */
+    val type: String,
+    /** Positional path for existing-item ops */
+    val path: String? = null,
+    /** ADD / UPDATE_TEXT */
+    val text: String? = null,
+    /** ADD with parent (project type) */
+    val parentIndex: String? = null,
 )
 
 @Entity(tableName = "checklists", indices = [Index("instanceId")])
@@ -57,17 +61,21 @@ fun ChecklistEntity.pendingOps(): List<PendingItemOp> =
 
 // ─── Conversion ─────────────────────────────────────────────────────────────
 
-fun ChecklistEntity.toChecklist(): Checklist = Checklist(
-    id = id,
-    title = title,
-    category = category,
-    type = type,
-    items = items(),
-    createdAt = createdAt,
-    updatedAt = updatedAt,
-)
+fun ChecklistEntity.toChecklist(): Checklist =
+    Checklist(
+        id = id,
+        title = title,
+        category = category,
+        type = type,
+        items = items(),
+        createdAt = createdAt,
+        updatedAt = updatedAt,
+    )
 
-fun Checklist.toEntity(instanceId: String, isDirty: Boolean = false): ChecklistEntity =
+fun Checklist.toEntity(
+    instanceId: String,
+    isDirty: Boolean = false,
+): ChecklistEntity =
     ChecklistEntity(
         id = id,
         title = title,
@@ -86,7 +94,10 @@ fun Checklist.toEntity(instanceId: String, isDirty: Boolean = false): ChecklistE
 // ─── Local item tree mutation ────────────────────────────────────────────────
 
 /** Apply a [PendingItemOp] to a list of items, returning the modified list. */
-fun applyOpToItems(items: List<ChecklistItem>, op: PendingItemOp): List<ChecklistItem> =
+fun applyOpToItems(
+    items: List<ChecklistItem>,
+    op: PendingItemOp,
+): List<ChecklistItem> =
     when (op.type) {
         "CHECK" -> op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = true) } } ?: items
         "UNCHECK" -> op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = false) } } ?: items
@@ -110,8 +121,7 @@ fun applyOpToItems(items: List<ChecklistItem>, op: PendingItemOp): List<Checklis
  * Returns null if any segment of [path] is not a valid integer.
  * Callers treat null as a no-op (stale or malformed path).
  */
-private fun pathSegments(path: String): List<Int>? =
-    path.split(".").map { it.toIntOrNull() ?: return null }
+private fun pathSegments(path: String): List<Int>? = path.split(".").map { it.toIntOrNull() ?: return null }
 
 private fun updateAtPath(
     items: List<ChecklistItem>,
@@ -135,19 +145,26 @@ private fun updateAtSegments(
     } else {
         items.toMutableList().also { list ->
             val parent = list[idx]
-            list[idx] = parent.copy(
-                children = updateAtSegments(parent.children ?: emptyList(), segments.drop(1), transform),
-            )
+            list[idx] =
+                parent.copy(
+                    children = updateAtSegments(parent.children ?: emptyList(), segments.drop(1), transform),
+                )
         }
     }
 }
 
-private fun deleteAtPath(items: List<ChecklistItem>, path: String): List<ChecklistItem> {
+private fun deleteAtPath(
+    items: List<ChecklistItem>,
+    path: String,
+): List<ChecklistItem> {
     val segments = pathSegments(path) ?: return items
     return deleteAtSegments(items, segments)
 }
 
-private fun deleteAtSegments(items: List<ChecklistItem>, segments: List<Int>): List<ChecklistItem> {
+private fun deleteAtSegments(
+    items: List<ChecklistItem>,
+    segments: List<Int>,
+): List<ChecklistItem> {
     if (segments.isEmpty()) return items
     val idx = segments[0]
     if (idx < 0 || idx >= items.size) return items
@@ -157,8 +174,9 @@ private fun deleteAtSegments(items: List<ChecklistItem>, segments: List<Int>): L
     } else {
         items.toMutableList().also { list ->
             val parent = list[idx]
-            val newChildren = deleteAtSegments(parent.children ?: emptyList(), segments.drop(1))
-                .mapIndexed { i, item -> item.copy(index = i) }
+            val newChildren =
+                deleteAtSegments(parent.children ?: emptyList(), segments.drop(1))
+                    .mapIndexed { i, item -> item.copy(index = i) }
             list[idx] = parent.copy(children = newChildren)
         }
     }

@@ -2,6 +2,7 @@ package com.jotty.android.ui.notes
 
 import android.content.Intent
 import android.util.Log
+import androidx.activity.compose.LocalActivity
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,8 +19,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -34,7 +36,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.activity.compose.LocalActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import coil.ImageLoader
@@ -46,7 +47,9 @@ import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
+import com.jotty.android.data.encryption.XChaCha20Decryptor
 import com.jotty.android.data.encryption.XChaCha20Encryptor
+import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.util.stripInvisibleFromEdges
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -78,13 +81,15 @@ internal fun NoteDetailScreen(
     var decryptErrorDetail by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val parsed = remember(content) { NoteEncryption.parse(content) }
+    val currentParsed = rememberUpdatedState(parsed)
     val isEncryptedByContent = parsed is ParsedNoteContent.Encrypted
     val isEncrypted = note.encrypted == true || isEncryptedByContent
-    val displayContent = when {
-        isEncrypted && decryptedContent != null -> decryptedContent
-        isEncrypted -> null
-        else -> content
-    }
+    val displayContent =
+        when {
+            isEncrypted && decryptedContent != null -> decryptedContent
+            isEncrypted -> null
+            else -> content
+        }
 
     var hasBiometricPassphrase by remember(note.id) {
         mutableStateOf(biometricStore?.hasPassphrase(note.id) == true)
@@ -98,25 +103,48 @@ internal fun NoteDetailScreen(
     val biometricSubtitle = stringResource(R.string.biometric_prompt_subtitle)
     val biometricCancelStr = stringResource(R.string.cancel)
 
-    val biometricUnlockPrompt = remember(activity, biometricStore, note.id) {
-        if (activity == null || biometricStore == null) null
-        else {
-            val executor = ContextCompat.getMainExecutor(activity)
-            val noteId = note.id
-            BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                    val cipher = result.cryptoObject?.cipher ?: return
-                    val plaintext = biometricStore.loadPassphrase(noteId, cipher) ?: return
-                    val cleaned = stripInvisibleFromEdges(plaintext)
-                    decryptedContent = cleaned
-                    NoteDecryptionSession.put(noteId, cleaned)
-                }
+    val biometricUnlockPrompt =
+        remember(activity, biometricStore, note.id) {
+            if (activity == null || biometricStore == null) {
+                null
+            } else {
+                val executor = ContextCompat.getMainExecutor(activity)
+                val noteId = note.id
+                BiometricPrompt(
+                    activity,
+                    executor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+                            val cipher = result.cryptoObject?.cipher ?: return
+                            val passChars = biometricStore.loadPassphrase(noteId, cipher) ?: return
+                            val encBody = (currentParsed.value as? ParsedNoteContent.Encrypted)?.encryptedBody
+                            if (encBody == null) {
+                                passChars.clearPassphrase()
+                                return
+                            }
+                            scope.launch {
+                                val plain =
+                                    withContext(Dispatchers.Default) {
+                                        XChaCha20Decryptor.decrypt(encBody, passChars)
+                                    }
+                                if (plain != null) {
+                                    val cleaned = stripInvisibleFromEdges(plain)
+                                    decryptedContent = cleaned
+                                    NoteDecryptionSession.put(noteId, cleaned)
+                                }
+                            }
+                        }
 
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {}
-                override fun onAuthenticationFailed() {}
-            })
+                        override fun onAuthenticationError(
+                            errorCode: Int,
+                            errString: CharSequence,
+                        ) {}
+
+                        override fun onAuthenticationFailed() {}
+                    },
+                )
+            }
         }
-    }
 
     // Cancel any pending biometric auth when the note changes or the screen is disposed.
     DisposableEffect(biometricUnlockPrompt) {
@@ -128,7 +156,10 @@ internal fun NoteDetailScreen(
         // getCipherForDecrypt touches the Keystore (binder) — run on IO to avoid ANR.
         scope.launch {
             val cipher = withContext(Dispatchers.IO) { biometricStore.getCipherForDecrypt(note.id) }
-            if (cipher == null) { hasBiometricPassphrase = false; return@launch }
+            if (cipher == null) {
+                hasBiometricPassphrase = false
+                return@launch
+            }
             biometricUnlockPrompt.authenticate(
                 BiometricPrompt.PromptInfo.Builder()
                     .setTitle(biometricTitle)
@@ -156,7 +187,7 @@ internal fun NoteDetailScreen(
                 "Jotty/encryption",
                 "Note detail: note.encrypted=${note.encrypted}, contentLength=${content.length}, " +
                     "parsedAsEncrypted=${parsed is ParsedNoteContent.Encrypted}, " +
-                    "contentStart=${content.take(60).replace("\n", " ")}"
+                    "contentStart=${content.take(60).replace("\n", " ")}",
             )
         }
     }
@@ -183,11 +214,12 @@ internal fun NoteDetailScreen(
                         onClick = {
                             val text = (displayContent ?: content).trim()
                             val shareText = if (text.isNotBlank()) "# $title\n\n$text" else title
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TITLE, title)
-                                putExtra(Intent.EXTRA_TEXT, shareText)
-                            }
+                            val intent =
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TITLE, title)
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                }
                             ctx.startActivity(Intent.createChooser(intent, exportTitle))
                         },
                     ) {
@@ -212,19 +244,22 @@ internal fun NoteDetailScreen(
                                 scope.launch {
                                     saving = true
                                     try {
-                                        val updated = api.updateNote(
-                                            note.id,
-                                            UpdateNoteRequest(
-                                                title = title,
-                                                content = content,
-                                                originalCategory = note.category,
-                                            ),
-                                        )
+                                        val updated =
+                                            api.updateNote(
+                                                note.id,
+                                                UpdateNoteRequest(
+                                                    title = title,
+                                                    content = content,
+                                                    originalCategory = note.category,
+                                                ),
+                                            )
                                         if (updated.success) {
                                             onUpdate(updated.data)
                                             isEditing = false
                                         }
-                                    } catch (_: Exception) { onSaveFailed() }
+                                    } catch (_: Exception) {
+                                        onSaveFailed()
+                                    }
                                     saving = false
                                 }
                             },
@@ -244,23 +279,31 @@ internal fun NoteDetailScreen(
         )
 
         when {
-            isEncrypted && decryptedContent == null -> EncryptedNotePlaceholder(
-                encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
-                canDecryptInApp = isEncryptedByContent,
-                onDecryptClick = { showDecryptDialog = true },
-                onBiometricClick = if (hasBiometricPassphrase) {{ launchBiometricUnlock() }} else null,
-            )
-            isEditing -> NoteEditor(
-                title = title,
-                onTitleChange = { title = it },
-                content = content,
-                onContentChange = { content = it },
-            )
-            else -> NoteView(
-                title = title,
-                content = displayContent ?: "",
-                imageLoader = imageLoader,
-            )
+            isEncrypted && decryptedContent == null ->
+                EncryptedNotePlaceholder(
+                    encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
+                    canDecryptInApp = isEncryptedByContent,
+                    onDecryptClick = { showDecryptDialog = true },
+                    onBiometricClick =
+                        if (hasBiometricPassphrase) {
+                            { launchBiometricUnlock() }
+                        } else {
+                            null
+                        },
+                )
+            isEditing ->
+                NoteEditor(
+                    title = title,
+                    onTitleChange = { title = it },
+                    content = content,
+                    onContentChange = { content = it },
+                )
+            else ->
+                NoteView(
+                    title = title,
+                    content = displayContent ?: "",
+                    imageLoader = imageLoader,
+                )
         }
     }
 
@@ -273,32 +316,40 @@ internal fun NoteDetailScreen(
             },
             isEncrypting = isEncrypting,
             encryptError = encryptError,
-            onEncrypt = { passphrase ->
+            onEncrypt = { passChars ->
                 encryptError = null
                 isEncrypting = true
                 scope.launch {
-                    val body = withContext(Dispatchers.Default) {
-                        XChaCha20Encryptor.encrypt(displayContent ?: content, passphrase)
-                    }
-                    isEncrypting = false
-                    if (body != null) {
-                        val fullContent = XChaCha20Encryptor.wrapWithFrontmatter(note.id, title, note.category, body)
-                        try {
-                            val updated = api.updateNote(
-                                note.id,
-                                UpdateNoteRequest(
-                                    title = title,
-                                    content = fullContent,
-                                    originalCategory = note.category,
-                                ),
-                            )
-                            if (updated.success) {
-                                onUpdate(updated.data)
-                                showEncryptDialog = false
+                    try {
+                        val body =
+                            withContext(Dispatchers.Default) {
+                                XChaCha20Encryptor.encrypt(displayContent ?: content, passChars)
                             }
-                        } catch (_: Exception) { onSaveFailed() }
-                    } else {
-                        encryptError = encryptFailedMsg
+                        if (body != null) {
+                            val fullContent = XChaCha20Encryptor.wrapWithFrontmatter(note.id, title, note.category, body)
+                            try {
+                                val updated =
+                                    api.updateNote(
+                                        note.id,
+                                        UpdateNoteRequest(
+                                            title = title,
+                                            content = fullContent,
+                                            originalCategory = note.category,
+                                        ),
+                                    )
+                                if (updated.success) {
+                                    onUpdate(updated.data)
+                                    showEncryptDialog = false
+                                }
+                            } catch (_: Exception) {
+                                onSaveFailed()
+                            }
+                        } else {
+                            encryptError = encryptFailedMsg
+                        }
+                    } finally {
+                        passChars.clearPassphrase()
+                        isEncrypting = false
                     }
                 }
             },

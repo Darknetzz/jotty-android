@@ -82,12 +82,20 @@ interface NoteDao {
     /**
      * Search notes by title or content.
      */
-    @Query("SELECT * FROM notes WHERE instanceId = :instanceId AND isDeleted = 0 AND (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%') ORDER BY updatedAt DESC")
-    suspend fun searchNotes(instanceId: String, query: String): List<NoteEntity>
+    @Query(
+        "SELECT * FROM notes WHERE instanceId = :instanceId AND isDeleted = 0 AND (title LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%') ORDER BY updatedAt DESC",
+    )
+    suspend fun searchNotes(
+        instanceId: String,
+        query: String,
+    ): List<NoteEntity>
 
     /**
      * Filter notes by category.
      */
     @Query("SELECT * FROM notes WHERE instanceId = :instanceId AND isDeleted = 0 AND category = :category ORDER BY updatedAt DESC")
-    suspend fun getNotesByCategory(instanceId: String, category: String): List<NoteEntity>
+    suspend fun getNotesByCategory(
+        instanceId: String,
+        category: String,
+    ): List<NoteEntity>
 }

@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ApiClientTest {
-
     @Test
     fun normalizeBaseUrl_adds_https_when_no_scheme() {
         assertEquals("https://jotty.example.com", ApiClient.normalizeBaseUrl("jotty.example.com"))

@@ -6,6 +6,7 @@ package com.jotty.android.data.encryption
  */
 sealed class ParsedNoteContent {
     data class Plain(val content: String) : ParsedNoteContent()
+
     data class Encrypted(
         val frontmatter: NoteFrontmatter,
         val encryptionMethod: String,
@@ -28,9 +29,9 @@ private val XCHACHA_JSON_CONTAINS = Regex(""""alg"\s*:\s*"[^"]*xchacha[^"]*"""",
  * or body-only when API returns just the encrypted payload).
  */
 object NoteEncryption {
-
     private const val FRONTMATTER_START = "---"
     private const val FRONTMATTER_END = "---"
+
     /** encrypted: true | "true" | yes | 1 (YAML-style) */
     private val ENCRYPTED_REGEX = Regex("""encrypted\s*:\s*(true|"true"|yes|1)\b""", RegexOption.IGNORE_CASE)
     private val METHOD_REGEX = Regex("""encryptionMethod\s*:\s*["']?(\w+)["']?""", RegexOption.IGNORE_CASE)
@@ -62,8 +63,9 @@ object NoteEncryption {
         }
 
         // 2) Body-only: API sometimes returns just the encrypted JSON (no frontmatter)
-        val looksLikeEncryptedJson = trimmed.startsWith("{") && trimmed.contains("\"data\"") &&
-            (XCHACHA_JSON_CONTAINS.containsMatchIn(trimmed) || (trimmed.contains("\"salt\"") && trimmed.contains("\"nonce\"")))
+        val looksLikeEncryptedJson =
+            trimmed.startsWith("{") && trimmed.contains("\"data\"") &&
+                (XCHACHA_JSON_CONTAINS.containsMatchIn(trimmed) || (trimmed.contains("\"salt\"") && trimmed.contains("\"nonce\"")))
         if (looksLikeEncryptedJson) {
             return ParsedNoteContent.Encrypted(
                 frontmatter = NoteFrontmatter(encrypted = true, encryptionMethod = "xchacha"),
@@ -78,6 +80,5 @@ object NoteEncryption {
     /**
      * Returns true if [content] is an encrypted note (frontmatter or encrypted JSON body).
      */
-    fun isEncrypted(content: String): Boolean =
-        parse(content) is ParsedNoteContent.Encrypted
+    fun isEncrypted(content: String): Boolean = parse(content) is ParsedNoteContent.Encrypted
 }

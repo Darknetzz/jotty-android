@@ -43,18 +43,23 @@ class OfflineChecklistsRepository(
     private val registerNetworkCallback: Boolean = true,
 ) {
     private val checklistDao = database.checklistDao()
-    private val runtime = OfflineRepositoryLifecycle(
-        context = context,
-        initialOnlineOverride = initialOnlineOverride,
-        registerNetworkCallback = registerNetworkCallback,
-        logTag = TAG,
-        instanceId = instanceId,
-        onNetworkAvailable = { syncChecklists() },
-    )
+    private val runtime =
+        OfflineRepositoryLifecycle(
+            context = context,
+            initialOnlineOverride = initialOnlineOverride,
+            registerNetworkCallback = registerNetworkCallback,
+            logTag = TAG,
+            instanceId = instanceId,
+            onNetworkAvailable = { syncChecklists() },
+        )
 
     val isOnline: StateFlow<Boolean> = runtime.syncStatus.isOnline
     val isSyncing: StateFlow<Boolean> = runtime.syncStatus.isSyncing
     val conflictsDetected: StateFlow<Int> = runtime.syncStatus.conflictsDetected
+    val lastSyncAttemptEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncAttemptEpochMs
+    val lastSyncSuccessEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncSuccessEpochMs
+    val lastSyncDurationText: StateFlow<String?> = runtime.syncStatus.lastSyncDurationText
+    val lastSyncError: StateFlow<String?> = runtime.syncStatus.lastSyncError
     private val _replayFailuresDetected = MutableStateFlow(0)
     val replayFailuresDetected: StateFlow<Int> = _replayFailuresDetected.asStateFlow()
 
@@ -69,9 +74,13 @@ class OfflineChecklistsRepository(
             .map { it.map { e -> e.toChecklist() } }
             .flowOn(Dispatchers.IO)
 
-    fun clearConflictNotification() { runtime.syncStatus.setConflictsDetected(0) }
+    fun clearConflictNotification() {
+        runtime.syncStatus.setConflictsDetected(0)
+    }
 
-    fun clearReplayFailureNotification() { _replayFailuresDetected.value = 0 }
+    fun clearReplayFailureNotification() {
+        _replayFailuresDetected.value = 0
+    }
 
     // ─── CRUD ───────────────────────────────────────────────────────────────
 
@@ -79,45 +88,73 @@ class OfflineChecklistsRepository(
         title: String,
         type: String = "simple",
         category: String = "Uncategorized",
-    ): Result<Checklist> = withContext(Dispatchers.IO) {
-        runCatching {
-            val now = Instant.now().toString()
-            val entity = ChecklistEntity(
-                id = UUID.randomUUID().toString(),
-                title = title,
-                category = category,
-                type = type,
-                itemsJson = "[]",
-                pendingOpsJson = "[]",
-                createdAt = now,
-                updatedAt = now,
-                isDirty = true,
-                isDeleted = false,
-                instanceId = instanceId,
-                isLocalOnly = true,
-            )
-            checklistDao.insert(entity)
-            AppLog.d(TAG, "Checklist created locally: ${entity.id}")
-            // Do not inline-sync here: syncChecklist swaps the local PK for the server ID,
-            // which would invalidate the returned checklist. The network callback triggers
-            // syncChecklists() as soon as the device is online.
-            entity.toChecklist()
-        }
-    }
-
-    suspend fun deleteChecklist(id: String): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
-            val entity = checklistDao.getById(id)
-            if (entity != null && entity.isLocalOnly) {
-                checklistDao.delete(id)
-                AppLog.d(TAG, "Local-only checklist hard-deleted: $id")
-            } else {
-                checklistDao.markAsDeleted(id)
-                AppLog.d(TAG, "Checklist marked for deletion: $id")
-                if (isOnline.value) syncDeletedChecklist(id)
+    ): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val now = Instant.now().toString()
+                val entity =
+                    ChecklistEntity(
+                        id = UUID.randomUUID().toString(),
+                        title = title,
+                        category = category,
+                        type = type,
+                        itemsJson = "[]",
+                        pendingOpsJson = "[]",
+                        createdAt = now,
+                        updatedAt = now,
+                        isDirty = true,
+                        isDeleted = false,
+                        instanceId = instanceId,
+                        isLocalOnly = true,
+                    )
+                checklistDao.insert(entity)
+                AppLog.d(TAG, "Checklist created locally: ${entity.id}")
+                // Do not inline-sync here: syncChecklist swaps the local PK for the server ID,
+                // which would invalidate the returned checklist. The network callback triggers
+                // syncChecklists() as soon as the device is online.
+                entity.toChecklist()
             }
         }
-    }
+
+    suspend fun deleteChecklist(id: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val entity = checklistDao.getById(id)
+                if (entity != null && entity.isLocalOnly) {
+                    checklistDao.delete(id)
+                    AppLog.d(TAG, "Local-only checklist hard-deleted: $id")
+                } else {
+                    checklistDao.markAsDeleted(id)
+                    AppLog.d(TAG, "Checklist marked for deletion: $id")
+                    if (isOnline.value) syncDeletedChecklist(id)
+                }
+            }
+        }
+
+    suspend fun updateChecklist(
+        id: String,
+        title: String,
+    ): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val existing =
+                    checklistDao.getById(id)
+                        ?: throw Exception("Checklist not found")
+                val updated =
+                    existing.copy(
+                        title = title,
+                        updatedAt = Instant.now().toString(),
+                        isDirty = true,
+                    )
+                checklistDao.update(updated)
+                AppLog.d(TAG, "Checklist title updated locally: $id")
+                if (isOnline.value) {
+                    syncChecklist(updated)
+                }
+                checklistDao.getById(id)?.toChecklist()
+                    ?: updated.toChecklist()
+            }
+        }
 
     // ─── Item operations ────────────────────────────────────────────────────
 
@@ -125,28 +162,33 @@ class OfflineChecklistsRepository(
         checklistId: String,
         text: String,
         parentIndex: String? = null,
-    ): Result<Checklist> = withContext(Dispatchers.IO) {
-        runCatching {
-            if (isOnline.value) {
-                val response = api.addChecklistItem(
-                    checklistId,
-                    AddItemRequest(text = text, parentIndex = parentIndex),
-                )
-                // Refresh local cache from server
-                val fresh = api.getChecklists().checklists.find { it.id == checklistId }
-                if (fresh != null) checklistDao.insert(fresh.toEntity(instanceId))
-                response.let {
-                    checklistDao.getById(checklistId)?.toChecklist()
-                        ?: throw Exception("Checklist not found")
+    ): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                if (isOnline.value) {
+                    val response =
+                        api.addChecklistItem(
+                            checklistId,
+                            AddItemRequest(text = text, parentIndex = parentIndex),
+                        )
+                    // Refresh local cache from server
+                    val fresh = api.getChecklists().checklists.find { it.id == checklistId }
+                    if (fresh != null) checklistDao.insert(fresh.toEntity(instanceId))
+                    response.let {
+                        checklistDao.getById(checklistId)?.toChecklist()
+                            ?: throw Exception("Checklist not found")
+                    }
+                } else {
+                    val op = PendingItemOp(type = "ADD", text = text, parentIndex = parentIndex)
+                    applyOpLocally(checklistId, op)
                 }
-            } else {
-                val op = PendingItemOp(type = "ADD", text = text, parentIndex = parentIndex)
-                applyOpLocally(checklistId, op)
             }
         }
-    }
 
-    suspend fun checkItem(checklistId: String, path: String): Result<Checklist> =
+    suspend fun checkItem(
+        checklistId: String,
+        path: String,
+    ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
                 if (isOnline.value) {
@@ -158,7 +200,10 @@ class OfflineChecklistsRepository(
             }
         }
 
-    suspend fun uncheckItem(checklistId: String, path: String): Result<Checklist> =
+    suspend fun uncheckItem(
+        checklistId: String,
+        path: String,
+    ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
                 if (isOnline.value) {
@@ -170,7 +215,10 @@ class OfflineChecklistsRepository(
             }
         }
 
-    suspend fun deleteItem(checklistId: String, path: String): Result<Checklist> =
+    suspend fun deleteItem(
+        checklistId: String,
+        path: String,
+    ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
                 if (isOnline.value) {
@@ -186,94 +234,105 @@ class OfflineChecklistsRepository(
         checklistId: String,
         path: String,
         text: String,
-    ): Result<Checklist> = withContext(Dispatchers.IO) {
-        runCatching {
-            if (isOnline.value) {
-                api.updateItem(checklistId, path, UpdateItemRequest(text = text))
-                refreshFromServer(checklistId)
-            } else {
-                applyOpLocally(
-                    checklistId,
-                    PendingItemOp(type = "UPDATE_TEXT", path = path, text = text),
-                )
+    ): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                if (isOnline.value) {
+                    api.updateItem(checklistId, path, UpdateItemRequest(text = text))
+                    refreshFromServer(checklistId)
+                } else {
+                    applyOpLocally(
+                        checklistId,
+                        PendingItemOp(type = "UPDATE_TEXT", path = path, text = text),
+                    )
+                }
             }
         }
-    }
 
     // ─── Sync ────────────────────────────────────────────────────────────────
 
-    suspend fun syncChecklists(): Result<Unit> = withContext(Dispatchers.IO) {
-        if (isSyncing.value) return@withContext Result.success(Unit)
-        if (!isOnline.value) return@withContext Result.failure(Exception("Offline"))
+    suspend fun syncChecklists(): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            if (isSyncing.value) return@withContext Result.success(Unit)
+            if (!isOnline.value) return@withContext Result.failure(Exception("Offline"))
 
-        runtime.syncStatus.setSyncing(true)
-        _replayFailuresDetected.value = 0
-        AppLog.d(TAG, "Starting sync…")
-        try {
-            val localBefore = checklistDao.getAllChecklists(instanceId).associateBy { it.id }
+            runtime.syncStatus.setSyncing(true)
+            runtime.syncStatus.markSyncStarted()
+            _replayFailuresDetected.value = 0
+            AppLog.d(TAG, "Starting sync…")
+            try {
+                val localBefore = checklistDao.getAllChecklists(instanceId).associateBy { it.id }
 
-            val dirty = checklistDao.getDirty(instanceId)
-            AppLog.d(TAG, "${dirty.size} dirty checklists")
-            for (entity in dirty) {
-                if (entity.isDeleted) syncDeletedChecklist(entity.id)
-                else syncChecklist(entity)
-            }
-
-            val serverResponse = api.getChecklists()
-            val serverChecklists = serverResponse.checklists
-            val conflictCopies = mutableListOf<ChecklistEntity>()
-
-            for (serverList in serverChecklists) {
-                val local = localBefore[serverList.id]
-                if (local != null && local.isDirty && !local.isDeleted) {
-                    if (hasConflict(local, serverList)) {
-                        conflictCopies.add(
-                            local.copy(
-                                id = UUID.randomUUID().toString(),
-                                title = "${local.title}$LOCAL_COPY_SUFFIX",
-                                isDirty = false,
-                                isDeleted = false,
-                                pendingOpsJson = "[]",
-                            ),
-                        )
-                        AppLog.d(TAG, "Conflict detected for '${local.title}', local copy created")
+                val dirty = checklistDao.getDirty(instanceId)
+                AppLog.d(TAG, "${dirty.size} dirty checklists")
+                for (entity in dirty) {
+                    if (entity.isDeleted) {
+                        syncDeletedChecklist(entity.id)
+                    } else {
+                        syncChecklist(entity)
                     }
                 }
-            }
 
-            // Atomic replace: observers see either the old list or the new list, never empty.
-            database.withTransaction {
-                checklistDao.deleteAll(instanceId)
-                checklistDao.insertAll(serverChecklists.map { it.toEntity(instanceId) })
-                if (conflictCopies.isNotEmpty()) checklistDao.insertAll(conflictCopies)
-            }
-            runtime.syncStatus.setConflictsDetected(if (conflictCopies.isNotEmpty()) conflictCopies.size else 0)
+                val serverResponse = api.getChecklists()
+                val serverChecklists = serverResponse.checklists
+                val conflictCopies = mutableListOf<ChecklistEntity>()
 
-            AppLog.d(TAG, "Sync complete — ${serverChecklists.size} checklists from server")
-            Result.success(Unit)
-        } catch (e: Exception) {
-            AppLog.d(TAG, "Sync failed: ${e.message}")
-            Result.failure(e)
-        } finally {
-            runtime.syncStatus.setSyncing(false)
+                for (serverList in serverChecklists) {
+                    val local = localBefore[serverList.id]
+                    if (local != null && local.isDirty && !local.isDeleted) {
+                        if (hasConflict(local, serverList)) {
+                            conflictCopies.add(
+                                local.copy(
+                                    id = UUID.randomUUID().toString(),
+                                    title = "${local.title}$LOCAL_COPY_SUFFIX",
+                                    isDirty = false,
+                                    isDeleted = false,
+                                    pendingOpsJson = "[]",
+                                ),
+                            )
+                            AppLog.d(TAG, "Conflict detected for '${local.title}', local copy created")
+                        }
+                    }
+                }
+
+                // Atomic replace: observers see either the old list or the new list, never empty.
+                database.withTransaction {
+                    checklistDao.deleteAll(instanceId)
+                    checklistDao.insertAll(serverChecklists.map { it.toEntity(instanceId) })
+                    if (conflictCopies.isNotEmpty()) checklistDao.insertAll(conflictCopies)
+                }
+                runtime.syncStatus.setConflictsDetected(if (conflictCopies.isNotEmpty()) conflictCopies.size else 0)
+                runtime.syncStatus.markSyncCompleted(success = true)
+
+                AppLog.d(TAG, "Sync complete — ${serverChecklists.size} checklists from server")
+                Result.success(Unit)
+            } catch (e: Exception) {
+                runtime.syncStatus.markSyncCompleted(success = false, errorMessage = e.message)
+                AppLog.d(TAG, "Sync failed: ${e.message}")
+                Result.failure(e)
+            } finally {
+                runtime.syncStatus.setSyncing(false)
+            }
         }
-    }
 
     // ─── Private helpers ─────────────────────────────────────────────────────
 
-    private fun hasConflict(local: ChecklistEntity, server: Checklist): Boolean =
-        local.title != server.title || local.category != server.category
+    private fun hasConflict(
+        local: ChecklistEntity,
+        server: Checklist,
+    ): Boolean = local.title != server.title || local.category != server.category
 
     private suspend fun syncChecklist(entity: ChecklistEntity) {
         try {
             if (entity.isLocalOnly) {
-                val response = api.createChecklist(
-                    CreateChecklistRequest(
-                        title = entity.title,
-                        category = entity.category,
-                        type = entity.type,
-                    ),
-                )
+                val response =
+                    api.createChecklist(
+                        CreateChecklistRequest(
+                            title = entity.title,
+                            category = entity.category,
+                            type = entity.type,
+                        ),
+                    )
                 if (response.data != null) {
                     // Add any locally-created items
                     for (item in entity.items()) {
@@ -305,19 +364,23 @@ class OfflineChecklistsRepository(
 
     private suspend fun replayPendingOps(entity: ChecklistEntity) {
         var failedOps = 0
-        for (op in entity.pendingOps()) {
+        for (op in entity.pendingOps().distinct()) {
             runCatching {
                 when (op.type) {
                     "CHECK" -> api.checkItem(entity.id, op.path!!)
                     "UNCHECK" -> api.uncheckItem(entity.id, op.path!!)
-                    "ADD" -> api.addChecklistItem(
-                        entity.id,
-                        AddItemRequest(text = op.text ?: "", parentIndex = op.parentIndex),
-                    )
+                    "ADD" ->
+                        api.addChecklistItem(
+                            entity.id,
+                            AddItemRequest(text = op.text ?: "", parentIndex = op.parentIndex),
+                        )
                     "DELETE" -> api.deleteItem(entity.id, op.path!!)
-                    "UPDATE_TEXT" -> api.updateItem(
-                        entity.id, op.path!!, UpdateItemRequest(text = op.text ?: ""),
-                    )
+                    "UPDATE_TEXT" ->
+                        api.updateItem(
+                            entity.id,
+                            op.path!!,
+                            UpdateItemRequest(text = op.text ?: ""),
+                        )
                 }
             }.onFailure {
                 failedOps += 1
@@ -341,24 +404,30 @@ class OfflineChecklistsRepository(
         }
     }
 
-    private suspend fun applyOpLocally(checklistId: String, op: PendingItemOp): Checklist {
-        val entity = checklistDao.getById(checklistId)
-            ?: throw Exception("Checklist not found: $checklistId")
+    private suspend fun applyOpLocally(
+        checklistId: String,
+        op: PendingItemOp,
+    ): Checklist {
+        val entity =
+            checklistDao.getById(checklistId)
+                ?: throw Exception("Checklist not found: $checklistId")
         val newItems = applyOpToItems(entity.items(), op)
-        val newOps = entity.pendingOps() + op
-        val updated = entity.copy(
-            itemsJson = gson.toJson(newItems),
-            pendingOpsJson = gson.toJson(newOps),
-            isDirty = true,
-            updatedAt = Instant.now().toString(),
-        )
+        val newOps = (entity.pendingOps() + op).distinct()
+        val updated =
+            entity.copy(
+                itemsJson = gson.toJson(newItems),
+                pendingOpsJson = gson.toJson(newOps),
+                isDirty = true,
+                updatedAt = Instant.now().toString(),
+            )
         checklistDao.update(updated)
         return updated.toChecklist()
     }
 
     private suspend fun refreshFromServer(checklistId: String): Checklist {
-        val fresh = api.getChecklists().checklists.find { it.id == checklistId }
-            ?: throw Exception("Checklist not found on server: $checklistId")
+        val fresh =
+            api.getChecklists().checklists.find { it.id == checklistId }
+                ?: throw Exception("Checklist not found on server: $checklistId")
         checklistDao.insert(fresh.toEntity(instanceId))
         return fresh
     }

@@ -6,6 +6,66 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ---
 
+## [1.3.2] - 2026-05-20
+
+### Added
+
+- **Checklist detail actions** — Rename and delete a checklist from the detail screen overflow menu (online and offline).
+- **Delete confirmation** — Checklists, tasks, and notes ask for confirmation before delete (including swipe-to-delete); overflow menus use edit/delete icons with red delete text.
+- **Performance baseline test** — Added `PerformanceBaselineTest` for startup and Notes-tab timing.
+- **Sync diagnostics metadata** — Added last attempt/success time, duration, and error state for offline sync.
+- **Sync status copy** — Added strings for last sync timestamp, duration, and last error.
+- **Checklist search copy** — Added a dedicated “Search checklists” placeholder.
+- **Sync status tests** — Added `SyncStatusStateTest` for sync timing/error transitions.
+- **Gradle version catalog** — `gradle/libs.versions.toml` centralizes AGP, Kotlin, KSP, Compose BOM, and ktlint plugin versions; root and `app` build scripts use version-catalog aliases.
+- **ktlint** — Android Gradle plugin + project `.editorconfig`; **`ktlintCheck`** runs in CI after unit tests and lint.
+- **Dependabot** — `.github/dependabot.yml` for weekly Gradle and GitHub Actions updates.
+- **Network & backup XML** — `network_security_config.xml`, `fullBackupContent` / `dataExtractionRules` rulesets to avoid backing up API keys and sensitive prefs where possible.
+- **Passphrase buffers** — `PassphraseEncoding.kt` plus `CharArray` entry points for XChaCha20 encrypt/decrypt and biometric passphrase storage, with best-effort zeroization (JVM limits still apply to `String` fields in the UI).
+- **Room index (notes)** — `@Index("instanceId")` on `NoteEntity` with migration **3 → 4**.
+- **Monochrome adaptive icon** — Themed launcher icon layer in `ic_launcher` / `ic_launcher_round` adaptive XML.
+- **CI artifacts** — Unit test HTML reports and lint HTML reports uploaded from the main CI job.
+- **Release-signed GitHub APK** — When repository secrets `ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` are set, the release workflow builds only a minified **`jotty-android-{version}.apk`** signed with that keystore (in-place updates; [#9](https://github.com/Darknetzz/jotty-android/issues/9)). Without secrets, a debug APK is attached and the workflow summary notes the signing gap.
+- **Release keystore helper** — `create-release-keystore.ps1` to create or configure `keystore.properties` for local release builds (see `keystore.properties.example`).
+
+### Changed
+
+- **GitHub Actions** — Updated CI and release workflows to action releases that target the Node 24 runtime (`actions/checkout` v6, `actions/setup-java` v5, `android-actions/setup-android` v4, `softprops/action-gh-release` v3; the instrumentation smoke-test job pins `reactivecircus/android-emulator-runner` v2.37.0, which moved to Node 24).
+- **CI smoke coverage** — Instrumentation smoke job now runs `MainActivitySmokeTest` and `PerformanceBaselineTest`.
+- **CI unit-tests job** — `setup-java` now enables **`cache: gradle`** like other jobs.
+- **DRY list state handling** — Offline Notes and Checklists now share `ListScreenState` and `OfflineSyncStatusRow`.
+- **Offline list sync UX** — Notes and Checklists show a subtle “Last sync” timestamp in the status row.
+- **Note card rendering** — `NoteCard` now memoizes derived values to reduce recomputation while scrolling.
+- **CHANGELOG links** — Deduplicated release reference links in the footer.
+- **Lifecycle-aware state** — Main and major screens collect settings and repository `Flow`s with **`collectAsStateWithLifecycle`**.
+- **Rotation / navigation setup** — `JottyApp` and `MainScreen` use **`rememberSaveable`** (or equivalent) so resolved setup vs main navigation and start tab do not flash loading on configuration change.
+- **Online notes architecture** — Online `NotesScreen` state is driven by **`NotesViewModel`** (search, filters, selection) for clearer rotation and test boundaries.
+- **Swipe delete + undo** — Online notes and checklist lists align with undo snackbars where applicable; checklist rows gain clearer delete affordances (e.g. overflow) alongside swipe when enabled; **`SwipeToDeleteContainer`** drops an unused **`CoroutineScope`** parameter.
+- **Debug HTTP logging** — OkHttp **`HttpLoggingInterceptor`** uses **`HEADERS`** (not **`BODY`**) and **redacts `x-api-key`**.
+- **System bars & back** — `MainActivity` enables **predictive back**; **`JottyTheme`** aligns **navigation bar** appearance with status bar / theme.
+- **Accessibility (checklists)** — Task text uses **`Role.Button`** semantics; row icon actions use **48dp** tap targets where needed.
+- **API error surfacing** — **`ApiErrorHelper`** reads capped **error-body** JSON (e.g. `message`, `error`, `detail`) when Retrofit returns **`HttpException`**.
+- **Coil note images** — **`NoteImageLoader`** uses a **bounded** loader map and tuned cache / size behavior for note Markdown images.
+- **Argon2 from note JSON** — **`XChaCha20Decryptor`** prefers **`t` / `m` / `p`** (and legacy keys) from the encrypted payload when present, then falls back to preset brute-force.
+- **Offline checklist pending ops** — Pending op lists are **deduplicated** when applying and replaying to reduce duplicate side effects on retries.
+- **README** — Gradle wrapper bootstrap example uses **Gradle 9.1.0** to match `gradle-wrapper.properties`.
+- **R8** — **`android.r8.strictFullModeForKeepRules=true`** in `gradle.properties` (release minify verified with current keep rules).
+- **Stable release APK** — Download **`jotty-android-{version}.apk`** from GitHub Releases (release-signed). Updating from an older **debug-signed** release APK may show “App not installed”; uninstall once, then install the new APK (server data is unaffected).
+
+### Fixed
+
+- **Checklist search placeholder mismatch** — Checklist search no longer uses notes-specific placeholder text.
+- **Offline notes sync data loss** — If any dirty note push fails, the repository **no longer** deletes local notes and replaces from server; replace + conflict copies run inside a **single `withTransaction`**. Added JVM coverage for the “push fails → local row survives” case (`OfflineNotesRepositoryTest`).
+- **Biometric unlock on encrypted notes** — After fingerprint auth, the app **decrypts** the note with the stored passphrase instead of treating the passphrase string as the decrypted body (`NoteDetailScreen`, `XChaCha20Decryptor`).
+- **Decrypt log hygiene** — XChaCha20 decrypt diagnostics no longer log passphrase length or JSON prefixes at **INFO** unless **Settings → Debug logging** is on (`AppLog.isDebugEnabled()`).
+
+### Security
+
+- **Cleartext traffic** — Removed blanket **`usesCleartextTraffic="true"`**; HTTPS-by-default via **`networkSecurityConfig`** (see XML for debug vs release behavior and homelab notes).
+- **Backups** — **`android:fullBackupContent`** and **`android:dataExtractionRules`** exclude DataStore, encrypted shared preferences, and biometric passphrase prefs from cloud/device-transfer backups where configured.
+
+---
+
 ## [1.3.1] - 2026-05-07
 
 ### Added
@@ -519,25 +579,28 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.3.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.2
 [1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.0
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.2.9]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.9
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
+[1.2.8]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.8
+[1.2.7]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.7
+[1.2.6]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.6
+[1.2.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.5
 [1.2.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.4
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.2.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.3
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
+[1.2.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.2
+[1.2.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.1
+[1.2.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.0
+[1.1.7]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.7
+[1.1.6]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.6
+[1.1.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.5
+[1.1.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.4
+[1.1.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.3
 [1.1.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.2
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.1.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.1
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.1.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.0
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.0.2-1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2-1
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.0.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.0.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.1
-[1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.0.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.0

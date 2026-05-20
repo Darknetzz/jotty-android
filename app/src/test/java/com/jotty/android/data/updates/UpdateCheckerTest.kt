@@ -7,7 +7,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UpdateCheckerTest {
-
     @Test
     fun `parseUpdateChannel maps known values and falls back to Stable`() {
         assertEquals(UpdateChannel.Stable, parseUpdateChannel(null))
@@ -37,11 +36,12 @@ class UpdateCheckerTest {
 
     @Test
     fun `commitFromDevReleaseBody parses Commit line`() {
-        val body = """
+        val body =
+            """
             Rolling pre-release build from `dev`.
             Commit: abcdef0123456789abcdef0123456789abcdef01
             Run: https://github.com/.../actions/runs/12345
-        """.trimIndent()
+            """.trimIndent()
         assertEquals(
             "abcdef0123456789abcdef0123456789abcdef01",
             UpdateChecker.commitFromDevReleaseBody(body),

@@ -4,7 +4,6 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class NoteEncryptionTest {
-
     // ── parse: plain content ────────────────────────────────────────────────
 
     @Test
@@ -28,13 +27,14 @@ class NoteEncryptionTest {
 
     @Test
     fun `parse returns Plain for frontmatter without encrypted flag`() {
-        val content = """
+        val content =
+            """
             |---
             |title: My Note
             |category: General
             |---
             |Some content here.
-        """.trimMargin()
+            """.trimMargin()
         val result = NoteEncryption.parse(content)
         assertTrue(result is ParsedNoteContent.Plain)
     }
@@ -43,7 +43,8 @@ class NoteEncryptionTest {
 
     @Test
     fun `parse detects xchacha encrypted frontmatter`() {
-        val content = """
+        val content =
+            """
             |---
             |uuid: abc-123
             |title: Secret Note
@@ -51,7 +52,7 @@ class NoteEncryptionTest {
             |encryptionMethod: xchacha
             |---
             |{"alg":"xchacha20","salt":"dGVzdA==","nonce":"dGVzdA==","data":"dGVzdA=="}
-        """.trimMargin()
+            """.trimMargin()
         val result = NoteEncryption.parse(content)
         assertTrue(result is ParsedNoteContent.Encrypted)
         val enc = result as ParsedNoteContent.Encrypted
@@ -63,14 +64,15 @@ class NoteEncryptionTest {
 
     @Test
     fun `parse detects pgp encrypted frontmatter`() {
-        val content = """
+        val content =
+            """
             |---
             |encrypted: true
             |encryptionMethod: pgp
             |---
             |-----BEGIN PGP MESSAGE-----
             |...
-        """.trimMargin()
+            """.trimMargin()
         val result = NoteEncryption.parse(content)
         assertTrue(result is ParsedNoteContent.Encrypted)
         assertEquals("pgp", (result as ParsedNoteContent.Encrypted).encryptionMethod)
@@ -78,12 +80,13 @@ class NoteEncryptionTest {
 
     @Test
     fun `parse defaults encryption method to xchacha when not specified`() {
-        val content = """
+        val content =
+            """
             |---
             |encrypted: true
             |---
             |some body
-        """.trimMargin()
+            """.trimMargin()
         val result = NoteEncryption.parse(content)
         assertTrue(result is ParsedNoteContent.Encrypted)
         assertEquals("xchacha", (result as ParsedNoteContent.Encrypted).encryptionMethod)
@@ -91,13 +94,14 @@ class NoteEncryptionTest {
 
     @Test
     fun `parse handles encrypted yes value`() {
-        val content = """
+        val content =
+            """
             |---
             |encrypted: yes
             |encryptionMethod: xchacha
             |---
             |body
-        """.trimMargin()
+            """.trimMargin()
         val result = NoteEncryption.parse(content)
         assertTrue(result is ParsedNoteContent.Encrypted)
     }

@@ -5,15 +5,16 @@ import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
+import android.util.Base64
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
 import com.jotty.android.util.AppLog
+import java.nio.ByteBuffer
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
-import android.util.Base64
 
 /**
  * Stores note-decryption passphrases encrypted with a biometric-protected AES-GCM key
@@ -27,7 +28,6 @@ import android.util.Base64
  *   key "ct_<instanceId>"  → Base64 ciphertext + tag
  */
 class BiometricPassphraseStore(private val context: Context) {
-
     private val prefs: SharedPreferences by lazy {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
@@ -39,8 +39,7 @@ class BiometricPassphraseStore(private val context: Context) {
     }
 
     /** True when a passphrase is stored for [instanceId]. */
-    fun hasPassphrase(instanceId: String): Boolean =
-        prefs.contains(ivKey(instanceId)) && prefs.contains(ctKey(instanceId))
+    fun hasPassphrase(instanceId: String): Boolean = prefs.contains(ivKey(instanceId)) && prefs.contains(ctKey(instanceId))
 
     /**
      * Returns an initialized [Cipher] ready for encryption. Pass this to
@@ -89,9 +88,14 @@ class BiometricPassphraseStore(private val context: Context) {
      * Encrypts and stores [passphrase] using the biometric-authenticated [cipher].
      * Must be called from the [androidx.biometric.BiometricPrompt] success callback.
      */
-    fun savePassphrase(instanceId: String, passphrase: String, cipher: Cipher) {
+    fun savePassphrase(
+        instanceId: String,
+        passphrase: CharArray,
+        cipher: Cipher,
+    ) {
+        val bytes = utf8Encode(passphrase)
         try {
-            val ct = cipher.doFinal(passphrase.toByteArray(Charsets.UTF_8))
+            val ct = cipher.doFinal(bytes)
             prefs.edit()
                 .putString(ivKey(instanceId), Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
                 .putString(ctKey(instanceId), Base64.encodeToString(ct, Base64.NO_WRAP))
@@ -99,19 +103,33 @@ class BiometricPassphraseStore(private val context: Context) {
             AppLog.d(TAG, "Passphrase saved for $instanceId")
         } catch (e: Exception) {
             AppLog.e(TAG, "savePassphrase failed for $instanceId", e)
+        } finally {
+            bytes.fill(0)
         }
     }
 
     /**
      * Decrypts and returns the stored passphrase using the biometric-authenticated [cipher].
      * Must be called from the [androidx.biometric.BiometricPrompt] success callback.
-     * Returns null on any error.
+     * Caller should clear the returned [CharArray] with [clearPassphrase] when finished.
      */
-    fun loadPassphrase(instanceId: String, cipher: Cipher): String? {
+    fun loadPassphrase(
+        instanceId: String,
+        cipher: Cipher,
+    ): CharArray? {
         return try {
             val ctB64 = prefs.getString(ctKey(instanceId), null) ?: return null
             val ct = Base64.decode(ctB64, Base64.NO_WRAP)
-            String(cipher.doFinal(ct), Charsets.UTF_8)
+            val plainBytes = cipher.doFinal(ct)
+            try {
+                val cb = Charsets.UTF_8.decode(ByteBuffer.wrap(plainBytes))
+                val n = cb.remaining()
+                val out = CharArray(n)
+                cb.get(out)
+                out
+            } finally {
+                plainBytes.fill(0)
+            }
         } catch (e: Exception) {
             AppLog.e(TAG, "loadPassphrase failed for $instanceId", e)
             null
@@ -149,13 +167,14 @@ class BiometricPassphraseStore(private val context: Context) {
         val ks = KeyStore.getInstance(KEYSTORE).apply { load(null) }
         val alias = keyAlias(instanceId)
         ks.getKey(alias, null)?.let { return it as SecretKey }
-        val spec = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-            .setKeySize(256)
-            .setUserAuthenticationRequired(true)
-            .setInvalidatedByBiometricEnrollment(true)
-            .build()
+        val spec =
+            KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                .setKeySize(256)
+                .setUserAuthenticationRequired(true)
+                .setInvalidatedByBiometricEnrollment(true)
+                .build()
         return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).apply {
             init(spec)
         }.generateKey()
@@ -167,7 +186,9 @@ class BiometricPassphraseStore(private val context: Context) {
     }
 
     private fun keyAlias(instanceId: String) = "$KEY_ALIAS_PREFIX$instanceId"
+
     private fun ivKey(instanceId: String) = "iv_$instanceId"
+
     private fun ctKey(instanceId: String) = "ct_$instanceId"
 
     companion object {

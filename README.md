@@ -30,9 +30,14 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 
 ## Releases / Download
 
-Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page. When a GitHub Release is published, CI builds a release APK and attaches it automatically.
+Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page.
 
-- **Stable release builds:** download the `jotty-android-*.apk` asset from the release you want.
+- **With release signing configured** (recommended for this repo): CI attaches **`jotty-android-{version}.apk`** — minified and signed with the maintainer’s release keystore so updates install over the previous release without uninstalling.
+- **Without signing secrets** (e.g. forks): CI attaches **`jotty-android-{version}-debug.apk`** only (debug-signed).
+
+Maintainers: create one release keystore and add GitHub Actions secrets — see **`keystore.properties.example`** (fixes [#9](https://github.com/Darknetzz/jotty-android/issues/9)).
+
+- **Stable release builds:** download **`jotty-android-*.apk`** from the release you want (or `*-debug.apk` if that is the only asset).
 - **Rolling dev build:** use the [Dev Latest pre-release](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest), which is updated automatically on every push to `dev`.
 
 Install on your device by enabling "Install from unknown sources" if needed.
@@ -87,7 +92,7 @@ If the wrapper is missing (e.g. `gradle-wrapper.jar`), create it:
 
 ```bash
 # With Gradle installed:
-gradle wrapper --gradle-version 8.9
+gradle wrapper --gradle-version 9.1.0
 ```
 
 ### Build commands
@@ -101,6 +106,13 @@ gradle wrapper --gradle-version 8.9
 ```
 
 ## Troubleshooting
+
+### “App not installed” when updating
+
+Android only allows an update when the new APK is signed with the **same certificate** as the installed app. This happens if you switch between a **debug** build, a **locally built** APK, and a **GitHub release** APK, or if releases were signed with different keys.
+
+- **Fix for users:** Uninstall the old app once, then install the APK from the latest [Release](https://github.com/Darknetzz/jotty-android/releases). Data on the device is removed with uninstall; Jotty server data is unchanged.
+- **Fix for maintainers:** Use one release keystore for every GitHub release (secrets in `keystore.properties.example`). Do not change the keystore between releases.
 
 ### Server log: `Session check error` / `ERR_SSL_WRONG_VERSION_NUMBER`
 

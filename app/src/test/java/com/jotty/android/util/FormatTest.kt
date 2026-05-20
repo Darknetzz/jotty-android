@@ -4,7 +4,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class FormatTest {
-
     @Test
     fun `formatNoteDate returns date part for ISO string`() {
         assertEquals("2026-02-08", formatNoteDate("2026-02-08T12:30:00Z"))

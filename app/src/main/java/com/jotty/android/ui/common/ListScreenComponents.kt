@@ -3,19 +3,40 @@ package com.jotty.android.ui.common
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
+import java.text.DateFormat
+import java.util.Date
+
+@Stable
+class ListScreenState(
+    loading: Boolean = false,
+    errorMessage: String? = null,
+) {
+    var loading by mutableStateOf(loading)
+    var errorMessage by mutableStateOf(errorMessage)
+}
+
+@Composable
+fun rememberListScreenState(
+    loading: Boolean = false,
+    errorMessage: String? = null,
+): ListScreenState = remember { ListScreenState(loading, errorMessage) }
 
 /** Centered loading spinner for list screens. */
 @Composable
@@ -34,6 +55,84 @@ fun LoadingState(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun OfflineSyncStatusRow(
+    isOnline: Boolean,
+    isSyncing: Boolean,
+    lastSyncAttemptEpochMs: Long?,
+    onRefresh: () -> Unit,
+    trailingActions: @Composable RowScope.() -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val statusText =
+        when {
+            isSyncing -> stringResource(R.string.syncing)
+            isOnline -> stringResource(R.string.online)
+            else -> stringResource(R.string.offline)
+        }
+    val lastSyncText =
+        remember(lastSyncAttemptEpochMs) {
+            lastSyncAttemptEpochMs?.let {
+                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
+            }
+        }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            when {
+                isSyncing ->
+                    Icon(
+                        Icons.Default.CloudQueue,
+                        contentDescription = statusText,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                isOnline ->
+                    Icon(
+                        Icons.Default.CloudDone,
+                        contentDescription = statusText,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp),
+                    )
+                else ->
+                    Icon(
+                        Icons.Default.CloudOff,
+                        contentDescription = statusText,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+            }
+            Column {
+                Text(
+                    text = statusText,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (lastSyncText != null) {
+                    Text(
+                        text = stringResource(R.string.last_sync_attempt_at, lastSyncText),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+        Row {
+            IconButton(onClick = onRefresh, enabled = isOnline && !isSyncing) {
+                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
+            }
+            trailingActions()
         }
     }
 }
@@ -79,18 +178,20 @@ fun ListScreenContent(
     when {
         loading && isEmpty -> LoadingState()
         error != null -> ErrorState(message = error, onRetry = onRetry)
-        isEmpty -> EmptyState(
-            icon = emptyIcon,
-            title = emptyTitle,
-            subtitle = emptySubtitle,
-        )
-        else -> PullToRefreshBox(
-            isRefreshing = loading,
-            onRefresh = onRefresh,
-            state = pullRefreshState,
-        ) {
-            content()
-        }
+        isEmpty ->
+            EmptyState(
+                icon = emptyIcon,
+                title = emptyTitle,
+                subtitle = emptySubtitle,
+            )
+        else ->
+            PullToRefreshBox(
+                isRefreshing = loading,
+                onRefresh = onRefresh,
+                state = pullRefreshState,
+            ) {
+                content()
+            }
     }
 }
 
@@ -137,16 +238,36 @@ fun EmptyState(
 fun SwipeToDeleteContainer(
     enabled: Boolean,
     onDelete: suspend () -> Unit,
-    scope: CoroutineScope,
     modifier: Modifier = Modifier,
+    deleteConfirmMessage: String? = null,
     content: @Composable () -> Unit,
 ) {
     if (enabled) {
         val dismissState = rememberSwipeToDismissBoxState()
+        var showDeleteConfirm by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        val resolvedConfirmMessage =
+            deleteConfirmMessage ?: stringResource(R.string.delete_confirm_generic)
         LaunchedEffect(dismissState.currentValue) {
             if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
-                onDelete()
+                showDeleteConfirm = true
             }
+        }
+        if (showDeleteConfirm) {
+            ConfirmDeleteDialog(
+                message = resolvedConfirmMessage,
+                onDismiss = {
+                    showDeleteConfirm = false
+                    scope.launch { dismissState.reset() }
+                },
+                onConfirm = {
+                    showDeleteConfirm = false
+                    scope.launch {
+                        onDelete()
+                        dismissState.reset()
+                    }
+                },
+            )
         }
         SwipeToDismissBox(
             state = dismissState,
@@ -154,10 +275,11 @@ fun SwipeToDeleteContainer(
             enableDismissFromStartToEnd = false,
             backgroundContent = {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.error)
-                        .padding(horizontal = 20.dp),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.error)
+                            .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.CenterEnd,
                 ) {
                     Icon(

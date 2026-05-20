@@ -15,6 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -28,20 +29,38 @@ import com.jotty.android.util.formatNoteDate
 import com.jotty.android.util.stripInvisibleFromEdges
 
 @Composable
-internal fun NoteCard(note: Note, onClick: () -> Unit) {
-    val isEncrypted = note.encrypted == true || NoteEncryption.isEncrypted(note.content)
+internal fun NoteCard(
+    note: Note,
+    onClick: () -> Unit,
+) {
+    val titleText = remember(note.title) { stripInvisibleFromEdges(note.title) }
+    val strippedContent = remember(note.content) { stripInvisibleFromEdges(note.content) }
+    val isEncrypted =
+        remember(note.encrypted, note.content) {
+            note.encrypted == true || NoteEncryption.isEncrypted(note.content)
+        }
+    val contentPreview =
+        remember(strippedContent, isEncrypted) {
+            if (isEncrypted || strippedContent.isBlank()) {
+                null
+            } else {
+                strippedContent.take(100) + if (strippedContent.length > 100) "\u2026" else ""
+            }
+        }
+    val updatedAtText = remember(note.updatedAt) { formatNoteDate(note.updatedAt) }
     Card(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             Text(
-                text = stripInvisibleFromEdges(note.title),
+                text = titleText,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -63,10 +82,9 @@ internal fun NoteCard(note: Note, onClick: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            } else if (note.content.isNotBlank()) {
-                val contentStripped = stripInvisibleFromEdges(note.content)
+            } else if (contentPreview != null) {
                 Text(
-                    text = contentStripped.take(100) + if (contentStripped.length > 100) "\u2026" else "",
+                    text = contentPreview,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -88,7 +106,7 @@ internal fun NoteCard(note: Note, onClick: () -> Unit) {
                 }
                 if (note.updatedAt.isNotBlank()) {
                     Text(
-                        text = formatNoteDate(note.updatedAt),
+                        text = updatedAtText,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

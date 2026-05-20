@@ -20,7 +20,6 @@ class OfflineEnabledNotesViewModel(
     private val offlineRepository: OfflineNotesRepository,
     private val api: JottyApi,
 ) : ViewModel() {
-
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -44,25 +43,26 @@ class OfflineEnabledNotesViewModel(
         _searchQuery.value = "(Local copy)"
     }
 
-    val filteredNotes: StateFlow<List<Note>> = combine(
-        offlineRepository.getNotesFlow(),
-        _searchQuery.debounce { q -> if (q.isBlank()) 0L else SEARCH_DEBOUNCE_MS },
-        _selectedCategory,
-    ) { notes, query, category ->
-        Triple(notes, query, category)
-    }
-        .flatMapLatest { (notes, query, category) ->
-            flow {
-                emit(
-                    when {
-                        query.isNotBlank() -> offlineRepository.searchNotes(query)
-                        category != null -> offlineRepository.getNotesByCategory(category)
-                        else -> notes
-                    },
-                )
-            }
+    val filteredNotes: StateFlow<List<Note>> =
+        combine(
+            offlineRepository.getNotesFlow(),
+            _searchQuery.debounce { q -> if (q.isBlank()) 0L else SEARCH_DEBOUNCE_MS },
+            _selectedCategory,
+        ) { notes, query, category ->
+            Triple(notes, query, category)
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+            .flatMapLatest { (notes, query, category) ->
+                flow {
+                    emit(
+                        when {
+                            query.isNotBlank() -> offlineRepository.searchNotes(query)
+                            category != null -> offlineRepository.getNotesByCategory(category)
+                            else -> notes
+                        },
+                    )
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _selectedNote = MutableStateFlow<Note?>(null)
     val selectedNote: StateFlow<Note?> = _selectedNote.asStateFlow()
@@ -81,7 +81,10 @@ class OfflineEnabledNotesViewModel(
     private val _noteCategories = MutableStateFlow<List<String>>(emptyList())
     val noteCategories: StateFlow<List<String>> = _noteCategories.asStateFlow()
 
-    fun loadCategories(isOnline: Boolean, localNotes: List<Note>) {
+    fun loadCategories(
+        isOnline: Boolean,
+        localNotes: List<Note>,
+    ) {
         viewModelScope.launch {
             try {
                 if (isOnline) {

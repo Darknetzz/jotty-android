@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChecklistDao {
-
     @Query("SELECT * FROM checklists WHERE instanceId = :instanceId AND isDeleted = 0 ORDER BY updatedAt DESC")
     fun getAllChecklistsFlow(instanceId: String): Flow<List<ChecklistEntity>>
 

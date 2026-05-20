@@ -50,6 +50,7 @@
 
     <!-- Checklists -->
     <string name="new_checklist">New checklist</string>
+    <string name="search_checklists">Search checklists</string>
     <string name="no_checklists_yet">No checklists yet</string>
     <string name="tap_add_checklist">Tap + to add a checklist</string>
     <string name="task_project_sub_tasks">Task project (sub-tasks)</string>
@@ -63,6 +64,14 @@
     <string name="section_to_do">• To Do (%1$d)</string>
     <string name="section_completed">• Completed (%1$d)</string>
     <string name="item_placeholder">…</string>
+    <string name="rename">Rename</string>
+    <string name="rename_checklist">Rename checklist</string>
+    <string name="confirm_delete_title">Delete?</string>
+    <string name="delete_confirm_generic">This cannot be undone.</string>
+    <string name="delete_checklist_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="delete_task_confirm">Delete this task? This cannot be undone.</string>
+    <string name="delete_task_named_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="delete_note_confirm">Delete \"%1$s\"? This cannot be undone.</string>
 
     <!-- Notes -->
     <string name="new_note">New note</string>
@@ -70,11 +79,14 @@
     <string name="no_notes_yet">No notes yet</string>
     <string name="tap_add_note">Tap + to add a note</string>
     <string name="note_not_found">Note not found</string>
+    <string name="note_deleted">Note deleted</string>
+    <string name="checklist_deleted">Checklist deleted</string>
     <string name="encrypted">Encrypted</string>
     <string name="no_content">No content</string>
     <string name="export_share">Export / Share</string>
     <string name="export_note">Export note</string>
     <string name="edit">Edit</string>
+    <string name="more_options">More options</string>
     <string name="decrypt">Decrypt</string>
     <string name="encrypt">Encrypt</string>
     <string name="write_your_note">Write your note…</string>
@@ -171,9 +183,14 @@
     <string name="offline">Offline</string>
     <string name="online">Online</string>
     <string name="saved_locally">Saved locally</string>
+    <string name="undo">Undo</string>
     <string name="will_sync_when_online">Will sync when online</string>
+    <string name="last_sync_attempt_at">Last sync: %1$s</string>
+    <string name="sync_duration">Duration</string>
+    <string name="sync_last_error">Last error</string>
     <string name="sync_conflicts_detected">%d conflict(s) detected. Local copies created to preserve your data.</string>
     <string name="sync_replay_ops_failed">%d checklist change(s) could not be replayed automatically. Please review the checklist.</string>
+    <string name="sync_push_failed_kept_local">Could not sync %1$d change(s). Your local notes were kept and will retry.</string>
     <string name="conflict_copy_pending">1 local copy needs review.</string>
     <string name="conflict_copies_pending">%d local copies need review.</string>
     <string name="view_conflicts">View copies</string>

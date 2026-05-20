@@ -131,6 +131,31 @@ class OfflineChecklistsRepository(
             }
         }
 
+    suspend fun updateChecklist(
+        id: String,
+        title: String,
+    ): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val existing =
+                    checklistDao.getById(id)
+                        ?: throw Exception("Checklist not found")
+                val updated =
+                    existing.copy(
+                        title = title,
+                        updatedAt = Instant.now().toString(),
+                        isDirty = true,
+                    )
+                checklistDao.update(updated)
+                AppLog.d(TAG, "Checklist title updated locally: $id")
+                if (isOnline.value) {
+                    syncChecklist(updated)
+                }
+                checklistDao.getById(id)?.toChecklist()
+                    ?: updated.toChecklist()
+            }
+        }
+
     // ─── Item operations ────────────────────────────────────────────────────
 
     suspend fun addItem(

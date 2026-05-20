@@ -74,6 +74,45 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
+    fun updateChecklist_whenOffline_marksDirtyAndUpdatesTitle() =
+        runTest {
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Old title",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = "[]",
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = false,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    registerNetworkCallback = false,
+                )
+
+            val result = repo.updateChecklist("list-1", "New title")
+
+            assertTrue(result.isSuccess)
+            assertEquals("New title", result.getOrNull()?.title)
+            val entity = database.checklistDao().getById("list-1")
+            assertEquals("New title", entity?.title)
+            assertEquals(true, entity?.isDirty)
+        }
+
+    @Test
     fun syncChecklists_whenPendingReplayFails_tracksReplayFailureCount() =
         runTest {
             database.checklistDao().insert(

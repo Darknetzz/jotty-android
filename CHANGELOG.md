@@ -6,6 +6,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ### Added
 
+- **Checklist detail actions** — Rename and delete a checklist from the detail screen overflow menu (online and offline).
 - **Performance baseline test** — Added `PerformanceBaselineTest` for startup and Notes-tab timing.
 - **Sync diagnostics metadata** — Added last attempt/success time, duration, and error state for offline sync.
 - **Sync status copy** — Added strings for last sync timestamp, duration, and last error.

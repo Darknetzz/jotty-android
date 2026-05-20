@@ -64,6 +64,8 @@
     <string name="section_to_do">• To Do (%1$d)</string>
     <string name="section_completed">• Completed (%1$d)</string>
     <string name="item_placeholder">…</string>
+    <string name="rename">Rename</string>
+    <string name="rename_checklist">Rename checklist</string>
 
     <!-- Notes -->
     <string name="new_note">New note</string>

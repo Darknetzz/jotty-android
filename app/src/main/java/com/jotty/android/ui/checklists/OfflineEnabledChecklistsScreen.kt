@@ -501,6 +501,7 @@ private fun OfflineChecklistDetailContent(
     val items = liveChecklist.items
 
     var newItemText by remember { mutableStateOf("") }
+    var showRenameDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val isProject =
@@ -521,20 +522,26 @@ private fun OfflineChecklistDetailContent(
         }
     }
 
+    if (showRenameDialog) {
+        ChecklistRenameDialog(
+            initialTitle = liveChecklist.title,
+            onDismiss = { showRenameDialog = false },
+            onConfirm = { newTitle ->
+                showRenameDialog = false
+                scope.launch {
+                    handleResult(offlineRepository.updateChecklist(liveChecklist.id, newTitle))
+                }
+            },
+        )
+    }
+
     Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-            }
-            Text(
-                liveChecklist.title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        ChecklistDetailHeader(
+            title = liveChecklist.title,
+            onBack = onBack,
+            onRename = { showRenameDialog = true },
+            onDelete = onDelete,
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 

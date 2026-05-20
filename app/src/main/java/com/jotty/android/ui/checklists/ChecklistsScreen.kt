@@ -37,6 +37,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
@@ -120,10 +121,7 @@ fun ChecklistsScreen(
                         vm.loadChecklists()
                         vm.setSelectedList(it)
                     },
-                    onDelete = {
-                        vm.loadChecklists()
-                        vm.setSelectedList(null)
-                    },
+                    onDelete = { scope.launch { deleteWithUndoForList(currentList) } },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onDeleteFailed = { scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) } },
                 )
@@ -337,10 +335,13 @@ private fun ChecklistDetailScreen(
     onDeleteFailed: () -> Unit = {},
 ) {
     var items by remember { mutableStateOf(checklist.items) }
+    var displayTitle by remember { mutableStateOf(checklist.title) }
+    var showRenameDialog by remember { mutableStateOf(false) }
     var newItemText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(checklist.id, checklist.items) {
+    LaunchedEffect(checklist.id, checklist.title, checklist.items) {
+        displayTitle = checklist.title
         items = checklist.items
     }
 
@@ -358,20 +359,40 @@ private fun ChecklistDetailScreen(
         }
     }
 
+    if (showRenameDialog) {
+        ChecklistRenameDialog(
+            initialTitle = displayTitle,
+            onDismiss = { showRenameDialog = false },
+            onConfirm = { newTitle ->
+                showRenameDialog = false
+                scope.launch {
+                    try {
+                        val response =
+                            api.updateChecklist(
+                                checklist.id,
+                                UpdateChecklistRequest(title = newTitle, category = checklist.category),
+                            )
+                        if (response.success && response.data != null) {
+                            displayTitle = response.data.title
+                            onUpdate(response.data)
+                        } else {
+                            onSaveFailed()
+                        }
+                    } catch (_: Exception) {
+                        onSaveFailed()
+                    }
+                }
+            },
+        )
+    }
+
     Column(Modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-            }
-            Text(
-                checklist.title,
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        ChecklistDetailHeader(
+            title = displayTitle,
+            onBack = onBack,
+            onRename = { showRenameDialog = true },
+            onDelete = onDelete,
+        )
 
         Spacer(modifier = Modifier.height(8.dp))
 

@@ -141,7 +141,7 @@ fun OfflineEnabledChecklistsScreen(
             if (!isOnline) return@launch
             if (showLoading) screenState.loading = true
             screenState.errorMessage = null
-            val result = offlineRepository.syncChecklists()
+            val result = offlineRepository.syncChecklists(force = showLoading)
             if (result.isFailure) {
                 screenState.errorMessage =
                     ApiErrorHelper.userMessage(

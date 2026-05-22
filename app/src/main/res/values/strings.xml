@@ -191,6 +191,8 @@
     <string name="sync_conflicts_detected">%d conflict(s) detected. Local copies created to preserve your data.</string>
     <string name="sync_replay_ops_failed">%d checklist change(s) could not be replayed automatically. Please review the checklist.</string>
     <string name="sync_push_failed_kept_local">Could not sync %1$d change(s). Your local notes were kept and will retry.</string>
+    <string name="sync_push_failed_kept_local_checklists">Could not sync %1$d checklist change(s). Your local checklists were kept and will retry.</string>
+    <string name="checklist_reorder_not_available">Reordering checklist items is not available in the app yet. Use the Jotty web app to reorder items until the server adds a REST API for it.</string>
     <string name="conflict_copy_pending">1 local copy needs review.</string>
     <string name="conflict_copies_pending">%d local copies need review.</string>
     <string name="view_conflicts">View copies</string>

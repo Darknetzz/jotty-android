@@ -4,6 +4,21 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Note delete from detail** — Open a note → overflow (⋮) → Delete with confirmation; uses the same offline/sync path as list delete (`NoteDetailScreen`, `OfflineNoteDetailScreen`).
+- **Checklist reorder documentation** — `docs/CHECKLIST_REORDER.md` explains why item reorder is not in the app (Jotty web uses a server action, not the REST API) and what would unblock Android support.
+- **Checklist sync push-failure copy** — `sync_push_failed_kept_local_checklists` when checklist changes could not be pushed and local data was kept.
+
+### Changed
+
+- **Offline checklist sync** — After pushing dirty checklists, sync **aborts the server pull** if any rows stay dirty (mirrors notes). Failed `syncChecklist` / delete push and **pending-op replay failures** no longer proceed to a full local replace. Conflict detection also considers **item trees** and pending ops, not only title/category.
+- **Checklist sync races** — Item add/check/delete/update runs under a mutation guard; automatic sync is **deferred** while mutations are in flight and **debounced** (3s). Manual pull-to-refresh uses `syncChecklists(force = true)` (`OfflineChecklistsRepository`, `OfflineEnabledChecklistsScreen`).
+
+### Fixed
+
+- **Offline checklist sync data loss** — If push or pending-op replay fails, the repository no longer `deleteAll`s and replaces from a possibly stale server snapshot; local checklist state is kept for retry. Added JVM test `syncChecklists_whenPushFails_doesNotWipeLocalChecklistsWithServerSnapshot`; replay-failure test now expects sync failure with dirty row preserved (`OfflineChecklistsRepositoryTest`).
+
 ---
 
 ## [1.3.2] - 2026-05-20

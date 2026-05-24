@@ -72,6 +72,15 @@ Preferred flow (automated):
 
 Both scripts can prompt for a version (default is current patch + 1), increment `VERSION_CODE`, and promote `CHANGELOG.md` from `Unreleased` to a dated release entry.
 
+**Typical stable release flow**
+
+1. Commit release prep on **`dev`** (`.\release.ps1`, then commit `gradle.properties` + `CHANGELOG.md`).
+2. Push **`dev`**, open a PR **`dev` → `main`**, merge (required by branch protection).
+3. Tag **`vX.Y.Z`** on **`main`** and publish the GitHub release (triggers the release APK workflow).
+4. **`dev` is synced to `main`** automatically by [sync-dev-with-main.yml](.github/workflows/sync-dev-with-main.yml) (fast-forward so both branches match — `main` would otherwise stay “ahead” with merge commits only).
+
+Manual sync if needed: `.\scripts\sync-dev-with-main.ps1` or `./scripts/sync-dev-with-main.sh`.
+
 Manual fallback: update both values in `gradle.properties`, add an entry to **`CHANGELOG.md`**, then build and tag (e.g. `v1.0.1`).
 
 ### Git: `dev-latest` tag conflicts on pull

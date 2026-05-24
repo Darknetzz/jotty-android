@@ -4,6 +4,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Changed
+
+- **Branch sync after release** — CI fast-forwards `dev` to `main` after each push to `main`, so release merge commits do not leave `main` ahead of `dev` with identical trees.
+
 ---
 
 ## [1.3.4] - 2026-05-24

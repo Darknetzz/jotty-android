@@ -38,6 +38,26 @@ class ApiErrorHelperTest {
     }
 
     @Test
+    fun errorMessageResId_ioException_cleartext_returns_dedicated_message() {
+        assertEquals(
+            R.string.error_cleartext_http_not_allowed,
+            ApiErrorHelper.errorMessageResId(
+                IOException("Cleartext HTTP traffic to 192.168.1.10 not permitted"),
+            ),
+        )
+    }
+
+    @Test
+    fun errorMessageResId_ioException_connection_refused_returns_dedicated_message() {
+        assertEquals(
+            R.string.error_connection_refused,
+            ApiErrorHelper.errorMessageResId(
+                IOException("Failed to connect to /192.168.1.10:8080"),
+            ),
+        )
+    }
+
+    @Test
     fun errorMessageResId_sslException_returns_ssl_message() {
         assertEquals(
             R.string.error_ssl_or_certificate,

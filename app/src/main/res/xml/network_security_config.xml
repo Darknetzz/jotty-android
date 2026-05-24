@@ -1,19 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Release: HTTPS only (cleartext off). Trust user-installed CAs for self-hosted TLS (e.g. mkcert). -->
+<!-- Self-hosted: HTTP on LAN (Docker/NAS) and HTTPS with user-installed CAs (e.g. mkcert). -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false">
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
         </trust-anchors>
     </base-config>
-    <!-- Debug builds: allow HTTP to localhost / dev servers (Logcat still shows no bodies; see ApiClient). -->
-    <debug-overrides>
-        <base-config cleartextTrafficPermitted="true">
-            <trust-anchors>
-                <certificates src="system" />
-                <certificates src="user" />
-            </trust-anchors>
-        </base-config>
-    </debug-overrides>
 </network-security-config>

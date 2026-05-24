@@ -14,9 +14,12 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 - **Offline checklist sync** — After pushing dirty checklists, sync **aborts the server pull** if any rows stay dirty (mirrors notes). Failed `syncChecklist` / delete push and **pending-op replay failures** no longer proceed to a full local replace. Conflict detection also considers **item trees** and pending ops, not only title/category.
 - **Checklist sync races** — Item add/check/delete/update runs under a mutation guard; automatic sync is **deferred** while mutations are in flight and **debounced** (3s). Manual pull-to-refresh uses `syncChecklists(force = true)` (`OfflineChecklistsRepository`, `OfflineEnabledChecklistsScreen`).
+- **Setup server URL** — Hint to include `http://` or `https://` for local servers.
 
 ### Fixed
 
+- **HTTP (LAN) connections on release builds** — Restored cleartext HTTP for self-hosted servers (e.g. Docker on a NAS) after 1.3.2 blocked it ([#28](https://github.com/Darknetzz/jotty-android/issues/28)); `network_security_config` and manifest align with homelab `http://` URLs while still trusting user-installed CAs for HTTPS.
+- **Network error messages** — `ApiErrorHelper` maps cleartext-blocked and connection-refused failures to dedicated strings instead of generic “Network error”.
 - **Offline checklist sync data loss** — If push or pending-op replay fails, the repository no longer `deleteAll`s and replaces from a possibly stale server snapshot; local checklist state is kept for retry. Added JVM test `syncChecklists_whenPushFails_doesNotWipeLocalChecklistsWithServerSnapshot`; replay-failure test now expects sync failure with dirty row preserved (`OfflineChecklistsRepositoryTest`).
 
 ---

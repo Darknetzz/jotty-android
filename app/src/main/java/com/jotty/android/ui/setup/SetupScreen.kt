@@ -356,6 +356,12 @@ private fun InstanceForm(
             modifier = Modifier.fillMaxWidth(),
             isError = error != null,
         )
+        Text(
+            text = stringResource(R.string.server_url_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = apiKey,

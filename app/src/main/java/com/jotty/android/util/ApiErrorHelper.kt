@@ -52,7 +52,7 @@ object ApiErrorHelper {
             is UnknownHostException -> R.string.no_internet_connection
             is SocketTimeoutException -> R.string.connection_timed_out
             is SSLException -> R.string.error_ssl_or_certificate
-            is IOException -> R.string.network_error
+            is IOException -> ioExceptionMessageResId(t)
             is HttpException ->
                 when (t.code()) {
                     401 -> R.string.error_invalid_api_key
@@ -62,6 +62,33 @@ object ApiErrorHelper {
                     in 500..599 -> R.string.server_error
                     else -> R.string.request_failed
                 }
-            else -> R.string.unknown_error
+            else -> unknownThrowableMessageResId(t)
+        }
+
+    private fun ioExceptionMessageResId(t: IOException): Int {
+        val combined = throwableMessages(t).joinToString(" ")
+        return when {
+            combined.contains("cleartext", ignoreCase = true) -> R.string.error_cleartext_http_not_allowed
+            combined.contains("connection refused", ignoreCase = true) ||
+                combined.contains("failed to connect", ignoreCase = true) -> R.string.error_connection_refused
+            else -> R.string.network_error
+        }
+    }
+
+    private fun unknownThrowableMessageResId(t: Throwable): Int {
+        val combined = throwableMessages(t).joinToString(" ")
+        if (combined.contains("cleartext", ignoreCase = true)) {
+            return R.string.error_cleartext_http_not_allowed
+        }
+        return R.string.unknown_error
+    }
+
+    private fun throwableMessages(t: Throwable): Sequence<String> =
+        sequence {
+            var current: Throwable? = t
+            while (current != null) {
+                current.message?.let { yield(it) }
+                current = current.cause
+            }
         }
 }

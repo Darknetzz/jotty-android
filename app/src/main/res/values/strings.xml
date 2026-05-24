@@ -227,6 +227,8 @@
     <string name="update_version_dev_format">Dev %1$s</string>
     <string name="downloading">Downloading…</string>
     <string name="install_failed">%1$s. You can install from the release page.</string>
+    <string name="update_signing_mismatch_hint">If the installer says “App not installed”, the APK may be signed differently than your installed app (common when switching between stable and dev). Uninstall Jotty once, then install the new APK. Your Jotty server data is not affected.</string>
+    <string name="update_dev_channel_hint">Dev builds update from the dev-latest release. Use the same signing as stable for in-app updates; otherwise uninstall once before installing dev.</string>
     <string name="open_release_page">Open release page</string>
     <string name="whats_new">What\'s new</string>
     <string name="about_easter_egg_title">Well spotted</string>

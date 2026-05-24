@@ -20,11 +20,71 @@ jobs:
 
       - uses: android-actions/setup-android@v4
 
-      - name: Build debug APK
+      - name: Read version name
+        id: ver
+        run: |
+          VERSION_NAME=$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2-)
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
+      # Same release keystore as stable releases so in-app dev updates install over v1.3.x stable.
+      - name: Decode release keystore
+        id: signing
+        env:
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -e
+          if [ -z "$ANDROID_KEYSTORE_B64" ]; then
+            echo "have_release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          for var in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!var}" ]; then
+              echo "::error::ANDROID_KEYSTORE_B64 is set but $var is missing. Set all four signing secrets."
+              exit 1
+            fi
+          done
+          echo "$ANDROID_KEYSTORE_B64" | base64 -d > "$GITHUB_WORKSPACE/ci-release.keystore"
+          {
+            echo "storeFile=$GITHUB_WORKSPACE/ci-release.keystore"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyAlias=$ANDROID_KEY_ALIAS"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+          } > keystore.properties
+          echo "have_release=true" >> "$GITHUB_OUTPUT"
+
+      - name: Build release dev APK
+        if: steps.signing.outputs.have_release == 'true'
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon -PDEV_BUILD_SHA=${GITHUB_SHA}
+
+      - name: Build debug dev APK (no release keystore)
+        if: steps.signing.outputs.have_release != 'true'
         run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon -PDEV_BUILD_SHA=${GITHUB_SHA}
 
-      - name: Rename debug APK for release asset
-        run: cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/jotty-android-debug.apk
+      - name: Prepare dev-latest asset
+        id: asset
+        run: |
+          VERSION="${{ steps.ver.outputs.VERSION_NAME }}"
+          if [ "${{ steps.signing.outputs.have_release }}" = "true" ]; then
+            OUT="jotty-android-${VERSION}-dev.apk"
+            cp app/build/outputs/apk/release/app-release.apk "$OUT"
+          else
+            OUT="jotty-android-${VERSION}-dev-debug.apk"
+            cp app/build/outputs/apk/debug/app-debug.apk "$OUT"
+          fi
+          echo "path=$OUT" >> "$GITHUB_OUTPUT"
+
+      - name: Signing reminder (no release keystore)
+        if: steps.signing.outputs.have_release != 'true'
+        run: |
+          {
+            echo "## Dev APK signing"
+            echo ""
+            echo "No release keystore secrets were configured. Attached **debug-signed** dev APK."
+            echo "Users on **release-signed** stable installs may see **App not installed** when updating via the app."
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Reset dev-latest release and tag
         env:
@@ -45,7 +105,7 @@ jobs:
             Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           prerelease: true
           makeLatest: false
-          artifacts: app/build/outputs/apk/debug/jotty-android-debug.apk
+          artifacts: ${{ steps.asset.outputs.path }}
           artifactErrorsFailBuild: true
           allowUpdates: false
           removeArtifacts: true

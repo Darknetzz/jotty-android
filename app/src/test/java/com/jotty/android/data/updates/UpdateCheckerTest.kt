@@ -1,5 +1,6 @@
 package com.jotty.android.data.updates
 
+import com.jotty.android.data.updates.GitHubAsset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -114,5 +115,21 @@ class UpdateCheckerTest {
         val remote = "1.3.0"
         val local = UpdateChecker.baseVersionNameWithoutDevSuffix("1.3.0-dev+abcdef0")
         assertFalse(UpdateChecker.isNewerVersion(remote, local))
+    }
+
+    @Test
+    fun `preferredApkAsset prefers release-signed over debug`() {
+        val assets =
+            listOf(
+                GitHubAsset("jotty-android-1.3.3-dev-debug.apk", "https://example.com/debug"),
+                GitHubAsset("jotty-android-1.3.3-dev.apk", "https://example.com/release"),
+            )
+        assertEquals("jotty-android-1.3.3-dev.apk", UpdateChecker.preferredApkAsset(assets)?.name)
+    }
+
+    @Test
+    fun `preferredApkAsset falls back to debug when only debug attached`() {
+        val assets = listOf(GitHubAsset("jotty-android-debug.apk", "https://example.com/debug"))
+        assertEquals("jotty-android-debug.apk", UpdateChecker.preferredApkAsset(assets)?.name)
     }
 }

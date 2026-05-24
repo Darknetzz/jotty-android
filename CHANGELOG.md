@@ -4,6 +4,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dev in-app updates (“App not installed”)** — `dev-latest` CI now builds a **release-signed** dev APK (same keystore as stable) when secrets are configured; dev version suffix applies to release builds. Update checker prefers non-`debug` APK assets. Settings shows signing hints on the dev channel.
+
 ---
 
 ## [1.3.3] - 2026-05-24

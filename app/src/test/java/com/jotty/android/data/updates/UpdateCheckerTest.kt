@@ -1,6 +1,5 @@
 package com.jotty.android.data.updates
 
-import com.jotty.android.data.updates.GitHubAsset
 import com.jotty.android.util.ApkInstallHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

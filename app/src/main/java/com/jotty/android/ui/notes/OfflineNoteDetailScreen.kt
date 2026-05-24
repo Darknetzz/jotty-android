@@ -7,12 +7,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
-import com.jotty.android.ui.common.OfflineConnectivityBanner
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
+import com.jotty.android.ui.common.OfflineConnectivityBanner
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.launch
 

@@ -7,8 +7,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
-import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.encryption.BiometricPassphraseStore
+import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.preferences.SettingsRepository
 
 /**

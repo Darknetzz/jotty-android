@@ -89,6 +89,7 @@ object ApkInstallHelper {
     ): Long? {
         return try {
             val pm = context.packageManager
+
             @Suppress("DEPRECATION")
             val flags =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -151,6 +152,7 @@ object ApkInstallHelper {
     ): Set<String>? {
         return try {
             val pm = context.packageManager
+
             @Suppress("DEPRECATION")
             val flags =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {

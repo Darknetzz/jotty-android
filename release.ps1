@@ -96,13 +96,9 @@ function Update-Changelog {
     $releaseUrl = "https://github.com/Darknetzz/jotty-android/releases/tag/v$VersionName"
     $linkLine = "[$VersionName]: $releaseUrl"
     if ($updated -notmatch "(?m)^\[$([regex]::Escape($VersionName))\]:\s+") {
-        if ($updated -match '(?m)^\[\d+\.\d+(?:\.\d+)*(?:-[^\]]+)?\]:\s+.*$') {
-            $updated = [regex]::Replace(
-                $updated,
-                '(?m)^\[\d+\.\d+(?:\.\d+)*(?:-[^\]]+)?\]:\s+.*$',
-                "$linkLine$lineEnding`$0",
-                1
-            )
+        $linkPattern = '(?m)^\[\d+\.\d+(?:\.\d+)*(?:-[^\]]+)?\]:\s+https://github\.com/Darknetzz/jotty-android/releases/tag/v[^\r\n]+$'
+        if ($updated -match $linkPattern) {
+            $updated = [regex]::Replace($updated, $linkPattern, "$linkLine$lineEnding`$0", 1)
         } else {
             $updated = $updated.TrimEnd() + $lineEnding + $lineEnding + $linkLine + $lineEnding
         }

@@ -111,7 +111,7 @@ gradle wrapper --gradle-version 9.1.0
 
 Android only allows an update when the new APK is signed with the **same certificate** as the installed app. This happens if you switch between a **debug** build, a **locally built** APK, and a **GitHub release** APK, or if releases were signed with different keys.
 
-- **Fix for users:** Uninstall the old app once, then install the APK from the latest [Release](https://github.com/Darknetzz/jotty-android/releases). Data on the device is removed with uninstall; Jotty server data is unchanged.
+- **Fix for users:** Uninstall the old app once, then install the APK from the latest [Release](https://github.com/Darknetzz/jotty-android/releases). Uninstall clears **app data on the device** (saved server instances, API keys, offline cache)—you will need to add your instance again. Content on your **Jotty server** is not deleted.
 - **Fix for maintainers:** Use one release keystore for every GitHub release (secrets in `keystore.properties.example`). Do not change the keystore between releases.
 
 ### Server log: `Session check error` / `ERR_SSL_WRONG_VERSION_NUMBER`
@@ -138,7 +138,7 @@ The server is decoding encrypted content with **hex** while the Android app (and
 
 ## Offline Support
 
-Jotty Android supports working offline. When enabled (default), notes are stored locally and automatically synced when you have an internet connection. See [OFFLINE_NOTES.md](OFFLINE_NOTES.md) for details.
+Jotty Android supports working offline. When enabled (default), notes are stored locally and automatically synced when you have an internet connection. See [docs/OFFLINE_NOTES.md](docs/OFFLINE_NOTES.md) for details.
 
 Key features:
 - Create, edit, and delete notes without internet
@@ -162,6 +162,10 @@ Contributions are welcome.
 
 - **Issues** — Use [GitHub Issues](https://github.com/Darknetzz/jotty-android/issues) to report bugs, suggest features, or ask questions. A short description of what you expected, what happened, and your environment (Android version, Jotty server URL shape if relevant) helps a lot.
 - **Pull requests** — Feel free to open a PR for fixes or improvements. Match the existing Kotlin and Compose style; see [`AGENTS.md`](AGENTS.md) for project layout and conventions aimed at contributors and tooling.
+
+## Documentation
+
+Additional guides live in [`docs/`](docs/README.md) (offline sync, conflicts, UI notes, checklist reorder limitations, todos).
 
 ## License
 

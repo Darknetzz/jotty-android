@@ -68,7 +68,7 @@ class OfflineChecklistsRepositoryTest {
                     registerNetworkCallback = false,
                 )
 
-            val result = repo.syncChecklists()
+            val result = repo.syncChecklists(force = true)
 
             assertTrue(result.isFailure)
         }
@@ -159,16 +159,83 @@ class OfflineChecklistsRepositoryTest {
                     registerNetworkCallback = false,
                 )
 
-            val result = repo.syncChecklists()
+            val result = repo.syncChecklists(force = true)
 
-            assertTrue(result.isSuccess)
+            assertTrue(result.isFailure)
             assertEquals(1, repo.replayFailuresDetected.value)
+            val entity = database.checklistDao().getById("list-1")
+            assertEquals(true, entity?.isDirty)
+            assertEquals("Local list", entity?.title)
+        }
+
+    @Test
+    fun syncChecklists_whenPushFails_doesNotWipeLocalChecklistsWithServerSnapshot() =
+        runTest {
+            val serverList =
+                Checklist(
+                    id = "list-1",
+                    title = "Server title",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    items = listOf(ChecklistItem(index = 0, text = "Server item")),
+                    createdAt = "c",
+                    updatedAt = "u",
+                )
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = mutableListOf(serverList),
+                    onUpdateChecklist = { _, _ -> throw RuntimeException("simulated push failure") },
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Local title",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = Gson().toJson(listOf(ChecklistItem(index = 0, text = "Local item"))),
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    registerNetworkCallback = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isFailure)
+
+            val stored = database.checklistDao().getAllChecklists(instanceId)
+            assertEquals(1, stored.size)
+            val row = stored.single()
+            assertEquals("list-1", row.id)
+            assertTrue(row.isDirty)
+            assertEquals("Local title", row.title)
         }
 }
 
 private class FakeChecklistApi(
     private val remoteChecklists: MutableList<Checklist> = mutableListOf(),
     private val onDeleteItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
+    private val onUpdateChecklist: suspend (String, UpdateChecklistRequest) -> ApiResponse<Checklist> = { listId, body ->
+        val existing = remoteChecklists.first { it.id == listId }
+        val updated =
+            existing.copy(
+                title = body.title ?: existing.title,
+                category = body.category ?: existing.category,
+            )
+        remoteChecklists.replaceAll { if (it.id == listId) updated else it }
+        ApiResponse(true, updated)
+    },
 ) : JottyApi {
     override suspend fun health(): HealthResponse = HealthResponse("ok", "1", "")
 
@@ -196,16 +263,7 @@ private class FakeChecklistApi(
     override suspend fun updateChecklist(
         listId: String,
         body: UpdateChecklistRequest,
-    ): ApiResponse<Checklist> {
-        val existing = remoteChecklists.first { it.id == listId }
-        val updated =
-            existing.copy(
-                title = body.title ?: existing.title,
-                category = body.category ?: existing.category,
-            )
-        remoteChecklists.replaceAll { if (it.id == listId) updated else it }
-        return ApiResponse(true, updated)
-    }
+    ): ApiResponse<Checklist> = onUpdateChecklist(listId, body)
 
     override suspend fun deleteChecklist(listId: String): SuccessResponse {
         remoteChecklists.removeAll { it.id == listId }

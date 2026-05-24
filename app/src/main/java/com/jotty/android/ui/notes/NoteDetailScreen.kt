@@ -13,9 +13,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +52,8 @@ import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.data.encryption.XChaCha20Decryptor
 import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.data.encryption.clearPassphrase
+import com.jotty.android.ui.common.ConfirmDeleteDialog
+import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.util.stripInvisibleFromEdges
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -97,6 +101,10 @@ internal fun NoteDetailScreen(
     // Survives rotation (rememberSaveable) so we don't re-trigger after config change.
     // Resets when note.id changes because note.id is a key.
     var biometricAutoTriggered by rememberSaveable(note.id) { mutableStateOf(false) }
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    val displayTitle = title.ifBlank { stringResource(R.string.untitled) }
+    val deleteConfirmMessage = stringResource(R.string.delete_note_confirm, displayTitle)
 
     val activity = LocalActivity.current as? FragmentActivity
     val biometricTitle = stringResource(R.string.biometric_prompt_title)
@@ -192,6 +200,17 @@ internal fun NoteDetailScreen(
         }
     }
 
+    if (showDeleteConfirm) {
+        ConfirmDeleteDialog(
+            message = deleteConfirmMessage,
+            onDismiss = { showDeleteConfirm = false },
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete()
+            },
+        )
+    }
+
     Column(Modifier.fillMaxSize()) {
         TopAppBar(
             title = {
@@ -273,6 +292,22 @@ internal fun NoteDetailScreen(
                     }
                     IconButton(onClick = { isEditing = true }) {
                         Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
+                    }
+                }
+                if (!isEditing) {
+                    IconButton(onClick = { menuExpanded = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                    ) {
+                        DeleteDropdownMenuItem(
+                            onClick = {
+                                menuExpanded = false
+                                showDeleteConfirm = true
+                            },
+                        )
                     }
                 }
             },

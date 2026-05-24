@@ -31,6 +31,8 @@
     <string name="no_internet_connection">No internet connection</string>
     <string name="connection_timed_out">Connection timed out</string>
     <string name="network_error">Network error</string>
+    <string name="error_cleartext_http_not_allowed">HTTP is blocked by Android. Use https:// in the server URL, or update the app.</string>
+    <string name="error_connection_refused">Could not reach the server. Check the URL, port, and that Jotty is running.</string>
     <string name="server_error">Server error</string>
     <string name="error_not_found">Not found</string>
     <string name="error_rate_limited">Too many requests. Try again later.</string>
@@ -121,6 +123,7 @@
     <string name="name_placeholder">e.g. Work, Personal</string>
     <string name="server_url">Server URL</string>
     <string name="server_url_placeholder">https://jotty.example.com</string>
+    <string name="server_url_hint">Include http:// or https:// (e.g. http://192.168.1.10:8080 for a local server). HTTPS is recommended on untrusted networks.</string>
     <string name="api_key">API Key</string>
     <string name="api_key_placeholder">ck_…</string>
     <string name="api_key_setup_hint">Jotty Android uses an API key instead of your account password. Log in to Jotty in a browser, open Profile &gt; Settings, generate an API key, then paste it here.</string>
@@ -191,6 +194,8 @@
     <string name="sync_conflicts_detected">%d conflict(s) detected. Local copies created to preserve your data.</string>
     <string name="sync_replay_ops_failed">%d checklist change(s) could not be replayed automatically. Please review the checklist.</string>
     <string name="sync_push_failed_kept_local">Could not sync %1$d change(s). Your local notes were kept and will retry.</string>
+    <string name="sync_push_failed_kept_local_checklists">Could not sync %1$d checklist change(s). Your local checklists were kept and will retry.</string>
+    <string name="checklist_reorder_not_available">Reordering checklist items is not available in the app yet. Use the Jotty web app to reorder items until the server adds a REST API for it.</string>
     <string name="conflict_copy_pending">1 local copy needs review.</string>
     <string name="conflict_copies_pending">%d local copies need review.</string>
     <string name="view_conflicts">View copies</string>

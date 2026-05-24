@@ -1,12 +1,18 @@
 package com.jotty.android.ui.notes
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
+import com.jotty.android.ui.common.OfflineConnectivityBanner
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.launch
 
@@ -27,6 +33,7 @@ fun OfflineNoteDetailScreen(
     debugLoggingEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     isOnline: Boolean = false,
+    onRetrySync: () -> Unit = {},
     biometricStore: BiometricPassphraseStore? = null,
 ) {
     val scope = rememberCoroutineScope()
@@ -150,21 +157,27 @@ fun OfflineNoteDetailScreen(
             }
         }
 
-    // Use the original NoteDetailScreen with our wrapped API
-    NoteDetailScreen(
-        note = note,
-        api = offlineApi,
-        onBack = onBack,
-        onUpdate = onUpdate,
-        onDelete = {
-            scope.launch {
-                offlineRepository.deleteNote(note.id)
-                onDelete()
-            }
-        },
-        onSaveFailed = onSaveFailed,
-        debugLoggingEnabled = debugLoggingEnabled,
-        imageLoader = imageLoader,
-        biometricStore = biometricStore,
-    )
+    Column(Modifier.fillMaxSize()) {
+        OfflineConnectivityBanner(
+            isOnline = isOnline,
+            onRetrySync = onRetrySync,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+        NoteDetailScreen(
+            note = note,
+            api = offlineApi,
+            onBack = onBack,
+            onUpdate = onUpdate,
+            onDelete = {
+                scope.launch {
+                    offlineRepository.deleteNote(note.id)
+                    onDelete()
+                }
+            },
+            onSaveFailed = onSaveFailed,
+            debugLoggingEnabled = debugLoggingEnabled,
+            imageLoader = imageLoader,
+            biometricStore = biometricStore,
+        )
+    }
 }

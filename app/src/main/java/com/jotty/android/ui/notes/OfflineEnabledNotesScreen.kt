@@ -26,10 +26,12 @@ import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
+import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.OfflineConnectivityBanner
 import com.jotty.android.ui.common.OfflineSyncStatusRow
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
@@ -64,7 +66,7 @@ fun OfflineEnabledNotesScreen(
     // Observe notes from local database
     val notes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
     val conflictCopies by offlineRepository.getConflictCopiesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
-    val isOnline by offlineRepository.isOnline.collectAsStateWithLifecycle()
+    val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
     val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
     val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsStateWithLifecycle()
@@ -100,11 +102,16 @@ fun OfflineEnabledNotesScreen(
             screenState.errorMessage = null
             val result = offlineRepository.syncNotes()
             if (result.isFailure) {
-                screenState.errorMessage =
+                val msg =
                     ApiErrorHelper.userMessage(
                         context,
                         result.exceptionOrNull() ?: Exception("Sync failed"),
                     )
+                if (notes.isEmpty()) {
+                    screenState.errorMessage = msg
+                } else {
+                    snackbarHostState.showSnackbar(msg)
+                }
             }
             if (showLoading) screenState.loading = false
         }
@@ -162,7 +169,11 @@ fun OfflineEnabledNotesScreen(
         ) {
             when (val note = selectedNote) {
                 null -> {
-                    // Header with sync status and actions; the app bar owns the screen title.
+                    OfflineConnectivityBanner(
+                        isOnline = isOnline,
+                        onRetrySync = { requestSync(showLoading = true) },
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
                     OfflineSyncStatusRow(
                         isOnline = isOnline,
                         isSyncing = isSyncing,
@@ -375,6 +386,7 @@ fun OfflineEnabledNotesScreen(
                         debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
                         isOnline = isOnline,
+                        onRetrySync = { requestSync(showLoading = true) },
                         biometricStore = biometricStore,
                     )
                 }

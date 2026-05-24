@@ -22,15 +22,35 @@ object ApiErrorHelper {
     ): String {
         if (t is HttpException) {
             httpExceptionDetail(t)?.let { return it }
+            return context.getString(errorMessageResId(t))
         }
+        val cause = t.cause
+        if (cause is HttpException) {
+            return userMessage(context, cause)
+        }
+        preformattedUserMessage(t.message)?.let { return it }
         return context.getString(errorMessageResId(t))
     }
 
-    /** Best-effort parse of JSON error body (e.g. `{ "message": "..." }`). */
+    /** Repository/sync code may attach a short message; ignore Retrofit status lines and HTML. */
+    private fun preformattedUserMessage(message: String?): String? {
+        val trimmed = message?.trim().orEmpty()
+        if (trimmed.isEmpty()) return null
+        if (trimmed.startsWith("HTTP ", ignoreCase = true)) return null
+        if (isHtmlErrorBody(trimmed)) return null
+        return trimmed.take(SERVER_MESSAGE_MAX_LEN)
+    }
+
+    /** Best-effort parse of JSON or plain-text API error body; ignores HTML/proxy pages. */
     private fun httpExceptionDetail(t: HttpException): String? {
         return try {
-            val raw = t.response()?.errorBody()?.use { it.string() }?.trim().orEmpty()
+            val response = t.response() ?: return null
+            val contentType = response.headers()["Content-Type"]?.lowercase().orEmpty()
+            if (contentType.contains("text/html")) return null
+
+            val raw = response.errorBody()?.use { it.string() }?.trim().orEmpty()
             if (raw.isEmpty()) return null
+            if (isHtmlErrorBody(raw)) return null
             if (!raw.startsWith("{")) {
                 return raw.take(SERVER_MESSAGE_MAX_LEN)
             }
@@ -44,6 +64,15 @@ object ApiErrorHelper {
         } catch (_: Exception) {
             null
         }
+    }
+
+    /** Visible for testing: nginx/reverse-proxy HTML must not be shown in the UI. */
+    internal fun isHtmlErrorBody(body: String): Boolean {
+        val trimmed = body.trimStart()
+        val lower = trimmed.lowercase()
+        return lower.startsWith("<!doctype") ||
+            lower.startsWith("<html") ||
+            (lower.contains("<html") && lower.contains("</html>"))
     }
 
     /** Visible for testing: returns the string resource ID for the given throwable. */

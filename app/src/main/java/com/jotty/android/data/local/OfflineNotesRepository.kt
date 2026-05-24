@@ -7,6 +7,7 @@ import com.jotty.android.data.api.CreateNoteRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.UpdateNoteRequest
+import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -28,7 +29,7 @@ class OfflineNotesRepository(
     /** When non-null, used instead of [checkConnectivity] for initial online state (e.g. unit tests). */
     initialOnlineOverride: Boolean? = null,
     /** Set false in tests to avoid registering a network callback. */
-    private val registerNetworkCallback: Boolean = true,
+    private val useSharedConnectivity: Boolean = true,
 ) {
     private val appContext = context.applicationContext
     private val noteDao = database.noteDao()
@@ -36,7 +37,7 @@ class OfflineNotesRepository(
         OfflineRepositoryLifecycle(
             context = context,
             initialOnlineOverride = initialOnlineOverride,
-            registerNetworkCallback = registerNetworkCallback,
+            useSharedConnectivity = useSharedConnectivity,
             logTag = TAG,
             instanceId = instanceId,
             onNetworkAvailable = { syncNotes() },
@@ -305,10 +306,11 @@ class OfflineNotesRepository(
                 AppLog.d("OfflineNotesRepository", "Sync complete")
                 Result.success(Unit)
             } catch (e: Exception) {
-                runtime.syncStatus.markSyncCompleted(success = false, errorMessage = e.message)
+                val msg = ApiErrorHelper.userMessage(appContext, e)
+                runtime.syncStatus.markSyncCompleted(success = false, errorMessage = msg)
                 runtime.syncStatus.setSyncing(false)
-                AppLog.d("OfflineNotesRepository", "Sync failed: ${e.message}")
-                Result.failure(e)
+                AppLog.d("OfflineNotesRepository", "Sync failed: $msg")
+                Result.failure(Exception(msg, e))
             }
         }
 

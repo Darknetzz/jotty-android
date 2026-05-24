@@ -1,14 +1,11 @@
 package com.jotty.android.data.local
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkCapabilities
-import android.net.NetworkRequest
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,7 +86,7 @@ class SyncStatusState(initialOnline: Boolean) {
 class OfflineRepositoryLifecycle(
     private val context: Context,
     initialOnlineOverride: Boolean?,
-    private val registerNetworkCallback: Boolean,
+    private val useSharedConnectivity: Boolean,
     private val logTag: String,
     private val instanceId: String,
     private val onNetworkAvailable: suspend () -> Unit,
@@ -100,59 +97,55 @@ class OfflineRepositoryLifecycle(
         }
 
     val coroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO + scopeExceptionHandler)
-    val syncStatus = SyncStatusState(initialOnlineOverride ?: checkConnectivity())
 
-    private val connectivityManager =
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+    private val appContext = context.applicationContext
 
-    @Volatile private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    val syncStatus =
+        SyncStatusState(
+            initialOnlineOverride
+                ?: if (useSharedConnectivity) {
+                    NetworkConnectivityMonitor.checkConnectivity(appContext)
+                } else {
+                    false
+                },
+        )
 
-    @Volatile private var closed = false
+    private var connectivityJob: Job? = null
+
+    @Volatile
+    private var closed = false
 
     init {
-        if (registerNetworkCallback) {
-            connectivityManager?.let { cm ->
-                val networkRequest =
-                    NetworkRequest.Builder()
-                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                        .build()
-                val callback =
-                    object : ConnectivityManager.NetworkCallback() {
-                        override fun onAvailable(network: Network) {
-                            if (closed) return
-                            AppLog.d(logTag, "Network available")
-                            syncStatus.setOnline(true)
-                            coroutineScope.launch { onNetworkAvailable() }
-                        }
-
-                        override fun onLost(network: Network) {
-                            if (closed) return
-                            AppLog.d(logTag, "Network lost")
-                            syncStatus.setOnline(false)
-                        }
-                    }
-                networkCallback = callback
-                cm.registerNetworkCallback(networkRequest, callback)
-                AppLog.d(logTag, "Network callback registered (instance: $instanceId)")
+        if (useSharedConnectivity) {
+            NetworkConnectivityMonitor.ensureStarted(appContext)
+            var wasOnline = syncStatus.isOnline.value
+            if (wasOnline) {
+                coroutineScope.launch { onNetworkAvailable() }
             }
+            connectivityJob =
+                coroutineScope.launch {
+                    NetworkConnectivityMonitor.isOnline.collect { online ->
+                        if (closed) return@collect
+                        syncStatus.setOnline(online)
+                        if (online && !wasOnline) {
+                            AppLog.d(logTag, "Connectivity restored — scheduling sync (instance: $instanceId)")
+                            onNetworkAvailable()
+                        }
+                        wasOnline = online
+                    }
+                }
+            AppLog.d(logTag, "Subscribed to shared connectivity (instance: $instanceId, online=$wasOnline)")
+        } else if (initialOnlineOverride != null) {
+            syncStatus.setOnline(initialOnlineOverride)
         }
     }
 
     fun close() {
         if (closed) return
         closed = true
-        networkCallback?.let {
-            connectivityManager?.unregisterNetworkCallback(it)
-            networkCallback = null
-        }
+        connectivityJob?.cancel()
+        connectivityJob = null
         coroutineScope.cancel()
         AppLog.d(logTag, "Closed (instance: $instanceId)")
-    }
-
-    private fun checkConnectivity(): Boolean {
-        val cm = connectivityManager ?: return false
-        val network = cm.activeNetwork ?: return false
-        val capabilities = cm.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 }

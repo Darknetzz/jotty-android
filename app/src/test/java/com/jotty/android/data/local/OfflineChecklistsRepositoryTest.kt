@@ -65,7 +65,7 @@ class OfflineChecklistsRepositoryTest {
                     instanceId = instanceId,
                     api = FakeChecklistApi(),
                     initialOnlineOverride = false,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
 
             val result = repo.syncChecklists(force = true)
@@ -100,7 +100,7 @@ class OfflineChecklistsRepositoryTest {
                     instanceId = instanceId,
                     api = FakeChecklistApi(),
                     initialOnlineOverride = false,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
 
             val result = repo.updateChecklist("list-1", "New title")
@@ -156,7 +156,7 @@ class OfflineChecklistsRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
 
             val result = repo.syncChecklists(force = true)
@@ -209,7 +209,7 @@ class OfflineChecklistsRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
 
             assertTrue(repo.syncChecklists(force = true).isFailure)

@@ -10,6 +10,7 @@ import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateItemRequest
+import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -44,18 +45,19 @@ class OfflineChecklistsRepository(
     private val instanceId: String,
     private val api: JottyApi,
     initialOnlineOverride: Boolean? = null,
-    private val registerNetworkCallback: Boolean = true,
+    private val useSharedConnectivity: Boolean = true,
 ) {
     private val appContext = context.applicationContext
     private val checklistDao = database.checklistDao()
     private val itemMutationDepth = AtomicInteger(0)
     private val pendingSyncAfterMutations = AtomicBoolean(false)
+
     @Volatile private var lastSyncCompletedAtMs: Long? = null
     private val runtime =
         OfflineRepositoryLifecycle(
             context = context,
             initialOnlineOverride = initialOnlineOverride,
-            registerNetworkCallback = registerNetworkCallback,
+            useSharedConnectivity = useSharedConnectivity,
             logTag = TAG,
             instanceId = instanceId,
             onNetworkAvailable = { syncChecklists() },
@@ -174,23 +176,23 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                if (isOnline.value) {
-                    val response =
-                        api.addChecklistItem(
-                            checklistId,
-                            AddItemRequest(text = text, parentIndex = parentIndex),
-                        )
-                    // Refresh local cache from server
-                    val fresh = api.getChecklists().checklists.find { it.id == checklistId }
-                    if (fresh != null) checklistDao.insert(fresh.toEntity(instanceId))
-                    response.let {
-                        checklistDao.getById(checklistId)?.toChecklist()
-                            ?: throw Exception("Checklist not found")
+                    if (isOnline.value) {
+                        val response =
+                            api.addChecklistItem(
+                                checklistId,
+                                AddItemRequest(text = text, parentIndex = parentIndex),
+                            )
+                        // Refresh local cache from server
+                        val fresh = api.getChecklists().checklists.find { it.id == checklistId }
+                        if (fresh != null) checklistDao.insert(fresh.toEntity(instanceId))
+                        response.let {
+                            checklistDao.getById(checklistId)?.toChecklist()
+                                ?: throw Exception("Checklist not found")
+                        }
+                    } else {
+                        val op = PendingItemOp(type = "ADD", text = text, parentIndex = parentIndex)
+                        applyOpLocally(checklistId, op)
                     }
-                } else {
-                    val op = PendingItemOp(type = "ADD", text = text, parentIndex = parentIndex)
-                    applyOpLocally(checklistId, op)
-                }
                 }
             }
         }
@@ -202,12 +204,12 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                if (isOnline.value) {
-                    api.checkItem(checklistId, path)
-                    refreshFromServer(checklistId)
-                } else {
-                    applyOpLocally(checklistId, PendingItemOp(type = "CHECK", path = path))
-                }
+                    if (isOnline.value) {
+                        api.checkItem(checklistId, path)
+                        refreshFromServer(checklistId)
+                    } else {
+                        applyOpLocally(checklistId, PendingItemOp(type = "CHECK", path = path))
+                    }
                 }
             }
         }
@@ -219,12 +221,12 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                if (isOnline.value) {
-                    api.uncheckItem(checklistId, path)
-                    refreshFromServer(checklistId)
-                } else {
-                    applyOpLocally(checklistId, PendingItemOp(type = "UNCHECK", path = path))
-                }
+                    if (isOnline.value) {
+                        api.uncheckItem(checklistId, path)
+                        refreshFromServer(checklistId)
+                    } else {
+                        applyOpLocally(checklistId, PendingItemOp(type = "UNCHECK", path = path))
+                    }
                 }
             }
         }
@@ -236,12 +238,12 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                if (isOnline.value) {
-                    api.deleteItem(checklistId, path)
-                    refreshFromServer(checklistId)
-                } else {
-                    applyOpLocally(checklistId, PendingItemOp(type = "DELETE", path = path))
-                }
+                    if (isOnline.value) {
+                        api.deleteItem(checklistId, path)
+                        refreshFromServer(checklistId)
+                    } else {
+                        applyOpLocally(checklistId, PendingItemOp(type = "DELETE", path = path))
+                    }
                 }
             }
         }
@@ -254,15 +256,15 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                if (isOnline.value) {
-                    api.updateItem(checklistId, path, UpdateItemRequest(text = text))
-                    refreshFromServer(checklistId)
-                } else {
-                    applyOpLocally(
-                        checklistId,
-                        PendingItemOp(type = "UPDATE_TEXT", path = path, text = text),
-                    )
-                }
+                    if (isOnline.value) {
+                        api.updateItem(checklistId, path, UpdateItemRequest(text = text))
+                        refreshFromServer(checklistId)
+                    } else {
+                        applyOpLocally(
+                            checklistId,
+                            PendingItemOp(type = "UPDATE_TEXT", path = path, text = text),
+                        )
+                    }
                 }
             }
         }
@@ -353,9 +355,10 @@ class OfflineChecklistsRepository(
                 AppLog.d(TAG, "Sync complete — ${serverChecklists.size} checklists from server")
                 Result.success(Unit)
             } catch (e: Exception) {
-                runtime.syncStatus.markSyncCompleted(success = false, errorMessage = e.message)
-                AppLog.d(TAG, "Sync failed: ${e.message}")
-                Result.failure(e)
+                val msg = ApiErrorHelper.userMessage(appContext, e)
+                runtime.syncStatus.markSyncCompleted(success = false, errorMessage = msg)
+                AppLog.d(TAG, "Sync failed: $msg")
+                Result.failure(Exception(msg, e))
             } finally {
                 runtime.syncStatus.setSyncing(false)
             }
@@ -387,8 +390,9 @@ class OfflineChecklistsRepository(
                 runCatching { api.addChecklistItem(created.id, AddItemRequest(text = item.text)) }
             }
             checklistDao.delete(entity.id)
-            val fresh = api.getChecklists().checklists.find { it.id == created.id }
-                ?: throw Exception("Checklist not found after create")
+            val fresh =
+                api.getChecklists().checklists.find { it.id == created.id }
+                    ?: throw Exception("Checklist not found after create")
             checklistDao.insert(fresh.toEntity(instanceId))
             AppLog.d(TAG, "Local-only checklist pushed: ${created.id}")
         } else {

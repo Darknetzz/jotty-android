@@ -72,14 +72,44 @@ Preferred flow (automated):
 
 Both scripts can prompt for a version (default is current patch + 1), increment `VERSION_CODE`, and promote `CHANGELOG.md` from `Unreleased` to a dated release entry.
 
+**Typical stable release flow**
+
+1. Commit release prep on **`dev`** (`.\release.ps1`, then commit `gradle.properties` + `CHANGELOG.md`).
+2. Push **`dev`**, open a PR **`dev` → `main`**, merge (required by branch protection).
+3. Tag **`vX.Y.Z`** on **`main`** and publish the GitHub release (triggers the release APK workflow).
+4. **`dev` is synced to `main`** automatically by [sync-dev-with-main.yml](.github/workflows/sync-dev-with-main.yml) (fast-forward so both branches match — `main` would otherwise stay “ahead” with merge commits only).
+
+Manual sync if needed: `.\scripts\sync-dev-with-main.ps1` or `./scripts/sync-dev-with-main.sh`.
+
 Manual fallback: update both values in `gradle.properties`, add an entry to **`CHANGELOG.md`**, then build and tag (e.g. `v1.0.1`).
 
 ### Git: `dev-latest` tag conflicts on pull
 
-The rolling **`dev-latest`** tag moves on every push to `dev`. If `git pull --tags` reports `would clobber existing tag` for `dev-latest`, the branch still updated — only the tag was skipped.
+The rolling **`dev-latest`** tag moves on every push to `dev`. Without setup, `git pull --tags` may report `would clobber existing tag` for `dev-latest` (the branch still updates; only the tag is skipped).
 
-- **Day to day:** `git pull origin dev` (omit `--tags`).
-- **Refresh the local tag:** `.\scripts\sync-dev-latest-tag.ps1` (Windows) or `./scripts/sync-dev-latest-tag.sh` (Linux/macOS), or `git fetch origin tag dev-latest --force`.
+**One-time per clone** (fixes `git pull --tags` permanently for this repo):
+
+```powershell
+.\scripts\setup-repo-git.ps1
+```
+
+```bash
+./scripts/setup-repo-git.sh
+```
+
+That adds a `+refs/tags/dev-latest` fetch refspec so Git force-updates the local tag instead of refusing.
+
+**Day to day:**
+
+```powershell
+.\scripts\pull-dev.ps1
+```
+
+```bash
+./scripts/pull-dev.sh
+```
+
+Or, after setup: `git pull --tags origin dev`. To refresh only the tag: `.\scripts\sync-dev-latest-tag.ps1` / `./scripts/sync-dev-latest-tag.sh`.
 
 **Signed release APK:** Copy `keystore.properties.example` to `keystore.properties`, create a keystore (see the example file for the `keytool` command), then run `.\build.ps1 -Release`. The release APK will be signed and installable. Keep your keystore and passwords safe and never commit them.
 

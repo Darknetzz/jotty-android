@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,6 +32,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
@@ -40,6 +40,7 @@ import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.OfflineConnectivityBanner
 import com.jotty.android.ui.common.OfflineSyncStatusRow
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
@@ -65,7 +66,7 @@ fun OfflineEnabledChecklistsScreen(
         }
 
     val checklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
-    val isOnline by offlineRepository.isOnline.collectAsStateWithLifecycle()
+    val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
     val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
     val replayFailuresDetected by offlineRepository.replayFailuresDetected.collectAsStateWithLifecycle()
@@ -143,11 +144,16 @@ fun OfflineEnabledChecklistsScreen(
             screenState.errorMessage = null
             val result = offlineRepository.syncChecklists(force = showLoading)
             if (result.isFailure) {
-                screenState.errorMessage =
+                val msg =
                     ApiErrorHelper.userMessage(
                         context,
                         result.exceptionOrNull() ?: Exception("Sync failed"),
                     )
+                if (checklists.isEmpty()) {
+                    screenState.errorMessage = msg
+                } else {
+                    snackbarHostState.showSnackbar(msg)
+                }
             }
             if (showLoading) screenState.loading = false
         }
@@ -204,6 +210,7 @@ fun OfflineEnabledChecklistsScreen(
                     checklist = currentList,
                     offlineRepository = offlineRepository,
                     isOnline = isOnline,
+                    onRetrySync = { requestSync(showLoading = true) },
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = { vm.setSelectedList(it) },
                     onDelete = {
@@ -221,7 +228,11 @@ fun OfflineEnabledChecklistsScreen(
                     onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
                 )
             } else {
-                // Header row: status + actions
+                OfflineConnectivityBanner(
+                    isOnline = isOnline,
+                    onRetrySync = { requestSync(showLoading = true) },
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
                 OfflineSyncStatusRow(
                     isOnline = isOnline,
                     isSyncing = isSyncing,
@@ -509,6 +520,7 @@ private fun OfflineChecklistDetailContent(
     checklist: Checklist,
     offlineRepository: OfflineChecklistsRepository,
     isOnline: Boolean,
+    onRetrySync: () -> Unit,
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
     onDelete: () -> Unit,
@@ -561,6 +573,12 @@ private fun OfflineChecklistDetailContent(
             onBack = onBack,
             onRename = { showRenameDialog = true },
             onDelete = onDelete,
+        )
+
+        OfflineConnectivityBanner(
+            isOnline = isOnline,
+            onRetrySync = onRetrySync,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         Spacer(modifier = Modifier.height(8.dp))

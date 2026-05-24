@@ -1,0 +1,36 @@
+# After a release merges to main, fast-forward dev so both branches point at the same commit.
+# main accumulates "Merge pull request" commits; dev does not until this runs.
+name: Sync dev with main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-dev:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fast-forward dev to main
+        run: |
+          set -e
+          git fetch origin main dev
+          if git rev-parse origin/dev >/dev/null 2>&1; then
+            if [ "$(git rev-parse origin/dev)" = "$(git rev-parse origin/main)" ]; then
+              echo "dev already matches main."
+              exit 0
+            fi
+          fi
+          if ! git merge-base --is-ancestor origin/dev origin/main 2>/dev/null; then
+            echo "::error::dev is not an ancestor of main — cannot fast-forward. Merge main into dev manually."
+            exit 1
+          fi
+          git push origin origin/main:refs/heads/dev
+          echo "dev fast-forwarded to $(git rev-parse --short origin/main)."

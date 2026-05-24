@@ -1,6 +1,5 @@
-# Updates the local dev-latest tag from origin (safe when pull --tags fails with "would clobber").
-# dev-latest is a moving tag recreated by CI on every push to dev.
+# Updates the local dev-latest tag from origin.
+# Prefer setup-repo-git.ps1 once per clone so "git pull --tags" never clobbers dev-latest.
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
-git fetch origin tag dev-latest --force
-Write-Host "Local tag dev-latest now matches origin."
+& (Join-Path $PSScriptRoot "setup-repo-git.ps1")

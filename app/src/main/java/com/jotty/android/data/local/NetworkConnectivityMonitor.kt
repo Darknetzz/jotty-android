@@ -65,8 +65,15 @@ object NetworkConnectivityMonitor {
                 ?: return false
         val network = cm.activeNetwork ?: return false
         val capabilities = cm.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        // INTERNET only (not VALIDATED): LAN / self-hosted servers often have INTERNET but
+        // stay "unvalidated" briefly or on split DNS; sync errors surface separately.
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+    }
+
+    /** Re-check when the app returns to foreground (e.g. after toggling Wi‑Fi). */
+    fun refreshIfStarted(context: Context) {
+        if (!started) return
+        refreshOnlineState(context.applicationContext, reason = "refresh")
     }
 
     private fun refreshOnlineState(

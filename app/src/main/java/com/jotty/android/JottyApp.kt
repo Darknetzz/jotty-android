@@ -21,6 +21,10 @@ class JottyApp : Application() {
         }
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : androidx.lifecycle.DefaultLifecycleObserver {
+                override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {
+                    NetworkConnectivityMonitor.refreshIfStarted(this@JottyApp)
+                }
+
                 override fun onStop(owner: androidx.lifecycle.LifecycleOwner) {
                     NoteDecryptionSession.clear()
                 }

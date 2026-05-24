@@ -7,6 +7,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
 
@@ -39,7 +40,7 @@ fun OfflineNotesScreen(
         )
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
-    val isOnline by offlineRepository.isOnline.collectAsStateWithLifecycle()
+    val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
 
     LaunchedEffect(offlineModeEnabled, instanceId, authFingerprint, isOnline) {
         if (offlineModeEnabled && isOnline) {

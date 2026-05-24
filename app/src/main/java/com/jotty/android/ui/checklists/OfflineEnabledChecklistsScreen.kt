@@ -33,6 +33,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
@@ -66,7 +67,7 @@ fun OfflineEnabledChecklistsScreen(
         }
 
     val checklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
-    val isOnline by offlineRepository.isOnline.collectAsStateWithLifecycle()
+    val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
     val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
     val replayFailuresDetected by offlineRepository.replayFailuresDetected.collectAsStateWithLifecycle()

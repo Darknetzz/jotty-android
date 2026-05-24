@@ -136,7 +136,7 @@ object UpdateChecker {
         val release = githubApi.getLatestRelease()
         val latestVersion = release.tagName.removePrefix("v").trim()
         val apkAsset =
-            release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+            preferredApkAsset(release.assets)
                 ?: return UpdateCheckResult.Error(context.getString(R.string.no_apk_in_release))
 
         val current = BuildConfig.VERSION_NAME?.trim() ?: "0.0.0"
@@ -155,7 +155,7 @@ object UpdateChecker {
     private suspend fun checkDevRelease(context: Context): UpdateCheckResult {
         val release = githubApi.getDevLatestRelease()
         val apkAsset =
-            release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+            preferredApkAsset(release.assets)
                 ?: return UpdateCheckResult.Error(context.getString(R.string.no_apk_in_release))
 
         val remoteCommit =
@@ -218,6 +218,13 @@ object UpdateChecker {
 
     private fun parseVersionParts(version: String): List<Int> {
         return version.split(".").map { it.filter { c -> c.isDigit() }.toIntOrNull() ?: 0 }.ifEmpty { listOf(0) }
+    }
+
+    /** Prefer release-signed APK assets over `*-debug.apk` when both are attached. */
+    internal fun preferredApkAsset(assets: List<GitHubAsset>): GitHubAsset? {
+        val apks = assets.filter { it.name.endsWith(".apk", ignoreCase = true) }
+        return apks.firstOrNull { !it.name.contains("-debug", ignoreCase = true) }
+            ?: apks.firstOrNull()
     }
 
     /**

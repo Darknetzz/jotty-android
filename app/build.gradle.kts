@@ -41,11 +41,11 @@ android {
         }
     }
 
+    val devVersionSuffix = if (!devBuildSha.isNullOrBlank()) "-dev+$devBuildSha" else null
+
     buildTypes {
         getByName("debug") {
-            if (!devBuildSha.isNullOrBlank()) {
-                versionNameSuffix = "-dev+$devBuildSha"
-            }
+            devVersionSuffix?.let { versionNameSuffix = it }
         }
         release {
             isMinifyEnabled = true
@@ -56,6 +56,7 @@ android {
             if (keystorePropertiesFile.exists()) {
                 signingConfig = signingConfigs.getByName("release")
             }
+            devVersionSuffix?.let { versionNameSuffix = it }
         }
     }
 

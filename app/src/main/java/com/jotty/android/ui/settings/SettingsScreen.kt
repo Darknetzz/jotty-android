@@ -687,6 +687,14 @@ private fun AboutDialog(
                         label = { Text(stringResource(R.string.update_channel_dev)) },
                     )
                 }
+                if (parsedChannel == UpdateChannel.Dev) {
+                    Text(
+                        text = stringResource(R.string.update_dev_channel_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
                 when (val state = updateState) {
                     UpdateUiState.Idle -> {
                         TextButton(
@@ -748,6 +756,7 @@ private fun AboutDialog(
                                     downloadUrl = r.downloadUrl,
                                     releaseNotes = r.releaseNotes,
                                     installFailedMessage = null,
+                                    showSigningHints = parsedChannel == UpdateChannel.Dev,
                                     onDownloadAndInstall = {
                                         scope.launch {
                                             updateState = UpdateUiState.Downloading
@@ -811,6 +820,7 @@ private fun AboutDialog(
                             downloadUrl = state.downloadUrl,
                             releaseNotes = state.releaseNotes,
                             installFailedMessage = state.userMessage,
+                            showSigningHints = true,
                             onDownloadAndInstall = {
                                 scope.launch {
                                     updateState = UpdateUiState.Downloading
@@ -863,6 +873,7 @@ private fun UpdateAvailableContent(
     downloadUrl: String,
     releaseNotes: String?,
     installFailedMessage: String?,
+    showSigningHints: Boolean = false,
     onDownloadAndInstall: () -> Unit,
     onOpenReleasePage: () -> Unit,
 ) {
@@ -872,6 +883,13 @@ private fun UpdateAvailableContent(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (showSigningHints) {
+            Text(
+                text = stringResource(R.string.update_signing_mismatch_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         releaseNotes?.takeIf { it.isNotBlank() }?.let { notes ->
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(

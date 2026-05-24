@@ -4,6 +4,10 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+---
+
+## [1.3.3] - 2026-05-24
+
 ### Added
 
 - **Note delete from detail** — Open a note → overflow (⋮) → Delete with confirmation; uses the same offline/sync path as list delete (`NoteDetailScreen`, `OfflineNoteDetailScreen`).
@@ -597,6 +601,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.3.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.3
 [1.3.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.2
 [1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
 [1.3.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.0

@@ -100,6 +100,7 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 | App version in UI          | `gradle.properties` + BuildConfig      |
 | Strings / i18n             | `res/values/strings.xml`               |
 | Release history             | `CHANGELOG.md`                         |
+| Project documentation       | `docs/` — see [docs/README.md](docs/README.md) |
 
 ## Tips for agents
 

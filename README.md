@@ -138,7 +138,7 @@ The server is decoding encrypted content with **hex** while the Android app (and
 
 ## Offline Support
 
-Jotty Android supports working offline. When enabled (default), notes are stored locally and automatically synced when you have an internet connection. See [OFFLINE_NOTES.md](OFFLINE_NOTES.md) for details.
+Jotty Android supports working offline. When enabled (default), notes are stored locally and automatically synced when you have an internet connection. See [docs/OFFLINE_NOTES.md](docs/OFFLINE_NOTES.md) for details.
 
 Key features:
 - Create, edit, and delete notes without internet
@@ -162,6 +162,10 @@ Contributions are welcome.
 
 - **Issues** — Use [GitHub Issues](https://github.com/Darknetzz/jotty-android/issues) to report bugs, suggest features, or ask questions. A short description of what you expected, what happened, and your environment (Android version, Jotty server URL shape if relevant) helps a lot.
 - **Pull requests** — Feel free to open a PR for fixes or improvements. Match the existing Kotlin and Compose style; see [`AGENTS.md`](AGENTS.md) for project layout and conventions aimed at contributors and tooling.
+
+## Documentation
+
+Additional guides live in [`docs/`](docs/README.md) (offline sync, conflicts, UI notes, checklist reorder limitations, todos).
 
 ## License
 

@@ -74,6 +74,13 @@ Both scripts can prompt for a version (default is current patch + 1), increment 
 
 Manual fallback: update both values in `gradle.properties`, add an entry to **`CHANGELOG.md`**, then build and tag (e.g. `v1.0.1`).
 
+### Git: `dev-latest` tag conflicts on pull
+
+The rolling **`dev-latest`** tag moves on every push to `dev`. If `git pull --tags` reports `would clobber existing tag` for `dev-latest`, the branch still updated — only the tag was skipped.
+
+- **Day to day:** `git pull origin dev` (omit `--tags`).
+- **Refresh the local tag:** `.\scripts\sync-dev-latest-tag.ps1` (Windows) or `./scripts/sync-dev-latest-tag.sh` (Linux/macOS), or `git fetch origin tag dev-latest --force`.
+
 **Signed release APK:** Copy `keystore.properties.example` to `keystore.properties`, create a keystore (see the example file for the `keytool` command), then run `.\build.ps1 -Release`. The release APK will be signed and installable. Keep your keystore and passwords safe and never commit them.
 
 ## Building

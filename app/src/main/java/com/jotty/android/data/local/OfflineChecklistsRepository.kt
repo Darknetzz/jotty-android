@@ -10,6 +10,7 @@ import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateItemRequest
+import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -353,9 +354,10 @@ class OfflineChecklistsRepository(
                 AppLog.d(TAG, "Sync complete — ${serverChecklists.size} checklists from server")
                 Result.success(Unit)
             } catch (e: Exception) {
-                runtime.syncStatus.markSyncCompleted(success = false, errorMessage = e.message)
-                AppLog.d(TAG, "Sync failed: ${e.message}")
-                Result.failure(e)
+                val msg = ApiErrorHelper.userMessage(appContext, e)
+                runtime.syncStatus.markSyncCompleted(success = false, errorMessage = msg)
+                AppLog.d(TAG, "Sync failed: $msg")
+                Result.failure(Exception(msg, e))
             } finally {
                 runtime.syncStatus.setSyncing(false)
             }

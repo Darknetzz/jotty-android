@@ -101,11 +101,16 @@ fun OfflineEnabledNotesScreen(
             screenState.errorMessage = null
             val result = offlineRepository.syncNotes()
             if (result.isFailure) {
-                screenState.errorMessage =
+                val msg =
                     ApiErrorHelper.userMessage(
                         context,
                         result.exceptionOrNull() ?: Exception("Sync failed"),
                     )
+                if (notes.isEmpty()) {
+                    screenState.errorMessage = msg
+                } else {
+                    snackbarHostState.showSnackbar(msg)
+                }
             }
             if (showLoading) screenState.loading = false
         }

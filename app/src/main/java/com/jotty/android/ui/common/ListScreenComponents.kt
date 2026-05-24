@@ -262,7 +262,7 @@ fun ListScreenContent(
     val pullRefreshState = rememberPullToRefreshState()
     when {
         loading && isEmpty -> LoadingState()
-        error != null -> ErrorState(message = error, onRetry = onRetry)
+        error != null && isEmpty -> ErrorState(message = error, onRetry = onRetry)
         isEmpty ->
             EmptyState(
                 icon = emptyIcon,

@@ -10,6 +10,7 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 - **Dev in-app updates (“App not installed”)** — `dev-latest` CI assigns a monotonic `versionCode` per workflow run (same signing as stable when secrets are set). The app checks APK signing and version code before opening the installer and shows a clear message when the installed build was debug-signed or sideloaded with a different key.
 - **Offline checklists stuck offline ([#27](https://github.com/Darknetzz/jotty-android/issues/27))** — Notes and checklists share one app-wide connectivity monitor (single network callback) so tab switches no longer desync Online/Offline. Sync runs when connectivity is restored.
+- **Offline sync error display** — Reverse-proxy HTML (e.g. nginx `403 Forbidden`) is no longer shown in the UI; users see “Access denied” instead. Sync failures keep local offline items visible (snackbar + last-error row) instead of a full-screen error that hides them.
 
 ### Changed
 

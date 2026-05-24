@@ -132,4 +132,23 @@ class ApiErrorHelperTest {
             ApiErrorHelper.errorMessageResId(RuntimeException()),
         )
     }
+
+    @Test
+    fun isHtmlErrorBody_detects_nginx_forbidden_page() {
+        val nginx403 =
+            """
+            <html>
+            <head><title>403 Forbidden</title></head>
+            <body>
+            <center><h1>403 Forbidden</h1></center>
+            </body>
+            </html>
+            """.trimIndent()
+        assertEquals(true, ApiErrorHelper.isHtmlErrorBody(nginx403))
+    }
+
+    @Test
+    fun isHtmlErrorBody_allows_plain_api_message() {
+        assertEquals(false, ApiErrorHelper.isHtmlErrorBody("Invalid API key"))
+    }
 }

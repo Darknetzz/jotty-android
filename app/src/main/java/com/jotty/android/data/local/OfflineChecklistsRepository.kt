@@ -44,7 +44,7 @@ class OfflineChecklistsRepository(
     private val instanceId: String,
     private val api: JottyApi,
     initialOnlineOverride: Boolean? = null,
-    private val registerNetworkCallback: Boolean = true,
+    private val useSharedConnectivity: Boolean = true,
 ) {
     private val appContext = context.applicationContext
     private val checklistDao = database.checklistDao()
@@ -55,7 +55,7 @@ class OfflineChecklistsRepository(
         OfflineRepositoryLifecycle(
             context = context,
             initialOnlineOverride = initialOnlineOverride,
-            registerNetworkCallback = registerNetworkCallback,
+            useSharedConnectivity = useSharedConnectivity,
             logTag = TAG,
             instanceId = instanceId,
             onNetworkAvailable = { syncChecklists() },

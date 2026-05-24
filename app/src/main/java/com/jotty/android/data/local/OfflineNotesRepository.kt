@@ -28,7 +28,7 @@ class OfflineNotesRepository(
     /** When non-null, used instead of [checkConnectivity] for initial online state (e.g. unit tests). */
     initialOnlineOverride: Boolean? = null,
     /** Set false in tests to avoid registering a network callback. */
-    private val registerNetworkCallback: Boolean = true,
+    private val useSharedConnectivity: Boolean = true,
 ) {
     private val appContext = context.applicationContext
     private val noteDao = database.noteDao()
@@ -36,7 +36,7 @@ class OfflineNotesRepository(
         OfflineRepositoryLifecycle(
             context = context,
             initialOnlineOverride = initialOnlineOverride,
-            registerNetworkCallback = registerNetworkCallback,
+            useSharedConnectivity = useSharedConnectivity,
             logTag = TAG,
             instanceId = instanceId,
             onNetworkAvailable = { syncNotes() },

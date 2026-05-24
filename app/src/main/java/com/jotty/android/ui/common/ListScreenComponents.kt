@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -59,6 +60,60 @@ fun LoadingState(
     }
 }
 
+/** Prominent warning when the app cannot reach the server (shared connectivity monitor). */
+@Composable
+fun OfflineConnectivityBanner(
+    isOnline: Boolean,
+    onRetrySync: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (isOnline) return
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+            ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(
+                Icons.Default.WifiOff,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(28.dp),
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.connectivity_not_established_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.connectivity_not_established_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+            TextButton(onClick = onRetrySync) {
+                Text(
+                    stringResource(R.string.connectivity_retry_sync),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 fun OfflineSyncStatusRow(
     isOnline: Boolean,
@@ -80,9 +135,23 @@ fun OfflineSyncStatusRow(
                 DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
             }
         }
+    val offline = !isOnline && !isSyncing
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .then(
+                    if (offline) {
+                        Modifier.background(
+                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
+                            MaterialTheme.shapes.small,
+                        )
+                    } else {
+                        Modifier
+                    },
+                )
+                .padding(horizontal = if (offline) 8.dp else 0.dp, vertical = if (offline) 6.dp else 0.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -109,17 +178,33 @@ fun OfflineSyncStatusRow(
                     Icon(
                         Icons.Default.CloudOff,
                         contentDescription = statusText,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp),
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(22.dp),
                     )
             }
             Column {
                 Text(
                     text = statusText,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style =
+                        if (offline) {
+                            MaterialTheme.typography.titleSmall
+                        } else {
+                            MaterialTheme.typography.labelLarge
+                        },
+                    color =
+                        if (offline) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                 )
-                if (lastSyncText != null) {
+                if (offline) {
+                    Text(
+                        text = stringResource(R.string.connectivity_status_offline_hint),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else if (lastSyncText != null) {
                     Text(
                         text = stringResource(R.string.last_sync_attempt_at, lastSyncText),
                         style = MaterialTheme.typography.labelSmall,

@@ -1,6 +1,7 @@
 package com.jotty.android.data.updates
 
 import com.jotty.android.data.updates.GitHubAsset
+import com.jotty.android.util.ApkInstallHelper
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -131,5 +132,12 @@ class UpdateCheckerTest {
     fun `preferredApkAsset falls back to debug when only debug attached`() {
         val assets = listOf(GitHubAsset("jotty-android-debug.apk", "https://example.com/debug"))
         assertEquals("jotty-android-debug.apk", UpdateChecker.preferredApkAsset(assets)?.name)
+    }
+
+    @Test
+    fun `devCiVersionCode increments within base version band`() {
+        assertEquals(270001, ApkInstallHelper.devCiVersionCode(27, 1))
+        assertEquals(279999, ApkInstallHelper.devCiVersionCode(27, 9999))
+        assertEquals(280042, ApkInstallHelper.devCiVersionCode(28, 42))
     }
 }

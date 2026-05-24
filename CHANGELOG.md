@@ -4,8 +4,14 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dev in-app updates (“App not installed”)** — `dev-latest` CI assigns a monotonic `versionCode` per workflow run (same signing as stable when secrets are set). The app checks APK signing and version code before opening the installer and shows a clear message when the installed build was debug-signed or sideloaded with a different key.
+- **Offline checklists stuck offline ([#27](https://github.com/Darknetzz/jotty-android/issues/27))** — Notes and checklists share one app-wide connectivity monitor (single network callback) so tab switches no longer desync Online/Offline. Sync runs when connectivity is restored.
+
 ### Changed
 
+- **Offline connectivity UX** — Prominent error banner and highlighted offline status when the server cannot be reached; **Try sync** on list and detail screens.
 - **Branch sync after release** — CI fast-forwards `dev` to `main` after each push to `main`, so release merge commits do not leave `main` ahead of `dev` with identical trees.
 
 ---

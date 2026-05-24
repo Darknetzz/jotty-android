@@ -30,6 +30,7 @@ import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.OfflineConnectivityBanner
 import com.jotty.android.ui.common.OfflineSyncStatusRow
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
@@ -162,7 +163,11 @@ fun OfflineEnabledNotesScreen(
         ) {
             when (val note = selectedNote) {
                 null -> {
-                    // Header with sync status and actions; the app bar owns the screen title.
+                    OfflineConnectivityBanner(
+                        isOnline = isOnline,
+                        onRetrySync = { requestSync(showLoading = true) },
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
                     OfflineSyncStatusRow(
                         isOnline = isOnline,
                         isSyncing = isSyncing,
@@ -375,6 +380,7 @@ fun OfflineEnabledNotesScreen(
                         debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
                         isOnline = isOnline,
+                        onRetrySync = { requestSync(showLoading = true) },
                         biometricStore = biometricStore,
                     )
                 }

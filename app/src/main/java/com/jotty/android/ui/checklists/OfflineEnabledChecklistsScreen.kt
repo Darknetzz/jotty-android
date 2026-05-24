@@ -40,6 +40,7 @@ import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.OfflineConnectivityBanner
 import com.jotty.android.ui.common.OfflineSyncStatusRow
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
@@ -204,6 +205,7 @@ fun OfflineEnabledChecklistsScreen(
                     checklist = currentList,
                     offlineRepository = offlineRepository,
                     isOnline = isOnline,
+                    onRetrySync = { requestSync(showLoading = true) },
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = { vm.setSelectedList(it) },
                     onDelete = {
@@ -221,7 +223,11 @@ fun OfflineEnabledChecklistsScreen(
                     onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
                 )
             } else {
-                // Header row: status + actions
+                OfflineConnectivityBanner(
+                    isOnline = isOnline,
+                    onRetrySync = { requestSync(showLoading = true) },
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
                 OfflineSyncStatusRow(
                     isOnline = isOnline,
                     isSyncing = isSyncing,
@@ -509,6 +515,7 @@ private fun OfflineChecklistDetailContent(
     checklist: Checklist,
     offlineRepository: OfflineChecklistsRepository,
     isOnline: Boolean,
+    onRetrySync: () -> Unit,
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
     onDelete: () -> Unit,
@@ -561,6 +568,12 @@ private fun OfflineChecklistDetailContent(
             onBack = onBack,
             onRename = { showRenameDialog = true },
             onDelete = onDelete,
+        )
+
+        OfflineConnectivityBanner(
+            isOnline = isOnline,
+            onRetrySync = onRetrySync,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
         Spacer(modifier = Modifier.height(8.dp))

@@ -26,6 +26,15 @@ jobs:
           VERSION_NAME=$(grep '^VERSION_NAME=' gradle.properties | cut -d= -f2-)
           echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
+      # Monotonic versionCode per CI run so dev→dev in-app updates work when gradle VERSION_CODE is unchanged.
+      - name: Compute dev version code
+        id: devcode
+        run: |
+          BASE=$(grep '^VERSION_CODE=' gradle.properties | cut -d= -f2-)
+          DEV_CODE=$(( BASE * 10000 + GITHUB_RUN_NUMBER % 10000 ))
+          echo "code=$DEV_CODE" >> "$GITHUB_OUTPUT"
+          echo "Dev VERSION_CODE=$DEV_CODE (base=$BASE, run=$GITHUB_RUN_NUMBER)"
+
       # Same release keystore as stable releases so in-app dev updates install over v1.3.x stable.
       - name: Decode release keystore
         id: signing
@@ -57,11 +66,11 @@ jobs:
 
       - name: Build release dev APK
         if: steps.signing.outputs.have_release == 'true'
-        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon -PDEV_BUILD_SHA=${GITHUB_SHA}
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon -PDEV_BUILD_SHA=${GITHUB_SHA} -PVERSION_CODE=${{ steps.devcode.outputs.code }}
 
       - name: Build debug dev APK (no release keystore)
         if: steps.signing.outputs.have_release != 'true'
-        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon -PDEV_BUILD_SHA=${GITHUB_SHA}
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon -PDEV_BUILD_SHA=${GITHUB_SHA} -PVERSION_CODE=${{ steps.devcode.outputs.code }}
 
       - name: Prepare dev-latest asset
         id: asset

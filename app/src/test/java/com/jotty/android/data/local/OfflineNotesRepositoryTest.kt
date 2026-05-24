@@ -52,7 +52,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = false,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
             val result = repo.syncNotes()
             assertTrue(result.isFailure)
@@ -74,7 +74,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
             assertTrue(repo.syncNotes().isSuccess)
             val stored = database.noteDao().getAllNotes(instanceId)
@@ -132,7 +132,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
             assertTrue(repo.syncNotes().isSuccess)
             val stored = database.noteDao().getAllNotes(instanceId)
@@ -151,7 +151,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = FakeJottyApi(),
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
             database.noteDao().insertNotes(
                 listOf(
@@ -211,7 +211,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
 
             val result = repo.createNote(title = "Offline note", content = "body")
@@ -269,7 +269,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
 
             val result = repo.updateNote("existing-server-id", "New Title", "new body", API_CATEGORY_UNCATEGORIZED)
@@ -311,7 +311,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = false,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
 
             val createResult = repo.createNote(title = "Draft", content = "v1")
@@ -333,7 +333,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
             val syncResult = onlineRepo.syncNotes()
             assertTrue(syncResult.isSuccess)
@@ -359,7 +359,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
 
             val createResult = repo.createNote(title = "Local only", content = "")
@@ -375,7 +375,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = false,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
             val deleteResult = offlineRepo.deleteNote(localId)
 
@@ -425,7 +425,7 @@ class OfflineNotesRepositoryTest {
                     instanceId = instanceId,
                     api = api,
                     initialOnlineOverride = true,
-                    registerNetworkCallback = false,
+                    useSharedConnectivity = false,
                 )
 
             assertTrue(repo.syncNotes().isFailure)

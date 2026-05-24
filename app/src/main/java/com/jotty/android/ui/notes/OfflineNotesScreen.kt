@@ -39,9 +39,10 @@ fun OfflineNotesScreen(
         )
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val isOnline by offlineRepository.isOnline.collectAsStateWithLifecycle()
 
-    LaunchedEffect(offlineModeEnabled, instanceId) {
-        if (offlineModeEnabled) {
+    LaunchedEffect(offlineModeEnabled, instanceId, authFingerprint, isOnline) {
+        if (offlineModeEnabled && isOnline) {
             offlineRepository.syncNotes()
         }
     }

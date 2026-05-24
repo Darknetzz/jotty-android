@@ -8,6 +8,7 @@ import androidx.core.content.FileProvider
 import com.jotty.android.BuildConfig
 import com.jotty.android.R
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.ApkInstallHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -282,6 +283,14 @@ object UpdateChecker {
         context: Context,
         apkFile: File,
     ): InstallResult {
+        if (!ApkInstallHelper.canInstallOverExisting(context, apkFile)) {
+            AppLog.w(TAG, "Update APK signing does not match installed app")
+            return InstallResult.Failed(context.getString(R.string.update_signing_mismatch_blocked))
+        }
+        if (!ApkInstallHelper.isVersionCodeAllowedForUpdate(context, apkFile)) {
+            AppLog.w(TAG, "Update APK versionCode is lower than installed app")
+            return InstallResult.Failed(context.getString(R.string.update_version_downgrade_blocked))
+        }
         return try {
             val uri: Uri =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -304,6 +313,7 @@ object UpdateChecker {
                         addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
                     }
                 }
+            ApkInstallHelper.grantReadPermissionToInstallers(context, uri, intent)
             context.startActivity(intent)
             InstallResult.Started
         } catch (e: Exception) {

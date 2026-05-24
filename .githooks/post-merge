@@ -1,0 +1,8 @@
+#!/bin/sh
+# After merge/pull on dev, keep local dev-latest tag aligned with origin (moving CI tag).
+branch=$(git symbolic-ref -q HEAD 2>/dev/null) || exit 0
+case "$branch" in
+  refs/heads/dev) ;;
+  *) exit 0 ;;
+esac
+git fetch origin tag dev-latest --force >/dev/null 2>&1 || true

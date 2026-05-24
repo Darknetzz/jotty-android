@@ -6,6 +6,8 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ### Fixed
 
+- **Git `dev-latest` tag on pull** — `scripts/setup-repo-git` adds a force-fetch refspec so `git pull --tags` no longer fails with “would clobber existing tag”; `scripts/pull-dev` runs setup and pulls `dev`. Optional `.githooks/post-merge` keeps the tag in sync on `dev` when `core.hooksPath` is set via setup.
+
 - **Dev in-app updates (“App not installed”)** — `dev-latest` CI assigns a monotonic `versionCode` per workflow run (same signing as stable when secrets are set). The app checks APK signing and version code before opening the installer and shows a clear message when the installed build was debug-signed or sideloaded with a different key.
 - **Offline checklists stuck offline ([#27](https://github.com/Darknetzz/jotty-android/issues/27))** — Notes and checklists share one app-wide connectivity monitor (single network callback) so tab switches no longer desync Online/Offline. Sync runs when connectivity is restored.
 

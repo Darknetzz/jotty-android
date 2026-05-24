@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Updates the local dev-latest tag from origin (safe when pull --tags fails with "would clobber").
+# Updates the local dev-latest tag from origin.
+# Prefer setup-repo-git.sh once per clone so "git pull --tags" never clobbers dev-latest.
 set -euo pipefail
-cd "$(dirname "$0")/.."
-git fetch origin tag dev-latest --force
-echo "Local tag dev-latest now matches origin."
+"$(dirname "$0")/setup-repo-git.sh"

@@ -4,6 +4,27 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+
+- **Checklist reorder hint** — Checklist detail shows when item reorder is unavailable in-app (use Jotty web until REST API exists); addresses [#29](https://github.com/Darknetzz/jotty-android/issues/29).
+- **Checklist conflict copies UX** — Offline checklists list shows the same conflict-copies banner and “View copies” flow as notes (`getConflictCopiesFlow`, `ConflictCopiesBanner`).
+- **Note detail architecture** — `NoteDetailViewModel` and `NoteDetailActions` (`ApiNoteDetailActions`, `OfflineNoteDetailActions`); offline detail no longer stubs `JottyApi`.
+- **List data sources** — `NotesListDataSource` / `ChecklistsListDataSource` with online and offline implementations (`data/repository/ListDataSources.kt`) as a step toward unified list screens.
+- **Tests** — Checklist sync conflict tests; ViewModel tests for offline notes/checklists and `NoteDetailViewModel`.
+
+### Changed
+
+- **Note detail logging** — Encryption debug lines use `AppLog` (gated by Settings → debug logging) instead of unconditional `Log`.
+- **Shared offline UI** — `ConflictCopiesBanner` in `ui/common/`; notes and checklists list screens use it.
+
+### Fixed
+
+- **Online note delete from detail** — Overflow → Delete now calls `deleteNote` on the server (previously only closed detail and refreshed the list).
+
+### Documentation
+
+- **`docs/TODO.md`** — Populated with follow-up backlog; **`docs/OFFLINE_NOTES.md`** — marked offline checklists as implemented in future-improvements list.
+
 ---
 
 ## [1.3.5] - 2026-05-24

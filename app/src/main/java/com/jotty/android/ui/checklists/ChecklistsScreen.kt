@@ -414,6 +414,8 @@ private fun ChecklistDetailScreen(
             onDelete = onDelete,
         )
 
+        ChecklistReorderInfoBanner()
+
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(

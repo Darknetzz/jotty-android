@@ -36,6 +36,7 @@ import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
+import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListScreenContent
@@ -66,6 +67,7 @@ fun OfflineEnabledChecklistsScreen(
         }
 
     val checklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
+    val conflictCopies by offlineRepository.getConflictCopiesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
     val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
     val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
@@ -301,6 +303,11 @@ fun OfflineEnabledChecklistsScreen(
                         }
                     }
                 }
+
+                ConflictCopiesBanner(
+                    conflictCopyCount = conflictCopies.size,
+                    onViewCopies = { vm.applyConflictSearchFilter() },
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -574,6 +581,8 @@ private fun OfflineChecklistDetailContent(
             onRename = { showRenameDialog = true },
             onDelete = onDelete,
         )
+
+        ChecklistReorderInfoBanner()
 
         OfflineConnectivityBanner(
             isOnline = isOnline,

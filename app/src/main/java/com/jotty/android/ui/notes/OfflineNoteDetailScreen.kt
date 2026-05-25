@@ -3,28 +3,25 @@ package com.jotty.android.ui.notes
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
-import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
-import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.ui.common.OfflineConnectivityBanner
-import com.jotty.android.util.AppLog
 import kotlinx.coroutines.launch
 
 /**
- * Wrapper for NoteDetailScreen that uses OfflineNotesRepository.
- * Provides offline editing with automatic sync.
+ * Wrapper for [NoteDetailScreen] that uses [OfflineNotesRepository] via [OfflineNoteDetailActions].
  */
 @Composable
 fun OfflineNoteDetailScreen(
     note: Note,
     offlineRepository: OfflineNotesRepository,
-    api: JottyApi,
     onBack: () -> Unit,
     onUpdate: (Note) -> Unit,
     onDelete: () -> Unit,
@@ -37,124 +34,13 @@ fun OfflineNoteDetailScreen(
     biometricStore: BiometricPassphraseStore? = null,
 ) {
     val scope = rememberCoroutineScope()
-
-    // Create a wrapper API that uses the offline repository
-    val offlineApi =
-        remember {
-            object : JottyApi {
-                override suspend fun getNotes(
-                    category: String?,
-                    search: String?,
-                ) = throw UnsupportedOperationException("Use offline repository")
-
-                override suspend fun createNote(body: com.jotty.android.data.api.CreateNoteRequest): com.jotty.android.data.api.ApiResponse<Note> {
-                    throw UnsupportedOperationException("Use offline repository")
-                }
-
-                override suspend fun updateNote(
-                    noteId: String,
-                    request: UpdateNoteRequest,
-                ): com.jotty.android.data.api.ApiResponse<Note> {
-                    AppLog.d("OfflineNoteDetailScreen", "Updating note offline: $noteId")
-                    val result =
-                        offlineRepository.updateNote(
-                            noteId = noteId,
-                            title = request.title,
-                            content = request.content ?: "",
-                            category = request.category ?: note.category,
-                        )
-
-                    return if (result.isSuccess) {
-                        val updated = result.getOrThrow()
-                        if (!isOnline) {
-                            // Show local save message if offline
-                            scope.launch { onSavedLocally() }
-                        }
-                        com.jotty.android.data.api.ApiResponse(
-                            success = true,
-                            data = updated,
-                        )
-                    } else {
-                        throw result.exceptionOrNull() ?: Exception("Update failed")
-                    }
-                }
-
-                override suspend fun deleteNote(noteId: String): com.jotty.android.data.api.SuccessResponse {
-                    AppLog.d("OfflineNoteDetailScreen", "Deleting note offline: $noteId")
-                    val result = offlineRepository.deleteNote(noteId)
-
-                    return if (result.isSuccess) {
-                        if (!isOnline) {
-                            scope.launch { onSavedLocally() }
-                        }
-                        com.jotty.android.data.api.SuccessResponse(success = true)
-                    } else {
-                        throw result.exceptionOrNull() ?: Exception("Delete failed")
-                    }
-                }
-
-                override suspend fun getCategories() = api.getCategories()
-
-                override suspend fun health() = api.health()
-
-                override suspend fun getChecklists(
-                    category: String?,
-                    type: String?,
-                    search: String?,
-                ) = api.getChecklists(category, type, search)
-
-                override suspend fun createChecklist(request: com.jotty.android.data.api.CreateChecklistRequest) =
-                    api.createChecklist(
-                        request,
-                    )
-
-                override suspend fun updateChecklist(
-                    checklistId: String,
-                    request: com.jotty.android.data.api.UpdateChecklistRequest,
-                ) = api.updateChecklist(
-                    checklistId,
-                    request,
-                )
-
-                override suspend fun deleteChecklist(checklistId: String) = api.deleteChecklist(checklistId)
-
-                override suspend fun addChecklistItem(
-                    listId: String,
-                    body: com.jotty.android.data.api.AddItemRequest,
-                ) = api.addChecklistItem(
-                    listId,
-                    body,
-                )
-
-                override suspend fun checkItem(
-                    listId: String,
-                    itemIndex: String,
-                ) = api.checkItem(listId, itemIndex)
-
-                override suspend fun uncheckItem(
-                    listId: String,
-                    itemIndex: String,
-                ) = api.uncheckItem(listId, itemIndex)
-
-                override suspend fun updateItem(
-                    listId: String,
-                    itemIndex: String,
-                    body: com.jotty.android.data.api.UpdateItemRequest,
-                ) = api.updateItem(
-                    listId,
-                    itemIndex,
-                    body,
-                )
-
-                override suspend fun deleteItem(
-                    listId: String,
-                    itemIndex: String,
-                ) = api.deleteItem(listId, itemIndex)
-
-                override suspend fun getAdminOverview() = api.getAdminOverview()
-
-                override suspend fun getSummary() = api.getSummary()
-            }
+    val actions =
+        remember(offlineRepository, isOnline) {
+            OfflineNoteDetailActions(
+                offlineRepository = offlineRepository,
+                isOnline = { isOnline },
+                onSavedLocally = onSavedLocally,
+            )
         }
 
     Column(Modifier.fillMaxSize()) {
@@ -165,12 +51,12 @@ fun OfflineNoteDetailScreen(
         )
         NoteDetailScreen(
             note = note,
-            api = offlineApi,
+            actions = actions,
             onBack = onBack,
             onUpdate = onUpdate,
             onDelete = {
                 scope.launch {
-                    offlineRepository.deleteNote(note.id)
+                    actions.deleteNote(note.id)
                     onDelete()
                 }
             },

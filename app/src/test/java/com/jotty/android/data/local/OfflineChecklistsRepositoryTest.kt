@@ -24,6 +24,7 @@ import com.jotty.android.data.api.SummaryResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.api.UpdateNoteRequest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -220,6 +221,107 @@ class OfflineChecklistsRepositoryTest {
             assertEquals("list-1", row.id)
             assertTrue(row.isDirty)
             assertEquals("Local title", row.title)
+        }
+
+    @Test
+    fun syncChecklists_whenDirtyChecklistDiffersFromServer_createsLocalCopy() =
+        runTest {
+            val serverList =
+                Checklist(
+                    id = "list-1",
+                    title = "Server title",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    items = listOf(ChecklistItem(index = 0, text = "Server item")),
+                    createdAt = "c",
+                    updatedAt = "u",
+                )
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = mutableListOf(serverList),
+                    onUpdateChecklist = { _, _ ->
+                        // Push succeeds but pull still returns the pre-conflict server snapshot.
+                        ApiResponse(true, serverList)
+                    },
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Local title",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = Gson().toJson(listOf(ChecklistItem(index = 0, text = "Local item"))),
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            val stored = database.checklistDao().getAllChecklists(instanceId)
+            assertEquals(2, stored.size)
+            assertTrue(stored.any { it.title == "Local title${OfflineChecklistsRepository.LOCAL_COPY_SUFFIX}" })
+            assertTrue(stored.any { it.title == "Server title" })
+            assertEquals(1, repo.conflictsDetected.value)
+        }
+
+    @Test
+    fun getConflictCopiesFlow_returnsOnlyLocalCopies() =
+        runTest {
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "regular",
+                    title = "Regular",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = "[]",
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    instanceId = instanceId,
+                ),
+            )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "copy",
+                    title = "Regular${OfflineChecklistsRepository.LOCAL_COPY_SUFFIX}",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = "[]",
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    instanceId = instanceId,
+                ),
+            )
+
+            val conflictCopies = repo.getConflictCopiesFlow().first()
+
+            assertEquals(1, conflictCopies.size)
+            assertEquals("copy", conflictCopies.single().id)
         }
 }
 

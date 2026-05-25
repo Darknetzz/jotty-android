@@ -84,6 +84,18 @@ class OfflineChecklistsRepository(
             .map { it.map { e -> e.toChecklist() } }
             .flowOn(Dispatchers.IO)
 
+    /**
+     * Local conflict copies are kept until users review and delete or merge them.
+     */
+    fun getConflictCopiesFlow(): Flow<List<Checklist>> =
+        checklistDao.getAllChecklistsFlow(instanceId)
+            .map { entities ->
+                entities
+                    .filter { it.title.endsWith(LOCAL_COPY_SUFFIX) }
+                    .map { it.toChecklist() }
+            }
+            .flowOn(Dispatchers.IO)
+
     fun clearConflictNotification() {
         runtime.syncStatus.setConflictsDetected(0)
     }

@@ -232,17 +232,21 @@ fun NotesScreen(
                 }
                 else -> {
                     val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
+                    val noteActions = remember(api) { ApiNoteDetailActions(api) }
                     NoteDetailScreen(
                         note = note,
-                        api = api,
+                        actions = noteActions,
                         onBack = { vm.setSelectedNote(null) },
                         onUpdate = {
                             vm.setSelectedNote(it)
                             vm.loadNotes()
                         },
                         onDelete = {
-                            vm.setSelectedNote(null)
-                            vm.loadNotes()
+                            scope.launch {
+                                noteActions.deleteNote(note.id)
+                                vm.setSelectedNote(null)
+                                vm.loadNotes()
+                            }
                         },
                         onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                         debugLoggingEnabled = debugLoggingEnabled,

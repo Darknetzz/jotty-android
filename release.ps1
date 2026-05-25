@@ -72,25 +72,36 @@ function Update-Changelog {
     param(
         [string]$FilePath,
         [string]$VersionName,
-        [string]$ReleaseDate
+        [string]$ReleaseDate,
+        [string]$CurrentVersionName
     )
 
+    $devLatestUrl = 'https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest'
     $content = Get-Content -Raw -LiteralPath $FilePath
     $lineEnding = if ($content.Contains("`r`n")) { "`r`n" } else { "`n" }
 
-    if ($content -notmatch '## \[Unreleased\]') {
-        throw "Could not find '## [Unreleased]' in CHANGELOG.md"
+    $currentDevHeading = "## [$CurrentVersionName-dev]"
+    if ($content -notmatch [regex]::Escape($currentDevHeading)) {
+        throw "Could not find '$currentDevHeading' in CHANGELOG.md"
     }
     if ($content -match "## \[$([regex]::Escape($VersionName))\]") {
         throw "CHANGELOG.md already contains version $VersionName"
     }
 
     $releaseHeader = "## [$VersionName] - $ReleaseDate"
-    $replacement = "## [Unreleased]$lineEnding$lineEnding---$lineEnding$lineEnding$releaseHeader"
-    $updated = [regex]::Replace($content, '## \[Unreleased\]\r?\n\r?\n---\r?\n\r?\n## \[[^\]]+\] - [^\r\n]+', $replacement, 1)
+    $newDevHeading = "## [$VersionName-dev] - [dev-latest]($devLatestUrl)"
+    $replacement = "$newDevHeading$lineEnding$lineEnding---$lineEnding$lineEnding$releaseHeader"
+    $escapedCurrentDev = [regex]::Escape($currentDevHeading)
+    $devTitleSuffix = '(?: - \[[^\]]+\]\([^\)]+\))?'
+    $updated = [regex]::Replace(
+        $content,
+        "${escapedCurrentDev}${devTitleSuffix}\r?\n\r?\n---\r?\n\r?\n## \[[^\]]+\] - [^\r\n]+",
+        $replacement,
+        1
+    )
 
     if ($updated -eq $content) {
-        $updated = [regex]::Replace($content, '## \[Unreleased\]', $replacement, 1)
+        $updated = [regex]::Replace($content, "${escapedCurrentDev}${devTitleSuffix}", $replacement, 1)
     }
 
     $releaseUrl = "https://github.com/Darknetzz/jotty-android/releases/tag/v$VersionName"
@@ -126,12 +137,12 @@ if (-not $Version) {
 }
 
 $gradleResult = Update-GradleProperties -FilePath $gradlePath -VersionName $Version
-$updatedChangelog = Update-Changelog -FilePath $changelogPath -VersionName $Version -ReleaseDate $Date
+$updatedChangelog = Update-Changelog -FilePath $changelogPath -VersionName $Version -ReleaseDate $Date -CurrentVersionName $currentVersion
 
 if ($DryRun) {
     Write-Host "[DryRun] Would set VERSION_NAME=$Version"
     Write-Host "[DryRun] Would increment VERSION_CODE $($gradleResult.PreviousCode) -> $($gradleResult.NextCode)"
-    Write-Host "[DryRun] Would promote changelog Unreleased to $Version ($Date)"
+    Write-Host "[DryRun] Would promote changelog [$currentVersion-dev] to [$Version] ($Date)"
     exit 0
 }
 

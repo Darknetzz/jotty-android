@@ -70,7 +70,7 @@ Preferred flow (automated):
 - **Windows (PowerShell):** `.\release.ps1`
 - **Linux/macOS (bash):** `./release.sh`
 
-Both scripts can prompt for a version (default is current patch + 1), increment `VERSION_CODE`, and promote `CHANGELOG.md` from `Unreleased` to a dated release entry.
+Both scripts can prompt for a version (default is current patch + 1), increment `VERSION_CODE`, and promote the top `CHANGELOG.md` section (`[VERSION-dev]` - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)) to a dated stable release entry, leaving a fresh `[new-version-dev]` section for the rolling dev build.
 
 **Typical stable release flow**
 

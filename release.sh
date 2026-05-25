@@ -92,7 +92,7 @@ NEXT_CODE=$((CURRENT_CODE + 1))
 if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "[DryRun] Would set VERSION_NAME=$VERSION"
   echo "[DryRun] Would increment VERSION_CODE $CURRENT_CODE -> $NEXT_CODE"
-  echo "[DryRun] Would promote changelog Unreleased to $VERSION ($DATE)"
+  echo "[DryRun] Would promote changelog [${CURRENT_VERSION_NAME}-dev] to [$VERSION] ($DATE)"
   exit 0
 fi
 
@@ -105,18 +105,26 @@ if grep -q "^## \[${VERSION}\]" "$CHANGELOG_FILE"; then
   exit 1
 fi
 
-if grep -q "^## \[Unreleased\]$" "$CHANGELOG_FILE"; then
-  python3 - "$CHANGELOG_FILE" "$VERSION" "$DATE" <<'PY'
+DEV_LATEST_URL="https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest"
+CURRENT_DEV_SECTION="## [${CURRENT_VERSION_NAME}-dev]"
+
+if grep -qF "$CURRENT_DEV_SECTION" "$CHANGELOG_FILE"; then
+  python3 - "$CHANGELOG_FILE" "$VERSION" "$DATE" "$CURRENT_VERSION_NAME" "$DEV_LATEST_URL" <<'PY'
 import re
 import sys
 
-path, version, date = sys.argv[1], sys.argv[2], sys.argv[3]
+path, version, date, current, dev_latest_url = sys.argv[1:6]
 text = open(path, "r", encoding="utf-8").read()
 
-header = f"## [Unreleased]\n\n---\n\n## [{version}] - {date}"
+dev_title_suffix = f" - [dev-latest]({dev_latest_url})"
+new_dev = f"## [{version}-dev]{dev_title_suffix}"
+header = f"{new_dev}\n\n---\n\n## [{version}] - {date}"
+
+current_dev = re.escape(f"## [{current}-dev]")
+dev_heading = re.compile(rf"^{current_dev}(?: - \[[^\]]+\]\([^\)]+\))?$", re.M)
 
 new_text = re.sub(
-    r"## \[Unreleased\]\n\n---\n\n## \[[^\]]+\] - [^\n]+",
+    rf"{current_dev}\n\n---\n\n## \[[^\]]+\] - [^\n]+",
     header,
     text,
     count=1,
@@ -124,7 +132,7 @@ new_text = re.sub(
 )
 
 if new_text == text:
-    new_text = re.sub(r"## \[Unreleased\]", header, text, count=1, flags=re.M)
+    new_text = dev_heading.sub(header, text, count=1)
 
 link = f"[{version}]: https://github.com/Darknetzz/jotty-android/releases/tag/v{version}"
 if not re.search(rf"^\[{re.escape(version)}\]:\s+", new_text, flags=re.M):
@@ -145,7 +153,7 @@ if not re.search(rf"^\[{re.escape(version)}\]:\s+", new_text, flags=re.M):
 open(path, "w", encoding="utf-8", newline="\n").write(new_text)
 PY
 else
-  echo "Could not find '## [Unreleased]' in CHANGELOG.md" >&2
+  echo "Could not find '$CURRENT_DEV_SECTION' in CHANGELOG.md" >&2
   exit 1
 fi
 

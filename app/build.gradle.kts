@@ -75,6 +75,16 @@ android {
     }
 }
 
+val copyChangelogToAssets =
+    tasks.register<Copy>("copyChangelogToAssets") {
+        from(rootProject.file("CHANGELOG.md"))
+        into(layout.projectDirectory.dir("src/main/assets"))
+    }
+
+tasks.named("preBuild") {
+    dependsOn(copyChangelogToAssets)
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)

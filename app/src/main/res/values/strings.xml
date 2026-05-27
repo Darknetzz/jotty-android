@@ -239,6 +239,11 @@
     <string name="update_dev_channel_hint">Dev builds update from the dev-latest release. Use the same signing as stable for in-app updates; otherwise uninstall once before installing dev.</string>
     <string name="open_release_page">Open release page</string>
     <string name="whats_new">What\'s new</string>
+    <string name="view_changelog">View changelog</string>
+    <string name="view_changelog_for_version">View changelog for %1$s</string>
+    <string name="changelog_title_installed">Changelog — %1$s</string>
+    <string name="changelog_title_update">What\'s new in %1$s</string>
+    <string name="changelog_unavailable">Changelog is not available for this version.</string>
     <string name="about_easter_egg_title">Well spotted</string>
     <string name="about_easter_egg_body">Seven taps on the version — you must really like release numbers. Thanks for using Jotty Android; now go tick something off your list.</string>
 

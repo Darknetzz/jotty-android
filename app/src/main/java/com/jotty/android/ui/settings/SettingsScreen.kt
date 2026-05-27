@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
@@ -33,11 +34,13 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.SummaryData
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.data.updates.BundledChangelog
 import com.jotty.android.data.updates.InstallResult
 import com.jotty.android.data.updates.UpdateChannel
 import com.jotty.android.data.updates.UpdateCheckResult
 import com.jotty.android.data.updates.UpdateChecker
 import com.jotty.android.data.updates.parseUpdateChannel
+import com.jotty.android.ui.common.ChangelogDialog
 import com.jotty.android.ui.common.UpdateStatusAlert
 import com.jotty.android.ui.common.UpdateStatusAlertVariant
 import com.jotty.android.ui.common.mainScreenTabContentPadding
@@ -404,6 +407,8 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 ) {
+                    val biometricAvailable =
+                        biometricAvailability == BiometricPassphraseStore.BiometricAvailability.Available
                     val biometricStatusText =
                         when (biometricAvailability) {
                             BiometricPassphraseStore.BiometricAvailability.Available ->
@@ -418,7 +423,7 @@ fun SettingsScreen(
                         supportingContent = {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(biometricStatusText, style = MaterialTheme.typography.bodySmall)
-                                if (storedPassphraseCount > 0) {
+                                if (biometricAvailable && storedPassphraseCount > 0) {
                                     Text(
                                         stringResource(R.string.biometric_stored_count, storedPassphraseCount),
                                         style = MaterialTheme.typography.bodySmall,
@@ -428,52 +433,54 @@ fun SettingsScreen(
                             }
                         },
                     )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.biometric_auto_unlock)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.biometric_auto_unlock_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = biometricAutoUnlockEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setBiometricAutoUnlockEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.biometric_save_offer)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.biometric_save_offer_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = biometricSaveOfferEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setBiometricSaveOfferEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
-                    if (storedPassphraseCount > 0) {
+                    if (biometricAvailable) {
                         HorizontalDivider()
                         ListItem(
-                            headlineContent = { Text(stringResource(R.string.biometric_clear_all)) },
-                            modifier = Modifier.clickable { showClearBiometricConfirm = true },
+                            headlineContent = { Text(stringResource(R.string.biometric_auto_unlock)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.biometric_auto_unlock_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = biometricAutoUnlockEnabled,
+                                    onCheckedChange = {
+                                        scope.launch {
+                                            settingsRepository.setBiometricAutoUnlockEnabled(it)
+                                        }
+                                    },
+                                )
+                            },
                         )
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.biometric_save_offer)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.biometric_save_offer_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = biometricSaveOfferEnabled,
+                                    onCheckedChange = {
+                                        scope.launch {
+                                            settingsRepository.setBiometricSaveOfferEnabled(it)
+                                        }
+                                    },
+                                )
+                            },
+                        )
+                        if (storedPassphraseCount > 0) {
+                            HorizontalDivider()
+                            ListItem(
+                                headlineContent = { Text(stringResource(R.string.biometric_clear_all)) },
+                                modifier = Modifier.clickable { showClearBiometricConfirm = true },
+                            )
+                        }
                     }
                 }
 
@@ -727,9 +734,52 @@ private fun AboutDialog(
     var versionTapCount by remember { mutableIntStateOf(0) }
     var versionLastTapElapsedMs by remember { mutableLongStateOf(0L) }
     var showAboutEasterEgg by remember { mutableStateOf(false) }
+    var bundledChangelog by remember { mutableStateOf<BundledChangelog?>(null) }
+    var changelogDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showChangelogUnavailable by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        bundledChangelog = BundledChangelog.load(context)
+    }
 
     LaunchedEffect(updateChannelPref) {
         updateState = UpdateUiState.Idle
+    }
+
+    fun openInstalledChangelog() {
+        val key = BundledChangelog.sectionKeyForInstalled(versionName)
+        val markdown =
+            BundledChangelog.resolveMarkdown(
+                changelog = bundledChangelog,
+                sectionKey = key,
+                useDevRollingSection = false,
+                fallbackMarkdown = null,
+            )
+        if (markdown != null) {
+            changelogDialog = context.getString(R.string.changelog_title_installed, key) to markdown
+        } else {
+            showChangelogUnavailable = true
+        }
+    }
+
+    fun openUpdateChangelog(
+        remoteVersionLabel: String,
+        releaseNotes: String?,
+    ) {
+        val sectionKey = BundledChangelog.sectionKeyForRemote(remoteVersionLabel, parsedChannel)
+        val markdown =
+            BundledChangelog.resolveMarkdown(
+                changelog = bundledChangelog,
+                sectionKey = sectionKey,
+                useDevRollingSection = parsedChannel == UpdateChannel.Dev,
+                fallbackMarkdown = releaseNotes,
+            )
+        if (markdown != null) {
+            changelogDialog =
+                context.getString(R.string.changelog_title_update, remoteVersionLabel) to markdown
+        } else {
+            showChangelogUnavailable = true
+        }
     }
 
     AlertDialog(
@@ -771,6 +821,10 @@ private fun AboutDialog(
                     Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium)
                     Text(stringResource(R.string.version_format, versionName, versionCode), style = MaterialTheme.typography.bodyMedium)
                 }
+                ViewChangelogButton(
+                    label = stringResource(R.string.view_changelog),
+                    onClick = { openInstalledChangelog() },
+                )
                 serverVersion?.let { version ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -875,6 +929,7 @@ private fun AboutDialog(
                                     releaseNotes = r.releaseNotes,
                                     installFailedMessage = null,
                                     showSigningHints = parsedChannel == UpdateChannel.Dev,
+                                    onViewChangelog = { openUpdateChangelog(r.versionName, r.releaseNotes) },
                                     onDownloadAndInstall = {
                                         scope.launch {
                                             updateState = UpdateUiState.Downloading
@@ -937,6 +992,7 @@ private fun AboutDialog(
                             releaseNotes = state.releaseNotes,
                             installFailedMessage = state.userMessage,
                             showSigningHints = true,
+                            onViewChangelog = { openUpdateChangelog(state.versionName, state.releaseNotes) },
                             onDownloadAndInstall = {
                                 scope.launch {
                                     updateState = UpdateUiState.Downloading
@@ -963,6 +1019,27 @@ private fun AboutDialog(
             }
         },
     )
+
+    changelogDialog?.let { (title, markdown) ->
+        ChangelogDialog(
+            title = title,
+            markdown = markdown,
+            onDismiss = { changelogDialog = null },
+        )
+    }
+
+    if (showChangelogUnavailable) {
+        AlertDialog(
+            onDismissRequest = { showChangelogUnavailable = false },
+            confirmButton = {
+                TextButton(onClick = { showChangelogUnavailable = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            },
+            title = { Text(stringResource(R.string.view_changelog)) },
+            text = { Text(stringResource(R.string.changelog_unavailable)) },
+        )
+    }
 
     if (showAboutEasterEgg) {
         AlertDialog(

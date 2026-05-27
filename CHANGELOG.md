@@ -9,6 +9,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Changed
 
 - **About update status** — Check-for-updates results use styled alert banners (success, info, error, and loading) with icons in the About dialog.
+- **In-app changelog** — About → View changelog shows the bundled `CHANGELOG.md` for the installed version; when an update is available, View changelog for … opens the matching section (or GitHub release notes as fallback) in a scrollable dialog.
 
 ### Fixed
 

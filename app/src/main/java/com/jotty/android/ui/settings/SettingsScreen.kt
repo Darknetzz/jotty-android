@@ -44,7 +44,6 @@ import com.jotty.android.ui.common.ChangelogDialog
 import com.jotty.android.ui.common.UpdateStatusAlert
 import com.jotty.android.ui.common.UpdateStatusAlertVariant
 import com.jotty.android.ui.common.mainScreenTabContentPadding
-import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 
@@ -1061,12 +1060,33 @@ private fun AboutDialog(
 }
 
 @Composable
+private fun ViewChangelogButton(
+    label: String,
+    onClick: () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        contentPadding = PaddingValues(0.dp),
+    ) {
+        Icon(
+            Icons.Default.Article,
+            contentDescription = label,
+            modifier = Modifier.size(18.dp),
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(label)
+    }
+}
+
+@Composable
 private fun UpdateAvailableContent(
     versionName: String,
     downloadUrl: String,
     releaseNotes: String?,
     installFailedMessage: String?,
     showSigningHints: Boolean = false,
+    onViewChangelog: () -> Unit,
     onDownloadAndInstall: () -> Unit,
     onOpenReleasePage: () -> Unit,
 ) {
@@ -1075,39 +1095,16 @@ private fun UpdateAvailableContent(
             message = stringResource(R.string.update_available, versionName),
             variant = UpdateStatusAlertVariant.Info,
         )
+        ViewChangelogButton(
+            label = stringResource(R.string.view_changelog_for_version, versionName),
+            onClick = onViewChangelog,
+        )
         if (showSigningHints) {
             Text(
                 text = stringResource(R.string.update_signing_mismatch_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-        releaseNotes?.takeIf { it.isNotBlank() }?.let { notes ->
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    stringResource(R.string.whats_new),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 120.dp)
-                            .verticalScroll(rememberScrollState()),
-                ) {
-                    MarkdownText(
-                        markdown = notes,
-                        modifier = Modifier.fillMaxWidth(),
-                        style =
-                            MaterialTheme.typography.bodySmall.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
-                        syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
         }
         installFailedMessage?.let { msg ->
             UpdateStatusAlert(

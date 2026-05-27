@@ -830,27 +830,20 @@ private fun AboutDialog(
                     }
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                FlowRow(
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     ViewChangelogButton(
                         label = stringResource(R.string.view_changelog),
                         onClick = { openInstalledChangelog() },
+                        modifier = Modifier.weight(1f),
                     )
-                    TextButton(
+                    ViewSourceOnGitHubButton(
                         onClick = { uriHandler.openUri(GITHUB_REPO_URL) },
-                        contentPadding = PaddingValues(0.dp),
-                    ) {
-                        Icon(
-                            Icons.Default.Link,
-                            contentDescription = stringResource(R.string.view_source_github),
-                            modifier = Modifier.size(18.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.view_source_github))
-                    }
+                        modifier = Modifier.weight(1f),
+                    )
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 SettingsSectionSubtitle(stringResource(R.string.update_channel_label))
@@ -1068,19 +1061,59 @@ private fun AboutDialog(
 private fun ViewChangelogButton(
     label: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AboutLinkButton(
+        label = label,
+        onClick = onClick,
+        modifier = modifier,
+        icon = {
+            Icon(
+                Icons.AutoMirrored.Filled.Article,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        },
+    )
+}
+
+@Composable
+private fun ViewSourceOnGitHubButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val label = stringResource(R.string.view_source_github)
+    AboutLinkButton(
+        label = label,
+        onClick = onClick,
+        modifier = modifier,
+        icon = {
+            Icon(
+                Icons.Default.Link,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        },
+    )
+}
+
+@Composable
+private fun AboutLinkButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: @Composable () -> Unit,
 ) {
     TextButton(
         onClick = onClick,
+        modifier = modifier,
         contentPadding = PaddingValues(0.dp),
     ) {
-        Icon(
-            Icons.AutoMirrored.Filled.Article,
-            contentDescription = label,
-            modifier = Modifier.size(18.dp),
-            tint = MaterialTheme.colorScheme.primary,
-        )
+        icon()
         Spacer(modifier = Modifier.width(8.dp))
-        Text(label)
+        Text(label, maxLines = 2)
     }
 }
 

@@ -75,12 +75,14 @@ class NoteDetailViewModel(
         get() = note.encrypted == true || isEncryptedByContent
 
     val displayContent: String?
-        get() =
-            when {
-                isEncrypted && _decryptedContent.value != null -> _decryptedContent.value
+        get() {
+            val decrypted = _decryptedContent.value?.takeIf { it.isNotBlank() }
+            return when {
+                isEncrypted && decrypted != null -> decrypted
                 isEncrypted -> null
                 else -> _content.value
             }
+        }
 
     fun resetFromNote(updated: Note) {
         _title.value = stripInvisibleFromEdges(updated.title)
@@ -90,8 +92,14 @@ class NoteDetailViewModel(
     }
 
     fun loadSessionDecryptedContent() {
-        _decryptedContent.value =
-            NoteDecryptionSession.get(note.id)?.let { stripInvisibleFromEdges(it) }
+        val cached =
+            NoteDecryptionSession.get(note.id)
+                ?.let { stripInvisibleFromEdges(it) }
+                ?.takeIf { it.isNotBlank() }
+        _decryptedContent.value = cached
+        if (cached == null) {
+            NoteDecryptionSession.remove(note.id)
+        }
     }
 
     fun setTitle(value: String) {
@@ -127,6 +135,12 @@ class NoteDetailViewModel(
 
     fun onDecrypted(plain: String) {
         val cleaned = stripInvisibleFromEdges(plain)
+        if (cleaned.isBlank()) {
+            _decryptedContent.value = null
+            NoteDecryptionSession.remove(note.id)
+            dismissDecryptDialog()
+            return
+        }
         _decryptedContent.value = cleaned
         NoteDecryptionSession.put(note.id, cleaned)
         dismissDecryptDialog()
@@ -138,11 +152,6 @@ class NoteDetailViewModel(
     ) {
         _decryptError.value = main
         _decryptErrorDetail.value = detail
-    }
-
-    fun applyBiometricDecrypted(plain: String) {
-        _decryptedContent.value = stripInvisibleFromEdges(plain)
-        NoteDecryptionSession.put(note.id, plain)
     }
 
     fun saveEdit(

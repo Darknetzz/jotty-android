@@ -5,12 +5,14 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.local.FakeJottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineNotesRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -169,4 +171,76 @@ class NoteDetailViewModelTest {
             assertTrue(failed)
             assertEquals(true, vm.isEditing.value)
         }
+
+    @After
+    fun clearDecryptionSession() {
+        NoteDecryptionSession.clear()
+    }
+
+    @Test
+    fun onDecrypted_ignoresBlankPlaintext() {
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Secrets",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "---\nencrypted: true\nencryptionMethod: xchacha\n---\n{}",
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+                debugLoggingEnabled = false,
+            )
+        vm.onDecrypted("   ")
+        assertNull(vm.decryptedContent.value)
+        assertNull(NoteDecryptionSession.get(note.id))
+    }
+
+    @Test
+    fun loadSessionDecryptedContent_ignoresBlankCache() {
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Secrets",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "---\nencrypted: true\nencryptionMethod: xchacha\n---\n{}",
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        NoteDecryptionSession.put(note.id, "  ")
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+                debugLoggingEnabled = false,
+            )
+        vm.loadSessionDecryptedContent()
+        assertNull(vm.decryptedContent.value)
+        assertNull(NoteDecryptionSession.get(note.id))
+    }
 }

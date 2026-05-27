@@ -59,8 +59,13 @@ fun rememberBiometricNoteUnlock(
                     executor,
                     object : BiometricPrompt.AuthenticationCallback() {
                         override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                            val cipher = result.cryptoObject?.cipher ?: return
-                            val encBody = currentEncryptedBody.value() ?: run {
+                            val cipher = result.cryptoObject?.cipher
+                            if (cipher == null) {
+                                currentOnDecryptFailed.value()
+                                return
+                            }
+                            val encBody = currentEncryptedBody.value()
+                            if (encBody.isNullOrBlank()) {
                                 currentOnDecryptFailed.value()
                                 return
                             }
@@ -70,7 +75,9 @@ fun rememberBiometricNoteUnlock(
                                         store.loadPassphrase(id, cipher)
                                     }
                                 if (passChars == null) {
-                                    currentOnDecryptFailed.value()
+                                    withContext(Dispatchers.Main) {
+                                        currentOnDecryptFailed.value()
+                                    }
                                     return@launch
                                 }
                                 val plain =
@@ -78,10 +85,12 @@ fun rememberBiometricNoteUnlock(
                                         XChaCha20Decryptor.decrypt(encBody, passChars)
                                     }
                                 passChars.clearPassphrase()
-                                if (plain != null) {
-                                    currentOnDecrypted.value(plain)
-                                } else {
-                                    currentOnDecryptFailed.value()
+                                withContext(Dispatchers.Main) {
+                                    if (!plain.isNullOrBlank()) {
+                                        currentOnDecrypted.value(plain)
+                                    } else {
+                                        currentOnDecryptFailed.value()
+                                    }
                                 }
                             }
                         }

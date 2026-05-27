@@ -46,6 +46,7 @@ import coil.ImageLoader
 import com.jotty.android.R
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
+import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
@@ -88,6 +89,11 @@ internal fun NoteDetailScreen(
     val isEncryptedByContent = detailVm.isEncryptedByContent
     val isEncrypted = detailVm.isEncrypted
     val displayContent = detailVm.displayContent
+    val isDecrypted = !decryptedContent.isNullOrBlank()
+    val encryptedBodyForBiometric =
+        remember(content) {
+            (NoteEncryption.parse(content) as? ParsedNoteContent.Encrypted)?.encryptedBody
+        }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -123,10 +129,8 @@ internal fun NoteDetailScreen(
             title = biometricTitle,
             subtitle = biometricSubtitle,
             negativeButtonText = biometricCancelStr,
-            encryptedBody = {
-                (detailVm.parsed as? ParsedNoteContent.Encrypted)?.encryptedBody
-            },
-            onDecrypted = { detailVm.applyBiometricDecrypted(it) },
+            encryptedBody = { encryptedBodyForBiometric },
+            onDecrypted = { detailVm.onDecrypted(it) },
             onDecryptFailed = {
                 scope.launch { snackbarHostState.showSnackbar(decryptFailedMsg) }
             },
@@ -141,14 +145,18 @@ internal fun NoteDetailScreen(
         biometricUnlock.launchUnlock()
     }
 
-    LaunchedEffect(note.id) {
+    LaunchedEffect(note.id, note.content, note.updatedAt, note.encrypted) {
         detailVm.resetFromNote(note)
+    }
+
+    LaunchedEffect(note.id) {
         detailVm.loadSessionDecryptedContent()
         hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
         if (
             biometricAutoUnlockEnabled &&
-            detailVm.decryptedContent.value == null &&
+            detailVm.decryptedContent.value.isNullOrBlank() &&
             hasBiometricPassphrase &&
+            !encryptedBodyForBiometric.isNullOrBlank() &&
             !biometricAutoTriggered
         ) {
             biometricAutoTriggered = true
@@ -198,10 +206,15 @@ internal fun NoteDetailScreen(
                 actions = {
                     val ctx = LocalContext.current
                     val exportTitle = stringResource(R.string.export_note)
-                    if (!isEditing && (displayContent != null || content.isNotBlank())) {
+                    if (!isEditing && (isDecrypted || (!isEncrypted && content.isNotBlank()))) {
                         IconButton(
                             onClick = {
-                                val text = (displayContent ?: content).trim()
+                                val text =
+                                    when {
+                                        isDecrypted -> decryptedContent.orEmpty()
+                                        isEncrypted -> ""
+                                        else -> content
+                                    }.trim()
                                 val shareText = if (text.isNotBlank()) "# $title\n\n$text" else title
                                 val intent =
                                     Intent(Intent.ACTION_SEND).apply {
@@ -215,7 +228,7 @@ internal fun NoteDetailScreen(
                             Icon(Icons.Default.Share, contentDescription = stringResource(R.string.cd_share))
                         }
                     }
-                    if (isEncrypted && decryptedContent == null && isEncryptedByContent) {
+                    if (isEncrypted && !isDecrypted && isEncryptedByContent) {
                         if (hasBiometricPassphrase) {
                             IconButton(onClick = { launchBiometricUnlock() }) {
                                 Icon(Icons.Default.Fingerprint, contentDescription = stringResource(R.string.biometric_unlock))
@@ -267,7 +280,7 @@ internal fun NoteDetailScreen(
             )
 
             when {
-                isEncrypted && decryptedContent == null ->
+                isEncrypted && !isDecrypted ->
                     EncryptedNotePlaceholder(
                         encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
                         canDecryptInApp = isEncryptedByContent,
@@ -290,7 +303,11 @@ internal fun NoteDetailScreen(
                 else ->
                     NoteView(
                         title = title,
-                        content = displayContent ?: "",
+                        content =
+                            when {
+                                isEncrypted -> decryptedContent.orEmpty()
+                                else -> displayContent.orEmpty()
+                            },
                         imageLoader = imageLoader,
                     )
             }

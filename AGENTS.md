@@ -74,7 +74,7 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 
 ## Images in notes
 
-- Note body supports Markdown images: `![alt](url)`. Rendered via compose-markdown with Coil.
+- Note body supports Markdown images: `![alt](url)`. Rendered via compose-markdown with Coil. **Tables:** GFM pipe tables render natively; Jotty’s default HTML `<table>` blocks are converted to GFM in `util/MarkdownHtmlTables.kt` before `MarkdownText` (Markwon does not layout HTML tables).
 - **Same-host auth:** Image URLs on the same host as the Jotty server get the `x-api-key` header so server-hosted images load. See `util/NoteImageLoader.kt` — `createNoteImageLoader(context, baseUrl, apiKey)`; loaders are cached per (baseUrl, apiKey).
 - **Links:** Markdown links are clickable and open in the browser (`onLinkClicked` → `LocalUriHandler.openUri`).
 - **Where to change:** `util/NoteImageLoader.kt` for auth/cache; `ui/notes/NoteView.kt` for Markdown/link behaviour; `MainScreen.kt` creates and passes the image loader to `NotesScreen`.

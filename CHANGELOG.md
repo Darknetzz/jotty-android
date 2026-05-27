@@ -23,6 +23,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **HTML tables in notes** — Notes saved with Jotty’s default HTML table format (Profile → table syntax: HTML) now render as proper tables in note view; GFM pipe tables were already supported.
 - **Biometric decrypt empty note body** — Blank session cache or empty decrypt result no longer skips the encrypted placeholder; biometric unlock uses the same `onDecrypted` path as passphrase decrypt, requires a parsed encrypted body before auto-prompt, and surfaces failure when the biometric cipher or ciphertext is missing.
 - **Online note delete from detail** — Overflow → Delete now calls `deleteNote` on the server (previously only closed detail and refreshed the list).
 - **Checklist item rename save failure ([#33](https://github.com/Darknetzz/jotty-android/issues/33))** — Replaced unsupported checklist text update calls with a leaf-only rename flow (add replacement item, then delete original), including offline replay support and clearer UI hints for parent/project items.

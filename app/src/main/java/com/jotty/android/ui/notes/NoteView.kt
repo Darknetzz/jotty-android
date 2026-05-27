@@ -11,12 +11,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import com.jotty.android.R
+import com.jotty.android.util.convertHtmlTablesToGfm
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
 @Composable
@@ -27,6 +29,7 @@ internal fun NoteView(
 ) {
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
+    val displayMarkdown = remember(content) { convertHtmlTablesToGfm(content) }
     Column(
         modifier =
             Modifier
@@ -42,7 +45,7 @@ internal fun NoteView(
         )
         if (content.isNotBlank()) {
             MarkdownText(
-                markdown = content,
+                markdown = displayMarkdown,
                 modifier = Modifier.fillMaxWidth(),
                 style =
                     MaterialTheme.typography.bodyLarge.copy(

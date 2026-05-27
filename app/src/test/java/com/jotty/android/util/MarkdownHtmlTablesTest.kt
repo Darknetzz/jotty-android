@@ -1,0 +1,56 @@
+package com.jotty.android.util
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class MarkdownHtmlTablesTest {
+    @Test
+    fun `convertHtmlTablesToGfm leaves markdown without tables unchanged`() {
+        val md =
+            """
+            | A | B |
+            | - | - |
+            | 1 | 2 |
+            """.trimIndent()
+        assertEquals(md, convertHtmlTablesToGfm(md))
+    }
+
+    @Test
+    fun `convertHtmlTablesToGfm converts jotty-style html table`() {
+        val html =
+            """
+            ## Cheating shit players
+            <table>
+              <tbody>
+                <tr>
+                  <th><p>Date</p></th>
+                  <th><p>Name</p></th>
+                  <th><p>Description</p></th>
+                </tr>
+                <tr>
+                  <td><p>2026-03-13</p></td>
+                  <td><p><a href="https://example.com">Player</a></p></td>
+                  <td><p>Inferno, superobvious</p></td>
+                </tr>
+              </tbody>
+            </table>
+            """.trimIndent()
+        val result = convertHtmlTablesToGfm(html)
+        assertTrue(result.contains("| Date | Name | Description |"))
+        assertTrue(result.contains("| --- | --- | --- |"))
+        assertTrue(result.contains("| 2026-03-13 | [Player](https://example.com) | Inferno, superobvious |"))
+        assertFalse(result.contains("<table"))
+    }
+
+    @Test
+    fun `convertHtmlTablesToGfm escapes pipe in cell`() {
+        val html =
+            """
+            <table><tr><th>A</th><th>B</th></tr><tr><td>x | y</td><td>ok</td></tr></table>
+            """.trimIndent()
+        val result = convertHtmlTablesToGfm(html)
+        assertTrue(result.contains("x \\| y"))
+    }
+}

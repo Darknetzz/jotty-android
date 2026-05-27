@@ -128,447 +128,447 @@ fun SettingsScreen(
                         .mainScreenTabContentPadding(topComfortDp = contentVerticalDp)
                         .verticalScroll(rememberScrollState()),
             ) {
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // ─── Overview (connection + dashboard) ─────────────────────────────────
-            SettingsSectionTitle(stringResource(R.string.settings_category_overview))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Column {
-                    ListItem(
-                        headlineContent = { Text(currentInstance?.name ?: stringResource(R.string.instance_label)) },
-                        supportingContent = {
-                            Column {
-                                Text(currentInstance?.serverUrl ?: "\u2014", maxLines = 2)
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text =
-                                        when (healthOk) {
-                                            true -> stringResource(R.string.connected)
-                                            false -> stringResource(R.string.server_unreachable)
-                                            null -> "\u2014"
-                                        },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color =
-                                        when (healthOk) {
-                                            true -> MaterialTheme.colorScheme.primary
-                                            false -> MaterialTheme.colorScheme.error
-                                            null -> MaterialTheme.colorScheme.onSurfaceVariant
-                                        },
-                                )
-                            }
-                        },
-                        leadingContent = { Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link)) },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.manage_instances)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.manage_instances_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Default.ManageAccounts,
-                                contentDescription = stringResource(R.string.manage_instances),
-                            )
-                        },
-                        modifier = Modifier.clickable(onClick = onManageInstances),
-                    )
-                    if (currentInstance != null) {
+                // ─── Overview (connection + dashboard) ─────────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.settings_category_overview))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Column {
+                        ListItem(
+                            headlineContent = { Text(currentInstance?.name ?: stringResource(R.string.instance_label)) },
+                            supportingContent = {
+                                Column {
+                                    Text(currentInstance?.serverUrl ?: "\u2014", maxLines = 2)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text =
+                                            when (healthOk) {
+                                                true -> stringResource(R.string.connected)
+                                                false -> stringResource(R.string.server_unreachable)
+                                                null -> "\u2014"
+                                            },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color =
+                                            when (healthOk) {
+                                                true -> MaterialTheme.colorScheme.primary
+                                                false -> MaterialTheme.colorScheme.error
+                                                null -> MaterialTheme.colorScheme.onSurfaceVariant
+                                            },
+                                    )
+                                }
+                            },
+                            leadingContent = { Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link)) },
+                        )
                         HorizontalDivider()
                         ListItem(
-                            headlineContent = { Text(stringResource(R.string.set_as_default_instance)) },
+                            headlineContent = { Text(stringResource(R.string.manage_instances)) },
                             supportingContent = {
                                 Text(
-                                    stringResource(R.string.open_to_default_instance),
+                                    stringResource(R.string.manage_instances_description),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             },
                             leadingContent = {
                                 Icon(
-                                    Icons.Default.Star,
-                                    contentDescription = stringResource(R.string.set_as_default_instance),
-                                    tint = if (defaultInstanceId == currentInstance?.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    Icons.Default.ManageAccounts,
+                                    contentDescription = stringResource(R.string.manage_instances),
                                 )
                             },
-                            modifier =
-                                Modifier.clickable {
-                                    scope.launch {
-                                        settingsRepository.setDefaultInstanceId(currentInstance?.id)
-                                    }
-                                },
+                            modifier = Modifier.clickable(onClick = onManageInstances),
                         )
+                        if (currentInstance != null) {
+                            HorizontalDivider()
+                            ListItem(
+                                headlineContent = { Text(stringResource(R.string.set_as_default_instance)) },
+                                supportingContent = {
+                                    Text(
+                                        stringResource(R.string.open_to_default_instance),
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        Icons.Default.Star,
+                                        contentDescription = stringResource(R.string.set_as_default_instance),
+                                        tint = if (defaultInstanceId == currentInstance?.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                },
+                                modifier =
+                                    Modifier.clickable {
+                                        scope.launch {
+                                            settingsRepository.setDefaultInstanceId(currentInstance?.id)
+                                        }
+                                    },
+                            )
+                        }
                     }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // ─── General (appearance & behavior) ───────────────────────────────────
-            SettingsSectionTitle(stringResource(R.string.settings_category_general))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.theme_mode_label)) },
-                    supportingContent = {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            listOf(
-                                null to R.string.theme_system,
-                                "light" to R.string.theme_light,
-                                "dark" to R.string.theme_dark,
-                            ).forEach { (value, labelRes) ->
-                                val isSelected =
-                                    when (value) {
-                                        null -> themeMode.isNullOrBlank()
-                                        else -> themeMode == value
-                                    }
-                                FilterChip(
-                                    selected = isSelected,
-                                    onClick = {
-                                        scope.launch {
-                                            settingsRepository.setThemeMode(value)
+                // ─── General (appearance & behavior) ───────────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.settings_category_general))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.theme_mode_label)) },
+                        supportingContent = {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    null to R.string.theme_system,
+                                    "light" to R.string.theme_light,
+                                    "dark" to R.string.theme_dark,
+                                ).forEach { (value, labelRes) ->
+                                    val isSelected =
+                                        when (value) {
+                                            null -> themeMode.isNullOrBlank()
+                                            else -> themeMode == value
                                         }
-                                    },
-                                    label = { Text(stringResource(labelRes)) },
-                                )
-                            }
-                        }
-                    },
-                )
-                HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.theme_color_label)) },
-                    supportingContent = {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            listOf(
-                                "default" to R.string.theme_color_default,
-                                "amoled" to R.string.theme_amoled,
-                                "sepia" to R.string.theme_sepia,
-                                "midnight" to R.string.theme_midnight,
-                                "rose" to R.string.theme_rose,
-                                "ocean" to R.string.theme_ocean,
-                                "forest" to R.string.theme_forest,
-                            ).forEach { (value, labelRes) ->
-                                FilterChip(
-                                    selected = themeColor == value,
-                                    onClick = {
-                                        scope.launch {
-                                            settingsRepository.setThemeColor(value)
-                                        }
-                                    },
-                                    label = { Text(stringResource(labelRes)) },
-                                )
-                            }
-                        }
-                    },
-                )
-                HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.content_padding)) },
-                    supportingContent = {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            listOf(
-                                "comfortable" to R.string.content_padding_comfortable,
-                                "compact" to R.string.content_padding_compact,
-                            ).forEach { (value, labelRes) ->
-                                FilterChip(
-                                    selected = contentPaddingMode == value,
-                                    onClick = {
-                                        scope.launch {
-                                            settingsRepository.setContentPaddingMode(value)
-                                        }
-                                    },
-                                    label = { Text(stringResource(labelRes)) },
-                                )
-                            }
-                        }
-                    },
-                )
-                HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.start_screen)) },
-                    supportingContent = {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            listOf(
-                                "checklists" to R.string.nav_checklists,
-                                "notes" to R.string.nav_notes,
-                                "settings" to R.string.nav_settings,
-                            ).forEach { (value, labelRes) ->
-                                FilterChip(
-                                    selected = (startTab ?: "checklists") == value,
-                                    onClick = {
-                                        scope.launch {
-                                            settingsRepository.setStartTab(value)
-                                        }
-                                    },
-                                    label = { Text(stringResource(labelRes)) },
-                                )
-                            }
-                        }
-                    },
-                )
-                HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
-                    supportingContent = {
-                        Text(
-                            stringResource(R.string.swipe_to_delete_description),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = swipeToDeleteEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    settingsRepository.setSwipeToDeleteEnabled(it)
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setThemeMode(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
                                 }
-                            },
-                        )
-                    },
-                )
-                HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.debug_logging)) },
-                    supportingContent = {
-                        Text(
-                            stringResource(R.string.debug_logging_description),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = debugLoggingEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    settingsRepository.setDebugLoggingEnabled(it)
-                                }
-                            },
-                        )
-                    },
-                )
-
-                HorizontalDivider()
-
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.offline_mode)) },
-                    supportingContent = {
-                        Text(
-                            stringResource(R.string.offline_mode_description),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = offlineModeEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    settingsRepository.setOfflineModeEnabled(it)
-                                }
-                            },
-                        )
-                    },
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // ─── Security (biometric note passphrases) ─────────────────────────────
-            SettingsSectionTitle(stringResource(R.string.settings_category_security))
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                val biometricStatusText =
-                    when (biometricAvailability) {
-                        BiometricPassphraseStore.BiometricAvailability.Available ->
-                            stringResource(R.string.biometric_status_available)
-                        BiometricPassphraseStore.BiometricAvailability.NotEnrolled ->
-                            stringResource(R.string.biometric_status_not_enrolled)
-                        BiometricPassphraseStore.BiometricAvailability.NotSupported ->
-                            stringResource(R.string.biometric_status_not_supported)
-                    }
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.biometric_unlock_status_label)) },
-                    supportingContent = {
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(biometricStatusText, style = MaterialTheme.typography.bodySmall)
-                            if (storedPassphraseCount > 0) {
-                                Text(
-                                    stringResource(R.string.biometric_stored_count, storedPassphraseCount),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
                             }
-                        }
-                    },
-                )
-                HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.biometric_auto_unlock)) },
-                    supportingContent = {
-                        Text(
-                            stringResource(R.string.biometric_auto_unlock_description),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = biometricAutoUnlockEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    settingsRepository.setBiometricAutoUnlockEnabled(it)
-                                }
-                            },
-                        )
-                    },
-                )
-                HorizontalDivider()
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.biometric_save_offer)) },
-                    supportingContent = {
-                        Text(
-                            stringResource(R.string.biometric_save_offer_description),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = biometricSaveOfferEnabled,
-                            onCheckedChange = {
-                                scope.launch {
-                                    settingsRepository.setBiometricSaveOfferEnabled(it)
-                                }
-                            },
-                        )
-                    },
-                )
-                if (storedPassphraseCount > 0) {
+                        },
+                    )
                     HorizontalDivider()
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.biometric_clear_all)) },
-                        modifier = Modifier.clickable { showClearBiometricConfirm = true },
+                        headlineContent = { Text(stringResource(R.string.theme_color_label)) },
+                        supportingContent = {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    "default" to R.string.theme_color_default,
+                                    "amoled" to R.string.theme_amoled,
+                                    "sepia" to R.string.theme_sepia,
+                                    "midnight" to R.string.theme_midnight,
+                                    "rose" to R.string.theme_rose,
+                                    "ocean" to R.string.theme_ocean,
+                                    "forest" to R.string.theme_forest,
+                                ).forEach { (value, labelRes) ->
+                                    FilterChip(
+                                        selected = themeColor == value,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setThemeColor(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
+                                }
+                            }
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.content_padding)) },
+                        supportingContent = {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    "comfortable" to R.string.content_padding_comfortable,
+                                    "compact" to R.string.content_padding_compact,
+                                ).forEach { (value, labelRes) ->
+                                    FilterChip(
+                                        selected = contentPaddingMode == value,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setContentPaddingMode(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
+                                }
+                            }
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.start_screen)) },
+                        supportingContent = {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    "checklists" to R.string.nav_checklists,
+                                    "notes" to R.string.nav_notes,
+                                    "settings" to R.string.nav_settings,
+                                ).forEach { (value, labelRes) ->
+                                    FilterChip(
+                                        selected = (startTab ?: "checklists") == value,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setStartTab(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
+                                }
+                            }
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.swipe_to_delete_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = swipeToDeleteEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        settingsRepository.setSwipeToDeleteEnabled(it)
+                                    }
+                                },
+                            )
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.debug_logging)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.debug_logging_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = debugLoggingEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        settingsRepository.setDebugLoggingEnabled(it)
+                                    }
+                                },
+                            )
+                        },
+                    )
+
+                    HorizontalDivider()
+
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.offline_mode)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.offline_mode_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = offlineModeEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        settingsRepository.setOfflineModeEnabled(it)
+                                    }
+                                },
+                            )
+                        },
                     )
                 }
-            }
 
-            if (showClearBiometricConfirm) {
-                AlertDialog(
-                    onDismissRequest = { showClearBiometricConfirm = false },
-                    title = { Text(stringResource(R.string.biometric_clear_all_confirm_title)) },
-                    text = { Text(stringResource(R.string.biometric_clear_all_confirm_message)) },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                showClearBiometricConfirm = false
-                                biometricStore.clearAll()
-                                storedPassphraseCount = 0
-                                scope.launch { snackbarHostState.showSnackbar(biometricClearedMsg) }
-                            },
-                        ) {
-                            Text(stringResource(R.string.clear))
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ─── Security (biometric note passphrases) ─────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.settings_category_security))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    val biometricStatusText =
+                        when (biometricAvailability) {
+                            BiometricPassphraseStore.BiometricAvailability.Available ->
+                                stringResource(R.string.biometric_status_available)
+                            BiometricPassphraseStore.BiometricAvailability.NotEnrolled ->
+                                stringResource(R.string.biometric_status_not_enrolled)
+                            BiometricPassphraseStore.BiometricAvailability.NotSupported ->
+                                stringResource(R.string.biometric_status_not_supported)
+                        }
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.biometric_unlock_status_label)) },
+                        supportingContent = {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(biometricStatusText, style = MaterialTheme.typography.bodySmall)
+                                if (storedPassphraseCount > 0) {
+                                    Text(
+                                        stringResource(R.string.biometric_stored_count, storedPassphraseCount),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.biometric_auto_unlock)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.biometric_auto_unlock_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = biometricAutoUnlockEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        settingsRepository.setBiometricAutoUnlockEnabled(it)
+                                    }
+                                },
+                            )
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.biometric_save_offer)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.biometric_save_offer_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = biometricSaveOfferEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        settingsRepository.setBiometricSaveOfferEnabled(it)
+                                    }
+                                },
+                            )
+                        },
+                    )
+                    if (storedPassphraseCount > 0) {
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.biometric_clear_all)) },
+                            modifier = Modifier.clickable { showClearBiometricConfirm = true },
+                        )
+                    }
+                }
+
+                if (showClearBiometricConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showClearBiometricConfirm = false },
+                        title = { Text(stringResource(R.string.biometric_clear_all_confirm_title)) },
+                        text = { Text(stringResource(R.string.biometric_clear_all_confirm_message)) },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    showClearBiometricConfirm = false
+                                    biometricStore.clearAll()
+                                    storedPassphraseCount = 0
+                                    scope.launch { snackbarHostState.showSnackbar(biometricClearedMsg) }
+                                },
+                            ) {
+                                Text(stringResource(R.string.clear))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showClearBiometricConfirm = false }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Account
+                SettingsSectionTitle(stringResource(R.string.account))
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        scope.launch {
+                            settingsRepository.disconnect()
+                            onDisconnect()
                         }
                     },
-                    dismissButton = {
-                        TextButton(onClick = { showClearBiometricConfirm = false }) {
-                            Text(stringResource(R.string.cancel))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = stringResource(R.string.disconnect))
+                        Column {
+                            Text(stringResource(R.string.disconnect), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.disconnect_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
-                    },
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // About
+                SettingsSectionTitle(stringResource(R.string.about))
+                OutlinedCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showAboutDialog = true },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = stringResource(R.string.about))
+                        Column {
+                            Text(stringResource(R.string.about), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.about_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                if (summary != null || adminOverview != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
+                    summary?.let { DashboardSummaryCard(it) }
+                    if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
+                    adminOverview?.let { AdminOverviewCard(it) }
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Text(
+                    stringResource(R.string.jotty_footer),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Account
-            SettingsSectionTitle(stringResource(R.string.account))
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    scope.launch {
-                        settingsRepository.disconnect()
-                        onDisconnect()
-                    }
-                },
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = stringResource(R.string.disconnect))
-                    Column {
-                        Text(stringResource(R.string.disconnect), style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            stringResource(R.string.disconnect_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // About
-            SettingsSectionTitle(stringResource(R.string.about))
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { showAboutDialog = true },
-            ) {
-                Row(
-                    modifier = Modifier.padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Icon(Icons.Default.Info, contentDescription = stringResource(R.string.about))
-                    Column {
-                        Text(stringResource(R.string.about), style = MaterialTheme.typography.bodyLarge)
-                        Text(
-                            stringResource(R.string.about_description),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-            if (summary != null || adminOverview != null) {
-                Spacer(modifier = Modifier.height(12.dp))
-                SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
-                summary?.let { DashboardSummaryCard(it) }
-                if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
-                adminOverview?.let { AdminOverviewCard(it) }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Text(
-                stringResource(R.string.jotty_footer),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             }
             SnackbarHost(
                 hostState = snackbarHostState,

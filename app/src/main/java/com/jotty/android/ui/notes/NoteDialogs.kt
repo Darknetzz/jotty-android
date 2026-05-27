@@ -23,11 +23,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +53,7 @@ internal fun EncryptedNotePlaceholder(
     canDecryptInApp: Boolean,
     onDecryptClick: () -> Unit,
     onBiometricClick: (() -> Unit)? = null,
+    hintText: String? = null,
 ) {
     Column(
         modifier =
@@ -77,7 +80,8 @@ internal fun EncryptedNotePlaceholder(
             text =
                 when {
                     encryptionMethod == "pgp" -> stringResource(R.string.pgp_not_supported)
-                    canDecryptInApp -> stringResource(R.string.enter_passphrase_to_view)
+                    canDecryptInApp ->
+                        hintText ?: stringResource(R.string.enter_passphrase_to_view)
                     else -> stringResource(R.string.use_web_app_to_decrypt)
                 },
             style = MaterialTheme.typography.bodyMedium,
@@ -193,6 +197,7 @@ internal fun DecryptNoteDialog(
     encryptedBody: String,
     noteId: String = "",
     biometricStore: BiometricPassphraseStore? = null,
+    biometricSaveOfferEnabled: Boolean = true,
     onDismiss: () -> Unit,
     onDecrypted: (String) -> Unit,
     onBiometricSaved: () -> Unit = {},
@@ -210,11 +215,32 @@ internal fun DecryptNoteDialog(
     val scope = rememberCoroutineScope()
     val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
     val decryptAuthFailedHint = stringResource(R.string.decrypt_auth_failed_hint)
+    val hasStoredBiometric = biometricStore?.hasPassphrase(noteId) == true
+    var biometricDialogTriggered by rememberSaveable(noteId) { mutableStateOf(false) }
 
     val activity = LocalActivity.current as? FragmentActivity
+    val biometricTitle = stringResource(R.string.biometric_prompt_title)
+    val biometricSubtitle = stringResource(R.string.biometric_prompt_subtitle)
+    val biometricCancelStr = stringResource(R.string.cancel)
+    val biometricErrorMsg = stringResource(R.string.biometric_error)
+
+    val biometricUnlock =
+        rememberBiometricNoteUnlock(
+            activity = activity,
+            biometricStore = biometricStore,
+            noteId = noteId,
+            title = biometricTitle,
+            subtitle = biometricSubtitle,
+            negativeButtonText = biometricCancelStr,
+            encryptedBody = { encryptedBody },
+            onDecrypted = onDecrypted,
+            onDecryptFailed = { onDecryptError(decryptFailedMsg, null) },
+            onAuthError = { _, _ -> onDecryptError(biometricErrorMsg, null) },
+            onAuthCancelled = { biometricDialogTriggered = false },
+            onNoStoredPassphrase = {},
+        )
     val biometricSaveTitle = stringResource(R.string.biometric_prompt_save_title)
     val biometricSaveSubtitle = stringResource(R.string.biometric_prompt_save_subtitle)
-    val biometricCancelStr = stringResource(R.string.cancel)
 
     val currentOffer = rememberUpdatedState(offerBiometric)
     val currentOnDecrypted = rememberUpdatedState(onDecrypted)
@@ -320,16 +346,44 @@ internal fun DecryptNoteDialog(
         return
     }
 
+    LaunchedEffect(noteId, hasStoredBiometric) {
+        if (hasStoredBiometric && !biometricDialogTriggered) {
+            biometricDialogTriggered = true
+            biometricUnlock.launchUnlock()
+        }
+    }
+
+    val passphraseHint =
+        if (hasStoredBiometric) {
+            stringResource(R.string.decrypt_passphrase_or_biometric_hint)
+        } else {
+            stringResource(R.string.decrypt_passphrase_hint)
+        }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.decrypt_note)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    stringResource(R.string.decrypt_passphrase_hint),
+                    passphraseHint,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (hasStoredBiometric) {
+                    Button(
+                        onClick = { biometricUnlock.launchUnlock() },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(
+                            Icons.Default.Fingerprint,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.size(6.dp))
+                        Text(stringResource(R.string.biometric_unlock))
+                    }
+                }
                 OutlinedTextField(
                     value = passphrase,
                     onValueChange = {
@@ -383,7 +437,8 @@ internal fun DecryptNoteDialog(
                                 val plaintext = result.plaintext
                                 if (plaintext != null) {
                                     val canOffer =
-                                        biometricStore != null && biometricSavePrompt != null &&
+                                        biometricSaveOfferEnabled &&
+                                            biometricStore != null && biometricSavePrompt != null &&
                                             noteId.isNotBlank() && biometricStore.isAvailable() &&
                                             !biometricStore.hasPassphrase(noteId)
                                     if (canOffer) {

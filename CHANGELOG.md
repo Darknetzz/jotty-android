@@ -8,6 +8,9 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Biometric note unlock (settings)** — Settings → Security: biometric status, auto-prompt on open, offer to remember passphrase after password decrypt, and clear all remembered passphrases. Per-note storage unchanged.
+- **Biometric decrypt UX** — Shared unlock helper; decrypt dialog offers fingerprint when a passphrase is saved; auto-prompt on open respects the setting; errors show via snackbar; cancel allows auto-prompt to retry.
+
 - **Checklist reorder hint** — Checklist detail shows when item reorder is unavailable in-app (use Jotty web until REST API exists); addresses [#29](https://github.com/Darknetzz/jotty-android/issues/29).
 - **Checklist conflict copies UX** — Offline checklists list shows the same conflict-copies banner and “View copies” flow as notes (`getConflictCopiesFlow`, `ConflictCopiesBanner`).
 - **Note detail architecture** — `NoteDetailViewModel` and `NoteDetailActions` (`ApiNoteDetailActions`, `OfflineNoteDetailActions`); offline detail no longer stubs `JottyApi`.

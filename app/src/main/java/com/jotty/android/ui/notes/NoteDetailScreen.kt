@@ -2,7 +2,6 @@ package com.jotty.android.ui.notes
 
 import android.content.Intent
 import androidx.activity.compose.LocalActivity
-import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -20,6 +19,9 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -37,7 +39,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -46,12 +47,9 @@ import com.jotty.android.R
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.encryption.ParsedNoteContent
-import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,6 +63,8 @@ internal fun NoteDetailScreen(
     debugLoggingEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     biometricStore: BiometricPassphraseStore? = null,
+    biometricAutoUnlockEnabled: Boolean = true,
+    biometricSaveOfferEnabled: Boolean = true,
 ) {
     val detailVm: NoteDetailViewModel =
         viewModel(
@@ -85,11 +85,11 @@ internal fun NoteDetailScreen(
     val decryptErrorDetail by detailVm.decryptErrorDetail.collectAsStateWithLifecycle()
 
     val parsed = detailVm.parsed
-    val currentParsed = rememberUpdatedState(parsed)
     val isEncryptedByContent = detailVm.isEncryptedByContent
     val isEncrypted = detailVm.isEncrypted
     val displayContent = detailVm.displayContent
 
+    val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     var hasBiometricPassphrase by remember(note.id) {
@@ -106,67 +106,51 @@ internal fun NoteDetailScreen(
     val biometricTitle = stringResource(R.string.biometric_prompt_title)
     val biometricSubtitle = stringResource(R.string.biometric_prompt_subtitle)
     val biometricCancelStr = stringResource(R.string.cancel)
+    val biometricErrorMsg = stringResource(R.string.biometric_error)
+    val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
+    val biometricSavedMsg = stringResource(R.string.biometric_passphrase_saved)
 
-    val biometricUnlockPrompt =
-        remember(activity, biometricStore, note.id) {
-            if (activity == null || biometricStore == null) {
-                null
-            } else {
-                val executor = ContextCompat.getMainExecutor(activity)
-                val noteId = note.id
-                BiometricPrompt(
-                    activity,
-                    executor,
-                    object : BiometricPrompt.AuthenticationCallback() {
-                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-                            val cipher = result.cryptoObject?.cipher ?: return
-                            val passChars = biometricStore.loadPassphrase(noteId, cipher) ?: return
-                            val encBody = (currentParsed.value as? ParsedNoteContent.Encrypted)?.encryptedBody
-                            if (encBody == null) {
-                                passChars.clearPassphrase()
-                                return
-                            }
-                            detailVm.decryptWithBiometric(encBody, passChars)
-                        }
-
-                        override fun onAuthenticationError(
-                            errorCode: Int,
-                            errString: CharSequence,
-                        ) {}
-
-                        override fun onAuthenticationFailed() {}
-                    },
-                )
-            }
-        }
-
-    DisposableEffect(biometricUnlockPrompt) {
-        onDispose { biometricUnlockPrompt?.cancelAuthentication() }
+    DisposableEffect(note.id, biometricStore) {
+        hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
+        onDispose {}
     }
 
+    val biometricUnlock =
+        rememberBiometricNoteUnlock(
+            activity = activity,
+            biometricStore = biometricStore,
+            noteId = note.id,
+            title = biometricTitle,
+            subtitle = biometricSubtitle,
+            negativeButtonText = biometricCancelStr,
+            encryptedBody = {
+                (detailVm.parsed as? ParsedNoteContent.Encrypted)?.encryptedBody
+            },
+            onDecrypted = { detailVm.applyBiometricDecrypted(it) },
+            onDecryptFailed = {
+                scope.launch { snackbarHostState.showSnackbar(decryptFailedMsg) }
+            },
+            onAuthError = { _, _ ->
+                scope.launch { snackbarHostState.showSnackbar(biometricErrorMsg) }
+            },
+            onAuthCancelled = { biometricAutoTriggered = false },
+            onNoStoredPassphrase = { hasBiometricPassphrase = false },
+        )
+
     fun launchBiometricUnlock() {
-        if (biometricUnlockPrompt == null || biometricStore == null) return
-        scope.launch {
-            val cipher = withContext(Dispatchers.IO) { biometricStore.getCipherForDecrypt(note.id) }
-            if (cipher == null) {
-                hasBiometricPassphrase = false
-                return@launch
-            }
-            biometricUnlockPrompt.authenticate(
-                BiometricPrompt.PromptInfo.Builder()
-                    .setTitle(biometricTitle)
-                    .setSubtitle(biometricSubtitle)
-                    .setNegativeButtonText(biometricCancelStr)
-                    .build(),
-                BiometricPrompt.CryptoObject(cipher),
-            )
-        }
+        biometricUnlock.launchUnlock()
     }
 
     LaunchedEffect(note.id) {
         detailVm.resetFromNote(note)
         detailVm.loadSessionDecryptedContent()
-        if (detailVm.decryptedContent.value == null && hasBiometricPassphrase && !biometricAutoTriggered) {
+        hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
+        if (
+            biometricAutoUnlockEnabled &&
+            detailVm.decryptedContent.value == null &&
+            hasBiometricPassphrase &&
+            !biometricAutoTriggered
+        ) {
             biometricAutoTriggered = true
             launchBiometricUnlock()
         }
@@ -187,117 +171,129 @@ internal fun NoteDetailScreen(
         )
     }
 
-    Column(Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                Text(
-                    text = title.ifBlank { stringResource(R.string.untitled) },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-            },
-            actions = {
-                val ctx = LocalContext.current
-                val exportTitle = stringResource(R.string.export_note)
-                if (!isEditing && (displayContent != null || content.isNotBlank())) {
-                    IconButton(
-                        onClick = {
-                            val text = (displayContent ?: content).trim()
-                            val shareText = if (text.isNotBlank()) "# $title\n\n$text" else title
-                            val intent =
-                                Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_TITLE, title)
-                                    putExtra(Intent.EXTRA_TEXT, shareText)
-                                }
-                            ctx.startActivity(Intent.createChooser(intent, exportTitle))
-                        },
-                    ) {
-                        Icon(Icons.Default.Share, contentDescription = stringResource(R.string.cd_share))
+    val placeholderHint =
+        if (hasBiometricPassphrase) {
+            stringResource(R.string.enter_passphrase_or_biometric)
+        } else {
+            stringResource(R.string.enter_passphrase_to_view)
+        }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+    ) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = title.ifBlank { stringResource(R.string.untitled) },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
-                }
-                if (isEncrypted && decryptedContent == null && isEncryptedByContent) {
-                    if (hasBiometricPassphrase) {
-                        IconButton(onClick = { launchBiometricUnlock() }) {
-                            Icon(Icons.Default.Fingerprint, contentDescription = stringResource(R.string.biometric_unlock))
-                        }
-                    }
-                    IconButton(onClick = { detailVm.showDecryptDialog() }) {
-                        Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_decrypt))
-                    }
-                } else if (isEditing) {
-                    if (saving) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(12.dp))
-                    } else {
+                },
+                actions = {
+                    val ctx = LocalContext.current
+                    val exportTitle = stringResource(R.string.export_note)
+                    if (!isEditing && (displayContent != null || content.isNotBlank())) {
                         IconButton(
                             onClick = {
-                                detailVm.saveEdit(
-                                    onSuccess = onUpdate,
-                                    onFailure = onSaveFailed,
-                                )
+                                val text = (displayContent ?: content).trim()
+                                val shareText = if (text.isNotBlank()) "# $title\n\n$text" else title
+                                val intent =
+                                    Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_TITLE, title)
+                                        putExtra(Intent.EXTRA_TEXT, shareText)
+                                    }
+                                ctx.startActivity(Intent.createChooser(intent, exportTitle))
                             },
                         ) {
-                            Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save))
+                            Icon(Icons.Default.Share, contentDescription = stringResource(R.string.cd_share))
                         }
                     }
-                } else if (!isEncrypted) {
-                    IconButton(onClick = { detailVm.showEncryptDialog() }) {
-                        Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_encrypt))
-                    }
-                    IconButton(onClick = { detailVm.startEditing() }) {
-                        Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
-                    }
-                }
-                if (!isEditing) {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                    ) {
-                        DeleteDropdownMenuItem(
-                            onClick = {
-                                menuExpanded = false
-                                showDeleteConfirm = true
-                            },
-                        )
-                    }
-                }
-            },
-        )
-
-        when {
-            isEncrypted && decryptedContent == null ->
-                EncryptedNotePlaceholder(
-                    encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
-                    canDecryptInApp = isEncryptedByContent,
-                    onDecryptClick = { detailVm.showDecryptDialog() },
-                    onBiometricClick =
+                    if (isEncrypted && decryptedContent == null && isEncryptedByContent) {
                         if (hasBiometricPassphrase) {
-                            { launchBiometricUnlock() }
+                            IconButton(onClick = { launchBiometricUnlock() }) {
+                                Icon(Icons.Default.Fingerprint, contentDescription = stringResource(R.string.biometric_unlock))
+                            }
+                        }
+                        IconButton(onClick = { detailVm.showDecryptDialog() }) {
+                            Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_decrypt))
+                        }
+                    } else if (isEditing) {
+                        if (saving) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp).padding(12.dp))
                         } else {
-                            null
-                        },
-                )
-            isEditing ->
-                NoteEditor(
-                    title = title,
-                    onTitleChange = { detailVm.setTitle(it) },
-                    content = content,
-                    onContentChange = { detailVm.setContent(it) },
-                )
-            else ->
-                NoteView(
-                    title = title,
-                    content = displayContent ?: "",
-                    imageLoader = imageLoader,
-                )
+                            IconButton(
+                                onClick = {
+                                    detailVm.saveEdit(
+                                        onSuccess = onUpdate,
+                                        onFailure = onSaveFailed,
+                                    )
+                                },
+                            ) {
+                                Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save))
+                            }
+                        }
+                    } else if (!isEncrypted) {
+                        IconButton(onClick = { detailVm.showEncryptDialog() }) {
+                            Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_encrypt))
+                        }
+                        IconButton(onClick = { detailVm.startEditing() }) {
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
+                        }
+                    }
+                    if (!isEditing) {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false },
+                        ) {
+                            DeleteDropdownMenuItem(
+                                onClick = {
+                                    menuExpanded = false
+                                    showDeleteConfirm = true
+                                },
+                            )
+                        }
+                    }
+                },
+            )
+
+            when {
+                isEncrypted && decryptedContent == null ->
+                    EncryptedNotePlaceholder(
+                        encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
+                        canDecryptInApp = isEncryptedByContent,
+                        hintText = placeholderHint,
+                        onDecryptClick = { detailVm.showDecryptDialog() },
+                        onBiometricClick =
+                            if (hasBiometricPassphrase) {
+                                { launchBiometricUnlock() }
+                            } else {
+                                null
+                            },
+                    )
+                isEditing ->
+                    NoteEditor(
+                        title = title,
+                        onTitleChange = { detailVm.setTitle(it) },
+                        content = content,
+                        onContentChange = { detailVm.setContent(it) },
+                    )
+                else ->
+                    NoteView(
+                        title = title,
+                        content = displayContent ?: "",
+                        imageLoader = imageLoader,
+                    )
+            }
         }
     }
 
@@ -323,9 +319,13 @@ internal fun NoteDetailScreen(
             encryptedBody = parsed.encryptedBody,
             noteId = note.id,
             biometricStore = biometricStore,
+            biometricSaveOfferEnabled = biometricSaveOfferEnabled,
             onDismiss = { detailVm.dismissDecryptDialog() },
             onDecrypted = { detailVm.onDecrypted(it) },
-            onBiometricSaved = { hasBiometricPassphrase = true },
+            onBiometricSaved = {
+                hasBiometricPassphrase = true
+                scope.launch { snackbarHostState.showSnackbar(biometricSavedMsg) }
+            },
             decryptError = decryptError,
             decryptErrorDetail = decryptErrorDetail,
             onDecryptError = { main, detail -> detailVm.onDecryptError(main, detail) },

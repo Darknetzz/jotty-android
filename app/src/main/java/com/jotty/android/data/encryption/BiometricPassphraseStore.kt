@@ -8,6 +8,11 @@ import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_STRONG
+import androidx.biometric.BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE
+import androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED
+import androidx.biometric.BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE
+import androidx.biometric.BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED
+import androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS
 import com.jotty.android.util.AppLog
 import java.nio.ByteBuffer
 import java.security.KeyStore
@@ -33,13 +38,34 @@ class BiometricPassphraseStore(private val context: Context) {
     }
 
     /** True when the device has a strong biometric enrolled and the hardware is available. */
-    fun isAvailable(): Boolean {
-        val bm = BiometricManager.from(context)
-        return bm.canAuthenticate(BIOMETRIC_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
+    fun isAvailable(): Boolean = availabilityStatus() == BiometricAvailability.Available
+
+    /** Device biometric capability for settings and save-offer gating. */
+    fun availabilityStatus(): BiometricAvailability {
+        return when (BiometricManager.from(context).canAuthenticate(BIOMETRIC_STRONG)) {
+            BIOMETRIC_SUCCESS -> BiometricAvailability.Available
+            BIOMETRIC_ERROR_NONE_ENROLLED -> BiometricAvailability.NotEnrolled
+            BIOMETRIC_ERROR_NO_HARDWARE,
+            BIOMETRIC_ERROR_HW_UNAVAILABLE,
+            BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED,
+            -> BiometricAvailability.NotSupported
+            else -> BiometricAvailability.NotSupported
+        }
     }
 
-    /** True when a passphrase is stored for [instanceId]. */
-    fun hasPassphrase(instanceId: String): Boolean = prefs.contains(ivKey(instanceId)) && prefs.contains(ctKey(instanceId))
+    /** True when a passphrase is stored for [noteId]. */
+    fun hasPassphrase(noteId: String): Boolean = prefs.contains(ivKey(noteId)) && prefs.contains(ctKey(noteId))
+
+    /** Note IDs with a biometric-protected passphrase stored (from `iv_<noteId>` keys). */
+    fun storedNoteIds(): List<String> =
+        prefs.all.keys
+            .asSequence()
+            .filter { it.startsWith(IV_KEY_PREFIX) }
+            .map { it.removePrefix(IV_KEY_PREFIX) }
+            .sorted()
+            .toList()
+
+    fun storedCount(): Int = storedNoteIds().size
 
     /**
      * Returns an initialized [Cipher] ready for encryption. Pass this to
@@ -187,11 +213,23 @@ class BiometricPassphraseStore(private val context: Context) {
 
     private fun keyAlias(instanceId: String) = "$KEY_ALIAS_PREFIX$instanceId"
 
-    private fun ivKey(instanceId: String) = "iv_$instanceId"
+    private fun ivKey(noteId: String) = "$IV_KEY_PREFIX$noteId"
 
-    private fun ctKey(instanceId: String) = "ct_$instanceId"
+    private fun ctKey(noteId: String) = "ct_$noteId"
+
+    enum class BiometricAvailability {
+        Available,
+        NotEnrolled,
+        NotSupported,
+    }
 
     companion object {
+        internal const val IV_KEY_PREFIX = "iv_"
+
+        /** Parses note id from a prefs key `iv_<noteId>`, or null if not an IV key. */
+        internal fun noteIdFromIvKey(key: String): String? =
+            if (key.startsWith(IV_KEY_PREFIX)) key.removePrefix(IV_KEY_PREFIX).takeIf { it.isNotBlank() } else null
+
         private const val KEYSTORE = "AndroidKeyStore"
         private const val PREFS_NAME = "jotty_biometric_passphrases"
         private const val KEY_ALIAS_PREFIX = "jotty_passphrase_"

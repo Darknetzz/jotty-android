@@ -31,6 +31,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.SummaryData
+import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.data.updates.InstallResult
 import com.jotty.android.data.updates.UpdateChannel
@@ -50,6 +51,13 @@ fun SettingsScreen(
     onManageInstances: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val biometricStore = remember { BiometricPassphraseStore(context.applicationContext) }
+    val biometricAvailability = remember { biometricStore.availabilityStatus() }
+    var storedPassphraseCount by remember { mutableIntStateOf(biometricStore.storedCount()) }
+    var showClearBiometricConfirm by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val biometricClearedMsg = stringResource(R.string.biometric_passphrase_forgotten)
     val currentInstance by settingsRepository.currentInstance.collectAsStateWithLifecycle(initialValue = null)
     val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = null)
     val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
@@ -57,6 +65,8 @@ fun SettingsScreen(
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
     val updateChannelPref by settingsRepository.updateChannel.collectAsStateWithLifecycle(initialValue = "stable")
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsStateWithLifecycle(initialValue = null)
@@ -109,14 +119,15 @@ fun SettingsScreen(
         onRefresh = { refreshOverview(showRefreshingIndicator = true) },
         state = pullRefreshState,
     ) {
-        val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .mainScreenTabContentPadding(topComfortDp = contentVerticalDp)
-                    .verticalScroll(rememberScrollState()),
-        ) {
+        Box(Modifier.fillMaxSize()) {
+            val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .mainScreenTabContentPadding(topComfortDp = contentVerticalDp)
+                        .verticalScroll(rememberScrollState()),
+            ) {
             Spacer(modifier = Modifier.height(8.dp))
 
             // ─── Overview (connection + dashboard) ─────────────────────────────────
@@ -385,6 +396,112 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // ─── Security (biometric note passphrases) ─────────────────────────────
+            SettingsSectionTitle(stringResource(R.string.settings_category_security))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                val biometricStatusText =
+                    when (biometricAvailability) {
+                        BiometricPassphraseStore.BiometricAvailability.Available ->
+                            stringResource(R.string.biometric_status_available)
+                        BiometricPassphraseStore.BiometricAvailability.NotEnrolled ->
+                            stringResource(R.string.biometric_status_not_enrolled)
+                        BiometricPassphraseStore.BiometricAvailability.NotSupported ->
+                            stringResource(R.string.biometric_status_not_supported)
+                    }
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.biometric_unlock_status_label)) },
+                    supportingContent = {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(biometricStatusText, style = MaterialTheme.typography.bodySmall)
+                            if (storedPassphraseCount > 0) {
+                                Text(
+                                    stringResource(R.string.biometric_stored_count, storedPassphraseCount),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    },
+                )
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.biometric_auto_unlock)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.biometric_auto_unlock_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = biometricAutoUnlockEnabled,
+                            onCheckedChange = {
+                                scope.launch {
+                                    settingsRepository.setBiometricAutoUnlockEnabled(it)
+                                }
+                            },
+                        )
+                    },
+                )
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.biometric_save_offer)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.biometric_save_offer_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = biometricSaveOfferEnabled,
+                            onCheckedChange = {
+                                scope.launch {
+                                    settingsRepository.setBiometricSaveOfferEnabled(it)
+                                }
+                            },
+                        )
+                    },
+                )
+                if (storedPassphraseCount > 0) {
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.biometric_clear_all)) },
+                        modifier = Modifier.clickable { showClearBiometricConfirm = true },
+                    )
+                }
+            }
+
+            if (showClearBiometricConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showClearBiometricConfirm = false },
+                    title = { Text(stringResource(R.string.biometric_clear_all_confirm_title)) },
+                    text = { Text(stringResource(R.string.biometric_clear_all_confirm_message)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                showClearBiometricConfirm = false
+                                biometricStore.clearAll()
+                                storedPassphraseCount = 0
+                                scope.launch { snackbarHostState.showSnackbar(biometricClearedMsg) }
+                            },
+                        ) {
+                            Text(stringResource(R.string.clear))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showClearBiometricConfirm = false }) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                    },
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             // Account
             SettingsSectionTitle(stringResource(R.string.account))
             OutlinedCard(
@@ -451,6 +568,11 @@ fun SettingsScreen(
                 stringResource(R.string.jotty_footer),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            }
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter),
             )
         }
     }

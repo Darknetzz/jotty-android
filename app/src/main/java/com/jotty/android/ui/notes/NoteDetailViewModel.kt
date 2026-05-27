@@ -7,7 +7,6 @@ import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
-import com.jotty.android.data.encryption.XChaCha20Decryptor
 import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.util.AppLog
@@ -213,22 +212,6 @@ class NoteDetailViewModel(
             } finally {
                 passChars.clearPassphrase()
                 _isEncrypting.value = false
-            }
-        }
-    }
-
-    fun decryptWithBiometric(
-        encBody: String,
-        passChars: CharArray,
-    ) {
-        viewModelScope.launch {
-            val plain =
-                withContext(Dispatchers.Default) {
-                    XChaCha20Decryptor.decrypt(encBody, passChars)
-                }
-            passChars.clearPassphrase()
-            if (plain != null) {
-                applyBiometricDecrypted(stripInvisibleFromEdges(plain))
             }
         }
     }

@@ -51,6 +51,8 @@ fun NotesScreen(
     val vm: NotesViewModel = viewModel(factory = NotesViewModel.Factory(application, api))
 
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
+    val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
     val notes by vm.notes.collectAsStateWithLifecycle()
@@ -252,6 +254,8 @@ fun NotesScreen(
                         debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
                         biometricStore = biometricStore,
+                        biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
+                        biometricSaveOfferEnabled = biometricSaveOfferEnabled,
                     )
                 }
             }

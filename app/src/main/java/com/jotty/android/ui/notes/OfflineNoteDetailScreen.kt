@@ -32,6 +32,8 @@ fun OfflineNoteDetailScreen(
     isOnline: Boolean = false,
     onRetrySync: () -> Unit = {},
     biometricStore: BiometricPassphraseStore? = null,
+    biometricAutoUnlockEnabled: Boolean = true,
+    biometricSaveOfferEnabled: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
     val actions =
@@ -64,6 +66,8 @@ fun OfflineNoteDetailScreen(
             debugLoggingEnabled = debugLoggingEnabled,
             imageLoader = imageLoader,
             biometricStore = biometricStore,
+            biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
+            biometricSaveOfferEnabled = biometricSaveOfferEnabled,
         )
     }
 }

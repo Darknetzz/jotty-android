@@ -17,11 +17,11 @@ private val gson = Gson()
  * Paths may be stale if the server was modified concurrently; failing ops are skipped.
  */
 data class PendingItemOp(
-    /** CHECK, UNCHECK, ADD, DELETE, UPDATE_TEXT */
+    /** CHECK, UNCHECK, ADD, DELETE */
     val type: String,
     /** Positional path for existing-item ops */
     val path: String? = null,
-    /** ADD / UPDATE_TEXT */
+    /** ADD */
     val text: String? = null,
     /** ADD with parent (project type) */
     val parentIndex: String? = null,
@@ -101,7 +101,6 @@ fun applyOpToItems(
     when (op.type) {
         "CHECK" -> op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = true) } } ?: items
         "UNCHECK" -> op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = false) } } ?: items
-        "UPDATE_TEXT" -> op.path?.let { updateAtPath(items, it) { i -> i.copy(text = op.text ?: i.text) } } ?: items
         "DELETE" -> op.path?.let { deleteAtPath(items, it) } ?: items
         "ADD" -> {
             if (op.parentIndex == null) {

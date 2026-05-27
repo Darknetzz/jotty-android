@@ -74,6 +74,8 @@
     <string name="delete_task_confirm">Delete this task? This cannot be undone.</string>
     <string name="delete_task_named_confirm">Delete \"%1$s\"? This cannot be undone.</string>
     <string name="delete_note_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="rename_leaf_only">Only leaf items can be renamed in the app.</string>
+    <string name="checklist_rename_leaf_only_hint">Rename is available for leaf items only. Parent/project items cannot be renamed in-app, and renamed items may move to the end.</string>
 
     <!-- Notes -->
     <string name="new_note">New note</string>

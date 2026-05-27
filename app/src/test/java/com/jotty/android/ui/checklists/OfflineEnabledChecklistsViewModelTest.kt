@@ -19,7 +19,6 @@ import com.jotty.android.data.api.NotesResponse
 import com.jotty.android.data.api.SuccessResponse
 import com.jotty.android.data.api.SummaryResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
-import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineChecklistsRepository
@@ -146,12 +145,6 @@ private class MinimalChecklistApi : JottyApi {
     override suspend fun uncheckItem(
         listId: String,
         itemIndex: String,
-    ): SuccessResponse = error("unused")
-
-    override suspend fun updateItem(
-        listId: String,
-        itemIndex: String,
-        body: UpdateItemRequest,
     ): SuccessResponse = error("unused")
 
     override suspend fun deleteItem(

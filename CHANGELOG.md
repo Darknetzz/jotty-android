@@ -22,6 +22,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Fixed
 
 - **Online note delete from detail** — Overflow → Delete now calls `deleteNote` on the server (previously only closed detail and refreshed the list).
+- **Checklist item rename save failure ([#33](https://github.com/Darknetzz/jotty-android/issues/33))** — Replaced unsupported checklist text update calls with a leaf-only rename flow (add replacement item, then delete original), including offline replay support and clearer UI hints for parent/project items.
 
 ### Documentation
 

@@ -9,9 +9,11 @@ import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateChecklistRequest
-import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
+import com.jotty.android.util.appendedPath
+import com.jotty.android.util.itemAtPath
+import com.jotty.android.util.parentPath
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -260,7 +262,7 @@ class OfflineChecklistsRepository(
             }
         }
 
-    suspend fun updateItem(
+    suspend fun renameLeafItem(
         checklistId: String,
         path: String,
         text: String,
@@ -268,13 +270,47 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
+                    val checklist =
+                        checklistDao.getById(checklistId)?.toChecklist()
+                            ?: throw Exception("Checklist not found: $checklistId")
+                    val item =
+                        itemAtPath(checklist.items, path)
+                            ?: throw Exception("Checklist item not found: $path")
+                    if (item.children.orEmpty().isNotEmpty()) {
+                        throw IllegalArgumentException("Only leaf items can be renamed")
+                    }
+                    val itemText = text.trim()
+                    if (itemText.isEmpty()) {
+                        throw IllegalArgumentException("Item text cannot be empty")
+                    }
+                    val parentIndex = parentPath(path)
+                    val newPath = appendedPath(checklist.items, parentIndex)
                     if (isOnline.value) {
-                        api.updateItem(checklistId, path, UpdateItemRequest(text = text))
+                        api.addChecklistItem(
+                            checklistId,
+                            AddItemRequest(text = itemText, status = item.status, parentIndex = parentIndex),
+                        )
+                        if (item.completed) {
+                            api.checkItem(checklistId, newPath)
+                        }
+                        api.deleteItem(checklistId, path)
                         refreshFromServer(checklistId)
                     } else {
+                        var updated =
+                            applyOpLocally(
+                                checklistId,
+                                PendingItemOp(type = "ADD", text = itemText, parentIndex = parentIndex),
+                            )
+                        if (item.completed) {
+                            updated =
+                                applyOpLocally(
+                                    checklistId,
+                                    PendingItemOp(type = "CHECK", path = newPath),
+                                )
+                        }
                         applyOpLocally(
-                            checklistId,
-                            PendingItemOp(type = "UPDATE_TEXT", path = path, text = text),
+                            updated.id,
+                            PendingItemOp(type = "DELETE", path = path),
                         )
                     }
                 }
@@ -438,12 +474,6 @@ class OfflineChecklistsRepository(
                             AddItemRequest(text = op.text ?: "", parentIndex = op.parentIndex),
                         )
                     "DELETE" -> api.deleteItem(entity.id, op.path!!)
-                    "UPDATE_TEXT" ->
-                        api.updateItem(
-                            entity.id,
-                            op.path!!,
-                            UpdateItemRequest(text = op.text ?: ""),
-                        )
                 }
             }.onFailure {
                 failedOps += 1

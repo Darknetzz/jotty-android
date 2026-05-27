@@ -22,7 +22,6 @@ import com.jotty.android.data.api.NotesResponse
 import com.jotty.android.data.api.SuccessResponse
 import com.jotty.android.data.api.SummaryResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
-import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.api.UpdateNoteRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -167,6 +166,94 @@ class OfflineChecklistsRepositoryTest {
             val entity = database.checklistDao().getById("list-1")
             assertEquals(true, entity?.isDirty)
             assertEquals("Local list", entity?.title)
+        }
+
+    @Test
+    fun renameLeafItem_whenOffline_replacesItemWithNewText() =
+        runTest {
+            val existingItems =
+                listOf(
+                    ChecklistItem(index = 0, text = "Keep"),
+                    ChecklistItem(index = 1, text = "Old", completed = true),
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Local list",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = Gson().toJson(existingItems),
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = false,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            val result = repo.renameLeafItem("list-1", "1", "Renamed")
+
+            assertTrue(result.isSuccess)
+            val updatedItems = result.getOrNull()?.items.orEmpty()
+            assertEquals(2, updatedItems.size)
+            assertEquals("Keep", updatedItems[0].text)
+            assertEquals("Renamed", updatedItems[1].text)
+            assertTrue(updatedItems[1].completed)
+        }
+
+    @Test
+    fun renameLeafItem_withChildren_returnsFailure() =
+        runTest {
+            val existingItems =
+                listOf(
+                    ChecklistItem(
+                        index = 0,
+                        text = "Parent",
+                        children = listOf(ChecklistItem(index = 0, text = "Child")),
+                    ),
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Local list",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "task",
+                    itemsJson = Gson().toJson(existingItems),
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = false,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            val result = repo.renameLeafItem("list-1", "0", "Renamed")
+
+            assertTrue(result.isFailure)
+            val unchangedItems = database.checklistDao().getById("list-1")?.items().orEmpty()
+            assertEquals("Parent", unchangedItems.firstOrNull()?.text)
         }
 
     @Test
@@ -385,12 +472,6 @@ private class FakeChecklistApi(
     override suspend fun uncheckItem(
         listId: String,
         itemIndex: String,
-    ): SuccessResponse = SuccessResponse(true)
-
-    override suspend fun updateItem(
-        listId: String,
-        itemIndex: String,
-        body: UpdateItemRequest,
     ): SuccessResponse = SuccessResponse(true)
 
     override suspend fun deleteItem(

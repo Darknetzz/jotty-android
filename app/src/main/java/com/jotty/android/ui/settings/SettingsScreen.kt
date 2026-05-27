@@ -38,6 +38,8 @@ import com.jotty.android.data.updates.UpdateChannel
 import com.jotty.android.data.updates.UpdateCheckResult
 import com.jotty.android.data.updates.UpdateChecker
 import com.jotty.android.data.updates.parseUpdateChannel
+import com.jotty.android.ui.common.UpdateStatusAlert
+import com.jotty.android.ui.common.UpdateStatusAlertVariant
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import dev.jeziellago.compose.markdowntext.MarkdownText
 import kotlinx.coroutines.launch
@@ -843,21 +845,15 @@ private fun AboutDialog(
                     }
                     is UpdateUiState.Checking, is UpdateUiState.Downloading -> {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                                Text(
+                            UpdateStatusAlert(
+                                message =
                                     if (state is UpdateUiState.Downloading) {
                                         stringResource(R.string.downloading)
                                     } else {
                                         stringResource(R.string.checking_for_updates)
                                     },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                                variant = UpdateStatusAlertVariant.Loading,
+                            )
                             if (state is UpdateUiState.Downloading) {
                                 if (downloadProgress != null) {
                                     LinearProgressIndicator(
@@ -902,10 +898,9 @@ private fun AboutDialog(
                                     onOpenReleasePage = { uriHandler.openUri(releasePageUrl) },
                                 )
                             is UpdateCheckResult.UpToDate -> {
-                                Text(
-                                    stringResource(R.string.you_are_up_to_date),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                UpdateStatusAlert(
+                                    message = stringResource(R.string.you_are_up_to_date),
+                                    variant = UpdateStatusAlertVariant.Success,
                                 )
                                 TextButton(
                                     onClick = { updateState = UpdateUiState.Idle },
@@ -915,10 +910,9 @@ private fun AboutDialog(
                                 }
                             }
                             is UpdateCheckResult.Error -> {
-                                Text(
-                                    stringResource(R.string.update_check_error, r.message),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
+                                UpdateStatusAlert(
+                                    message = stringResource(R.string.update_check_error, r.message),
+                                    variant = UpdateStatusAlertVariant.Danger,
                                 )
                                 TextButton(
                                     onClick = {
@@ -1000,10 +994,9 @@ private fun UpdateAvailableContent(
     onOpenReleasePage: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            stringResource(R.string.update_available, versionName),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        UpdateStatusAlert(
+            message = stringResource(R.string.update_available, versionName),
+            variant = UpdateStatusAlertVariant.Info,
         )
         if (showSigningHints) {
             Text(
@@ -1040,10 +1033,9 @@ private fun UpdateAvailableContent(
             }
         }
         installFailedMessage?.let { msg ->
-            Text(
-                stringResource(R.string.install_failed, msg),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+            UpdateStatusAlert(
+                message = stringResource(R.string.install_failed, msg),
+                variant = UpdateStatusAlertVariant.Danger,
             )
         }
         Row(

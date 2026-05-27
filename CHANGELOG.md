@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [1.3.6-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Changed
+
+- **About update status** — Check-for-updates results use styled alert banners (success, info, error, and loading) with icons in the About dialog.
+
 ### Fixed
 
 - **Empty checklists/notes after first setup** — Initial sync no longer runs in a `LaunchedEffect` that could be cancelled when connectivity or settings update (showing “Job was cancelled” with an empty list). Sync is started from the offline ViewModel scope; cancelled syncs are not recorded as user-visible errors; debounce is skipped while the local checklist cache is empty.

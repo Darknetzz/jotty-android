@@ -77,16 +77,10 @@ class OfflineChecklistsRepositoryTest {
                     ),
                 )
             val api =
-                object : FakeChecklistApi(remote) {
-                    override suspend fun getChecklists(
-                        category: String?,
-                        type: String?,
-                        search: String?,
-                    ): ChecklistsResponse {
-                        block.await()
-                        return super.getChecklists(category, type, search)
-                    }
-                }
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    beforeGetChecklists = { block.await() },
+                )
             val repo =
                 OfflineChecklistsRepository(
                     context = context,
@@ -463,6 +457,7 @@ class OfflineChecklistsRepositoryTest {
 
 private class FakeChecklistApi(
     private val remoteChecklists: MutableList<Checklist> = mutableListOf(),
+    private val beforeGetChecklists: suspend () -> Unit = {},
     private val onDeleteItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
     private val onUpdateChecklist: suspend (String, UpdateChecklistRequest) -> ApiResponse<Checklist> = { listId, body ->
         val existing = remoteChecklists.first { it.id == listId }
@@ -481,7 +476,10 @@ private class FakeChecklistApi(
         category: String?,
         type: String?,
         search: String?,
-    ): ChecklistsResponse = ChecklistsResponse(remoteChecklists.toList())
+    ): ChecklistsResponse {
+        beforeGetChecklists()
+        return ChecklistsResponse(remoteChecklists.toList())
+    }
 
     override suspend fun createChecklist(body: CreateChecklistRequest): ApiResponse<Checklist> {
         val created =

@@ -205,7 +205,7 @@ fun NotesScreen(
                                                                         category = snapshot.category,
                                                                     ),
                                                                 )
-                                                            if (resp.success && resp.data != null) {
+                                                            if (resp.success) {
                                                                 vm.loadNotes()
                                                             } else {
                                                                 snackbarHostState.showSnackbar(saveFailedMsg)

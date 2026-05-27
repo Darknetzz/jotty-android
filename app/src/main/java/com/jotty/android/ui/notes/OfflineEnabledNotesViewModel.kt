@@ -15,7 +15,10 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class OfflineEnabledNotesViewModel(
     private val offlineRepository: OfflineNotesRepository,
     private val api: JottyApi,

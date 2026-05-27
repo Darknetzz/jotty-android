@@ -91,7 +91,7 @@ class ChecklistsViewModel(
                     type = type,
                 ),
             )
-        return if (created.success && created.data != null) {
+        return if (created.success) {
             loadChecklists()
             true
         } else {

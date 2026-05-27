@@ -398,7 +398,7 @@ private fun ChecklistDetailScreen(
                                 checklist.id,
                                 UpdateChecklistRequest(title = newTitle, category = checklist.category),
                             )
-                        if (response.success && response.data != null) {
+                        if (response.success) {
                             displayTitle = response.data.title
                             onUpdate(response.data)
                         } else {

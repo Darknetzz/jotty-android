@@ -1,8 +1,8 @@
+import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.ksp)
     alias(libs.plugins.jlleitschuh.ktlint)
@@ -17,7 +17,7 @@ val keystoreProperties =
     }
 val devBuildSha = rootProject.findProperty("DEV_BUILD_SHA")?.toString()?.take(7)
 
-android {
+extensions.configure<ApplicationExtension> {
     namespace = "com.jotty.android"
     compileSdk = 36
 
@@ -73,6 +73,12 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
 }
 
 val copyChangelogToAssets =
@@ -83,12 +89,6 @@ val copyChangelogToAssets =
 
 tasks.named("preBuild") {
     dependsOn(copyChangelogToAssets)
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-    }
 }
 
 ktlint {

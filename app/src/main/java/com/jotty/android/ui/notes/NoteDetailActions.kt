@@ -39,7 +39,7 @@ class ApiNoteDetailActions(
                         originalCategory = category,
                     ),
                 )
-            if (response.success && response.data != null) {
+            if (response.success) {
                 response.data
             } else {
                 error("Update failed")

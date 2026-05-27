@@ -7,8 +7,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.filled.Logout
-import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
@@ -1069,7 +1069,7 @@ private fun ViewChangelogButton(
         contentPadding = PaddingValues(0.dp),
     ) {
         Icon(
-            Icons.Default.Article,
+            Icons.AutoMirrored.Filled.Article,
             contentDescription = label,
             modifier = Modifier.size(18.dp),
             tint = MaterialTheme.colorScheme.primary,

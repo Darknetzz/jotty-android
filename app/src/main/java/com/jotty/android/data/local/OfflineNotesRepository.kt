@@ -9,6 +9,7 @@ import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -306,6 +307,7 @@ class OfflineNotesRepository(
                 AppLog.d("OfflineNotesRepository", "Sync complete")
                 Result.success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 val msg = ApiErrorHelper.userMessage(appContext, e)
                 runtime.syncStatus.markSyncCompleted(success = false, errorMessage = msg)
                 runtime.syncStatus.setSyncing(false)

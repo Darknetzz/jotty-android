@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineNotesRepository
@@ -33,6 +35,12 @@ class OfflineNotesViewModel(
             instanceId = instanceId,
             api = api,
         )
+
+    init {
+        viewModelScope.launch {
+            repository.syncNotes()
+        }
+    }
 
     override fun onCleared() {
         repository.close()

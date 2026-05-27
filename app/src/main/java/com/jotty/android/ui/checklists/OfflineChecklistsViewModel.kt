@@ -4,6 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineChecklistsRepository
@@ -25,6 +27,12 @@ class OfflineChecklistsViewModel(
             instanceId = instanceId,
             api = api,
         )
+
+    init {
+        viewModelScope.launch {
+            repository.syncChecklists(force = true)
+        }
+    }
 
     override fun onCleared() {
         repository.close()

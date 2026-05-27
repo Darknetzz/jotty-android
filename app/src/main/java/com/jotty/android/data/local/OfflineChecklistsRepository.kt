@@ -15,6 +15,7 @@ import com.jotty.android.util.appendedPath
 import com.jotty.android.util.deleteAtPath
 import com.jotty.android.util.itemAtPath
 import com.jotty.android.util.parentPath
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -332,7 +333,8 @@ class OfflineChecklistsRepository(
                 return@withContext Result.success(Unit)
             }
 
-            if (!force) {
+            val localEmpty = checklistDao.getAllChecklists(instanceId).isEmpty()
+            if (!force && !localEmpty) {
                 val last = lastSyncCompletedAtMs
                 if (last != null && System.currentTimeMillis() - last < SYNC_DEBOUNCE_MS) {
                     AppLog.d(TAG, "Skipping sync — debounced")
@@ -405,6 +407,7 @@ class OfflineChecklistsRepository(
                 AppLog.d(TAG, "Sync complete — ${serverChecklists.size} checklists from server")
                 Result.success(Unit)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 val msg = ApiErrorHelper.userMessage(appContext, e)
                 runtime.syncStatus.markSyncCompleted(success = false, errorMessage = msg)
                 AppLog.d(TAG, "Sync failed: $msg")

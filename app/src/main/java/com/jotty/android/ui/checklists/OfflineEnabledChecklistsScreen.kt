@@ -586,7 +586,6 @@ private fun OfflineChecklistDetailContent(
         )
 
         ChecklistReorderInfoBanner()
-        ChecklistRenameInfoBanner()
 
         OfflineConnectivityBanner(
             isOnline = isOnline,

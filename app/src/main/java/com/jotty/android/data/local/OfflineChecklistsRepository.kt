@@ -12,6 +12,7 @@ import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import com.jotty.android.util.appendedPath
+import com.jotty.android.util.deleteAtPath
 import com.jotty.android.util.itemAtPath
 import com.jotty.android.util.parentPath
 import kotlinx.coroutines.Dispatchers
@@ -284,34 +285,35 @@ class OfflineChecklistsRepository(
                         throw IllegalArgumentException("Item text cannot be empty")
                     }
                     val parentIndex = parentPath(path)
-                    val newPath = appendedPath(checklist.items, parentIndex)
+                    val deletedItems = deleteAtPath(checklist.items, path)
+                    val newPath = appendedPath(deletedItems, parentIndex)
                     if (isOnline.value) {
+                        api.deleteItem(checklistId, path)
                         api.addChecklistItem(
                             checklistId,
                             AddItemRequest(text = itemText, status = item.status, parentIndex = parentIndex),
                         )
-                        if (item.completed) {
-                            api.checkItem(checklistId, newPath)
-                        }
-                        api.deleteItem(checklistId, path)
-                        refreshFromServer(checklistId)
+                        if (item.completed) api.checkItem(checklistId, newPath)
+                        return@withItemMutation refreshFromServer(checklistId)
                     } else {
                         var updated =
                             applyOpLocally(
                                 checklistId,
+                                PendingItemOp(type = "DELETE", path = path),
+                            )
+                        updated =
+                            applyOpLocally(
+                                updated.id,
                                 PendingItemOp(type = "ADD", text = itemText, parentIndex = parentIndex),
                             )
                         if (item.completed) {
                             updated =
                                 applyOpLocally(
-                                    checklistId,
+                                    updated.id,
                                     PendingItemOp(type = "CHECK", path = newPath),
                                 )
                         }
-                        applyOpLocally(
-                            updated.id,
-                            PendingItemOp(type = "DELETE", path = path),
-                        )
+                        return@withItemMutation updated
                     }
                 }
             }

@@ -46,6 +46,7 @@ import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.appendedPath
+import com.jotty.android.util.deleteAtPath
 import com.jotty.android.util.parentPath
 import kotlinx.coroutines.launch
 
@@ -420,7 +421,6 @@ private fun ChecklistDetailScreen(
         )
 
         ChecklistReorderInfoBanner()
-        ChecklistRenameInfoBanner()
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -527,7 +527,10 @@ private fun ChecklistDetailScreen(
                                     return@launch
                                 }
                                 val parentIndex = parentPath(flat.apiPath)
-                                val newPath = appendedPath(items, parentIndex)
+                                // Server-side append semantics can shift indexes; delete first to avoid deleting the wrong item.
+                                val deletedItems = deleteAtPath(items, flat.apiPath)
+                                val newPath = appendedPath(deletedItems, parentIndex)
+                                api.deleteItem(checklist.id, flat.apiPath)
                                 api.addChecklistItem(
                                     checklist.id,
                                     com.jotty.android.data.api.AddItemRequest(
@@ -537,7 +540,6 @@ private fun ChecklistDetailScreen(
                                     ),
                                 )
                                 if (flat.item.completed) api.checkItem(checklist.id, newPath)
-                                api.deleteItem(checklist.id, flat.apiPath)
                                 refresh()
                             } catch (_: Exception) {
                                 onSaveFailed()
@@ -615,7 +617,10 @@ private fun ChecklistDetailScreen(
                                     return@launch
                                 }
                                 val parentIndex = parentPath(flat.apiPath)
-                                val newPath = appendedPath(items, parentIndex)
+                                // Server-side append semantics can shift indexes; delete first to avoid deleting the wrong item.
+                                val deletedItems = deleteAtPath(items, flat.apiPath)
+                                val newPath = appendedPath(deletedItems, parentIndex)
+                                api.deleteItem(checklist.id, flat.apiPath)
                                 api.addChecklistItem(
                                     checklist.id,
                                     com.jotty.android.data.api.AddItemRequest(
@@ -625,7 +630,6 @@ private fun ChecklistDetailScreen(
                                     ),
                                 )
                                 if (flat.item.completed) api.checkItem(checklist.id, newPath)
-                                api.deleteItem(checklist.id, flat.apiPath)
                                 refresh()
                             } catch (_: Exception) {
                                 onSaveFailed()

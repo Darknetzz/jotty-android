@@ -29,3 +29,37 @@ fun itemAtPath(
 }
 
 private fun pathSegments(path: String): List<Int>? = path.split(".").map { it.toIntOrNull() ?: return null }
+
+/**
+ * Deletes a single item at [path] from a checklist tree (positional, e.g. "0" or "0.1").
+ * Returns a new list with children reindexed.
+ */
+fun deleteAtPath(
+    items: List<ChecklistItem>,
+    path: String,
+): List<ChecklistItem> {
+    val segments = pathSegments(path) ?: return items
+    return deleteAtSegments(items, segments)
+}
+
+private fun deleteAtSegments(
+    items: List<ChecklistItem>,
+    segments: List<Int>,
+): List<ChecklistItem> {
+    if (segments.isEmpty()) return items
+    val idx = segments[0]
+    if (idx < 0 || idx >= items.size) return items
+
+    return if (segments.size == 1) {
+        items.toMutableList().also { it.removeAt(idx) }
+            .mapIndexed { i, item -> item.copy(index = i) }
+    } else {
+        items.toMutableList().also { list ->
+            val parent = list[idx]
+            val newChildren =
+                deleteAtSegments(parent.children.orEmpty(), segments.drop(1))
+                    .mapIndexed { i, item -> item.copy(index = i) }
+            list[idx] = parent.copy(children = newChildren)
+        }
+    }
+}

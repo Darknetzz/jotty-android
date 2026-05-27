@@ -22,8 +22,8 @@ import com.jotty.android.data.api.NotesResponse
 import com.jotty.android.data.api.SuccessResponse
 import com.jotty.android.data.api.SummaryResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
-import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.api.UpdateNoteRequest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -169,6 +169,94 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
+    fun renameLeafItem_whenOffline_replacesItemWithNewText() =
+        runTest {
+            val existingItems =
+                listOf(
+                    ChecklistItem(index = 0, text = "Keep"),
+                    ChecklistItem(index = 1, text = "Old", completed = true),
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Local list",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = Gson().toJson(existingItems),
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = false,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            val result = repo.renameLeafItem("list-1", "1", "Renamed")
+
+            assertTrue(result.isSuccess)
+            val updatedItems = result.getOrNull()?.items.orEmpty()
+            assertEquals(2, updatedItems.size)
+            assertEquals("Keep", updatedItems[0].text)
+            assertEquals("Renamed", updatedItems[1].text)
+            assertTrue(updatedItems[1].completed)
+        }
+
+    @Test
+    fun renameLeafItem_withChildren_returnsFailure() =
+        runTest {
+            val existingItems =
+                listOf(
+                    ChecklistItem(
+                        index = 0,
+                        text = "Parent",
+                        children = listOf(ChecklistItem(index = 0, text = "Child")),
+                    ),
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Local list",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "task",
+                    itemsJson = Gson().toJson(existingItems),
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = false,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            val result = repo.renameLeafItem("list-1", "0", "Renamed")
+
+            assertTrue(result.isFailure)
+            val unchangedItems = database.checklistDao().getById("list-1")?.items().orEmpty()
+            assertEquals("Parent", unchangedItems.firstOrNull()?.text)
+        }
+
+    @Test
     fun syncChecklists_whenPushFails_doesNotWipeLocalChecklistsWithServerSnapshot() =
         runTest {
             val serverList =
@@ -220,6 +308,107 @@ class OfflineChecklistsRepositoryTest {
             assertEquals("list-1", row.id)
             assertTrue(row.isDirty)
             assertEquals("Local title", row.title)
+        }
+
+    @Test
+    fun syncChecklists_whenDirtyChecklistDiffersFromServer_createsLocalCopy() =
+        runTest {
+            val serverList =
+                Checklist(
+                    id = "list-1",
+                    title = "Server title",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    items = listOf(ChecklistItem(index = 0, text = "Server item")),
+                    createdAt = "c",
+                    updatedAt = "u",
+                )
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = mutableListOf(serverList),
+                    onUpdateChecklist = { _, _ ->
+                        // Push succeeds but pull still returns the pre-conflict server snapshot.
+                        ApiResponse(true, serverList)
+                    },
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Local title",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = Gson().toJson(listOf(ChecklistItem(index = 0, text = "Local item"))),
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            val stored = database.checklistDao().getAllChecklists(instanceId)
+            assertEquals(2, stored.size)
+            assertTrue(stored.any { it.title == "Local title${OfflineChecklistsRepository.LOCAL_COPY_SUFFIX}" })
+            assertTrue(stored.any { it.title == "Server title" })
+            assertEquals(1, repo.conflictsDetected.value)
+        }
+
+    @Test
+    fun getConflictCopiesFlow_returnsOnlyLocalCopies() =
+        runTest {
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "regular",
+                    title = "Regular",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = "[]",
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    instanceId = instanceId,
+                ),
+            )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "copy",
+                    title = "Regular${OfflineChecklistsRepository.LOCAL_COPY_SUFFIX}",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = "[]",
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    instanceId = instanceId,
+                ),
+            )
+
+            val conflictCopies = repo.getConflictCopiesFlow().first()
+
+            assertEquals(1, conflictCopies.size)
+            assertEquals("copy", conflictCopies.single().id)
         }
 }
 
@@ -283,12 +472,6 @@ private class FakeChecklistApi(
     override suspend fun uncheckItem(
         listId: String,
         itemIndex: String,
-    ): SuccessResponse = SuccessResponse(true)
-
-    override suspend fun updateItem(
-        listId: String,
-        itemIndex: String,
-        body: UpdateItemRequest,
     ): SuccessResponse = SuccessResponse(true)
 
     override suspend fun deleteItem(

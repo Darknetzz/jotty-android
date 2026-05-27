@@ -17,7 +17,6 @@ import com.jotty.android.data.api.NotesResponse
 import com.jotty.android.data.api.SuccessResponse
 import com.jotty.android.data.api.SummaryResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
-import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.api.UpdateNoteRequest
 
 /**
@@ -59,12 +58,6 @@ internal class FakeJottyApi(
     override suspend fun uncheckItem(
         listId: String,
         itemIndex: String,
-    ): SuccessResponse = error("not used in OfflineNotesRepository tests")
-
-    override suspend fun updateItem(
-        listId: String,
-        itemIndex: String,
-        body: UpdateItemRequest,
     ): SuccessResponse = error("not used in OfflineNotesRepository tests")
 
     override suspend fun deleteItem(

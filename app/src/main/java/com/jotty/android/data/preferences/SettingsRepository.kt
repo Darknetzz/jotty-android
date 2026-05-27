@@ -102,6 +102,18 @@ class SettingsRepository(
             prefs[KEY_OFFLINE_MODE] ?: true
         }.catch { emit(true) }
 
+    /** Auto-prompt biometric when opening an encrypted note with a stored passphrase. Default true. */
+    val biometricAutoUnlockEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_BIOMETRIC_AUTO_UNLOCK] ?: true
+        }.catch { emit(true) }
+
+    /** Offer to remember passphrase with biometric after password decrypt. Default true. */
+    val biometricSaveOfferEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_BIOMETRIC_SAVE_OFFER] ?: true
+        }.catch { emit(true) }
+
     /**
      * GitHub update check channel: `"stable"` (latest semver release) or `"dev"` (`dev-latest` pre-release).
      * Default stable.
@@ -212,6 +224,14 @@ class SettingsRepository(
 
     suspend fun setDebugLoggingEnabled(value: Boolean) {
         context.jottySettingsDataStore.edit { it[KEY_DEBUG_LOGGING] = value }
+    }
+
+    suspend fun setBiometricAutoUnlockEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit { it[KEY_BIOMETRIC_AUTO_UNLOCK] = value }
+    }
+
+    suspend fun setBiometricSaveOfferEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit { it[KEY_BIOMETRIC_SAVE_OFFER] = value }
     }
 
     suspend fun setOfflineModeEnabled(value: Boolean) {
@@ -359,6 +379,8 @@ class SettingsRepository(
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
         private val KEY_DEBUG_LOGGING = booleanPreferencesKey("debug_logging_enabled")
+        private val KEY_BIOMETRIC_AUTO_UNLOCK = booleanPreferencesKey("biometric_auto_unlock_enabled")
+        private val KEY_BIOMETRIC_SAVE_OFFER = booleanPreferencesKey("biometric_save_offer_enabled")
         private val KEY_OFFLINE_MODE = booleanPreferencesKey("offline_mode_enabled")
         private val KEY_UPDATE_CHANNEL = stringPreferencesKey("update_channel")
 

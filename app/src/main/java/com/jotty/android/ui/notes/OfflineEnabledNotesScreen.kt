@@ -9,10 +9,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -29,6 +27,7 @@ import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.OfflineConnectivityBanner
@@ -56,6 +55,8 @@ fun OfflineEnabledNotesScreen(
     biometricStore: BiometricPassphraseStore? = null,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
+    val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
     val vm: OfflineEnabledNotesViewModel =
@@ -259,42 +260,10 @@ fun OfflineEnabledNotesScreen(
                     }
 
                     if (conflictCopies.isNotEmpty()) {
-                        ElevatedCard(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 8.dp),
-                            colors =
-                                CardDefaults.elevatedCardColors(
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                ),
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Icon(
-                                    Icons.Default.Warning,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                )
-                                Text(
-                                    text =
-                                        if (conflictCopies.size == 1) {
-                                            stringResource(R.string.conflict_copy_pending)
-                                        } else {
-                                            stringResource(R.string.conflict_copies_pending, conflictCopies.size)
-                                        },
-                                    modifier = Modifier.weight(1f),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                )
-                                TextButton(onClick = { vm.applyConflictSearchFilter() }) {
-                                    Text(stringResource(R.string.view_conflicts))
-                                }
-                            }
-                        }
+                        ConflictCopiesBanner(
+                            conflictCopyCount = conflictCopies.size,
+                            onViewCopies = { vm.applyConflictSearchFilter() },
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -373,7 +342,6 @@ fun OfflineEnabledNotesScreen(
                     OfflineNoteDetailScreen(
                         note = note,
                         offlineRepository = offlineRepository,
-                        api = api,
                         onBack = { vm.setSelectedNote(null) },
                         onUpdate = { updatedNote ->
                             vm.setSelectedNote(updatedNote)
@@ -388,6 +356,8 @@ fun OfflineEnabledNotesScreen(
                         isOnline = isOnline,
                         onRetrySync = { requestSync(showLoading = true) },
                         biometricStore = biometricStore,
+                        biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
+                        biometricSaveOfferEnabled = biometricSaveOfferEnabled,
                     )
                 }
             }

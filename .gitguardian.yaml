@@ -1,0 +1,3 @@
+# Unit tests use fake API keys and prefs-key fixtures; not production secrets.
+paths-ignore:
+  - "app/src/test/**"

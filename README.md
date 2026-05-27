@@ -65,19 +65,24 @@ Version is defined in **`gradle.properties`** (single source of truth):
 - `VERSION_NAME` — user-visible version (e.g. `1.0.1`)
 - `VERSION_CODE` — integer, must increase each release (e.g. `2`)
 
-Preferred flow (automated):
+Release scripts (two steps):
 
-- **Windows (PowerShell):** `.\release.ps1`
-- **Linux/macOS (bash):** `./release.sh`
+| Step | Windows | Linux/macOS |
+|------|---------|-------------|
+| **1. Prep** (version + changelog) | `.\release.ps1` | `./release.sh` |
+| **2. Publish** (push, PR, merge, GitHub release) | `.\scripts\publish-release.ps1` | `./scripts/publish-release.sh` |
 
-Both scripts can prompt for a version (default is current patch + 1), increment `VERSION_CODE`, and promote `CHANGELOG.md` from `Unreleased` to a dated release entry.
+**Prep** prompts for a version (default: current patch + 1), increments `VERSION_CODE`, and promotes the top `CHANGELOG.md` `[VERSION-dev]` section to a dated stable entry, leaving a fresh `[new-version-dev]` header for [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest).
+
+**Publish** requires a clean `dev` branch, `gh` CLI logged in, and committed prep. It pushes `dev`, opens (or reuses) **`dev` → `main`**, merges the PR, and runs **`gh release create vX.Y.Z`** on `main` (notes from the new changelog section). That publish step triggers [release-apk.yml](.github/workflows/release-apk.yml) to attach the APK.
 
 **Typical stable release flow**
 
-1. Commit release prep on **`dev`** (`.\release.ps1`, then commit `gradle.properties` + `CHANGELOG.md`).
-2. Push **`dev`**, open a PR **`dev` → `main`**, merge (required by branch protection).
-3. Tag **`vX.Y.Z`** on **`main`** and publish the GitHub release (triggers the release APK workflow).
-4. **`dev` is synced to `main`** automatically by [sync-dev-with-main.yml](.github/workflows/sync-dev-with-main.yml) (fast-forward so both branches match — `main` would otherwise stay “ahead” with merge commits only).
+1. `.\release.ps1` (or `./release.sh`), then commit `gradle.properties` + `CHANGELOG.md` on **`dev`**.
+2. `.\scripts\publish-release.ps1 -WaitForChecks` (or the `.sh` equivalent).
+3. **`dev` is synced to `main`** automatically by [sync-dev-with-main.yml](.github/workflows/sync-dev-with-main.yml) after the merge lands on `main`.
+
+CI also runs without the publish script: [dev-latest.yml](.github/workflows/dev-latest.yml) on every push to `dev`; [release-apk.yml](.github/workflows/release-apk.yml) when a GitHub release is published.
 
 Manual sync if needed: `.\scripts\sync-dev-with-main.ps1` or `./scripts/sync-dev-with-main.sh`.
 

@@ -36,6 +36,7 @@ import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
+import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListScreenContent
@@ -66,6 +67,7 @@ fun OfflineEnabledChecklistsScreen(
         }
 
     val checklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
+    val conflictCopies by offlineRepository.getConflictCopiesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
     val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
     val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
@@ -88,6 +90,7 @@ fun OfflineEnabledChecklistsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
+    val renameLeafOnlyMsg = stringResource(R.string.rename_leaf_only)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
@@ -226,6 +229,7 @@ fun OfflineEnabledChecklistsScreen(
                     },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
+                    onRenameUnsupported = { scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) } },
                 )
             } else {
                 OfflineConnectivityBanner(
@@ -301,6 +305,11 @@ fun OfflineEnabledChecklistsScreen(
                         }
                     }
                 }
+
+                ConflictCopiesBanner(
+                    conflictCopyCount = conflictCopies.size,
+                    onViewCopies = { vm.applyConflictSearchFilter() },
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -526,6 +535,7 @@ private fun OfflineChecklistDetailContent(
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit,
     onSavedLocally: () -> Unit,
+    onRenameUnsupported: () -> Unit,
 ) {
     // Drive item list from the repository flow so offline mutations are reflected immediately.
     val allChecklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -574,6 +584,8 @@ private fun OfflineChecklistDetailContent(
             onRename = { showRenameDialog = true },
             onDelete = onDelete,
         )
+
+        ChecklistReorderInfoBanner()
 
         OfflineConnectivityBanner(
             isOnline = isOnline,
@@ -659,9 +671,15 @@ private fun OfflineChecklistDetailContent(
                     },
                     onUpdate = { text ->
                         scope.launch {
-                            handleResult(offlineRepository.updateItem(liveChecklist.id, flat.apiPath, text))
+                            if (flat.item.children.orEmpty().isNotEmpty()) {
+                                onRenameUnsupported()
+                                return@launch
+                            }
+                            handleResult(offlineRepository.renameLeafItem(liveChecklist.id, flat.apiPath, text))
                         }
                     },
+                    canRename = flat.item.children.orEmpty().isEmpty(),
+                    onRenameUnsupported = onRenameUnsupported,
                     onAddSubItem =
                         if (isProject && flat.depth == 0) {
                             {
@@ -701,9 +719,15 @@ private fun OfflineChecklistDetailContent(
                     },
                     onUpdate = { text ->
                         scope.launch {
-                            handleResult(offlineRepository.updateItem(liveChecklist.id, flat.apiPath, text))
+                            if (flat.item.children.orEmpty().isNotEmpty()) {
+                                onRenameUnsupported()
+                                return@launch
+                            }
+                            handleResult(offlineRepository.renameLeafItem(liveChecklist.id, flat.apiPath, text))
                         }
                     },
+                    canRename = flat.item.children.orEmpty().isEmpty(),
+                    onRenameUnsupported = onRenameUnsupported,
                     onAddSubItem = null,
                 )
             }
@@ -723,6 +747,8 @@ private fun OfflineItemRow(
     onUncheck: () -> Unit,
     onDelete: () -> Unit,
     onUpdate: (String) -> Unit,
+    canRename: Boolean = true,
+    onRenameUnsupported: () -> Unit = {},
     onAddSubItem: (() -> Unit)? = null,
 ) {
     val indent = (depth * 20).dp
@@ -793,6 +819,10 @@ private fun OfflineItemRow(
                     Modifier
                         .weight(1f)
                         .clickable {
+                            if (!canRename) {
+                                onRenameUnsupported()
+                                return@clickable
+                            }
                             isEditing = true
                             editText = item.text
                         },

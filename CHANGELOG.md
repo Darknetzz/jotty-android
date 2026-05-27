@@ -2,7 +2,40 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release (`[VERSION-dev]`). Dev APK `versionName` is `VERSION-dev+<short-sha>` (seven-character commit; see the release **Commit:** line).
+
+## [1.3.6-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+
+---
+
+## [1.3.6] - 2026-05-27
+
+### Added
+
+- **Biometric note unlock (settings)** — Settings → Security: biometric status, auto-prompt on open, offer to remember passphrase after password decrypt, and clear all remembered passphrases. Per-note storage unchanged.
+- **Biometric decrypt UX** — Shared unlock helper; decrypt dialog offers fingerprint when a passphrase is saved; auto-prompt on open respects the setting; errors show via snackbar; cancel allows auto-prompt to retry.
+
+- **Checklist conflict copies UX** — Offline checklists list shows the same conflict-copies banner and “View copies” flow as notes (`getConflictCopiesFlow`, `ConflictCopiesBanner`).
+- **Note detail architecture** — `NoteDetailViewModel` and `NoteDetailActions` (`ApiNoteDetailActions`, `OfflineNoteDetailActions`); offline detail no longer stubs `JottyApi`.
+- **List data sources** — `NotesListDataSource` / `ChecklistsListDataSource` with online and offline implementations (`data/repository/ListDataSources.kt`) as a step toward unified list screens.
+- **Tests** — Checklist sync conflict tests; ViewModel tests for offline notes/checklists and `NoteDetailViewModel`.
+
+### Changed
+
+- **Note detail logging** — Encryption debug lines use `AppLog` (gated by Settings → debug logging) instead of unconditional `Log`.
+- **Shared offline UI** — `ConflictCopiesBanner` in `ui/common/`; notes and checklists list screens use it.
+
+### Fixed
+
+- **HTML tables in notes** — Notes saved with Jotty’s default HTML table format (Profile → table syntax: HTML) now render as proper tables in note view; GFM pipe tables were already supported.
+- **Biometric decrypt empty note body** — Blank session cache or empty decrypt result no longer skips the encrypted placeholder; biometric unlock uses the same `onDecrypted` path as passphrase decrypt, requires a parsed encrypted body before auto-prompt, and surfaces failure when the biometric cipher or ciphertext is missing.
+- **Online note delete from detail** — Overflow → Delete now calls `deleteNote` on the server (previously only closed detail and refreshed the list).
+- **Checklist item rename save failure ([#33](https://github.com/Darknetzz/jotty-android/issues/33))** — Replaced unsupported checklist text update calls with a leaf-only rename flow (add replacement item, then delete original), including offline replay support and clearer UI hints for parent/project items.
+
+### Documentation
+
+- **Checklist reorder ([#29](https://github.com/Darknetzz/jotty-android/issues/29))** — Expanded [CHECKLIST_REORDER.md](docs/CHECKLIST_REORDER.md) (web server-action capture vs REST, id vs index-path); [upstream/CHECKLIST_REORDER_API_PROPOSAL.md](docs/upstream/CHECKLIST_REORDER_API_PROPOSAL.md) for fccview/jotty. In-app reorder deferred until that API exists.
+- **`docs/TODO.md`** — Populated with follow-up backlog; **`docs/OFFLINE_NOTES.md`** — marked offline checklists as implemented in future-improvements list.
 
 ---
 
@@ -656,3 +689,5 @@ All notable changes to Jotty Android are documented here. The format is based on
 [1.3.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.4
 
 [1.3.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.5
+
+[1.3.6]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.6

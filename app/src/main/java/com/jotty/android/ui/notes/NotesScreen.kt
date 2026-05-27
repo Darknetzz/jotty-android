@@ -51,6 +51,8 @@ fun NotesScreen(
     val vm: NotesViewModel = viewModel(factory = NotesViewModel.Factory(application, api))
 
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
+    val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
     val notes by vm.notes.collectAsStateWithLifecycle()
@@ -232,22 +234,28 @@ fun NotesScreen(
                 }
                 else -> {
                     val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
+                    val noteActions = remember(api) { ApiNoteDetailActions(api) }
                     NoteDetailScreen(
                         note = note,
-                        api = api,
+                        actions = noteActions,
                         onBack = { vm.setSelectedNote(null) },
                         onUpdate = {
                             vm.setSelectedNote(it)
                             vm.loadNotes()
                         },
                         onDelete = {
-                            vm.setSelectedNote(null)
-                            vm.loadNotes()
+                            scope.launch {
+                                noteActions.deleteNote(note.id)
+                                vm.setSelectedNote(null)
+                                vm.loadNotes()
+                            }
                         },
                         onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                         debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
                         biometricStore = biometricStore,
+                        biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
+                        biometricSaveOfferEnabled = biometricSaveOfferEnabled,
                     )
                 }
             }

@@ -45,6 +45,9 @@ import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.util.appendedPath
+import com.jotty.android.util.deleteAtPath
+import com.jotty.android.util.parentPath
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -67,6 +70,7 @@ fun ChecklistsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
+    val renameLeafOnlyMsg = stringResource(R.string.rename_leaf_only)
     val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
     val undoLabel = stringResource(R.string.undo)
 
@@ -126,6 +130,7 @@ fun ChecklistsScreen(
                     onDelete = { scope.launch { deleteWithUndoForList(currentList) } },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onDeleteFailed = { scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) } },
+                    onRenameUnsupported = { scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) } },
                 )
             } else {
                 Row(
@@ -353,6 +358,7 @@ private fun ChecklistDetailScreen(
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit = {},
     onDeleteFailed: () -> Unit = {},
+    onRenameUnsupported: () -> Unit = {},
 ) {
     var items by remember { mutableStateOf(checklist.items) }
     var displayTitle by remember { mutableStateOf(checklist.title) }
@@ -413,6 +419,8 @@ private fun ChecklistDetailScreen(
             onRename = { showRenameDialog = true },
             onDelete = onDelete,
         )
+
+        ChecklistReorderInfoBanner()
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -514,17 +522,32 @@ private fun ChecklistDetailScreen(
                     onUpdate = {
                         scope.launch {
                             try {
-                                api.updateItem(
+                                if (flat.item.children.orEmpty().isNotEmpty()) {
+                                    onRenameUnsupported()
+                                    return@launch
+                                }
+                                val parentIndex = parentPath(flat.apiPath)
+                                // Server-side append semantics can shift indexes; delete first to avoid deleting the wrong item.
+                                val deletedItems = deleteAtPath(items, flat.apiPath)
+                                val newPath = appendedPath(deletedItems, parentIndex)
+                                api.deleteItem(checklist.id, flat.apiPath)
+                                api.addChecklistItem(
                                     checklist.id,
-                                    flat.apiPath,
-                                    com.jotty.android.data.api.UpdateItemRequest(text = it),
+                                    com.jotty.android.data.api.AddItemRequest(
+                                        text = it,
+                                        status = flat.item.status,
+                                        parentIndex = parentIndex,
+                                    ),
                                 )
+                                if (flat.item.completed) api.checkItem(checklist.id, newPath)
                                 refresh()
                             } catch (_: Exception) {
                                 onSaveFailed()
                             }
                         }
                     },
+                    canRename = flat.item.children.orEmpty().isEmpty(),
+                    onRenameUnsupported = onRenameUnsupported,
                     onAddSubItem =
                         if (isProject && flat.depth == 0) {
                             {
@@ -589,17 +612,32 @@ private fun ChecklistDetailScreen(
                     onUpdate = {
                         scope.launch {
                             try {
-                                api.updateItem(
+                                if (flat.item.children.orEmpty().isNotEmpty()) {
+                                    onRenameUnsupported()
+                                    return@launch
+                                }
+                                val parentIndex = parentPath(flat.apiPath)
+                                // Server-side append semantics can shift indexes; delete first to avoid deleting the wrong item.
+                                val deletedItems = deleteAtPath(items, flat.apiPath)
+                                val newPath = appendedPath(deletedItems, parentIndex)
+                                api.deleteItem(checklist.id, flat.apiPath)
+                                api.addChecklistItem(
                                     checklist.id,
-                                    flat.apiPath,
-                                    com.jotty.android.data.api.UpdateItemRequest(text = it),
+                                    com.jotty.android.data.api.AddItemRequest(
+                                        text = it,
+                                        status = flat.item.status,
+                                        parentIndex = parentIndex,
+                                    ),
                                 )
+                                if (flat.item.completed) api.checkItem(checklist.id, newPath)
                                 refresh()
                             } catch (_: Exception) {
                                 onSaveFailed()
                             }
                         }
                     },
+                    canRename = flat.item.children.orEmpty().isEmpty(),
+                    onRenameUnsupported = onRenameUnsupported,
                     onAddSubItem = null,
                 )
             }
@@ -642,6 +680,8 @@ private fun ChecklistItemRow(
     onUncheck: () -> Unit,
     onDelete: () -> Unit,
     onUpdate: (String) -> Unit,
+    canRename: Boolean = true,
+    onRenameUnsupported: () -> Unit = {},
     onAddSubItem: (() -> Unit)? = null,
 ) {
     val indent = (depth * 20).dp
@@ -712,6 +752,10 @@ private fun ChecklistItemRow(
                     Modifier
                         .weight(1f)
                         .clickable(role = Role.Button) {
+                            if (!canRename) {
+                                onRenameUnsupported()
+                                return@clickable
+                            }
                             isEditing = true
                             editText = item.text
                         },

@@ -172,7 +172,7 @@ When you see "X conflict(s) detected" notification:
 
 Possible enhancements for future versions:
 - ~~Conflict resolution UI for simultaneous edits~~ ✅ Implemented (creates local copies)
-- Offline support for checklists
+- ~~Offline support for checklists~~ ✅ Implemented (1.3.x)
 - Selective sync (only certain categories)
 - Export/backup local database
 - Sync status per note (show which notes are pending)

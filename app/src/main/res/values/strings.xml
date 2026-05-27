@@ -74,6 +74,8 @@
     <string name="delete_task_confirm">Delete this task? This cannot be undone.</string>
     <string name="delete_task_named_confirm">Delete \"%1$s\"? This cannot be undone.</string>
     <string name="delete_note_confirm">Delete \"%1$s\"? This cannot be undone.</string>
+    <string name="rename_leaf_only">Only leaf items can be renamed in the app.</string>
+    <string name="checklist_rename_leaf_only_hint">Rename is available for leaf items only. Parent/project items cannot be renamed in-app, and renamed items may move to the end.</string>
 
     <!-- Notes -->
     <string name="new_note">New note</string>
@@ -258,5 +260,23 @@
     <string name="biometric_unavailable">Biometric not available</string>
     <string name="biometric_error">Biometric authentication failed</string>
     <string name="biometric_passphrase_saved">Passphrase saved — biometric will unlock it next time</string>
-    <string name="biometric_passphrase_forgotten">Remembered passphrase cleared</string>
+    <string name="biometric_passphrase_forgotten">Remembered passphrases cleared</string>
+    <string name="enter_passphrase_or_biometric">Use biometric or enter your passphrase to view the content.</string>
+    <string name="decrypt_passphrase_or_biometric_hint">Use biometric or enter the passphrase you used to encrypt this note.</string>
+
+    <!-- Settings: biometric -->
+    <string name="settings_category_security">Security</string>
+    <string name="biometric_unlock_status_label">Biometric unlock</string>
+    <string name="biometric_status_available">Available</string>
+    <string name="biometric_status_not_enrolled">Not enrolled — add a fingerprint in system settings</string>
+    <string name="biometric_status_not_supported">Not supported on this device</string>
+    <string name="biometric_auto_unlock">Auto-prompt on open</string>
+    <string name="biometric_auto_unlock_description">When a note has a remembered passphrase, ask for biometric as soon as you open it</string>
+    <string name="biometric_save_offer">Offer to remember passphrase</string>
+    <string name="biometric_save_offer_description">After decrypting with a password, offer to save the passphrase for biometric unlock</string>
+    <string name="biometric_stored_count">%1$d note(s) with remembered passphrase</string>
+    <string name="biometric_clear_all">Clear all remembered passphrases</string>
+    <string name="biometric_clear_all_confirm_title">Clear remembered passphrases?</string>
+    <string name="biometric_clear_all_confirm_message">You will need to enter each note\'s passphrase again (or re-save with biometric after decrypt).</string>
+    <string name="clear">Clear</string>
 </resources>

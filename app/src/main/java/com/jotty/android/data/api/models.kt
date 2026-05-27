@@ -56,10 +56,6 @@ data class AddItemRequest(
     val parentIndex: String? = null,
 )
 
-data class UpdateItemRequest(
-    val text: String,
-)
-
 // ─── Notes ──────────────────────────────────────────────────────────────────
 
 data class NotesResponse(val notes: List<Note>)

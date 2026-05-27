@@ -44,7 +44,7 @@ app/src/main/java/com/jotty/android/
 ## Version and releases
 
 - **Single source of truth:** `gradle.properties` — `VERSION_NAME` and `VERSION_CODE`. The app reads these; `BuildConfig` is generated from them (`buildConfig = true` in `app/build.gradle.kts`).
-- **Releasing:** Bump `VERSION_NAME` and `VERSION_CODE` in `gradle.properties`, promote the top `CHANGELOG.md` `[VERSION-dev]` section (rolling [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) notes) to a dated stable entry via `release.sh` / `release.ps1`, then build and tag (e.g. `v1.0.2`). Dev APKs use `VERSION_NAME` + `-dev+<short-sha>` (`DEV_BUILD_SHA` in CI).
+- **Releasing:** `release.ps1` / `release.sh` bumps `gradle.properties` and promotes `CHANGELOG.md` `[VERSION-dev]` to a stable section; commit on `dev`, then `scripts/publish-release.ps1` (or `.sh`) pushes `dev`, merges `dev`→`main` via PR, and `gh release create vX.Y.Z` (triggers APK workflow). `sync-dev-with-main.yml` fast-forwards `dev` after `main` updates. Dev APKs use `VERSION_NAME` + `-dev+<short-sha>` (`DEV_BUILD_SHA` in CI).
 - **GitHub release APK:** The `release-apk` workflow attaches **`jotty-android-{VERSION_NAME}.apk`** when signing secrets are set (`ANDROID_KEYSTORE_*` in `keystore.properties.example`); otherwise **`jotty-android-{VERSION_NAME}-debug.apk`**. Same release keystore is required for in-place updates (issue #9). Local release builds use `keystore.properties`.
 
 ## Build and run

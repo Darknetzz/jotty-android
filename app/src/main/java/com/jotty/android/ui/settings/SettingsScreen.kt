@@ -820,10 +820,6 @@ private fun AboutDialog(
                     Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium)
                     Text(stringResource(R.string.version_format, versionName, versionCode), style = MaterialTheme.typography.bodyMedium)
                 }
-                ViewChangelogButton(
-                    label = stringResource(R.string.view_changelog),
-                    onClick = { openInstalledChangelog() },
-                )
                 serverVersion?.let { version ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -834,18 +830,27 @@ private fun AboutDialog(
                     }
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                TextButton(
-                    onClick = { uriHandler.openUri(GITHUB_REPO_URL) },
-                    contentPadding = PaddingValues(0.dp),
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Icon(
-                        Icons.Default.Link,
-                        contentDescription = stringResource(R.string.view_source_github),
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.primary,
+                    ViewChangelogButton(
+                        label = stringResource(R.string.view_changelog),
+                        onClick = { openInstalledChangelog() },
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.view_source_github))
+                    TextButton(
+                        onClick = { uriHandler.openUri(GITHUB_REPO_URL) },
+                        contentPadding = PaddingValues(0.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.Link,
+                            contentDescription = stringResource(R.string.view_source_github),
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(stringResource(R.string.view_source_github))
+                    }
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                 SettingsSectionSubtitle(stringResource(R.string.update_channel_label))

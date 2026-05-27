@@ -90,13 +90,7 @@ class SettingsRepository(
             prefs[KEY_CONTENT_PADDING].takeIf { !it.isNullOrBlank() } ?: "comfortable"
         }.catch { emit("comfortable") }
 
-    /** Debug logging (e.g. decryption failure step). When enabled, AppLog.d() writes to logcat. Default false. */
-    val debugLoggingEnabled: Flow<Boolean> =
-        context.jottySettingsDataStore.data.map { prefs ->
-            prefs[KEY_DEBUG_LOGGING] ?: false
-        }.catch { emit(false) }
-
-    /** Offline mode: enable local storage and sync. Default true. */
+    /** Local storage & sync: enable local cache and sync. Default true. */
     val offlineModeEnabled: Flow<Boolean> =
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_OFFLINE_MODE] ?: true
@@ -220,10 +214,6 @@ class SettingsRepository(
         context.jottySettingsDataStore.edit {
             if (value == "comfortable") it.remove(KEY_CONTENT_PADDING) else it[KEY_CONTENT_PADDING] = value
         }
-    }
-
-    suspend fun setDebugLoggingEnabled(value: Boolean) {
-        context.jottySettingsDataStore.edit { it[KEY_DEBUG_LOGGING] = value }
     }
 
     suspend fun setBiometricAutoUnlockEnabled(value: Boolean) {
@@ -378,7 +368,6 @@ class SettingsRepository(
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
-        private val KEY_DEBUG_LOGGING = booleanPreferencesKey("debug_logging_enabled")
         private val KEY_BIOMETRIC_AUTO_UNLOCK = booleanPreferencesKey("biometric_auto_unlock_enabled")
         private val KEY_BIOMETRIC_SAVE_OFFER = booleanPreferencesKey("biometric_save_offer_enabled")
         private val KEY_OFFLINE_MODE = booleanPreferencesKey("offline_mode_enabled")

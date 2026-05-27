@@ -338,7 +338,6 @@ fun OfflineEnabledNotesScreen(
                     )
                 }
                 else -> {
-                    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
                     OfflineNoteDetailScreen(
                         note = note,
                         offlineRepository = offlineRepository,
@@ -351,7 +350,6 @@ fun OfflineEnabledNotesScreen(
                         },
                         onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                         onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
-                        debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
                         isOnline = isOnline,
                         onRetrySync = { requestSync(showLoading = true) },

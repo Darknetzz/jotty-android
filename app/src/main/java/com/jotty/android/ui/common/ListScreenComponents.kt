@@ -127,7 +127,7 @@ fun OfflineSyncStatusRow(
         when {
             isSyncing -> stringResource(R.string.syncing)
             isOnline -> stringResource(R.string.online)
-            else -> stringResource(R.string.offline)
+            else -> stringResource(R.string.server_unreachable)
         }
     val lastSyncText =
         remember(lastSyncAttemptEpochMs) {

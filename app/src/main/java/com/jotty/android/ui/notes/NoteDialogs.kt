@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -204,10 +206,10 @@ internal fun DecryptNoteDialog(
     decryptError: String?,
     decryptErrorDetail: String?,
     onDecryptError: (mainMessage: String?, detail: String?) -> Unit,
-    debugLoggingEnabled: Boolean = false,
 ) {
     var passphrase by remember { mutableStateOf("") }
     var isDecrypting by remember { mutableStateOf(false) }
+    var showErrorDetails by remember { mutableStateOf(false) }
     // Non-null when decryption succeeded and we're offering to save with biometric.
     var offerBiometric by remember { mutableStateOf<Pair<CharArray, String>?>(null) }
     // Guards against double-delivery of decrypted content when multiple dismiss paths race.
@@ -388,6 +390,7 @@ internal fun DecryptNoteDialog(
                     value = passphrase,
                     onValueChange = {
                         passphrase = it
+                        showErrorDetails = false
                         onDecryptError(null, null)
                     },
                     label = { Text(stringResource(R.string.passphrase)) },
@@ -398,14 +401,32 @@ internal fun DecryptNoteDialog(
                     supportingText =
                         if (decryptError != null) {
                             {
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(decryptError, color = MaterialTheme.colorScheme.error)
-                                    if (decryptErrorDetail != null) {
-                                        Text(
-                                            decryptErrorDetail,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
+                                    if (!decryptErrorDetail.isNullOrBlank()) {
+                                        TextButton(
+                                            onClick = { showErrorDetails = !showErrorDetails },
+                                            contentPadding = PaddingValues(0.dp),
+                                            modifier = Modifier.heightIn(min = 24.dp),
+                                        ) {
+                                            Text(
+                                                stringResource(
+                                                    if (showErrorDetails) {
+                                                        R.string.decrypt_error_hide_details
+                                                    } else {
+                                                        R.string.decrypt_error_show_details
+                                                    },
+                                                ),
+                                                style = MaterialTheme.typography.labelSmall,
+                                            )
+                                        }
+                                        if (showErrorDetails) {
+                                            Text(
+                                                decryptErrorDetail,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.error,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -421,10 +442,10 @@ internal fun DecryptNoteDialog(
                 onClick = {
                     if (isDecrypting) return@TextButton
                     isDecrypting = true
+                    showErrorDetails = false
                     onDecryptError(null, null)
                     val passChars = passphrase.toCharArray()
                     passphrase = ""
-                    val showDetail = debugLoggingEnabled
                     scope.launch {
                         val passCopy = passChars.copyOf()
                         try {
@@ -452,14 +473,15 @@ internal fun DecryptNoteDialog(
                                     passCopy.clearPassphrase()
                                     val detail =
                                         when {
-                                            result.failureReason?.contains("Auth failed") == true ->
-                                                if (showDetail) {
-                                                    result.failureReason + "\n\n" + decryptAuthFailedHint
+                                            result.failureReason?.contains("Auth failed") == true -> {
+                                                val reason = result.failureReason
+                                                if (!reason.isNullOrBlank()) {
+                                                    "$reason\n\n$decryptAuthFailedHint"
                                                 } else {
                                                     decryptAuthFailedHint
                                                 }
-                                            showDetail -> result.failureReason
-                                            else -> null
+                                            }
+                                            else -> result.failureReason
                                         }
                                     onDecryptError(decryptFailedMsg, detail)
                                 }
@@ -468,10 +490,7 @@ internal fun DecryptNoteDialog(
                             withContext(Dispatchers.Main) {
                                 isDecrypting = false
                                 passCopy.clearPassphrase()
-                                onDecryptError(
-                                    decryptFailedMsg,
-                                    if (showDetail) e.message else null,
-                                )
+                                onDecryptError(decryptFailedMsg, e.message)
                             }
                         }
                     }

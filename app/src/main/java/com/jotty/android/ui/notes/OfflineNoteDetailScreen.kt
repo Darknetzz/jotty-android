@@ -27,7 +27,6 @@ fun OfflineNoteDetailScreen(
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit = {},
     onSavedLocally: () -> Unit = {},
-    debugLoggingEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     isOnline: Boolean = false,
     onRetrySync: () -> Unit = {},
@@ -63,7 +62,6 @@ fun OfflineNoteDetailScreen(
                 }
             },
             onSaveFailed = onSaveFailed,
-            debugLoggingEnabled = debugLoggingEnabled,
             imageLoader = imageLoader,
             biometricStore = biometricStore,
             biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,

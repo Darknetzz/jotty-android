@@ -7,7 +7,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -28,10 +27,6 @@ class MainActivity : FragmentActivity() {
             val settingsRepository = (applicationContext as JottyApp).settingsRepository
             val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = null)
             val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
-            val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
-            LaunchedEffect(debugLoggingEnabled) {
-                com.jotty.android.util.AppLog.setDebugEnabled(debugLoggingEnabled)
-            }
             JottyTheme(themeMode = themeMode, themeColor = themeColor) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.ManageAccounts
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -44,7 +44,10 @@ import com.jotty.android.ui.common.ChangelogDialog
 import com.jotty.android.ui.common.UpdateStatusAlert
 import com.jotty.android.ui.common.UpdateStatusAlertVariant
 import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.util.DebugLogExporter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 
 @Composable
@@ -68,12 +71,11 @@ fun SettingsScreen(
     val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
-    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
     val updateChannelPref by settingsRepository.updateChannel.collectAsStateWithLifecycle(initialValue = "stable")
-    val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsStateWithLifecycle(initialValue = null)
+    var isExportingLogs by remember { mutableStateOf(false) }
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
     var healthOk by remember { mutableStateOf<Boolean?>(null) }
@@ -183,38 +185,21 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.clickable(onClick = onManageInstances),
                         )
-                        if (currentInstance != null) {
-                            HorizontalDivider()
-                            ListItem(
-                                headlineContent = { Text(stringResource(R.string.set_as_default_instance)) },
-                                supportingContent = {
-                                    Text(
-                                        stringResource(R.string.open_to_default_instance),
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        Icons.Default.Star,
-                                        contentDescription = stringResource(R.string.set_as_default_instance),
-                                        tint = if (defaultInstanceId == currentInstance?.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                                modifier =
-                                    Modifier.clickable {
-                                        scope.launch {
-                                            settingsRepository.setDefaultInstanceId(currentInstance?.id)
-                                        }
-                                    },
-                            )
-                        }
                     }
+                }
+
+                if (summary != null || adminOverview != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
+                    summary?.let { DashboardSummaryCard(it) }
+                    if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
+                    adminOverview?.let { AdminOverviewCard(it) }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // ─── General (appearance & behavior) ───────────────────────────────────
-                SettingsSectionTitle(stringResource(R.string.settings_category_general))
+                // ─── Appearance ───────────────────────────────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.appearance))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -307,7 +292,16 @@ fun SettingsScreen(
                             }
                         },
                     )
-                    HorizontalDivider()
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ─── Behavior ───────────────────────────────────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.settings_category_behavior))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.start_screen)) },
                         supportingContent = {
@@ -356,28 +350,6 @@ fun SettingsScreen(
                     )
                     HorizontalDivider()
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.debug_logging)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.debug_logging_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = debugLoggingEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setDebugLoggingEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
-
-                    HorizontalDivider()
-
-                    ListItem(
                         headlineContent = { Text(stringResource(R.string.offline_mode)) },
                         supportingContent = {
                             Text(
@@ -394,6 +366,62 @@ fun SettingsScreen(
                                     }
                                 },
                             )
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ─── Troubleshooting ────────────────────────────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.settings_category_troubleshooting))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.export_debug_logs)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.export_debug_logs_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.BugReport,
+                                contentDescription = stringResource(R.string.export_debug_logs),
+                            )
+                        },
+                        trailingContent = {
+                            if (isExportingLogs) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            } else {
+                                TextButton(
+                                    onClick = {
+                                        scope.launch {
+                                            isExportingLogs = true
+                                            val instance = currentInstance
+                                            val writeResult =
+                                                withContext(Dispatchers.IO) {
+                                                    DebugLogExporter.writeReport(context, instance)
+                                                }
+                                            isExportingLogs = false
+                                            when (writeResult) {
+                                                is DebugLogExporter.WriteResult.Failed ->
+                                                    snackbarHostState.showSnackbar(writeResult.message)
+                                                is DebugLogExporter.WriteResult.Ok ->
+                                                    when (val shareResult = DebugLogExporter.shareReport(context, writeResult.file)) {
+                                                        is DebugLogExporter.ShareResult.Failed ->
+                                                            snackbarHostState.showSnackbar(shareResult.message)
+                                                        is DebugLogExporter.ShareResult.Started -> Unit
+                                                    }
+                                            }
+                                        }
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.export_debug_logs_action))
+                                }
+                            }
                         },
                     )
                 }
@@ -561,13 +589,6 @@ fun SettingsScreen(
                             )
                         }
                     }
-                }
-                if (summary != null || adminOverview != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
-                    summary?.let { DashboardSummaryCard(it) }
-                    if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
-                    adminOverview?.let { AdminOverviewCard(it) }
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))

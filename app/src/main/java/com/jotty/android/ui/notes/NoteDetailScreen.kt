@@ -60,7 +60,6 @@ internal fun NoteDetailScreen(
     onUpdate: (Note) -> Unit,
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit = {},
-    debugLoggingEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
@@ -69,7 +68,7 @@ internal fun NoteDetailScreen(
     val detailVm: NoteDetailViewModel =
         viewModel(
             key = note.id,
-            factory = NoteDetailViewModel.Factory(note, actions, debugLoggingEnabled),
+            factory = NoteDetailViewModel.Factory(note, actions),
         )
 
     val title by detailVm.title.collectAsStateWithLifecycle()
@@ -164,7 +163,7 @@ internal fun NoteDetailScreen(
     }
 
     LaunchedEffect(note.encrypted, content, parsed) {
-        detailVm.logEncryptionStateIfDebug()
+        detailVm.logEncryptionState()
     }
 
     if (showDeleteConfirm) {
@@ -345,7 +344,6 @@ internal fun NoteDetailScreen(
             decryptError = decryptError,
             decryptErrorDetail = decryptErrorDetail,
             onDecryptError = { main, detail -> detailVm.onDecryptError(main, detail) },
-            debugLoggingEnabled = debugLoggingEnabled,
         )
     }
 }

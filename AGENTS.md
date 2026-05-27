@@ -22,7 +22,7 @@ app/src/main/java/com/jotty/android/
 │   ├── common/      # Shared composables: LoadingState, ErrorState, EmptyState, ListScreenContent, SwipeToDeleteContainer
 │   ├── main/        # MainScreen (NavHost, bottom nav, deep-link note id)
 │   ├── notes/       # NotesScreen (list, search, categories, export/share, encrypt, decrypt, swipe-to-delete, deep link)
-│   ├── settings/    # SettingsScreen (health check, default instance, theme, start screen, dashboard, About)
+│   ├── settings/    # SettingsScreen (health check, manage instances, theme, export debug logs, dashboard, About)
 │   ├── setup/       # SetupScreen (instance list, default star, instance color, add/edit/delete, connect)
 │   └── theme/       # Theme, Type
 ├── util/            # AppLog (tagged logging), ApiErrorHelper (exception → user message via string resources)
@@ -59,9 +59,9 @@ app/src/main/java/com/jotty/android/
 - **Checklists:** Task projects use type `"task"` and `apiPath` for hierarchy. Progress "X / Y done" on detail. Checkbox = complete/uncomplete; tap task text = inline edit; delete button per row. Swipe row left to delete checklist (disabled by default; enable in Settings). Pull-to-refresh (swipe down), empty/error states. Offline mode supports local checklist edits with sync on reconnect; sync aborts pull if push/replay fails (local data kept). **Item reorder:** not supported — no REST API; see [docs/CHECKLIST_REORDER.md](docs/CHECKLIST_REORDER.md).
 - **Notes:** List: search, category filter chips, pull-to-refresh (swipe down), empty/error states. Swipe-to-delete disabled by default; enable in Settings. Note detail: ⋮ menu → Delete (confirm). Plain notes show Markdown in view mode; export/share (title + content). Encrypted notes: lock icon, "Decrypt" for XChaCha20; decrypted content cached in session via `NoteDecryptionSession`; "Encrypt" action and `EncryptNoteDialog` (passphrase, min 12 chars) using `XChaCha20Encryptor` and frontmatter-wrapped body. **Biometric unlock (per note):** after password decrypt, optional "Remember with biometric" stores the passphrase in `BiometricPassphraseStore` (Keystore + strong biometric); reopening can auto-prompt or use fingerprint in the decrypt dialog (`BiometricNoteUnlock.kt`). Settings → Security controls auto-prompt, save offer, and clear all. **Encrypt and decrypt run on a background thread** (`Dispatchers.Default`) so the UI stays responsive; dialogs show a loading state during the operation. If encrypt returns null, the dialog shows an error. Swipe row left to delete note. PGP is not supported in-app.
 - **Instances:** Stored in `SettingsRepository`; optional `colorHex` per instance. Default instance: `defaultInstanceId` used when opening app with no current instance; star in Setup and Settings to set default. Add/edit/delete instances from Settings → "Manage instances" without disconnecting; "Disconnect" clears current instance only.
-- **Settings:** Health check (api.health()), "Set as default instance" row, theme, start screen tab, swipe to delete, content padding, **debug logging** (General; when enabled, `AppLog.d()` writes to logcat, e.g. decryption failure step), **Security** (biometric unlock status, auto-prompt on open, remember-passphrase offer, clear all stored passphrases), dashboard from `api/summary`, About.
+- **Settings:** Health check (api.health()), manage instances (default instance via star), Appearance/Behavior sections, **local storage & sync** toggle, **export debug logs** (Troubleshooting; shares `AppLog` ring buffer), **Security** (biometric unlock status, auto-prompt on open, remember-passphrase offer, clear all stored passphrases), dashboard from `api/summary` under Overview, About.
 - **Deep links:** `jotty-android://open/note/{noteId}` opens the app and the note (MainActivity intent-filter, singleTask; `deepLinkNoteId` state updated in both `onCreate` and `onNewIntent`; JottyAppContent/MainScreen/NotesScreen pass through and clear after open).
-- **Technical:** `AppLog` for tagged logging; when Settings → Debug logging is enabled, `AppLog.d()` writes to logcat (e.g. decryption parse/key/auth failure). HTTP logging only in debug builds. ProGuard keep rules for Gson, Bouncy Castle, and all data model classes. `NoteDecryptionSession` uses `ConcurrentHashMap` for thread safety.
+- **Technical:** `AppLog` for tagged logging with an in-memory ring buffer (`util/AppLog.kt`, export via `util/DebugLogExporter.kt`); `d` mirrors to logcat in debug builds. HTTP logging only in debug builds. ProGuard keep rules for Gson, Bouncy Castle, and all data model classes. `NoteDecryptionSession` uses `ConcurrentHashMap` for thread safety.
 
 ## Encryption (Jotty)
 
@@ -96,7 +96,7 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 | Deep link handling         | `MainActivity.kt`, `ui/JottyApp.kt`, `MainScreen.kt`, `NotesScreen.kt` |
 | Shared list composables     | `ui/common/ListScreenComponents.kt`   |
 | API/network error messages | `util/ApiErrorHelper.kt`              |
-| Logging / debug logging    | `util/AppLog.kt` (flag); Settings → `SettingsRepository.debugLoggingEnabled`, `SettingsScreen.kt` |
+| Logging / debug log export | `util/AppLog.kt`, `util/DebugLogExporter.kt`; Settings → Troubleshooting, `SettingsScreen.kt` |
 | ProGuard keep rules        | `app/proguard-rules.pro`              |
 | App version in UI          | `gradle.properties` + BuildConfig      |
 | Strings / i18n             | `res/values/strings.xml`               |

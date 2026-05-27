@@ -233,7 +233,6 @@ fun NotesScreen(
                     )
                 }
                 else -> {
-                    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
                     val noteActions = remember(api) { ApiNoteDetailActions(api) }
                     NoteDetailScreen(
                         note = note,
@@ -251,7 +250,6 @@ fun NotesScreen(
                             }
                         },
                         onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
-                        debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
                         biometricStore = biometricStore,
                         biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,

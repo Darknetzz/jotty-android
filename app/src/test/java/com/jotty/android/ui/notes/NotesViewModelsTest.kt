@@ -129,7 +129,7 @@ class NoteDetailViewModelTest {
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> = Result.success(Unit)
                 }
-            val vm = NoteDetailViewModel(note, actions, debugLoggingEnabled = false)
+            val vm = NoteDetailViewModel(note, actions)
             vm.setTitle("Updated")
             vm.startEditing()
 
@@ -163,7 +163,7 @@ class NoteDetailViewModelTest {
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> = Result.success(Unit)
                 }
-            val vm = NoteDetailViewModel(note, actions, debugLoggingEnabled = false)
+            val vm = NoteDetailViewModel(note, actions)
             vm.startEditing()
             var failed = false
             vm.saveEdit(onSuccess = {}, onFailure = { failed = true })
@@ -203,7 +203,6 @@ class NoteDetailViewModelTest {
                     override suspend fun deleteNote(noteId: String): Result<Unit> =
                         Result.failure(UnsupportedOperationException())
                 },
-                debugLoggingEnabled = false,
             )
         vm.onDecrypted("   ")
         assertNull(vm.decryptedContent.value)
@@ -237,7 +236,6 @@ class NoteDetailViewModelTest {
                     override suspend fun deleteNote(noteId: String): Result<Unit> =
                         Result.failure(UnsupportedOperationException())
                 },
-                debugLoggingEnabled = false,
             )
         vm.loadSessionDecryptedContent()
         assertNull(vm.decryptedContent.value)

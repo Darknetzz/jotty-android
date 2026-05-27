@@ -21,7 +21,6 @@ import kotlinx.coroutines.withContext
 class NoteDetailViewModel(
     private val note: Note,
     private val actions: NoteDetailActions,
-    private val debugLoggingEnabled: Boolean,
 ) : ViewModel() {
     private val _title = MutableStateFlow(stripInvisibleFromEdges(note.title))
     val title: StateFlow<String> = _title.asStateFlow()
@@ -225,8 +224,7 @@ class NoteDetailViewModel(
         }
     }
 
-    fun logEncryptionStateIfDebug() {
-        if (!debugLoggingEnabled) return
+    fun logEncryptionState() {
         val p = parsed
         if (note.encrypted == true || p is ParsedNoteContent.Encrypted) {
             AppLog.d(
@@ -241,10 +239,9 @@ class NoteDetailViewModel(
     class Factory(
         private val note: Note,
         private val actions: NoteDetailActions,
-        private val debugLoggingEnabled: Boolean,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-            NoteDetailViewModel(note, actions, debugLoggingEnabled) as T
+            NoteDetailViewModel(note, actions) as T
     }
 }

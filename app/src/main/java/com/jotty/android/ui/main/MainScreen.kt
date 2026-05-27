@@ -194,7 +194,7 @@ fun MainScreen(
                             settingsRepository = settingsRepository,
                             onConfigured = { /* no-op; we stay in manage mode */ },
                             standaloneMode = true,
-                            showStandaloneHeader = false,
+                            showStandaloneHeader = true,
                             onBack = { navController.popBackStack() },
                         )
                     }

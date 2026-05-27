@@ -58,7 +58,7 @@ object XChaCha20Decryptor {
             Argon2Preset(2, 131072),
         )
 
-    /** Failure reason strings for UI (shown when Settings → Debug logging is on). */
+    /** Failure reason strings for UI (collapsible Details in decrypt dialog; also in exported debug logs). */
     const val FAILURE_PARSE = "Parse failed (invalid JSON or base64)"
     const val FAILURE_KEY_DERIVATION = "Key derivation failed"
     const val FAILURE_AUTH = "Auth failed (wrong passphrase or tag mismatch)"
@@ -113,9 +113,7 @@ object XChaCha20Decryptor {
             }
             var json = encryptedBodyJson.trim().trimStart('\uFEFF')
             json = stripMarkdownCodeFence(json)
-            if (AppLog.isDebugEnabled()) {
-                Log.i(LOG_TAG, "Decrypt attempt: jsonLength=${json.length}")
-            }
+            AppLog.d("encryption", "Decrypt attempt: jsonLength=${json.length}")
             val parsed = parseEncryptedBody(json)
             if (parsed.first == null) {
                 val reason = parsed.second ?: FAILURE_PARSE
@@ -154,21 +152,19 @@ object XChaCha20Decryptor {
                     for (nonce24 in nonce24Candidates) {
                         val result = decryptXChaCha20Poly1305(key, nonce24, data, preferLibsodiumOrder)
                         if (result != null) {
-                            if (AppLog.isDebugEnabled()) {
-                                if (firstTrimmed != null && !pass.contentEquals(firstTrimmed)) {
-                                    Log.i(LOG_TAG, "Decrypt success with alternate passphrase normalization")
-                                }
-                                if (preset.iterations != ARGON2_ITERATIONS || preset.memoryKb != ARGON2_MEMORY_KB || preset.parallelism != ARGON2_PARALLELISM) {
-                                    Log.i(
-                                        LOG_TAG,
-                                        "Decrypt success with Argon2 fallback (iterations=${preset.iterations}, memoryKb=${preset.memoryKb}, parallelism=${preset.parallelism})",
-                                    )
-                                }
-                                if (nonce.size > 24 && nonce24 === nonce24Candidates.getOrNull(1)) {
-                                    Log.i(LOG_TAG, "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
-                                }
-                                Log.i(LOG_TAG, "Decrypt success: plaintextLength=${result.length}")
+                            if (firstTrimmed != null && !pass.contentEquals(firstTrimmed)) {
+                                AppLog.d("encryption", "Decrypt success with alternate passphrase normalization")
                             }
+                            if (preset.iterations != ARGON2_ITERATIONS || preset.memoryKb != ARGON2_MEMORY_KB || preset.parallelism != ARGON2_PARALLELISM) {
+                                AppLog.d(
+                                    "encryption",
+                                    "Decrypt success with Argon2 fallback (iterations=${preset.iterations}, memoryKb=${preset.memoryKb}, parallelism=${preset.parallelism})",
+                                )
+                            }
+                            if (nonce.size > 24 && nonce24 === nonce24Candidates.getOrNull(1)) {
+                                AppLog.d("encryption", "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
+                            }
+                            AppLog.d("encryption", "Decrypt success: plaintextLength=${result.length}")
                             return DecryptResult(result, null)
                         }
                     }
@@ -298,19 +294,14 @@ object XChaCha20Decryptor {
             }
             val usedHex = saltHex || nonceHex || dataHex
             if (usedHex) {
-                if (AppLog.isDebugEnabled()) {
-                    Log.i(LOG_TAG, "Parse: payload from hex (Jotty web format); salt=${salt.size}B nonce=${nonce.size}B data=${data.size}B")
-                }
-                AppLog.d("encryption", "Parse: hex payload (web); will try IETF order first")
+                AppLog.d("encryption", "Parse: payload from hex (Jotty web format); salt=${salt.size}B nonce=${nonce.size}B data=${data.size}B")
             }
             if (nonce.size < 24) {
                 Log.w(LOG_TAG, "Parse: nonce size ${nonce.size} < 24")
                 return null to "Nonce must be at least 24 bytes (got ${nonce.size})"
             }
             if (nonce.size > 24) {
-                if (AppLog.isDebugEnabled()) {
-                    Log.i(LOG_TAG, "Parse: nonce size ${nonce.size}; will try first 24 and last 24 bytes")
-                }
+                AppLog.d("encryption", "Parse: nonce size ${nonce.size}; will try first 24 and last 24 bytes")
             }
             if (data.size < TAG_BYTES) {
                 Log.w(LOG_TAG, "Parse: data size ${data.size} < TAG_BYTES ($TAG_BYTES)")

@@ -83,11 +83,19 @@ fun SetupScreen(
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
-                Text(
-                    text = stringResource(R.string.manage_instances),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.manage_instances),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = stringResource(R.string.manage_instances_default_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
         } else {
             Spacer(modifier = Modifier.height(24.dp))
@@ -240,11 +248,24 @@ private fun InstanceCard(
             }
             Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = instance.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = instance.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (isDefault) {
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(stringResource(R.string.instance_default_chip)) },
+                            enabled = false,
+                            modifier = Modifier.height(24.dp),
+                        )
+                    }
+                }
                 Text(
                     text = instance.serverUrl,
                     style = MaterialTheme.typography.bodySmall,

@@ -109,6 +109,8 @@
     <string name="error_passphrase_mismatch">Passphrases don\'t match</string>
     <string name="error_decrypt_failed">Wrong passphrase or invalid format</string>
     <string name="decrypt_auth_failed_hint">If this was encrypted in the Jotty web app, use the exact same passphrase and check for leading or trailing spaces.</string>
+    <string name="decrypt_error_show_details">Details</string>
+    <string name="decrypt_error_hide_details">Hide details</string>
     <string name="error_encrypt_failed">Encryption failed. Please try again.</string>
     <string name="note_is_encrypted">This note is encrypted</string>
     <string name="pgp_not_supported">PGP decryption is not supported in the app. Use the Jotty web app to decrypt.</string>
@@ -151,6 +153,7 @@
     <string name="settings">Settings</string>
     <string name="settings_category_overview">Overview</string>
     <string name="settings_category_general">General</string>
+    <string name="settings_category_behavior">Behavior</string>
     <string name="connection">Connection</string>
     <string name="instance_label">Instance</string>
     <string name="connected">Connected</string>
@@ -178,10 +181,15 @@
     <string name="content_padding_description">Vertical spacing at top and bottom of screens</string>
     <string name="content_padding_comfortable">Comfortable</string>
     <string name="content_padding_compact">Compact</string>
-    <string name="debug_logging">Debug logging</string>
-    <string name="debug_logging_description">Log extra details to logcat (e.g. decryption failure step). Filter by \'Jotty\' in Android Studio Logcat or adb logcat -s Jotty. Use for troubleshooting.</string>
-    <string name="offline_mode">Offline mode</string>
-    <string name="offline_mode_description">Save notes locally and sync when online. Works when you don\'t have internet connection.</string>
+    <string name="settings_category_troubleshooting">Troubleshooting</string>
+    <string name="export_debug_logs">Export debug logs</string>
+    <string name="export_debug_logs_description">Save recent in-app diagnostics (sync, encryption, etc.) to share for troubleshooting.</string>
+    <string name="export_debug_logs_action">Export</string>
+    <string name="export_debug_logs_failed">Could not export debug logs</string>
+    <string name="export_debug_logs_empty">No debug logs captured yet. Use the app (e.g. open a note or sync) and try again.</string>
+    <string name="export_debug_logs_exporting">Exporting…</string>
+    <string name="offline_mode">Local storage &amp; sync</string>
+    <string name="offline_mode_description">Keep notes and checklists on this device and sync with your server when connected. Turn off to fetch directly from the server only (no local copy).</string>
     <string name="syncing">Syncing…</string>
     <string name="sync_complete">Sync complete</string>
     <string name="sync_failed">Sync failed</string>
@@ -208,6 +216,8 @@
     <string name="account">Account</string>
     <string name="manage_instances">Manage instances</string>
     <string name="manage_instances_description">Add, edit, or remove saved Jotty servers</string>
+    <string name="manage_instances_default_hint">Tap the star to choose which instance opens when you launch the app.</string>
+    <string name="instance_default_chip">Default</string>
     <string name="disconnect">Disconnect</string>
     <string name="disconnect_description">Switch to another instance (this one is saved)</string>
     <string name="about">About</string>

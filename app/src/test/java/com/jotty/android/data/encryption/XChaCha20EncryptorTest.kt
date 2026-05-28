@@ -76,8 +76,8 @@ class XChaCha20EncryptorTest {
     }
 
     @Test
-    fun `decrypt accepts libsodium secretbox format tag then ciphertext`() {
-        // Encryptor now produces tag||ciphertext (libsodium format) so web can decrypt. Verify round-trip.
+    fun `encrypt outputs BC order ciphertext then tag and decrypt round-trips`() {
+        // Encryptor must output ciphertext||tag (AEAD combined) for Jotty web compatibility.
         val plaintext = "Secret from Jotty web"
         val passphrase = "web passphrase"
         val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
@@ -87,8 +87,8 @@ class XChaCha20EncryptorTest {
     }
 
     @Test
-    fun `decrypt accepts BC order ciphertext then tag for backward compatibility`() {
-        // Encryptor outputs tag||ciphertext. Reorder to ciphertext||tag (old app format); decryptor should still accept.
+    fun `decrypt accepts tag then ciphertext for backward compatibility`() {
+        // Old app builds wrote tag||ciphertext. Reorder current ciphertext||tag output and ensure decrypt still works.
         val plaintext = "Backward compat"
         val passphrase = "pass"
         val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
@@ -98,14 +98,15 @@ class XChaCha20EncryptorTest {
                 ?: throw AssertionError("no data in JSON")
         val data = Base64.getDecoder().decode(dataB64)
         assertTrue(data.size >= 16)
-        val ciphertextThenTag =
+        val tagThenCiphertext =
             ByteArray(data.size).apply {
-                System.arraycopy(data, 16, this, 0, data.size - 16)
-                System.arraycopy(data, 0, this, data.size - 16, 16)
+                val ciphertextLen = data.size - 16
+                System.arraycopy(data, ciphertextLen, this, 0, 16)
+                System.arraycopy(data, 0, this, 16, ciphertextLen)
             }
-        val bcOrderB64 = Base64.getEncoder().encodeToString(ciphertextThenTag)
-        val bcOrderJson = encryptedJson.replace("\"$dataB64\"", "\"$bcOrderB64\"")
-        val decrypted = XChaCha20Decryptor.decrypt(bcOrderJson, passphrase)
+        val legacyOrderB64 = Base64.getEncoder().encodeToString(tagThenCiphertext)
+        val legacyOrderJson = encryptedJson.replace("\"$dataB64\"", "\"$legacyOrderB64\"")
+        val decrypted = XChaCha20Decryptor.decrypt(legacyOrderJson, passphrase)
         assertNotNull(decrypted)
         assertEquals(plaintext, decrypted)
     }

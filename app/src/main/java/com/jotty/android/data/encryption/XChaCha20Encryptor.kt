@@ -11,7 +11,7 @@ import java.util.Base64
 /**
  * Encrypts plaintext with XChaCha20-Poly1305 for Jotty.
  * Output format: JSON with "alg","salt","nonce","data" (base64). Same params as XChaCha20Decryptor.
- * Uses libsodium secretbox format (tag then ciphertext) so notes encrypted here decrypt in the Jotty web app.
+ * Uses AEAD combined format (ciphertext then tag) used by Jotty web's XChaCha20 implementation.
  */
 object XChaCha20Encryptor {
     private const val ARGON2_ITERATIONS = 2
@@ -110,8 +110,8 @@ object XChaCha20Encryptor {
     }
 
     /**
-     * Encrypts with XChaCha20-Poly1305. Returns payload in libsodium secretbox order:
-     * tag (16 bytes) then ciphertext, so the Jotty web app can decrypt.
+     * Encrypts with XChaCha20-Poly1305. Returns payload in AEAD combined order:
+     * ciphertext then tag, which is what Jotty web expects.
      */
     private fun encryptXChaCha20Poly1305(
         key: ByteArray,
@@ -130,12 +130,8 @@ object XChaCha20Encryptor {
             val outBuf = ByteArray(cipher.getOutputSize(plaintext.size))
             var outLen = cipher.processBytes(plaintext, 0, plaintext.size, outBuf, 0)
             outLen += cipher.doFinal(outBuf, outLen)
-            // BC outputs ciphertext||tag (IETF order); libsodium secretbox expects tag||ciphertext.
-            val ciphertextLen = outLen - TAG_BYTES
-            ByteArray(outLen).apply {
-                System.arraycopy(outBuf, ciphertextLen, this, 0, TAG_BYTES)
-                System.arraycopy(outBuf, 0, this, TAG_BYTES, ciphertextLen)
-            }
+            // BC outputs ciphertext||tag (AEAD combined / IETF order), which Jotty web expects.
+            outBuf.copyOf(outLen)
         } catch (_: Exception) {
             null
         }

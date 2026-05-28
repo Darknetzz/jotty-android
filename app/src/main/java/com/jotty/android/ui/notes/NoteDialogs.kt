@@ -201,7 +201,7 @@ internal fun DecryptNoteDialog(
     biometricStore: BiometricPassphraseStore? = null,
     biometricSaveOfferEnabled: Boolean = true,
     onDismiss: () -> Unit,
-    onDecrypted: (String) -> Unit,
+    onDecrypted: (plaintext: String, usedLegacyDataOrder: Boolean) -> Unit,
     onBiometricSaved: () -> Unit = {},
     decryptError: String?,
     decryptErrorDetail: String?,
@@ -235,7 +235,7 @@ internal fun DecryptNoteDialog(
             subtitle = biometricSubtitle,
             negativeButtonText = biometricCancelStr,
             encryptedBody = { encryptedBody },
-            onDecrypted = onDecrypted,
+            onDecrypted = { onDecrypted(it, false) },
             onDecryptFailed = { onDecryptError(decryptFailedMsg, null) },
             onAuthError = { _, _ -> onDecryptError(biometricErrorMsg, null) },
             onAuthCancelled = { biometricDialogTriggered = false },
@@ -269,7 +269,7 @@ internal fun DecryptNoteDialog(
                             }
                             pass.clearPassphrase()
                             if (offerConsumed.compareAndSet(false, true)) {
-                                currentOnDecrypted.value(plaintext)
+                                currentOnDecrypted.value(plaintext, false)
                             }
                         }
 
@@ -282,7 +282,7 @@ internal fun DecryptNoteDialog(
                             val plaintext = offer.second
                             offer.first.clearPassphrase()
                             if (offerConsumed.compareAndSet(false, true)) {
-                                currentOnDecrypted.value(plaintext)
+                                currentOnDecrypted.value(plaintext, false)
                             }
                         }
 
@@ -305,7 +305,7 @@ internal fun DecryptNoteDialog(
     if (offerBiometric != null) {
         fun deliverFromOffer(plaintext: String) {
             offerBiometric?.first?.clearPassphrase()
-            if (offerConsumed.compareAndSet(false, true)) onDecrypted(plaintext)
+            if (offerConsumed.compareAndSet(false, true)) onDecrypted(plaintext, false)
         }
         AlertDialog(
             onDismissRequest = {
@@ -467,7 +467,7 @@ internal fun DecryptNoteDialog(
                                         offerBiometric = Pair(passCopy, plaintext)
                                     } else {
                                         passCopy.clearPassphrase()
-                                        onDecrypted(plaintext)
+                                        onDecrypted(plaintext, result.usedLegacyDataOrder)
                                     }
                                 } else {
                                     passCopy.clearPassphrase()

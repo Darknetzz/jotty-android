@@ -58,6 +58,9 @@ class NoteDetailViewModel(
     private val _saveFailed = MutableStateFlow(false)
     val saveFailed: StateFlow<Boolean> = _saveFailed.asStateFlow()
 
+    private val _legacyEncryptionDetected = MutableStateFlow(false)
+    val legacyEncryptionDetected: StateFlow<Boolean> = _legacyEncryptionDetected.asStateFlow()
+
     fun consumeSaveFailed(): Boolean {
         val failed = _saveFailed.value
         if (failed) _saveFailed.value = false
@@ -88,6 +91,7 @@ class NoteDetailViewModel(
         _content.value = stripInvisibleFromEdges(updated.content)
         _isEditing.value = false
         _saveFailed.value = false
+        _legacyEncryptionDetected.value = false
     }
 
     fun loadSessionDecryptedContent() {
@@ -132,7 +136,10 @@ class NoteDetailViewModel(
         _encryptError.value = null
     }
 
-    fun onDecrypted(plain: String) {
+    fun onDecrypted(
+        plain: String,
+        usedLegacyDataOrder: Boolean = false,
+    ) {
         val cleaned = stripInvisibleFromEdges(plain)
         if (cleaned.isBlank()) {
             _decryptedContent.value = null
@@ -141,6 +148,7 @@ class NoteDetailViewModel(
             return
         }
         _decryptedContent.value = cleaned
+        _legacyEncryptionDetected.value = usedLegacyDataOrder
         NoteDecryptionSession.put(note.id, cleaned)
         dismissDecryptDialog()
     }

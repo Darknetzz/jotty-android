@@ -17,6 +17,8 @@ import java.util.Base64
 data class DecryptResult(
     val plaintext: String?,
     val failureReason: String?,
+    /** True when successful decryption required legacy tag||ciphertext data order. */
+    val usedLegacyDataOrder: Boolean = false,
 ) {
     val isSuccess: Boolean get() = plaintext != null
 }
@@ -164,8 +166,11 @@ object XChaCha20Decryptor {
                             if (nonce.size > 24 && nonce24 === nonce24Candidates.getOrNull(1)) {
                                 AppLog.d("encryption", "Decrypt success with last 24 bytes of ${nonce.size}-byte nonce")
                             }
-                            AppLog.d("encryption", "Decrypt success: plaintextLength=${result.length}")
-                            return DecryptResult(result, null)
+                            if (result.usedLegacyOrder) {
+                                AppLog.d("encryption", "Decrypt success with legacy data order (tag||ciphertext)")
+                            }
+                            AppLog.d("encryption", "Decrypt success: plaintextLength=${result.plaintext.length}")
+                            return DecryptResult(result.plaintext, null, result.usedLegacyOrder)
                         }
                     }
                 }
@@ -454,7 +459,7 @@ object XChaCha20Decryptor {
         nonce24: ByteArray,
         ciphertextAndTag: ByteArray,
         preferLibsodiumOrder: Boolean = false,
-    ): String? {
+    ): DecryptAttemptResult? {
         if (nonce24.size != 24 || key.size != 32 || ciphertextAndTag.size < TAG_BYTES) return null
         val subkey = hChaCha20Block(key, nonce24.copyOfRange(0, 16)) ?: return null
         // Libsodium: npub2[0..3]=0, npub2[4..11]=nonce24[16..23] (see aead_xchacha20poly1305.c)
@@ -471,23 +476,23 @@ object XChaCha20Decryptor {
         fun tryBothOrders(
             sk: ByteArray,
             n12: ByteArray,
-        ): String? {
+        ): DecryptAttemptResult? {
             if (preferLibsodiumOrder && ciphertextAndTag.size > TAG_BYTES) {
                 val reordered =
                     ByteArray(ciphertextAndTag.size).apply {
                         System.arraycopy(ciphertextAndTag, TAG_BYTES, this, 0, size - TAG_BYTES)
                         System.arraycopy(ciphertextAndTag, 0, this, size - TAG_BYTES, TAG_BYTES)
                     }
-                tryDecrypt(sk, n12, reordered)?.let { return it }
+                tryDecrypt(sk, n12, reordered)?.let { return DecryptAttemptResult(it, true) }
             }
-            tryDecrypt(sk, n12, ciphertextAndTag)?.let { return it }
+            tryDecrypt(sk, n12, ciphertextAndTag)?.let { return DecryptAttemptResult(it, false) }
             if (!preferLibsodiumOrder && ciphertextAndTag.size > TAG_BYTES) {
                 val reordered =
                     ByteArray(ciphertextAndTag.size).apply {
                         System.arraycopy(ciphertextAndTag, TAG_BYTES, this, 0, size - TAG_BYTES)
                         System.arraycopy(ciphertextAndTag, 0, this, size - TAG_BYTES, TAG_BYTES)
                     }
-                tryDecrypt(sk, n12, reordered)?.let { return it }
+                tryDecrypt(sk, n12, reordered)?.let { return DecryptAttemptResult(it, true) }
             }
             return null
         }
@@ -495,6 +500,11 @@ object XChaCha20Decryptor {
         tryBothOrders(subkey, nonce12Legacy)?.let { return it }
         return null
     }
+
+    private data class DecryptAttemptResult(
+        val plaintext: String,
+        val usedLegacyOrder: Boolean,
+    )
 
     /** Decrypts assuming [ciphertext][tag] (BC / IETF order). Returns null on auth failure or error. */
     private fun tryDecrypt(

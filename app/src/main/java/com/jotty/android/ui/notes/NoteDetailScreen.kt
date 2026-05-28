@@ -19,6 +19,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -82,6 +83,7 @@ internal fun NoteDetailScreen(
     val encryptError by detailVm.encryptError.collectAsStateWithLifecycle()
     val decryptError by detailVm.decryptError.collectAsStateWithLifecycle()
     val decryptErrorDetail by detailVm.decryptErrorDetail.collectAsStateWithLifecycle()
+    val legacyEncryptionDetected by detailVm.legacyEncryptionDetected.collectAsStateWithLifecycle()
 
     val parsed = detailVm.parsed
     val isEncryptedByContent = detailVm.isEncryptedByContent
@@ -299,15 +301,25 @@ internal fun NoteDetailScreen(
                         onContentChange = { detailVm.setContent(it) },
                     )
                 else ->
-                    NoteView(
-                        title = title,
-                        content =
-                            when {
-                                isEncrypted -> decryptedContent.orEmpty()
-                                else -> displayContent.orEmpty()
-                            },
-                        imageLoader = imageLoader,
-                    )
+                    Column {
+                        if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
+                            Text(
+                                text = stringResource(R.string.legacy_encryption_warning),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        NoteView(
+                            title = title,
+                            content =
+                                when {
+                                    isEncrypted -> decryptedContent.orEmpty()
+                                    else -> displayContent.orEmpty()
+                                },
+                            imageLoader = imageLoader,
+                        )
+                    }
             }
         }
     }
@@ -336,7 +348,9 @@ internal fun NoteDetailScreen(
             biometricStore = biometricStore,
             biometricSaveOfferEnabled = biometricSaveOfferEnabled,
             onDismiss = { detailVm.dismissDecryptDialog() },
-            onDecrypted = { detailVm.onDecrypted(it) },
+            onDecrypted = { plaintext, usedLegacyDataOrder ->
+                detailVm.onDecrypted(plaintext, usedLegacyDataOrder)
+            },
             onBiometricSaved = {
                 hasBiometricPassphrase = true
                 scope.launch { snackbarHostState.showSnackbar(biometricSavedMsg) }

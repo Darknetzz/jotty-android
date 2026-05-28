@@ -180,7 +180,7 @@ private val anchorPattern =
 private val tagPattern = Regex("<[^>]+>")
 
 private fun htmlInlineToMarkdown(html: String): String {
-    var text = html.trim()
+    var text = decodeBasicHtmlEntities(html.trim())
     text = text.replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), " ")
     var iterations = 0
     while (iterations < 8) {
@@ -203,11 +203,30 @@ private fun htmlInlineToMarkdown(html: String): String {
     return decodeBasicHtmlEntities(text).replace(Regex("\\s+"), " ").trim()
 }
 
-private fun decodeBasicHtmlEntities(text: String): String =
-    text
+private val decimalEntityPattern = Regex("""&#(\d{1,7});""")
+private val hexEntityPattern = Regex("""&#x([0-9a-fA-F]{1,6});""")
+
+private fun decodeBasicHtmlEntities(text: String): String {
+    val withNumeric =
+        text
+            .replace(decimalEntityPattern) { match ->
+                val codePoint = match.groupValues[1].toIntOrNull() ?: return@replace match.value
+                codePointToString(codePoint) ?: match.value
+            }.replace(hexEntityPattern) { match ->
+                val codePoint = match.groupValues[1].toIntOrNull(16) ?: return@replace match.value
+                codePointToString(codePoint) ?: match.value
+            }
+    return withNumeric
         .replace("&nbsp;", " ")
         .replace("&amp;", "&")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&quot;", "\"")
         .replace("&#39;", "'")
+}
+
+private fun codePointToString(codePoint: Int): String? {
+    if (codePoint < 0 || codePoint > 0x10FFFF) return null
+    if (codePoint in 0xD800..0xDFFF) return null
+    return String(Character.toChars(codePoint))
+}

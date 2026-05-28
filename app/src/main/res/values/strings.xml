@@ -117,6 +117,7 @@
     <string name="enter_passphrase_to_view">Enter your passphrase to view the content.</string>
     <string name="use_web_app_to_decrypt">Use the Jotty web app to decrypt this note.</string>
     <string name="pgp_not_supported_short">PGP decryption is not supported in the app. Use the Jotty web app.</string>
+    <string name="legacy_encryption_warning">This note uses a legacy encryption payload format. Re-encrypt and save it to restore web compatibility.</string>
 
     <!-- Setup -->
     <string name="connect_to_jotty">Connect to Jotty</string>

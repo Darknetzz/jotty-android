@@ -84,6 +84,8 @@ class XChaCha20EncryptorTest {
         val decrypted = XChaCha20Decryptor.decrypt(encryptedJson, passphrase)
         assertNotNull(decrypted)
         assertEquals(plaintext, decrypted)
+        val withReason = XChaCha20Decryptor.decryptWithReason(encryptedJson, passphrase)
+        assertFalse(withReason.usedLegacyDataOrder)
     }
 
     @Test
@@ -106,9 +108,10 @@ class XChaCha20EncryptorTest {
             }
         val legacyOrderB64 = Base64.getEncoder().encodeToString(tagThenCiphertext)
         val legacyOrderJson = encryptedJson.replace("\"$dataB64\"", "\"$legacyOrderB64\"")
-        val decrypted = XChaCha20Decryptor.decrypt(legacyOrderJson, passphrase)
-        assertNotNull(decrypted)
-        assertEquals(plaintext, decrypted)
+        val result = XChaCha20Decryptor.decryptWithReason(legacyOrderJson, passphrase)
+        assertNotNull(result.plaintext)
+        assertEquals(plaintext, result.plaintext)
+        assertTrue(result.usedLegacyDataOrder)
     }
 
     @Test

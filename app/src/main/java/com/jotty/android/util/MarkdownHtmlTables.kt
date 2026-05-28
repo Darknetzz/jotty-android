@@ -15,6 +15,40 @@ fun convertHtmlTablesToGfm(markdown: String): String {
     return tablePattern.replace(markdown) { match -> htmlTableToGfm(match.value) }
 }
 
+/**
+ * Converts HTML `<img>` tags to Markdown image syntax.
+ *
+ * Jotty notes can contain HTML images (for example from pasted rich content).
+ * `compose-markdown` does not reliably render those tags, but it does render
+ * Markdown images.
+ */
+fun convertHtmlImagesToMarkdown(markdown: String): String {
+    if (!markdown.contains("<img", ignoreCase = true)) {
+        return markdown
+    }
+    val imgPattern = Regex("""<img\b[^>]*?>""", RegexOption.IGNORE_CASE)
+    return imgPattern.replace(markdown) { match ->
+        val tag = match.value
+        val src = extractHtmlAttribute(tag, "src")?.trim().orEmpty()
+        if (src.isBlank()) {
+            return@replace match.value
+        }
+        val alt = extractHtmlAttribute(tag, "alt")?.trim().orEmpty()
+        "![${escapeImageAltText(alt)}]($src)"
+    }
+}
+
+private fun extractHtmlAttribute(
+    tag: String,
+    attributeName: String,
+): String? {
+    val attributePattern =
+        Regex("""\b$attributeName\s*=\s*(['"])(.*?)\1""", regexDotIgnoreCase)
+    return attributePattern.find(tag)?.groupValues?.getOrNull(2)
+}
+
+private fun escapeImageAltText(alt: String): String = alt.replace("[", "\\[").replace("]", "\\]")
+
 private val rowPattern = Regex("""<tr\b[^>]*>(.*?)</tr>""", regexDotIgnoreCase)
 private val cellPattern = Regex("""<t([hd])\b[^>]*>(.*?)</t\1>""", regexDotIgnoreCase)
 

@@ -7,6 +7,26 @@ import org.junit.Test
 
 class MarkdownHtmlTablesTest {
     @Test
+    fun `convertHtmlImagesToMarkdown leaves markdown without images unchanged`() {
+        val md = "Hello ![world](https://example.com/x.png)"
+        assertEquals(md, convertHtmlImagesToMarkdown(md))
+    }
+
+    @Test
+    fun `convertHtmlImagesToMarkdown converts html image to markdown`() {
+        val html = """Before <img src="/api/image/123" alt="Sample image" /> after"""
+        val result = convertHtmlImagesToMarkdown(html)
+        assertEquals("Before ![Sample image](/api/image/123) after", result)
+    }
+
+    @Test
+    fun `convertHtmlImagesToMarkdown keeps tag when src is missing`() {
+        val html = """Text <img alt="No src" /> tail"""
+        val result = convertHtmlImagesToMarkdown(html)
+        assertEquals(html, result)
+    }
+
+    @Test
     fun `convertHtmlTablesToGfm leaves markdown without tables unchanged`() {
         val md =
             """

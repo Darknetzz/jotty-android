@@ -40,6 +40,7 @@ sealed class UpdateCheckResult {
         val versionName: String,
         val downloadUrl: String,
         val releaseNotes: String? = null,
+        val buildDateUtc: String? = null,
     ) : UpdateCheckResult()
 
     data object UpToDate : UpdateCheckResult()
@@ -149,6 +150,7 @@ object UpdateChecker {
                 versionName = latestVersion,
                 downloadUrl = apkAsset.browserDownloadUrl,
                 releaseNotes = release.body?.trim()?.takeIf { it.isNotBlank() },
+                buildDateUtc = release.publishedAt?.trim()?.takeIf { it.isNotBlank() },
             )
         }
     }
@@ -172,6 +174,7 @@ object UpdateChecker {
             versionName = context.getString(R.string.update_version_dev_format, short),
             downloadUrl = apkAsset.browserDownloadUrl,
             releaseNotes = release.body?.trim()?.takeIf { it.isNotBlank() },
+            buildDateUtc = release.publishedAt?.trim()?.takeIf { it.isNotBlank() },
         )
     }
 

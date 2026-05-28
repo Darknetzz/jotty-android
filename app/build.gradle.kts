@@ -1,5 +1,6 @@
 import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
+import java.time.Instant
 
 plugins {
     alias(libs.plugins.android.application)
@@ -16,6 +17,7 @@ val keystoreProperties =
         }
     }
 val devBuildSha = rootProject.findProperty("DEV_BUILD_SHA")?.toString()?.take(7)
+val buildDateUtc = Instant.now().toString()
 
 extensions.configure<ApplicationExtension> {
     namespace = "com.jotty.android"
@@ -27,6 +29,7 @@ extensions.configure<ApplicationExtension> {
         targetSdk = 36
         versionCode = (rootProject.findProperty("VERSION_CODE")?.toString()?.toIntOrNull() ?: 1)
         versionName = rootProject.findProperty("VERSION_NAME")?.toString() ?: "1.0.0"
+        buildConfigField("String", "BUILD_DATE_UTC", "\"$buildDateUtc\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

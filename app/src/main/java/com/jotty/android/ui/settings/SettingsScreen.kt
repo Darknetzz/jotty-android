@@ -49,6 +49,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.time.format.FormatStyle
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -611,6 +618,7 @@ fun SettingsScreen(
             onDismiss = { showAboutDialog = false },
             versionName = BuildConfig.VERSION_NAME ?: "\u2014",
             versionCode = BuildConfig.VERSION_CODE,
+            currentBuildDateUtc = BuildConfig.BUILD_DATE_UTC,
             serverVersion = serverVersion,
             updateChannelPref = updateChannelPref,
             onUpdateChannelChange = { ch ->
@@ -631,6 +639,7 @@ private sealed class UpdateUiState {
 
     data class InstallFailed(
         val versionName: String,
+        val buildDateUtc: String?,
         val downloadUrl: String,
         val userMessage: String,
         val releaseNotes: String? = null,
@@ -740,6 +749,7 @@ private fun AboutDialog(
     onDismiss: () -> Unit,
     versionName: String,
     versionCode: Int,
+    currentBuildDateUtc: String?,
     serverVersion: String? = null,
     updateChannelPref: String,
     onUpdateChannelChange: (String) -> Unit,
@@ -840,6 +850,15 @@ private fun AboutDialog(
                 ) {
                     Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium)
                     Text(stringResource(R.string.version_format, versionName, versionCode), style = MaterialTheme.typography.bodyMedium)
+                }
+                formatBuildDateLabel(currentBuildDateUtc)?.let { buildDate ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(stringResource(R.string.build_date), style = MaterialTheme.typography.bodyMedium)
+                        Text(buildDate, style = MaterialTheme.typography.bodyMedium)
+                    }
                 }
                 serverVersion?.let { version ->
                     Row(
@@ -943,6 +962,7 @@ private fun AboutDialog(
                             is UpdateCheckResult.UpdateAvailable ->
                                 UpdateAvailableContent(
                                     versionName = r.versionName,
+                                    buildDateUtc = r.buildDateUtc,
                                     downloadUrl = r.downloadUrl,
                                     releaseNotes = r.releaseNotes,
                                     installFailedMessage = null,
@@ -962,7 +982,11 @@ private fun AboutDialog(
                                                 is InstallResult.Failed ->
                                                     updateState =
                                                         UpdateUiState.InstallFailed(
-                                                            r.versionName, r.downloadUrl, result.userMessage, r.releaseNotes,
+                                                            r.versionName,
+                                                            r.buildDateUtc,
+                                                            r.downloadUrl,
+                                                            result.userMessage,
+                                                            r.releaseNotes,
                                                         )
                                             }
                                             downloadProgress = null
@@ -1006,6 +1030,7 @@ private fun AboutDialog(
                     is UpdateUiState.InstallFailed ->
                         UpdateAvailableContent(
                             versionName = state.versionName,
+                            buildDateUtc = state.buildDateUtc,
                             downloadUrl = state.downloadUrl,
                             releaseNotes = state.releaseNotes,
                             installFailedMessage = state.userMessage,
@@ -1025,7 +1050,11 @@ private fun AboutDialog(
                                         is InstallResult.Failed ->
                                             updateState =
                                                 UpdateUiState.InstallFailed(
-                                                    state.versionName, state.downloadUrl, result.userMessage, state.releaseNotes,
+                                                    state.versionName,
+                                                    state.buildDateUtc,
+                                                    state.downloadUrl,
+                                                    result.userMessage,
+                                                    state.releaseNotes,
                                                 )
                                     }
                                     downloadProgress = null
@@ -1141,6 +1170,7 @@ private fun AboutLinkButton(
 @Composable
 private fun UpdateAvailableContent(
     versionName: String,
+    buildDateUtc: String?,
     downloadUrl: String,
     releaseNotes: String?,
     installFailedMessage: String?,
@@ -1154,6 +1184,13 @@ private fun UpdateAvailableContent(
             message = stringResource(R.string.update_available, versionName),
             variant = UpdateStatusAlertVariant.Info,
         )
+        formatBuildDateLabel(buildDateUtc)?.let { buildDate ->
+            Text(
+                text = stringResource(R.string.update_build_date, buildDate),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         ViewChangelogButton(
             label = stringResource(R.string.view_changelog_for_version, versionName),
             onClick = onViewChangelog,
@@ -1203,6 +1240,23 @@ private fun UpdateAvailableContent(
                     Text(stringResource(R.string.open_release_page))
                 }
             }
+        }
+    }
+}
+
+private fun formatBuildDateLabel(rawUtcIso: String?): String? {
+    if (rawUtcIso.isNullOrBlank()) return null
+    val formatter =
+        DateTimeFormatter
+            .ofLocalizedDate(FormatStyle.MEDIUM)
+            .withLocale(Locale.getDefault())
+    return try {
+        OffsetDateTime.parse(rawUtcIso).atZoneSameInstant(ZoneId.systemDefault()).toLocalDate().format(formatter)
+    } catch (_: DateTimeParseException) {
+        try {
+            Instant.parse(rawUtcIso).atZone(ZoneId.systemDefault()).toLocalDate().format(formatter)
+        } catch (_: DateTimeParseException) {
+            rawUtcIso
         }
     }
 }

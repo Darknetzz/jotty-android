@@ -41,8 +41,9 @@ import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.OfflineConnectivityBanner
-import com.jotty.android.ui.common.OfflineSyncStatusRow
+import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.rememberListScreenState
@@ -201,6 +202,20 @@ fun OfflineEnabledChecklistsScreen(
         }
     }
 
+    RegisterMainTabTopBar(
+        if (selectedList == null) {
+            MainTabTopBarState(
+                isOnline = isOnline,
+                isSyncing = isSyncing,
+                lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+                onRefresh = { requestSync(showLoading = false) },
+                onAdd = { vm.setShowCreateDialog(true) },
+            )
+        } else {
+            null
+        },
+    )
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = MainNestedScaffoldContentWindowInsets,
@@ -242,17 +257,6 @@ fun OfflineEnabledChecklistsScreen(
                     isOnline = isOnline,
                     onRetrySync = { requestSync(showLoading = true) },
                     modifier = Modifier.padding(bottom = 8.dp),
-                )
-                OfflineSyncStatusRow(
-                    isOnline = isOnline,
-                    isSyncing = isSyncing,
-                    lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
-                    onRefresh = { requestSync(showLoading = false) },
-                    trailingActions = {
-                        IconButton(onClick = { vm.setShowCreateDialog(true) }) {
-                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
-                        }
-                    },
                 )
                 if (lastSyncDurationText != null || lastSyncError != null) {
                     Text(

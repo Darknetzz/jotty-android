@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -21,6 +22,10 @@ import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.checklists.OfflineChecklistsScreen
 import com.jotty.android.ui.common.LoadingState
+import com.jotty.android.ui.common.LocalMainTabTopBarController
+import com.jotty.android.ui.common.MainTabTopBarActions
+import com.jotty.android.ui.common.MainTabTopBarSyncSlot
+import com.jotty.android.ui.common.ProvideMainTabTopBarController
 import com.jotty.android.ui.notes.OfflineNotesScreen
 import com.jotty.android.ui.settings.SettingsScreen
 import com.jotty.android.ui.setup.SetupScreen
@@ -102,24 +107,47 @@ fun MainScreen(
             }
         }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(titleRes)) },
-                navigationIcon = {
-                    if (currentRoute == ROUTE_MANAGE_INSTANCES) {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+    ProvideMainTabTopBarController {
+        val topBarController = LocalMainTabTopBarController.current
+        val tabTopBarState = topBarController.state
+
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(stringResource(titleRes))
+                            val barState = tabTopBarState
+                            if (barState != null && barState.showSyncStatus) {
+                                Spacer(modifier = Modifier.weight(1f))
+                                MainTabTopBarSyncSlot(
+                                    isOnline = barState.isOnline,
+                                    isSyncing = barState.isSyncing,
+                                    lastSyncAttemptEpochMs = barState.lastSyncAttemptEpochMs,
+                                )
+                            }
                         }
-                    }
-                },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        titleContentColor = MaterialTheme.colorScheme.onSurface,
-                    ),
-            )
-        },
+                    },
+                    navigationIcon = {
+                        if (currentRoute == ROUTE_MANAGE_INSTANCES) {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                            }
+                        }
+                    },
+                    actions = {
+                        tabTopBarState?.let { MainTabTopBarActions(it) }
+                    },
+                    colors =
+                        TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            titleContentColor = MaterialTheme.colorScheme.onSurface,
+                        ),
+                )
+            },
         bottomBar = {
             NavigationBar {
                 listOf(MainRoute.Checklists, MainRoute.Notes, MainRoute.Settings).forEach { route ->
@@ -209,6 +237,7 @@ fun MainScreen(
                         )
                     }
                 }
+        }
         }
     }
 }

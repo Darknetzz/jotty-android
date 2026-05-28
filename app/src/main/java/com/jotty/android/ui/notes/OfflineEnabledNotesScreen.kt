@@ -7,7 +7,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Note
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,8 +29,9 @@ import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.OfflineConnectivityBanner
-import com.jotty.android.ui.common.OfflineSyncStatusRow
+import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.rememberListScreenState
@@ -162,6 +162,20 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
+    RegisterMainTabTopBar(
+        if (selectedNote == null) {
+            MainTabTopBarState(
+                isOnline = isOnline,
+                isSyncing = isSyncing,
+                lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+                onRefresh = { requestSync(showLoading = false) },
+                onAdd = { vm.setShowCreateDialog(true) },
+            )
+        } else {
+            null
+        },
+    )
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = MainNestedScaffoldContentWindowInsets,
@@ -180,20 +194,6 @@ fun OfflineEnabledNotesScreen(
                         isOnline = isOnline,
                         onRetrySync = { requestSync(showLoading = true) },
                         modifier = Modifier.padding(bottom = 8.dp),
-                    )
-                    OfflineSyncStatusRow(
-                        isOnline = isOnline,
-                        isSyncing = isSyncing,
-                        lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
-                        onRefresh = { requestSync(showLoading = false) },
-                        trailingActions = {
-                            IconButton(onClick = { vm.setShowCreateDialog(true) }) {
-                                Icon(
-                                    Icons.Default.Add,
-                                    contentDescription = stringResource(R.string.cd_add),
-                                )
-                            }
-                        },
                     )
                     if (lastSyncDurationText != null || lastSyncError != null) {
                         Text(

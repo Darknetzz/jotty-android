@@ -3,11 +3,7 @@ package com.jotty.android.ui.common
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.CloudOff
-import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -21,8 +17,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import kotlinx.coroutines.launch
-import java.text.DateFormat
-import java.util.Date
 
 @Stable
 class ListScreenState(
@@ -110,114 +104,6 @@ fun OfflineConnectivityBanner(
                     color = MaterialTheme.colorScheme.onErrorContainer,
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun OfflineSyncStatusRow(
-    isOnline: Boolean,
-    isSyncing: Boolean,
-    lastSyncAttemptEpochMs: Long?,
-    onRefresh: () -> Unit,
-    trailingActions: @Composable RowScope.() -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val statusText =
-        when {
-            isSyncing -> stringResource(R.string.syncing)
-            isOnline -> stringResource(R.string.online)
-            else -> stringResource(R.string.server_unreachable)
-        }
-    val lastSyncText =
-        remember(lastSyncAttemptEpochMs) {
-            lastSyncAttemptEpochMs?.let {
-                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
-            }
-        }
-    val offline = !isOnline && !isSyncing
-
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .then(
-                    if (offline) {
-                        Modifier.background(
-                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f),
-                            MaterialTheme.shapes.small,
-                        )
-                    } else {
-                        Modifier
-                    },
-                )
-                .padding(horizontal = if (offline) 8.dp else 0.dp, vertical = if (offline) 6.dp else 0.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            when {
-                isSyncing ->
-                    Icon(
-                        Icons.Default.CloudQueue,
-                        contentDescription = statusText,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                isOnline ->
-                    Icon(
-                        Icons.Default.CloudDone,
-                        contentDescription = statusText,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                else ->
-                    Icon(
-                        Icons.Default.CloudOff,
-                        contentDescription = statusText,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(22.dp),
-                    )
-            }
-            Column {
-                Text(
-                    text = statusText,
-                    style =
-                        if (offline) {
-                            MaterialTheme.typography.titleSmall
-                        } else {
-                            MaterialTheme.typography.labelLarge
-                        },
-                    color =
-                        if (offline) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                )
-                if (offline) {
-                    Text(
-                        text = stringResource(R.string.connectivity_status_offline_hint),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else if (lastSyncText != null) {
-                    Text(
-                        text = stringResource(R.string.last_sync_attempt_at, lastSyncText),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-        Row {
-            IconButton(onClick = onRefresh, enabled = isOnline && !isSyncing) {
-                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
-            }
-            trailingActions()
         }
     }
 }

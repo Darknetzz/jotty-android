@@ -8,13 +8,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Note
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -31,6 +28,8 @@ import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.MainTabTopBarState
+import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.AppLog
@@ -94,6 +93,21 @@ fun NotesScreen(
         }
     }
 
+    RegisterMainTabTopBar(
+        if (selectedNote == null) {
+            MainTabTopBarState(
+                isOnline = true,
+                isSyncing = loading,
+                lastSyncAttemptEpochMs = null,
+                onRefresh = { vm.loadNotes() },
+                onAdd = { vm.setShowCreateDialog(true) },
+                showSyncStatus = false,
+            )
+        } else {
+            null
+        },
+    )
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = MainNestedScaffoldContentWindowInsets,
@@ -108,21 +122,6 @@ fun NotesScreen(
         ) {
             when (val note = selectedNote) {
                 null -> {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Row {
-                            IconButton(onClick = { vm.loadNotes() }) {
-                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
-                            }
-                            IconButton(onClick = { vm.setShowCreateDialog(true) }) {
-                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
-                            }
-                        }
-                    }
-
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { vm.setSearchQuery(it) },

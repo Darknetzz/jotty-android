@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -43,6 +42,8 @@ import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.MainTabTopBarState
+import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.appendedPath
@@ -111,6 +112,21 @@ fun ChecklistsScreen(
         }
     }
 
+    RegisterMainTabTopBar(
+        if (selectedList == null) {
+            MainTabTopBarState(
+                isOnline = true,
+                isSyncing = loading,
+                lastSyncAttemptEpochMs = null,
+                onRefresh = { vm.loadChecklists() },
+                onAdd = { vm.setShowCreateDialog(true) },
+                showSyncStatus = false,
+            )
+        } else {
+            null
+        },
+    )
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         contentWindowInsets = MainNestedScaffoldContentWindowInsets,
@@ -139,21 +155,6 @@ fun ChecklistsScreen(
                     onRenameUnsupported = { scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) } },
                 )
             } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row {
-                        IconButton(onClick = { vm.loadChecklists() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
-                        }
-                        IconButton(onClick = { vm.setShowCreateDialog(true) }) {
-                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
-                        }
-                    }
-                }
-
                 ListScreenContent(
                     loading = loading,
                     error = error,

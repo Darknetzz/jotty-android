@@ -14,8 +14,18 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **In-app changelog** — About → View changelog shows the bundled `CHANGELOG.md` for the installed version; when an update is available, View changelog for … opens the matching section (or GitHub release notes as fallback) in a scrollable dialog.
 - **Detail top spacing** — Note and checklist detail screens now use a tighter top inset (4dp) so the title/header sits closer to the app bar while preserving a small visual gap.
 
+### Added
+
+- **Legacy encryption detection** — After decrypting a note encrypted with the old Android payload order (`tag` then `ciphertext`), the app shows a warning that the note should be re-encrypted and saved to restore Jotty web compatibility.
+
+### Documentation
+
+- **Agent guide** — `AGENTS.md` now requires updating `CHANGELOG.md` under `[VERSION-dev]` for user-visible changes; XChaCha20 format notes corrected (`ciphertext` then `tag`, legacy decrypt path).
+
 ### Fixed
 
+- **XChaCha20 encryption and Jotty web** — Notes encrypted in the app now use AEAD combined order (`ciphertext` then `tag`), matching the Jotty web app. Previously, web showed “Incorrect password” for the correct passphrase; existing legacy-format notes still decrypt in the app and are flagged for re-encryption.
+- **Encrypted notes missing from list** — Notes returned by the API with sparse or null fields (common on some encrypted payloads) are normalized on fetch/sync so they appear in the notes list instead of being dropped.
 - **Biometric settings when unavailable** — Settings → Security hides auto-prompt, save-offer, and clear-all options when biometrics are not enrolled or not supported; only the status row is shown.
 - **Empty checklists/notes after first setup** — Initial sync no longer runs in a `LaunchedEffect` that could be cancelled when connectivity or settings update (showing “Job was cancelled” with an empty list). Sync is started from the offline ViewModel scope; cancelled syncs are not recorded as user-visible errors; debounce is skipped while the local checklist cache is empty.
 - **Note image rendering from HTML content** — Notes containing HTML image tags now render images in-app: standalone `<img>` plus common wrapper patterns (`<figure>`, `<picture>`) are converted to Markdown image syntax before rendering, matching web-authored note content more reliably.

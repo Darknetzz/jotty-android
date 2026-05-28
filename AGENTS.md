@@ -44,6 +44,7 @@ app/src/main/java/com/jotty/android/
 ## Version and releases
 
 - **Single source of truth:** `gradle.properties` — `VERSION_NAME` and `VERSION_CODE`. The app reads these; `BuildConfig` is generated from them (`buildConfig = true` in `app/build.gradle.kts`).
+- **Changelog (required for code changes):** When you add, change, or fix user-visible behavior, **always update `CHANGELOG.md`** in the same work session. Add bullets under the current **`[VERSION-dev]`** section (top of file), using **Added** / **Changed** / **Fixed** / **Documentation** as in [Keep a Changelog](https://keepachangelog.com/). Write concise, user-facing lines (not commit diffs). Skip only trivial refactors with no behavioral impact. Stable releases promote that section via `release.ps1` / `release.sh`.
 - **Releasing:** `release.ps1` / `release.sh` bumps `gradle.properties` and promotes `CHANGELOG.md` `[VERSION-dev]` to a stable section; commit on `dev`, then `scripts/publish-release.ps1` (or `.sh`) pushes `dev`, merges `dev`→`main` via PR, and `gh release create vX.Y.Z` (triggers APK workflow). `sync-dev-with-main.yml` fast-forwards `dev` after `main` updates. Dev APKs use `VERSION_NAME` + `-dev+<short-sha>` (`DEV_BUILD_SHA` in CI).
 - **GitHub release APK:** The `release-apk` workflow attaches **`jotty-android-{VERSION_NAME}.apk`** when signing secrets are set (`ANDROID_KEYSTORE_*` in `keystore.properties.example`); otherwise **`jotty-android-{VERSION_NAME}-debug.apk`**. Same release keystore is required for in-place updates (issue #9). Local release builds use `keystore.properties`.
 
@@ -67,7 +68,7 @@ app/src/main/java/com/jotty/android/
 
 Jotty supports two encryption methods; users choose in the web app under **Profile → Encryption → Encryption Method**.
 
-- **XChaCha20-Poly1305 (default, recommended)** — Passphrase-only, 256-bit keys via Argon2id. **Fully supported in the app:** encrypt and decrypt in-app; format matches the Jotty web app (JSON with base64 salt, nonce, data; libsodium-style tag-then-ciphertext).
+- **XChaCha20-Poly1305 (default, recommended)** — Passphrase-only, 256-bit keys via Argon2id. **Fully supported in the app:** encrypt and decrypt in-app; format matches the Jotty web app (JSON with base64 salt, nonce, data; AEAD combined `ciphertext` then `tag`). The decryptor still accepts legacy Android notes that used `tag` then `ciphertext` and can warn users to re-encrypt for web compatibility.
 - **PGP** — RSA-4096, key pairs; for PGP compatibility. **Not supported in the app:** encrypted PGP notes show a message directing users to decrypt in the Jotty web app.
 
 **Limitations (same as Jotty):** Encrypted note content is not searchable (titles/metadata are). Encrypted notes are only decryptable by the key owner; shared encrypted notes stay encrypted for others. No passphrase recovery — lost passphrase means permanent loss of access; users should keep secure backups.
@@ -105,6 +106,7 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 
 ## Tips for agents
 
+- **Update `CHANGELOG.md`** whenever you ship meaningful app changes (see **Changelog** under Version and releases); do not leave this for the user to ask.
 - Prefer suggesting better approaches instead of only following instructions literally.
 - Keep code DRY: extract reusable composables into `ui/common/` and helpers, reuse API and encryption logic.
 - When adding features that touch the API, check `JottyApi.kt` and `models.kt` for existing patterns and types.

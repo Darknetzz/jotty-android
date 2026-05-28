@@ -18,6 +18,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Legacy encryption detection** — After decrypting a note encrypted with the old Android payload order (`tag` then `ciphertext`), the app shows a warning that the note should be re-encrypted and saved to restore Jotty web compatibility.
 
+### Documentation
+
+- **Agent guide** — `AGENTS.md` now requires updating `CHANGELOG.md` under `[VERSION-dev]` for user-visible changes; XChaCha20 format notes corrected (`ciphertext` then `tag`, legacy decrypt path).
+
 ### Fixed
 
 - **XChaCha20 encryption and Jotty web** — Notes encrypted in the app now use AEAD combined order (`ciphertext` then `tag`), matching the Jotty web app. Previously, web showed “Incorrect password” for the correct passphrase; existing legacy-format notes still decrypt in the app and are flagged for re-encryption.

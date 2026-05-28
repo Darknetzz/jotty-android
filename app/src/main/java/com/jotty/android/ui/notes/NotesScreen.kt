@@ -46,6 +46,7 @@ fun NotesScreen(
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     biometricStore: BiometricPassphraseStore? = null,
+    tabReselectToken: Int = 0,
 ) {
     val application = LocalContext.current.applicationContext as Application
     val vm: NotesViewModel = viewModel(factory = NotesViewModel.Factory(application, api))
@@ -87,6 +88,11 @@ fun NotesScreen(
     }
 
     BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
+    LaunchedEffect(tabReselectToken) {
+        if (selectedNote != null) {
+            vm.setSelectedNote(null)
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -96,7 +102,7 @@ fun NotesScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = contentVerticalDp,
+                    topComfortDp = if (selectedNote != null) 0 else contentVerticalDp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {

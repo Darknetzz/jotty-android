@@ -53,6 +53,7 @@ fun OfflineEnabledNotesScreen(
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     biometricStore: BiometricPassphraseStore? = null,
+    tabReselectToken: Int = 0,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -155,6 +156,11 @@ fun OfflineEnabledNotesScreen(
     }
 
     BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
+    LaunchedEffect(tabReselectToken) {
+        if (selectedNote != null) {
+            vm.setSelectedNote(null)
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -164,7 +170,7 @@ fun OfflineEnabledNotesScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = contentVerticalDp,
+                    topComfortDp = if (selectedNote != null) 0 else contentVerticalDp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {

@@ -46,6 +46,8 @@ fun MainScreen(
 ) {
     val navController = rememberNavController()
     var startDestination by rememberSaveable { mutableStateOf<String?>(null) }
+    var checklistsTabReselectToken by rememberSaveable { mutableIntStateOf(0) }
+    var notesTabReselectToken by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(Unit) {
         if (startDestination == null) {
             startDestination = settingsRepository.startTab.first() ?: MainRoute.Checklists.route
@@ -124,7 +126,13 @@ fun MainScreen(
                     NavigationBarItem(
                         selected = selectedRoute == route.route,
                         onClick = {
-                            if (selectedRoute != route.route) {
+                            if (selectedRoute == route.route) {
+                                when (route) {
+                                    MainRoute.Checklists -> checklistsTabReselectToken++
+                                    MainRoute.Notes -> notesTabReselectToken++
+                                    MainRoute.Settings -> Unit
+                                }
+                            } else {
                                 navController.navigate(route.route) {
                                     popUpTo(MainRoute.Checklists.route) { saveState = true }
                                     launchSingleTop = true
@@ -159,6 +167,7 @@ fun MainScreen(
                                 instanceId = instanceId,
                                 authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
                                 swipeToDeleteEnabled = swipeToDeleteEnabled,
+                                tabReselectToken = checklistsTabReselectToken,
                             )
                         } else {
                             LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
@@ -176,6 +185,7 @@ fun MainScreen(
                                 onDeepLinkConsumed = { deepLinkNoteId?.value = null },
                                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                                 imageLoader = imageLoader,
+                                tabReselectToken = notesTabReselectToken,
                             )
                         } else {
                             LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))

@@ -28,6 +28,7 @@ fun OfflineNotesScreen(
     onDeepLinkConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
+    tabReselectToken: Int = 0,
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -50,6 +51,7 @@ fun OfflineNotesScreen(
             swipeToDeleteEnabled = swipeToDeleteEnabled,
             imageLoader = imageLoader,
             biometricStore = biometricStore,
+            tabReselectToken = tabReselectToken,
         )
     } else {
         NotesScreen(
@@ -60,6 +62,7 @@ fun OfflineNotesScreen(
             swipeToDeleteEnabled = swipeToDeleteEnabled,
             imageLoader = imageLoader,
             biometricStore = biometricStore,
+            tabReselectToken = tabReselectToken,
         )
     }
 }

@@ -19,6 +19,7 @@ fun OfflineChecklistsScreen(
     instanceId: String,
     authFingerprint: String,
     swipeToDeleteEnabled: Boolean = false,
+    tabReselectToken: Int = 0,
 ) {
     val application = LocalContext.current.applicationContext as Application
     val vm: OfflineChecklistsViewModel =
@@ -36,12 +37,14 @@ fun OfflineChecklistsScreen(
             vmKey = "$instanceId|$authFingerprint",
             settingsRepository = settingsRepository,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
+            tabReselectToken = tabReselectToken,
         )
     } else {
         ChecklistsScreen(
             api = api,
             settingsRepository = settingsRepository,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
+            tabReselectToken = tabReselectToken,
         )
     }
 }

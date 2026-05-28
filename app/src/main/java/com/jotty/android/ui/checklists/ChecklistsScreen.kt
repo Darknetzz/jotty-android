@@ -56,6 +56,7 @@ fun ChecklistsScreen(
     api: JottyApi,
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
+    tabReselectToken: Int = 0,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -104,6 +105,11 @@ fun ChecklistsScreen(
     LaunchedEffect(Unit) { vm.loadChecklists() }
 
     BackHandler(enabled = selectedList != null) { vm.setSelectedList(null) }
+    LaunchedEffect(tabReselectToken) {
+        if (selectedList != null) {
+            vm.setSelectedList(null)
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -113,7 +119,7 @@ fun ChecklistsScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = contentVerticalDp,
+                    topComfortDp = if (selectedList != null) 0 else contentVerticalDp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {

@@ -870,19 +870,18 @@ private fun AboutDialog(
                     }
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                Row(
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     ViewChangelogButton(
                         label = stringResource(R.string.view_changelog),
                         onClick = { openInstalledChangelog() },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     ViewSourceOnGitHubButton(
                         onClick = { uriHandler.openUri(GITHUB_REPO_URL) },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))

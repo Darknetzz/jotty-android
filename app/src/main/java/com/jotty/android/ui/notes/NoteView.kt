@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import com.jotty.android.R
+import com.jotty.android.util.convertHtmlColorSpans
 import com.jotty.android.util.convertHtmlImagesToMarkdown
 import com.jotty.android.util.convertHtmlTablesToGfm
 import dev.jeziellago.compose.markdowntext.MarkdownText
@@ -33,7 +34,9 @@ internal fun NoteView(
     val displayMarkdown =
         remember(content) {
             convertHtmlTablesToGfm(
-                convertHtmlImagesToMarkdown(content),
+                convertHtmlImagesToMarkdown(
+                    convertHtmlColorSpans(content),
+                ),
             )
         }
     Column(

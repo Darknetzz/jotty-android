@@ -16,6 +16,46 @@ fun convertHtmlTablesToGfm(markdown: String): String {
 }
 
 /**
+ * Converts inline HTML color spans (common in web-authored notes) to a simpler
+ * `<font color="...">...</font>` format that Markwon's HTML support can render.
+ */
+fun convertHtmlColorSpans(markdown: String): String {
+    if (!markdown.contains("<span", ignoreCase = true)) {
+        return markdown
+    }
+    val spanPattern =
+        Regex("""<span\b([^>]*?)style\s*=\s*(['"])(.*?)\2([^>]*)>(.*?)</span>""", regexDotIgnoreCase)
+    return spanPattern.replace(markdown) { match ->
+        val styleValue = match.groupValues[3]
+        val innerHtml = match.groupValues[5]
+        val colorValue = extractCssColor(styleValue)?.let(::normalizeHtmlColor) ?: return@replace match.value
+        """<font color="$colorValue">$innerHtml</font>"""
+    }
+}
+
+private fun extractCssColor(styleValue: String): String? {
+    val colorPattern = Regex("""(?:^|;)\s*color\s*:\s*([^;]+)""", RegexOption.IGNORE_CASE)
+    return colorPattern.find(styleValue)?.groupValues?.getOrNull(1)?.trim()
+}
+
+private fun normalizeHtmlColor(rawColor: String): String {
+    val color = rawColor.trim().removeSurrounding("\"").removeSurrounding("'")
+    if (color.startsWith("#")) {
+        return color
+    }
+    val rgbPattern = Regex("""rgba?\s*\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})(?:\s*,\s*[\d.]+\s*)?\)""", RegexOption.IGNORE_CASE)
+    val rgbMatch = rgbPattern.matchEntire(color)
+    if (rgbMatch != null) {
+        val channels =
+            (1..3).map { index ->
+                rgbMatch.groupValues[index].toIntOrNull()?.coerceIn(0, 255) ?: 0
+            }
+        return "#%02x%02x%02x".format(channels[0], channels[1], channels[2])
+    }
+    return color
+}
+
+/**
  * Converts HTML `<img>` tags to Markdown image syntax.
  *
  * Jotty notes can contain HTML images (for example from pasted rich content).

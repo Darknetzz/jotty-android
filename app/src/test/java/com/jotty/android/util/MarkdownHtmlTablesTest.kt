@@ -7,6 +7,27 @@ import org.junit.Test
 
 class MarkdownHtmlTablesTest {
     @Test
+    fun `convertHtmlColorSpans converts span with hex color`() {
+        val html = """Start <span style="color: #22aa55;">green text</span> end"""
+        val result = convertHtmlColorSpans(html)
+        assertEquals("""Start <font color="#22aa55">green text</font> end""", result)
+    }
+
+    @Test
+    fun `convertHtmlColorSpans converts span with rgb color`() {
+        val html = """<span style="font-weight:700; color: rgb(34, 170, 85);">text</span>"""
+        val result = convertHtmlColorSpans(html)
+        assertEquals("""<font color="#22aa55">text</font>""", result)
+    }
+
+    @Test
+    fun `convertHtmlColorSpans leaves spans without color unchanged`() {
+        val html = """before <span style="font-weight:700">text</span> after"""
+        val result = convertHtmlColorSpans(html)
+        assertEquals(html, result)
+    }
+
+    @Test
     fun `convertHtmlImagesToMarkdown leaves markdown without images unchanged`() {
         val md = "Hello ![world](https://example.com/x.png)"
         assertEquals(md, convertHtmlImagesToMarkdown(md))

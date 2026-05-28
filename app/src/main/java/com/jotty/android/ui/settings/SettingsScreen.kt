@@ -872,10 +872,10 @@ private fun AboutDialog(
                         Text(version, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                HorizontalDivider()
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
                     ViewChangelogButton(
                         label = stringResource(R.string.view_changelog),
@@ -887,7 +887,7 @@ private fun AboutDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                HorizontalDivider()
                 SettingsSectionSubtitle(stringResource(R.string.update_channel_label))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -909,7 +909,7 @@ private fun AboutDialog(
                         text = stringResource(R.string.update_dev_channel_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
                 when (val state = updateState) {
@@ -1174,11 +1174,11 @@ private fun AboutLinkButton(
 ) {
     TextButton(
         onClick = onClick,
-        modifier = modifier,
-        contentPadding = PaddingValues(0.dp),
+        modifier = modifier.defaultMinSize(minHeight = 36.dp, minWidth = 0.dp),
+        contentPadding = PaddingValues(vertical = 2.dp),
     ) {
         icon()
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
         Text(label, maxLines = 2)
     }
 }

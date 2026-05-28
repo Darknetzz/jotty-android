@@ -249,7 +249,7 @@
     <string name="update_signing_mismatch_hint">If the installer says “App not installed”, the APK may be signed differently than your installed app (e.g. Android Studio debug vs GitHub release). Uninstall Jotty once, then install from the release page. Your Jotty server data is not affected.</string>
     <string name="update_signing_mismatch_blocked">This update is signed with a different key than your installed app. Uninstall Jotty once, then install from the release page.</string>
     <string name="update_version_downgrade_blocked">This build has an older version code than your installed app. Uninstall once, then install from the release page.</string>
-    <string name="update_dev_channel_hint">Dev builds update from the dev-latest release. Use the same signing as stable for in-app updates; otherwise uninstall once before installing dev.</string>
+    <string name="update_dev_channel_hint">Dev builds are bleeding edge and may contain bugs.</string>
     <string name="open_release_page">Open release page</string>
     <string name="whats_new">What\'s new</string>
     <string name="view_changelog">View changelog</string>

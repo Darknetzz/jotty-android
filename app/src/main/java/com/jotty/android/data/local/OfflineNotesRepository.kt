@@ -7,6 +7,7 @@ import com.jotty.android.data.api.CreateNoteRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.UpdateNoteRequest
+import com.jotty.android.data.api.normalizedForClient
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.CancellationException
@@ -260,7 +261,7 @@ class OfflineNotesRepository(
 
                 // 2. Fetch all notes from server
                 val response = api.getNotes()
-                val serverNotes = response.notes.map { it.toEntity(instanceId, isDirty = false) }
+                val serverNotes = response.notes.map { it.normalizedForClient().toEntity(instanceId, isDirty = false) }
                 val conflictCopies = mutableListOf<NoteEntity>()
 
                 // 3. Detect conflicts: notes that were modified both locally and on server

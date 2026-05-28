@@ -1,7 +1,7 @@
 # Jotty Android
 
-[![Latest release](https://img.shields.io/github/v/release/Darknetzz/jotty-android?label=stable%20apk)](https://github.com/Darknetzz/jotty-android/releases/latest)
-[![Dev latest](https://img.shields.io/github/v/release/Darknetzz/jotty-android?include_prereleases&filter=dev-latest&label=dev-latest)](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+[![Stable APK](https://img.shields.io/badge/Stable%20APK-latest-2ea043)](https://github.com/Darknetzz/jotty-android/releases/latest)
+[![Dev latest](https://img.shields.io/badge/dev--latest-pre--release-f97316)](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 [![CI](https://github.com/Darknetzz/jotty-android/actions/workflows/ci.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/ci.yml)
 [![Release APK](https://github.com/Darknetzz/jotty-android/actions/workflows/release-apk.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/release-apk.yml)
 [![Dev Latest APK](https://github.com/Darknetzz/jotty-android/actions/workflows/dev-latest.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/dev-latest.yml)

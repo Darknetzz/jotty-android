@@ -12,6 +12,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Decrypt errors** — Failed decrypt shows a collapsible **Details** section for technical messages (no debug toggle).
 - **About update status** — Check-for-updates results use styled alert banners (success, info, error, and loading) with icons in the About dialog.
 - **In-app changelog** — About → View changelog shows the bundled `CHANGELOG.md` for the installed version; when an update is available, View changelog for … opens the matching section (or GitHub release notes as fallback) in a scrollable dialog.
+- **Detail top spacing** — Note and checklist detail screens now use a tighter top inset (4dp) so the title/header sits closer to the app bar while preserving a small visual gap.
 
 ### Fixed
 
@@ -19,6 +20,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Empty checklists/notes after first setup** — Initial sync no longer runs in a `LaunchedEffect` that could be cancelled when connectivity or settings update (showing “Job was cancelled” with an empty list). Sync is started from the offline ViewModel scope; cancelled syncs are not recorded as user-visible errors; debounce is skipped while the local checklist cache is empty.
 - **Note image rendering from HTML content** — Notes containing HTML image tags now render images in-app: standalone `<img>` plus common wrapper patterns (`<figure>`, `<picture>`) are converted to Markdown image syntax before rendering, matching web-authored note content more reliably.
 - **Colored note text from web HTML** — Notes containing inline color spans (e.g. `<span style="color: ...">`) now preserve color in-app by converting them to a renderer-friendly HTML color format before markdown rendering.
+- **Bottom-tab reselect in detail** — While viewing a note or checklist, tapping the active bottom tab (Notes/Checklists) now closes detail and returns to the overview list, matching back-button behavior.
 
 ---
 

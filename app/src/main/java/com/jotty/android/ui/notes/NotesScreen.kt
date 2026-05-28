@@ -102,7 +102,7 @@ fun NotesScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = if (selectedNote != null) 0 else contentVerticalDp,
+                    topComfortDp = if (selectedNote != null) 4 else contentVerticalDp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {

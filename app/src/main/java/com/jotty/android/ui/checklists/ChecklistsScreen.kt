@@ -119,7 +119,7 @@ fun ChecklistsScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = if (selectedList != null) 0 else contentVerticalDp,
+                    topComfortDp = if (selectedList != null) 4 else contentVerticalDp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {

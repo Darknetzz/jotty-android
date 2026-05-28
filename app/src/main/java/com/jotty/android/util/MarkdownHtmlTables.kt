@@ -23,31 +23,65 @@ fun convertHtmlTablesToGfm(markdown: String): String {
  * Markdown images.
  */
 fun convertHtmlImagesToMarkdown(markdown: String): String {
-    if (!markdown.contains("<img", ignoreCase = true)) {
+    if (!markdown.contains("<img", ignoreCase = true) &&
+        !markdown.contains("<figure", ignoreCase = true) &&
+        !markdown.contains("<picture", ignoreCase = true)
+    ) {
         return markdown
     }
+    var result = markdown
+    result = convertHtmlImageContainers(result, "figure")
+    result = convertHtmlImageContainers(result, "picture")
+    return convertStandaloneHtmlImgTags(result)
+}
+
+private fun convertHtmlImageContainers(
+    markdown: String,
+    tagName: String,
+): String {
+    val containerPattern =
+        Regex("""<$tagName\b[^>]*>.*?</$tagName>""", regexDotIgnoreCase)
+    return containerPattern.replace(markdown) { match ->
+        val converted = convertSingleHtmlImageTag(match.value)
+        converted ?: match.value
+    }
+}
+
+private fun convertStandaloneHtmlImgTags(markdown: String): String {
     val imgPattern = Regex("""<img\b[^>]*?>""", RegexOption.IGNORE_CASE)
     return imgPattern.replace(markdown) { match ->
-        val tag = match.value
-        val src = extractHtmlAttribute(tag, "src")?.trim().orEmpty()
-        if (src.isBlank()) {
-            return@replace match.value
-        }
-        val alt = extractHtmlAttribute(tag, "alt")?.trim().orEmpty()
-        "![${escapeImageAltText(alt)}]($src)"
+        convertSingleHtmlImageTag(match.value) ?: match.value
     }
+}
+
+private fun convertSingleHtmlImageTag(html: String): String? {
+    val imgTagMatch = Regex("""<img\b[^>]*?>""", RegexOption.IGNORE_CASE).find(html)
+    val imgTag = imgTagMatch?.value ?: return null
+    val src = extractHtmlAttribute(imgTag, "src")?.trim().orEmpty()
+    if (src.isBlank()) {
+        return null
+    }
+    val alt = extractHtmlAttribute(imgTag, "alt")?.trim().orEmpty()
+    return "![${escapeImageAltText(alt)}]($src)"
 }
 
 private fun extractHtmlAttribute(
     tag: String,
     attributeName: String,
 ): String? {
-    val attributePattern =
+    val quotedPattern =
         Regex("""\b$attributeName\s*=\s*(['"])(.*?)\1""", regexDotIgnoreCase)
-    return attributePattern.find(tag)?.groupValues?.getOrNull(2)
+    quotedPattern.find(tag)?.groupValues?.getOrNull(2)?.let { return it }
+    val unquotedPattern = Regex("""\b$attributeName\s*=\s*([^\s"'<>`]+)""", RegexOption.IGNORE_CASE)
+    return unquotedPattern.find(tag)?.groupValues?.getOrNull(1)
 }
 
-private fun escapeImageAltText(alt: String): String = alt.replace("[", "\\[").replace("]", "\\]")
+private fun escapeImageAltText(alt: String): String =
+    alt
+        .replace("[", "\\[")
+        .replace("]", "\\]")
+        .replace("\n", " ")
+        .trim()
 
 private val rowPattern = Regex("""<tr\b[^>]*>(.*?)</tr>""", regexDotIgnoreCase)
 private val cellPattern = Regex("""<t([hd])\b[^>]*>(.*?)</t\1>""", regexDotIgnoreCase)

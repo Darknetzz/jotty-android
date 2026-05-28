@@ -17,6 +17,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Biometric settings when unavailable** — Settings → Security hides auto-prompt, save-offer, and clear-all options when biometrics are not enrolled or not supported; only the status row is shown.
 - **Empty checklists/notes after first setup** — Initial sync no longer runs in a `LaunchedEffect` that could be cancelled when connectivity or settings update (showing “Job was cancelled” with an empty list). Sync is started from the offline ViewModel scope; cancelled syncs are not recorded as user-visible errors; debounce is skipped while the local checklist cache is empty.
+- **Note image rendering from HTML content** — Notes containing HTML image tags now render images in-app: standalone `<img>` plus common wrapper patterns (`<figure>`, `<picture>`) are converted to Markdown image syntax before rendering, matching web-authored note content more reliably.
 
 ---
 

@@ -27,6 +27,42 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
+    fun `convertHtmlImagesToMarkdown converts figure with image`() {
+        val html =
+            """
+            Intro
+            <figure class="image">
+              <img src="https://example.com/figure.png" alt="Figure image">
+              <figcaption>Caption</figcaption>
+            </figure>
+            Outro
+            """.trimIndent()
+        val result = convertHtmlImagesToMarkdown(html)
+        assertTrue(result.contains("![Figure image](https://example.com/figure.png)"))
+        assertFalse(result.contains("<figure"))
+    }
+
+    @Test
+    fun `convertHtmlImagesToMarkdown converts picture with source and image`() {
+        val html =
+            """
+            <picture>
+              <source srcset="https://example.com/image.webp" type="image/webp" />
+              <img src='https://example.com/image.jpg' alt='Picture image'>
+            </picture>
+            """.trimIndent()
+        val result = convertHtmlImagesToMarkdown(html)
+        assertEquals("![Picture image](https://example.com/image.jpg)", result)
+    }
+
+    @Test
+    fun `convertHtmlImagesToMarkdown supports unquoted src attribute`() {
+        val html = """<img src=/api/image/456 alt="Inline image">"""
+        val result = convertHtmlImagesToMarkdown(html)
+        assertEquals("![Inline image](/api/image/456)", result)
+    }
+
+    @Test
     fun `convertHtmlTablesToGfm leaves markdown without tables unchanged`() {
         val md =
             """

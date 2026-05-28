@@ -84,6 +84,12 @@ class SettingsRepository(
             prefs[KEY_SWIPE_TO_DELETE] ?: false
         }.catch { emit(false) }
 
+    /** Show note body preview on list cards. Default true. */
+    val noteListPreviewEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_NOTE_LIST_PREVIEW] ?: true
+        }.catch { emit(true) }
+
     /** Content padding: "compact" (8dp vertical) or "comfortable" (16dp vertical). Default "comfortable". */
     val contentPaddingMode: Flow<String> =
         context.jottySettingsDataStore.data.map { prefs ->
@@ -208,6 +214,12 @@ class SettingsRepository(
 
     suspend fun setSwipeToDeleteEnabled(value: Boolean) {
         context.jottySettingsDataStore.edit { it[KEY_SWIPE_TO_DELETE] = value }
+    }
+
+    suspend fun setNoteListPreviewEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it.remove(KEY_NOTE_LIST_PREVIEW) else it[KEY_NOTE_LIST_PREVIEW] = false
+        }
     }
 
     suspend fun setContentPaddingMode(value: String) {
@@ -367,6 +379,7 @@ class SettingsRepository(
 
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
+        private val KEY_NOTE_LIST_PREVIEW = booleanPreferencesKey("note_list_preview_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
         private val KEY_BIOMETRIC_AUTO_UNLOCK = booleanPreferencesKey("biometric_auto_unlock_enabled")
         private val KEY_BIOMETRIC_SAVE_OFFER = booleanPreferencesKey("biometric_save_offer_enabled")

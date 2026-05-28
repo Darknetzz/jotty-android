@@ -77,6 +77,7 @@ fun SettingsScreen(
     val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
     val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -350,6 +351,26 @@ fun SettingsScreen(
                                 onCheckedChange = {
                                     scope.launch {
                                         settingsRepository.setSwipeToDeleteEnabled(it)
+                                    }
+                                },
+                            )
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.note_list_preview)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.note_list_preview_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = noteListPreviewEnabled,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        settingsRepository.setNoteListPreviewEnabled(it)
                                     }
                                 },
                             )

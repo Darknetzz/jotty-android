@@ -178,6 +178,8 @@
     <string name="start_screen">Start screen</string>
     <string name="swipe_to_delete">Swipe to delete</string>
     <string name="swipe_to_delete_description">Swipe list or note rows left to delete (checklists and notes)</string>
+    <string name="note_list_preview">Note preview in list</string>
+    <string name="note_list_preview_description">Show a short excerpt of each note under the title in the notes list</string>
     <string name="content_padding">Content padding</string>
     <string name="content_padding_description">Vertical spacing at top and bottom of screens</string>
     <string name="content_padding_comfortable">Comfortable</string>

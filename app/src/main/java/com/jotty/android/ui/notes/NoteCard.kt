@@ -32,6 +32,7 @@ import com.jotty.android.util.stripInvisibleFromEdges
 internal fun NoteCard(
     note: Note,
     onClick: () -> Unit,
+    showPreview: Boolean = true,
 ) {
     val titleText = remember(note.title) { stripInvisibleFromEdges(note.title) }
     val strippedContent = remember(note.content) { stripInvisibleFromEdges(note.content) }
@@ -82,7 +83,7 @@ internal fun NoteCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            } else if (contentPreview != null) {
+            } else if (showPreview && contentPreview != null) {
                 Text(
                     text = contentPreview,
                     style = MaterialTheme.typography.bodySmall,

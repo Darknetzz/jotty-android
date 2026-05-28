@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Note list preview toggle** — Settings → Behavior → **Note preview in list** shows or hides the body excerpt under each title in the notes list (encrypted notes still show the lock label).
 - **Update changelog from GitHub** — When checking for updates, the app fetches `CHANGELOG.md` from the matching branch (`main` for stable, `dev` for dev-latest) and uses it for “What’s new” instead of the bundled file on the installed APK.
 
 ### Changed

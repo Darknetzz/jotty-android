@@ -56,6 +56,7 @@ fun OfflineEnabledNotesScreen(
     tabReselectToken: Int = 0,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
+    val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -336,6 +337,7 @@ fun OfflineEnabledNotesScreen(
                                         NoteCard(
                                             note = n,
                                             onClick = { vm.setSelectedNote(n) },
+                                            showPreview = noteListPreviewEnabled,
                                         )
                                     }
                                 }

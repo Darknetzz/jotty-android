@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [1.3.6-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Update changelog from GitHub** — When checking for updates, the app fetches `CHANGELOG.md` from the matching branch (`main` for stable, `dev` for dev-latest) and uses it for “What’s new” instead of the bundled file on the installed APK.
+
 ### Changed
 
 - **Settings UX** — “Offline mode” renamed to **Local storage & sync**; sync status when unreachable shows **Server unreachable** (not “Offline”). **Export debug logs** replaces the debug-logging toggle (in-app ring buffer, share as file). Default instance is set via the star in **Manage instances** only (removed from Settings overview). Settings split into Appearance, Behavior, and Troubleshooting; dashboard moved under Overview. Manage instances from Settings shows back navigation and a default-instance hint.

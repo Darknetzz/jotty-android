@@ -643,6 +643,7 @@ private sealed class UpdateUiState {
         val downloadUrl: String,
         val userMessage: String,
         val releaseNotes: String? = null,
+        val changelogMarkdown: String? = null,
     ) : UpdateUiState()
 }
 
@@ -795,15 +796,17 @@ private fun AboutDialog(
     fun openUpdateChangelog(
         remoteVersionLabel: String,
         releaseNotes: String?,
+        preResolvedMarkdown: String? = null,
     ) {
         val sectionKey = BundledChangelog.sectionKeyForRemote(remoteVersionLabel, parsedChannel)
         val markdown =
-            BundledChangelog.resolveMarkdown(
-                changelog = bundledChangelog,
-                sectionKey = sectionKey,
-                useDevRollingSection = parsedChannel == UpdateChannel.Dev,
-                fallbackMarkdown = releaseNotes,
-            )
+            preResolvedMarkdown?.trim()?.takeIf { it.isNotBlank() }
+                ?: BundledChangelog.resolveMarkdown(
+                    changelog = bundledChangelog,
+                    sectionKey = sectionKey,
+                    useDevRollingSection = parsedChannel == UpdateChannel.Dev,
+                    fallbackMarkdown = releaseNotes,
+                )
         if (markdown != null) {
             changelogDialog =
                 context.getString(R.string.changelog_title_update, remoteVersionLabel) to markdown
@@ -966,7 +969,13 @@ private fun AboutDialog(
                                     releaseNotes = r.releaseNotes,
                                     installFailedMessage = null,
                                     showSigningHints = parsedChannel == UpdateChannel.Dev,
-                                    onViewChangelog = { openUpdateChangelog(r.versionName, r.releaseNotes) },
+                                    onViewChangelog = {
+                                        openUpdateChangelog(
+                                            r.versionName,
+                                            r.releaseNotes,
+                                            r.changelogMarkdown,
+                                        )
+                                    },
                                     onDownloadAndInstall = {
                                         scope.launch {
                                             updateState = UpdateUiState.Downloading
@@ -986,6 +995,7 @@ private fun AboutDialog(
                                                             r.downloadUrl,
                                                             result.userMessage,
                                                             r.releaseNotes,
+                                                            r.changelogMarkdown,
                                                         )
                                             }
                                             downloadProgress = null
@@ -1034,7 +1044,13 @@ private fun AboutDialog(
                             releaseNotes = state.releaseNotes,
                             installFailedMessage = state.userMessage,
                             showSigningHints = true,
-                            onViewChangelog = { openUpdateChangelog(state.versionName, state.releaseNotes) },
+                            onViewChangelog = {
+                                openUpdateChangelog(
+                                    state.versionName,
+                                    state.releaseNotes,
+                                    state.changelogMarkdown,
+                                )
+                            },
                             onDownloadAndInstall = {
                                 scope.launch {
                                     updateState = UpdateUiState.Downloading
@@ -1054,6 +1070,7 @@ private fun AboutDialog(
                                                     state.downloadUrl,
                                                     result.userMessage,
                                                     state.releaseNotes,
+                                                    state.changelogMarkdown,
                                                 )
                                     }
                                     downloadProgress = null

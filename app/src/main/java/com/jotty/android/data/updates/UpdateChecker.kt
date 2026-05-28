@@ -41,6 +41,8 @@ sealed class UpdateCheckResult {
         val downloadUrl: String,
         val releaseNotes: String? = null,
         val buildDateUtc: String? = null,
+        /** Resolved from remote `CHANGELOG.md` when checking; falls back to [releaseNotes]. */
+        val changelogMarkdown: String? = null,
     ) : UpdateCheckResult()
 
     data object UpToDate : UpdateCheckResult()
@@ -59,6 +61,9 @@ sealed class InstallResult {
 
 object UpdateChecker {
     private const val GITHUB_API_BASE = "https://api.github.com/"
+    private const val GITHUB_REPO = "Darknetzz/jotty-android"
+    private const val CHANGELOG_BRANCH_STABLE = "main"
+    private const val CHANGELOG_BRANCH_DEV = "dev"
     private const val TAG = "UpdateChecker"
 
     private val userAgent: String
@@ -146,10 +151,12 @@ object UpdateChecker {
         return if (!isNewerVersion(latestVersion, baseCurrent)) {
             UpdateCheckResult.UpToDate
         } else {
-            UpdateCheckResult.UpdateAvailable(
+            val releaseNotes = release.body?.trim()?.takeIf { it.isNotBlank() }
+            buildUpdateAvailable(
+                channel = UpdateChannel.Stable,
                 versionName = latestVersion,
                 downloadUrl = apkAsset.browserDownloadUrl,
-                releaseNotes = release.body?.trim()?.takeIf { it.isNotBlank() },
+                releaseNotes = releaseNotes,
                 buildDateUtc = release.publishedAt?.trim()?.takeIf { it.isNotBlank() },
             )
         }
@@ -170,11 +177,67 @@ object UpdateChecker {
             return UpdateCheckResult.UpToDate
         }
         val short = remoteCommit.take(7)
-        return UpdateCheckResult.UpdateAvailable(
+        val releaseNotes = release.body?.trim()?.takeIf { it.isNotBlank() }
+        return buildUpdateAvailable(
+            channel = UpdateChannel.Dev,
             versionName = context.getString(R.string.update_version_dev_format, short),
             downloadUrl = apkAsset.browserDownloadUrl,
-            releaseNotes = release.body?.trim()?.takeIf { it.isNotBlank() },
+            releaseNotes = releaseNotes,
             buildDateUtc = release.publishedAt?.trim()?.takeIf { it.isNotBlank() },
+        )
+    }
+
+    internal fun changelogRawUrl(channel: UpdateChannel): String {
+        val branch =
+            when (channel) {
+                UpdateChannel.Stable -> CHANGELOG_BRANCH_STABLE
+                UpdateChannel.Dev -> CHANGELOG_BRANCH_DEV
+            }
+        return "https://raw.githubusercontent.com/$GITHUB_REPO/$branch/CHANGELOG.md"
+    }
+
+    private suspend fun fetchRemoteChangelog(channel: UpdateChannel): BundledChangelog? {
+        val request =
+            Request.Builder()
+                .url(changelogRawUrl(channel))
+                .addHeader("User-Agent", userAgent)
+                .build()
+        return try {
+            downloadClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    AppLog.d(TAG, "Remote CHANGELOG HTTP ${response.code} for $channel")
+                    return null
+                }
+                val text = response.body?.string()?.takeIf { it.isNotBlank() } ?: return null
+                BundledChangelog.parse(text)
+            }
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Remote CHANGELOG fetch failed for $channel", e)
+            null
+        }
+    }
+
+    private suspend fun buildUpdateAvailable(
+        channel: UpdateChannel,
+        versionName: String,
+        downloadUrl: String,
+        releaseNotes: String?,
+        buildDateUtc: String?,
+    ): UpdateCheckResult.UpdateAvailable {
+        val remoteChangelog = fetchRemoteChangelog(channel)
+        val changelogMarkdown =
+            BundledChangelog.resolveMarkdown(
+                changelog = remoteChangelog,
+                sectionKey = BundledChangelog.sectionKeyForRemote(versionName, channel),
+                useDevRollingSection = channel == UpdateChannel.Dev,
+                fallbackMarkdown = releaseNotes,
+            )
+        return UpdateCheckResult.UpdateAvailable(
+            versionName = versionName,
+            downloadUrl = downloadUrl,
+            releaseNotes = releaseNotes,
+            buildDateUtc = buildDateUtc,
+            changelogMarkdown = changelogMarkdown,
         )
     }
 

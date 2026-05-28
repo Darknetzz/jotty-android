@@ -9,6 +9,18 @@ import org.junit.Test
 
 class UpdateCheckerTest {
     @Test
+    fun `changelogRawUrl uses main for stable and dev for dev channel`() {
+        assertEquals(
+            "https://raw.githubusercontent.com/Darknetzz/jotty-android/main/CHANGELOG.md",
+            UpdateChecker.changelogRawUrl(UpdateChannel.Stable),
+        )
+        assertEquals(
+            "https://raw.githubusercontent.com/Darknetzz/jotty-android/dev/CHANGELOG.md",
+            UpdateChecker.changelogRawUrl(UpdateChannel.Dev),
+        )
+    }
+
+    @Test
     fun `parseUpdateChannel maps known values and falls back to Stable`() {
         assertEquals(UpdateChannel.Stable, parseUpdateChannel(null))
         assertEquals(UpdateChannel.Stable, parseUpdateChannel(""))

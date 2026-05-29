@@ -2,7 +2,6 @@ package com.jotty.android.ui.notes
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -31,6 +30,7 @@ val LocalReaderTextScale = compositionLocalOf { 1.0f }
 internal fun NoteView(
     content: String,
     imageLoader: ImageLoader? = null,
+    modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
@@ -45,8 +45,8 @@ internal fun NoteView(
         }
     Column(
         modifier =
-            Modifier
-                .fillMaxSize()
+            modifier
+                .fillMaxWidth()
                 .verticalScroll(scrollState)
                 .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {

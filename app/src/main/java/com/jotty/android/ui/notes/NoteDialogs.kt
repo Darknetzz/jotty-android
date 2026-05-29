@@ -56,11 +56,12 @@ internal fun EncryptedNotePlaceholder(
     onDecryptClick: () -> Unit,
     onBiometricClick: (() -> Unit)? = null,
     hintText: String? = null,
+    modifier: Modifier = Modifier,
 ) {
     Column(
         modifier =
-            Modifier
-                .fillMaxSize()
+            modifier
+                .fillMaxWidth()
                 .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,

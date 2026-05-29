@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.util.UUID
 
@@ -35,6 +37,7 @@ class OfflineNotesRepository(
 ) {
     private val appContext = context.applicationContext
     private val noteDao = database.noteDao()
+    private val syncMutex = Mutex()
     private val runtime =
         OfflineRepositoryLifecycle(
             context = context,
@@ -226,12 +229,12 @@ class OfflineNotesRepository(
      * Detects conflicts and creates local copies to avoid data loss.
      */
     suspend fun syncNotes(): Result<Unit> =
-        withContext(Dispatchers.IO) {
-            if (isSyncing.value) {
-                AppLog.d("OfflineNotesRepository", "Sync already in progress")
-                return@withContext Result.success(Unit)
-            }
+        syncMutex.withLock {
+            syncNotesLocked()
+        }
 
+    private suspend fun syncNotesLocked(): Result<Unit> =
+        withContext(Dispatchers.IO) {
             if (!isOnline.value) {
                 AppLog.d("OfflineNotesRepository", "Cannot sync - offline")
                 return@withContext Result.failure(Exception("Offline"))

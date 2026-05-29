@@ -4,11 +4,11 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineNotesRepository
+import com.jotty.android.data.local.scheduleInitialOfflineSyncWhenEmpty
+import kotlinx.coroutines.flow.map
 
 /**
  * Owns [OfflineNotesRepository] for the duration of the Notes destination.
@@ -37,9 +37,10 @@ class OfflineNotesViewModel(
         )
 
     init {
-        viewModelScope.launch {
-            repository.syncNotes()
-        }
+        scheduleInitialOfflineSyncWhenEmpty(
+            observeCacheEmpty = repository.getNotesFlow().map { it.isEmpty() },
+            sync = { repository.syncNotes() },
+        )
     }
 
     override fun onCleared() {

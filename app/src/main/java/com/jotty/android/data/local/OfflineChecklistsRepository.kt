@@ -24,6 +24,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.UUID
@@ -57,6 +59,7 @@ class OfflineChecklistsRepository(
     private val pendingSyncAfterMutations = AtomicBoolean(false)
 
     @Volatile private var lastSyncCompletedAtMs: Long? = null
+    private val syncMutex = Mutex()
     private val runtime =
         OfflineRepositoryLifecycle(
             context = context,
@@ -354,8 +357,12 @@ class OfflineChecklistsRepository(
     // ─── Sync ────────────────────────────────────────────────────────────────
 
     suspend fun syncChecklists(force: Boolean = false): Result<Unit> =
+        syncMutex.withLock {
+            syncChecklistsLocked(force)
+        }
+
+    private suspend fun syncChecklistsLocked(force: Boolean = false): Result<Unit> =
         withContext(Dispatchers.IO) {
-            if (isSyncing.value) return@withContext Result.success(Unit)
             if (!isOnline.value) return@withContext Result.failure(Exception("Offline"))
 
             if (itemMutationDepth.get() > 0) {

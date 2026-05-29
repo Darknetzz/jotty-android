@@ -2,8 +2,10 @@ package com.jotty.android.ui.notes
 
 import android.content.Intent
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -61,6 +63,7 @@ internal fun NoteDetailScreen(
     onUpdate: (Note) -> Unit,
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit = {},
+    modifier: Modifier = Modifier,
     imageLoader: ImageLoader? = null,
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
@@ -189,6 +192,7 @@ internal fun NoteDetailScreen(
         }
 
     Scaffold(
+        modifier = modifier,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -290,51 +294,58 @@ internal fun NoteDetailScreen(
                 },
             )
 
-            when {
-                isEncrypted && !isDecrypted ->
-                    EncryptedNotePlaceholder(
-                        encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
-                        canDecryptInApp = isEncryptedByContent,
-                        hintText = placeholderHint,
-                        onDecryptClick = { detailVm.showDecryptDialog() },
-                        onBiometricClick =
-                            if (hasBiometricPassphrase) {
-                                { launchBiometricUnlock() }
-                            } else {
-                                null
+            // Remaining height below the app bar; scrollable children must not use fillMaxSize()
+            // without a bounded parent (causes infinite-constraint crashes in Compose).
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                when {
+                    isEncrypted && !isDecrypted ->
+                        EncryptedNotePlaceholder(
+                            encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
+                            canDecryptInApp = isEncryptedByContent,
+                            hintText = placeholderHint,
+                            onDecryptClick = { detailVm.showDecryptDialog() },
+                            onBiometricClick =
+                                if (hasBiometricPassphrase) {
+                                    { launchBiometricUnlock() }
+                                } else {
+                                    null
+                                },
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    isEditing ->
+                        NoteEditor(
+                            title = title,
+                            onTitleChange = { detailVm.setTitle(it) },
+                            content = if (isEncrypted) decryptedContent.orEmpty() else content,
+                            onContentChange = {
+                                if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
                             },
-                    )
-                isEditing ->
-                    NoteEditor(
-                        title = title,
-                        onTitleChange = { detailVm.setTitle(it) },
-                        content = if (isEncrypted) decryptedContent.orEmpty() else content,
-                        onContentChange = {
-                            if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
-                        },
-                        category = category,
-                        onCategoryChange = { detailVm.setCategory(it) },
-                        categorySuggestions = categorySuggestions,
-                    )
-                else ->
-                    Column {
-                        if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
-                            Text(
-                                text = stringResource(R.string.legacy_encryption_warning),
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
+                            category = category,
+                            onCategoryChange = { detailVm.setCategory(it) },
+                            categorySuggestions = categorySuggestions,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    else ->
+                        Column(Modifier.fillMaxSize()) {
+                            if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
+                                Text(
+                                    text = stringResource(R.string.legacy_encryption_warning),
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                            NoteView(
+                                content =
+                                    when {
+                                        isEncrypted -> decryptedContent.orEmpty()
+                                        else -> displayContent.orEmpty()
+                                    },
+                                imageLoader = imageLoader,
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
                             )
                         }
-                        NoteView(
-                            content =
-                                when {
-                                    isEncrypted -> decryptedContent.orEmpty()
-                                    else -> displayContent.orEmpty()
-                                },
-                            imageLoader = imageLoader,
-                        )
-                    }
+                }
             }
         }
     }

@@ -47,7 +47,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **XChaCha20 encryption and Jotty web** — Notes encrypted in the app now use AEAD combined order (`ciphertext` then `tag`), matching the Jotty web app. Previously, web showed “Incorrect password” for the correct passphrase; existing legacy-format notes still decrypt in the app and are flagged for re-encryption.
 - **Encrypted notes missing from list** — Notes returned by the API with sparse or null fields (common on some encrypted payloads) are normalized on fetch/sync so they appear in the notes list instead of being dropped.
 - **Biometric settings when unavailable** — Settings → Security hides auto-prompt, save-offer, and clear-all options when biometrics are not enrolled or not supported; only the status row is shown.
-- **Empty checklists/notes after first setup** — Initial sync no longer runs in a `LaunchedEffect` that could be cancelled when connectivity or settings update (showing “Job was cancelled” with an empty list). Sync is started from the offline ViewModel scope; cancelled syncs are not recorded as user-visible errors; debounce is skipped while the local checklist cache is empty.
+- **Empty checklists/notes after first setup** — Initial sync no longer runs in a `LaunchedEffect` that could be cancelled when connectivity or settings update (showing “Job was cancelled” with an empty list). Sync is started from the offline ViewModel scope and re-runs while the local cache is empty and the device is online; overlapping sync requests are serialized instead of skipped; cancelled syncs are not recorded as user-visible errors; debounce is skipped while the local checklist cache is empty.
 - **Note image rendering from HTML content** — Notes containing HTML image tags now render images in-app: standalone `<img>` plus common wrapper patterns (`<figure>`, `<picture>`) are converted to Markdown image syntax before rendering, matching web-authored note content more reliably.
 - **Colored note text from web HTML** — Notes containing inline color spans (e.g. `<span style="color: ...">`) now preserve color in-app by converting them to a renderer-friendly HTML color format before markdown rendering.
 - **Bottom-tab reselect in detail** — While viewing a note or checklist, tapping the active bottom tab (Notes/Checklists) now closes detail and returns to the overview list, matching back-button behavior.
@@ -56,7 +56,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Duplicate note title removed** — The note title no longer appears twice (it was rendered in both the app bar and the note view).
 - **Offline category moves** — Moving an offline note between categories now sends `originalCategory` on sync so the server moves it correctly.
 - **Theme palette edge cases** — `sepia`+dark and `midnight`+light now use matching variants instead of falling back to unrelated schemes.
-- **Note open crash** — Opening a note no longer crashes from measuring list and detail scrollables at the same time during the list↔detail transition.
+- **Note open crash** — Fixed Compose layout crashes when opening notes: list/detail no longer compose two scrollables at once, note body uses bounded height below the app bar, and offline detail gets correct `weight` in the parent column.
 
 ---
 

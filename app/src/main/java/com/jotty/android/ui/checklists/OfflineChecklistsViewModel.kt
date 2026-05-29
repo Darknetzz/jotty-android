@@ -5,10 +5,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineChecklistsRepository
+import com.jotty.android.data.local.scheduleInitialOfflineSyncWhenEmpty
+import kotlinx.coroutines.flow.map
 
 /**
  * Owns [OfflineChecklistsRepository] for the duration of the Checklists destination.
@@ -29,9 +30,10 @@ class OfflineChecklistsViewModel(
         )
 
     init {
-        viewModelScope.launch {
-            repository.syncChecklists(force = true)
-        }
+        scheduleInitialOfflineSyncWhenEmpty(
+            observeCacheEmpty = repository.getChecklistsFlow().map { it.isEmpty() },
+            sync = { repository.syncChecklists(force = true) },
+        )
     }
 
     override fun onCleared() {

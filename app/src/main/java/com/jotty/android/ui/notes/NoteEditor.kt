@@ -2,7 +2,6 @@ package com.jotty.android.ui.notes
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -35,6 +34,7 @@ internal fun NoteEditor(
     category: String = "",
     onCategoryChange: ((String) -> Unit)? = null,
     categorySuggestions: List<String> = emptyList(),
+    modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
     // Track selection locally so the formatting toolbar can wrap/insert at the cursor, while still
@@ -47,8 +47,8 @@ internal fun NoteEditor(
     }
     Column(
         modifier =
-            Modifier
-                .fillMaxSize()
+            modifier
+                .fillMaxWidth()
                 .verticalScroll(scrollState)
                 .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),

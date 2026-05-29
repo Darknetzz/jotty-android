@@ -55,7 +55,7 @@ fun OfflineNoteDetailScreen(
         NoteDetailScreen(
             note = note,
             actions = actions,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
+            modifier = Modifier.weight(1f, fill = true).fillMaxWidth(),
             onBack = onBack,
             onUpdate = onUpdate,
             onDelete = {

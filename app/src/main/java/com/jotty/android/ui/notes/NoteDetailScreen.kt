@@ -3,11 +3,11 @@ package com.jotty.android.ui.notes
 import android.content.Intent
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -52,6 +52,7 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -165,11 +166,12 @@ internal fun NoteDetailScreen(
             !biometricAutoTriggered
         ) {
             biometricAutoTriggered = true
+            delay(150)
             launchBiometricUnlock()
         }
     }
 
-    LaunchedEffect(note.encrypted, content, parsed) {
+    LaunchedEffect(note.encrypted, content) {
         detailVm.logEncryptionState()
     }
 
@@ -192,10 +194,9 @@ internal fun NoteDetailScreen(
         }
 
     Scaffold(
-        modifier = modifier,
+        modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        topBar = {
             TopAppBar(
                 title = {
                     Text(
@@ -293,58 +294,65 @@ internal fun NoteDetailScreen(
                     }
                 },
             )
-
-            // Remaining height below the app bar; scrollable children must not use fillMaxSize()
-            // without a bounded parent (causes infinite-constraint crashes in Compose).
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                when {
-                    isEncrypted && !isDecrypted ->
-                        EncryptedNotePlaceholder(
-                            encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
-                            canDecryptInApp = isEncryptedByContent,
-                            hintText = placeholderHint,
-                            onDecryptClick = { detailVm.showDecryptDialog() },
-                            onBiometricClick =
-                                if (hasBiometricPassphrase) {
-                                    { launchBiometricUnlock() }
-                                } else {
-                                    null
-                                },
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    isEditing ->
-                        NoteEditor(
-                            title = title,
-                            onTitleChange = { detailVm.setTitle(it) },
-                            content = if (isEncrypted) decryptedContent.orEmpty() else content,
-                            onContentChange = {
-                                if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
+        },
+    ) { padding ->
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+        ) {
+            when {
+                isEncrypted && !isDecrypted ->
+                    EncryptedNotePlaceholder(
+                        encryptionMethod = (parsed as? ParsedNoteContent.Encrypted)?.encryptionMethod ?: "xchacha",
+                        canDecryptInApp = isEncryptedByContent,
+                        hintText = placeholderHint,
+                        onDecryptClick = { detailVm.showDecryptDialog() },
+                        onBiometricClick =
+                            if (hasBiometricPassphrase) {
+                                { launchBiometricUnlock() }
+                            } else {
+                                null
                             },
-                            category = category,
-                            onCategoryChange = { detailVm.setCategory(it) },
-                            categorySuggestions = categorySuggestions,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    else ->
-                        Column(Modifier.fillMaxSize()) {
-                            if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
-                                Text(
-                                    text = stringResource(R.string.legacy_encryption_warning),
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            }
-                            NoteView(
-                                content =
-                                    when {
-                                        isEncrypted -> decryptedContent.orEmpty()
-                                        else -> displayContent.orEmpty()
-                                    },
-                                imageLoader = imageLoader,
-                                modifier = Modifier.weight(1f).fillMaxWidth(),
-                            )
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                isEditing ->
+                    NoteEditor(
+                        title = title,
+                        onTitleChange = { detailVm.setTitle(it) },
+                        content = if (isEncrypted) decryptedContent.orEmpty() else content,
+                        onContentChange = {
+                            if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
+                        },
+                        category = category,
+                        onCategoryChange = { detailVm.setCategory(it) },
+                        categorySuggestions = categorySuggestions,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                else -> {
+                    val viewContent =
+                        when {
+                            isEncrypted -> decryptedContent.orEmpty()
+                            else -> displayContent.orEmpty()
                         }
+                    NoteView(
+                        content = viewContent,
+                        imageLoader = imageLoader,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
+                        Text(
+                            text = stringResource(R.string.legacy_encryption_warning),
+                            modifier =
+                                Modifier
+                                    .align(Alignment.TopCenter)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }

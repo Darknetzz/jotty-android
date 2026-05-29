@@ -3,6 +3,7 @@ package com.jotty.android.ui.notes
 import androidx.activity.compose.LocalActivity
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -58,14 +59,18 @@ internal fun EncryptedNotePlaceholder(
     hintText: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
     ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(0.dp),
+        ) {
         Icon(
             Icons.Default.Lock,
             contentDescription = stringResource(R.string.note_is_encrypted),
@@ -111,6 +116,7 @@ internal fun EncryptedNotePlaceholder(
                     Text(stringResource(R.string.decrypt_note))
                 }
             }
+        }
         }
     }
 }

@@ -16,6 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isUnspecified
+import androidx.compose.ui.unit.sp
 import coil.ImageLoader
 import com.jotty.android.R
 import com.jotty.android.util.convertHtmlColorSpans
@@ -34,7 +36,29 @@ internal fun NoteView(
 ) {
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
-    val textScale = LocalReaderTextScale.current
+    val textScale = LocalReaderTextScale.current.coerceIn(0.75f, 1.5f)
+    val baseStyle = MaterialTheme.typography.bodyLarge
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val bodyStyle =
+        remember(textScale, baseStyle, onSurface) {
+            val fontSize =
+                if (baseStyle.fontSize.isUnspecified) {
+                    16.sp
+                } else {
+                    (baseStyle.fontSize.value * textScale).sp
+                }
+            val lineHeight =
+                if (baseStyle.lineHeight.isUnspecified) {
+                    fontSize * 1.5f
+                } else {
+                    (baseStyle.lineHeight.value * textScale).sp
+                }
+            baseStyle.copy(
+                color = onSurface,
+                fontSize = fontSize,
+                lineHeight = lineHeight,
+            )
+        }
     val displayMarkdown =
         remember(content) {
             convertHtmlTablesToGfm(
@@ -54,14 +78,7 @@ internal fun NoteView(
             MarkdownText(
                 markdown = displayMarkdown,
                 modifier = Modifier.fillMaxWidth(),
-                style =
-                    MaterialTheme.typography.bodyLarge.let { base ->
-                        base.copy(
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = base.fontSize * textScale,
-                            lineHeight = base.lineHeight * textScale,
-                        )
-                    },
+                style = bodyStyle,
                 syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
                 syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 imageLoader = imageLoader,

@@ -19,6 +19,20 @@ object AppLog {
     private val buffer = ConcurrentLinkedDeque<String>()
     private val timestampFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US)
 
+    @Volatile
+    private var crashHandlerInstalled = false
+
+    /** Records uncaught exceptions into the export buffer (call once from [android.app.Application.onCreate]). */
+    fun installCrashHandler() {
+        if (crashHandlerInstalled) return
+        crashHandlerInstalled = true
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            e("crash", "Uncaught on ${thread.name}", throwable)
+            previous?.uncaughtException(thread, throwable)
+        }
+    }
+
     fun snapshot(): String = buffer.joinToString(separator = "\n")
 
     fun clear() {

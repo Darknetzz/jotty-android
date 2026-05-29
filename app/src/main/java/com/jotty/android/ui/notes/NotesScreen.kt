@@ -288,6 +288,7 @@ fun NotesScreen(
                 } else {
                     val noteActions = remember(api) { ApiNoteDetailActions(api) }
                     NoteDetailScreen(
+                        modifier = Modifier.fillMaxSize(),
                         note = note,
                         actions = noteActions,
                         onBack = { vm.setSelectedNote(null) },

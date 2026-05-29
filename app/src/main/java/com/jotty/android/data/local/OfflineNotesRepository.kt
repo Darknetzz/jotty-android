@@ -167,6 +167,14 @@ class OfflineNotesRepository(
                         title = title,
                         content = content,
                         category = category,
+                        // Remember the pre-change category once, so a later sync can tell the
+                        // server which folder to move the note out of.
+                        originalCategory =
+                            if (existing.category != category) {
+                                existing.originalCategory ?: existing.category
+                            } else {
+                                existing.originalCategory
+                            },
                         updatedAt = java.time.Instant.now().toString(),
                         isDirty = true,
                     )
@@ -356,6 +364,7 @@ class OfflineNotesRepository(
                         title = note.title,
                         content = note.content,
                         category = note.category,
+                        originalCategory = note.originalCategory ?: note.category,
                     )
                 val response = api.updateNote(note.id, request)
                 if (response.success) {

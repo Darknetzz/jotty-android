@@ -134,6 +134,10 @@ dependencies {
     // WorkManager for background sync
     implementation("androidx.work:work-runtime-ktx:2.10.0")
 
+    // Glance for home-screen widgets
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.glance:glance-material3:1.1.1")
+
     // Markdown rendering for notes (images via Coil)
     implementation("com.github.jeziellago:compose-markdown:0.5.8")
     implementation("io.coil-kt:coil:2.6.0")

@@ -1,5 +1,6 @@
 package com.jotty.android.ui.settings
 
+import android.os.Build
 import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -75,10 +76,12 @@ fun SettingsScreen(
     val currentInstance by settingsRepository.currentInstance.collectAsStateWithLifecycle(initialValue = null)
     val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = null)
     val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
+    val readerTextScale by settingsRepository.readerTextScale.collectAsStateWithLifecycle(initialValue = 1.0f)
     val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
+    val reducedMotionMode by settingsRepository.reducedMotionMode.collectAsStateWithLifecycle(initialValue = null)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -252,15 +255,18 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                listOf(
-                                    "default" to R.string.theme_color_default,
-                                    "amoled" to R.string.theme_amoled,
-                                    "sepia" to R.string.theme_sepia,
-                                    "midnight" to R.string.theme_midnight,
-                                    "rose" to R.string.theme_rose,
-                                    "ocean" to R.string.theme_ocean,
-                                    "forest" to R.string.theme_forest,
-                                ).forEach { (value, labelRes) ->
+                                buildList {
+                                    add("default" to R.string.theme_color_default)
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        add("dynamic" to R.string.theme_dynamic)
+                                    }
+                                    add("amoled" to R.string.theme_amoled)
+                                    add("sepia" to R.string.theme_sepia)
+                                    add("midnight" to R.string.theme_midnight)
+                                    add("rose" to R.string.theme_rose)
+                                    add("ocean" to R.string.theme_ocean)
+                                    add("forest" to R.string.theme_forest)
+                                }.forEach { (value, labelRes) ->
                                     FilterChip(
                                         selected = themeColor == value,
                                         onClick = {
@@ -296,6 +302,72 @@ fun SettingsScreen(
                                         },
                                         label = { Text(stringResource(labelRes)) },
                                     )
+                                }
+                            }
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.reader_text_size)) },
+                        supportingContent = {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    0.85f to R.string.text_size_small,
+                                    1.0f to R.string.text_size_medium,
+                                    1.15f to R.string.text_size_large,
+                                    1.3f to R.string.text_size_xlarge,
+                                ).forEach { (value, labelRes) ->
+                                    FilterChip(
+                                        selected = readerTextScale == value,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setReaderTextScale(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
+                                }
+                            }
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.reduced_motion_label)) },
+                        supportingContent = {
+                            Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                                Text(
+                                    stringResource(R.string.reduced_motion_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    listOf(
+                                        null to R.string.reduced_motion_system,
+                                        "on" to R.string.reduced_motion_on,
+                                        "off" to R.string.reduced_motion_off,
+                                    ).forEach { (value, labelRes) ->
+                                        val isSelected =
+                                            when (value) {
+                                                null -> reducedMotionMode.isNullOrBlank()
+                                                else -> reducedMotionMode == value
+                                            }
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = {
+                                                scope.launch {
+                                                    settingsRepository.setReducedMotionMode(value)
+                                                }
+                                            },
+                                            label = { Text(stringResource(labelRes)) },
+                                        )
+                                    }
                                 }
                             }
                         },
@@ -672,8 +744,10 @@ private sealed class UpdateUiState {
 private fun DashboardSummaryCard(summary: SummaryData) {
     val notesTotal = summary.notes?.total ?: 0
     val listsTotal = summary.checklists?.total ?: 0
-    val completionRate = summary.items?.completionRate
-    val hasAny = notesTotal > 0 || listsTotal > 0 || completionRate != null
+    val items = summary.items
+    val tasks = summary.tasks
+    val hasAny =
+        notesTotal > 0 || listsTotal > 0 || items != null || tasks != null
 
     if (!hasAny) return
 
@@ -681,7 +755,7 @@ private fun DashboardSummaryCard(summary: SummaryData) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             summary.username?.let { u ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -701,8 +775,72 @@ private fun DashboardSummaryCard(summary: SummaryData) {
             ) {
                 if (notesTotal > 0 || summary.notes != null) StatChip(stringResource(R.string.stat_notes), notesTotal)
                 if (listsTotal > 0 || summary.checklists != null) StatChip(stringResource(R.string.stat_checklists), listsTotal)
-                completionRate?.let { StatChip(stringResource(R.string.stat_done_percent), it) }
             }
+
+            items?.let { i ->
+                DashboardBreakdown(
+                    title = stringResource(R.string.dashboard_items_title),
+                    completionRate = i.completionRate,
+                    chips =
+                        buildList {
+                            i.total?.let { add(stringResource(R.string.stat_total) to it) }
+                            i.completed?.let { add(stringResource(R.string.stat_completed) to it) }
+                            i.pending?.let { add(stringResource(R.string.stat_pending) to it) }
+                        },
+                )
+            }
+
+            tasks?.let { t ->
+                DashboardBreakdown(
+                    title = stringResource(R.string.dashboard_tasks_title),
+                    completionRate = t.completionRate,
+                    chips =
+                        buildList {
+                            t.total?.let { add(stringResource(R.string.stat_total) to it) }
+                            t.completed?.let { add(stringResource(R.string.stat_completed) to it) }
+                            t.inProgress?.let { add(stringResource(R.string.stat_in_progress) to it) }
+                            t.todo?.let { add(stringResource(R.string.stat_todo) to it) }
+                        },
+                )
+            }
+        }
+    }
+}
+
+/** A titled stat breakdown with optional completion progress bar; used by the dashboard card. */
+@Composable
+private fun DashboardBreakdown(
+    title: String,
+    completionRate: Int?,
+    chips: List<Pair<String, Int>>,
+) {
+    if (chips.isEmpty() && completionRate == null) return
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        if (chips.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                chips.forEach { (label, value) -> StatChip(label, value) }
+            }
+        }
+        completionRate?.let { rate ->
+            LinearProgressIndicator(
+                progress = { (rate.coerceIn(0, 100)) / 100f },
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
+            )
+            Text(
+                stringResource(R.string.dashboard_completion_format, rate),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
         }
     }
 }

@@ -97,6 +97,14 @@
     <string name="markdown_hint">Supports **bold**, *italic*, # headings, lists, [links](url), ![images](url)</string>
     <string name="category_all">All</string>
     <string name="all_categories">All categories</string>
+    <string name="category">Category</string>
+    <string name="cd_choose_category">Choose category</string>
+    <string name="change_category">Change category</string>
+    <string name="note_content_optional">Content (optional)</string>
+    <string name="cd_sort">Sort</string>
+    <string name="sort_updated">Last updated</string>
+    <string name="sort_created">Date created</string>
+    <string name="sort_title">Title (A–Z)</string>
 
     <!-- Encrypt / Decrypt dialogs -->
     <string name="encrypt_note">Encrypt note</string>
@@ -175,6 +183,22 @@
     <string name="theme_rose">Rose</string>
     <string name="theme_ocean">Ocean</string>
     <string name="theme_forest">Forest</string>
+    <string name="theme_dynamic">Dynamic</string>
+    <string name="reader_text_size">Reader text size</string>
+    <string name="text_size_small">Small</string>
+    <string name="text_size_medium">Medium</string>
+    <string name="text_size_large">Large</string>
+    <string name="text_size_xlarge">Extra large</string>
+    <string name="switch_instance">Switch instance</string>
+    <string name="md_bold">Bold</string>
+    <string name="md_italic">Italic</string>
+    <string name="md_code">Code</string>
+    <string name="md_heading">Heading</string>
+    <string name="md_list">Bullet list</string>
+    <string name="md_quote">Quote</string>
+    <string name="md_link">Link</string>
+    <string name="widget_new_note">New note</string>
+    <string name="widget_new_note_description">Quickly create a new Jotty note</string>
     <string name="start_screen">Start screen</string>
     <string name="swipe_to_delete">Swipe to delete</string>
     <string name="swipe_to_delete_description">Swipe list or note rows left to delete (checklists and notes)</string>
@@ -184,6 +208,11 @@
     <string name="content_padding_description">Vertical spacing at top and bottom of screens</string>
     <string name="content_padding_comfortable">Comfortable</string>
     <string name="content_padding_compact">Compact</string>
+    <string name="reduced_motion_label">Reduced motion</string>
+    <string name="reduced_motion_description">Limits cross-fade and other decorative transitions. System follows your device accessibility setting.</string>
+    <string name="reduced_motion_system">System</string>
+    <string name="reduced_motion_on">On</string>
+    <string name="reduced_motion_off">Off</string>
     <string name="settings_category_troubleshooting">Troubleshooting</string>
     <string name="export_debug_logs">Export debug logs</string>
     <string name="export_debug_logs_description">Save recent in-app diagnostics (sync, encryption, etc.) to share for troubleshooting.</string>
@@ -269,6 +298,16 @@
     <string name="stat_checklists">Checklists</string>
     <string name="stat_users">Users</string>
     <string name="stat_done_percent">Done %%</string>
+    <string name="stat_items">Items</string>
+    <string name="stat_tasks">Tasks</string>
+    <string name="stat_total">Total</string>
+    <string name="stat_completed">Completed</string>
+    <string name="stat_pending">Pending</string>
+    <string name="stat_in_progress">In progress</string>
+    <string name="stat_todo">To do</string>
+    <string name="dashboard_items_title">Checklist items</string>
+    <string name="dashboard_tasks_title">Tasks</string>
+    <string name="dashboard_completion_format">%1$d%% complete</string>
 
     <!-- Biometric passphrase protection -->
     <string name="biometric_prompt_title">Unlock passphrase</string>

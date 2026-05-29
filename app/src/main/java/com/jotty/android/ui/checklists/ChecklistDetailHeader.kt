@@ -13,6 +13,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,7 +24,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import com.jotty.android.R
+import com.jotty.android.ui.common.CategorySelector
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.RenameDropdownMenuItem
@@ -92,26 +96,41 @@ fun ChecklistDetailHeader(
 fun ChecklistRenameDialog(
     initialTitle: String,
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit,
+    onConfirm: (title: String, category: String) -> Unit,
+    initialCategory: String = "",
+    categorySuggestions: List<String> = emptyList(),
 ) {
     var title by remember(initialTitle) { mutableStateOf(initialTitle) }
+    var category by remember(initialCategory) { mutableStateOf(initialCategory) }
     val untitled = stringResource(R.string.untitled)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.rename_checklist)) },
         text = {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text(stringResource(R.string.title)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text(stringResource(R.string.title)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                CategorySelector(
+                    category = category,
+                    onCategoryChange = { category = it },
+                    suggestions = categorySuggestions,
+                )
+            }
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(title.ifBlank { untitled }) },
+                onClick = {
+                    onConfirm(
+                        title.ifBlank { untitled },
+                        category.ifBlank { com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED },
+                    )
+                },
             ) {
                 Text(stringResource(R.string.save))
             }

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -26,13 +27,18 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.ListSortOption
+import com.jotty.android.ui.common.SortMenuButton
+import com.jotty.android.ui.common.sortedBy
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.AppLog
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +48,8 @@ fun NotesScreen(
     settingsRepository: SettingsRepository,
     initialNoteId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
+    sharedText: String? = null,
+    onSharedTextConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     biometricStore: BiometricPassphraseStore? = null,
@@ -64,6 +72,9 @@ fun NotesScreen(
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val noteCategories by vm.noteCategories.collectAsStateWithLifecycle()
+    val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
+    val sortOption = ListSortOption.fromKey(sortKey)
+    val sortedNotes = remember(notes, sortOption) { notes.sortedBy(sortOption) }
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -85,6 +96,26 @@ fun NotesScreen(
             scope.launch { snackbarHostState.showSnackbar(noteNotFoundMsg) }
             onDeepLinkConsumed()
         }
+    }
+
+    var pendingSharedText by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(sharedText) {
+        if (sharedText != null) {
+            pendingSharedText = sharedText
+            vm.setSelectedNote(null)
+            vm.setShowCreateDialog(true)
+            onSharedTextConsumed()
+        }
+    }
+
+    // Restore the persisted category filter once, then persist subsequent changes.
+    var filterRestored by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        settingsRepository.notesCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
+        filterRestored = true
+    }
+    LaunchedEffect(selectedCategory, filterRestored) {
+        if (filterRestored) settingsRepository.setNotesCategoryFilter(selectedCategory)
     }
 
     BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
@@ -121,16 +152,26 @@ fun NotesScreen(
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
-            when (val note = selectedNote) {
-                null -> {
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { vm.setSearchQuery(it) },
+            ListDetailContainer(target = selectedNote, modifier = Modifier.fillMaxSize()) { note ->
+                if (note == null) {
+                    Column(Modifier.fillMaxSize()) {
+                    Row(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        placeholder = { Text(stringResource(R.string.search_notes)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
-                        singleLine = true,
-                    )
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { vm.setSearchQuery(it) },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text(stringResource(R.string.search_notes)) },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
+                            singleLine = true,
+                        )
+                        SortMenuButton(
+                            current = sortOption,
+                            onSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
+                        )
+                    }
                     if (noteCategories.isNotEmpty()) {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
@@ -169,7 +210,7 @@ fun NotesScreen(
                     ListScreenContent(
                         loading = loading,
                         error = error,
-                        isEmpty = notes.isEmpty(),
+                        isEmpty = sortedNotes.isEmpty(),
                         onRetry = { vm.loadNotes() },
                         emptyIcon = Icons.AutoMirrored.Filled.Note,
                         emptyTitle = stringResource(R.string.no_notes_yet),
@@ -180,7 +221,7 @@ fun NotesScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                items(notes, key = { it.id }) { n ->
+                                items(sortedNotes, key = { it.id }) { n ->
                                     val noteDeleteConfirm =
                                         stringResource(
                                             R.string.delete_note_confirm,
@@ -238,8 +279,8 @@ fun NotesScreen(
                             }
                         },
                     )
-                }
-                else -> {
+                    }
+                } else {
                     val noteActions = remember(api) { ApiNoteDetailActions(api) }
                     NoteDetailScreen(
                         note = note,
@@ -261,6 +302,7 @@ fun NotesScreen(
                         biometricStore = biometricStore,
                         biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
                         biometricSaveOfferEnabled = biometricSaveOfferEnabled,
+                        categorySuggestions = noteCategories,
                     )
                 }
             }
@@ -268,47 +310,33 @@ fun NotesScreen(
     }
 
     if (showCreateDialog) {
-        var title by remember { mutableStateOf("") }
-        val untitled = stringResource(R.string.untitled)
-        AlertDialog(
-            onDismissRequest = { vm.setShowCreateDialog(false) },
-            title = { Text(stringResource(R.string.new_note)) },
-            text = {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text(stringResource(R.string.title)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        CreateNoteDialog(
+            onDismiss = {
+                vm.setShowCreateDialog(false)
+                pendingSharedText = null
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            try {
-                                val created =
-                                    api.createNote(
-                                        CreateNoteRequest(
-                                            title = title.ifBlank { untitled },
-                                        ),
-                                    )
-                                if (created.success) {
-                                    vm.loadNotes()
-                                    vm.setSelectedNote(created.data)
-                                    vm.setShowCreateDialog(false)
-                                }
-                            } catch (_: Exception) {
-                                scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) }
-                            }
+            categorySuggestions = noteCategories,
+            initialContent = pendingSharedText.orEmpty(),
+            onCreate = { title, content, category ->
+                scope.launch {
+                    try {
+                        val created =
+                            api.createNote(
+                                CreateNoteRequest(
+                                    title = title,
+                                    content = content,
+                                    category = category,
+                                ),
+                            )
+                        if (created.success) {
+                            pendingSharedText = null
+                            vm.loadNotes()
+                            vm.setSelectedNote(created.data)
+                            vm.setShowCreateDialog(false)
                         }
-                    },
-                ) {
-                    Text(stringResource(R.string.create))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { vm.setShowCreateDialog(false) }) {
-                    Text(stringResource(R.string.cancel))
+                    } catch (_: Exception) {
+                        scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) }
+                    }
                 }
             },
         )

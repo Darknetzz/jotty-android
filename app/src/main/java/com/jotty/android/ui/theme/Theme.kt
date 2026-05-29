@@ -1,13 +1,17 @@
 package com.jotty.android.ui.theme
 
 import android.app.Activity
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
@@ -192,9 +196,42 @@ private val ForestDarkColorScheme =
         onSurface = Color.White,
     )
 
+// Warm sepia dark variant — keeps the warm tone instead of falling back to the neutral dark scheme.
+private val SepiaDarkBg = Color(0xFF2A2620)
+private val SepiaDarkSurface = Color(0xFF35302A)
+private val SepiaDarkColorScheme =
+    darkColorScheme(
+        primary = IndigoDark,
+        onPrimary = Color.White,
+        secondary = Indigo,
+        onSecondary = Color.White,
+        background = SepiaDarkBg,
+        surface = SepiaDarkSurface,
+        onBackground = Color(0xFFEDE4D0),
+        onSurface = Color(0xFFEDE4D0),
+    )
+
+// Midnight light variant — navy-tinted light scheme so "midnight" + light stays on-brand.
+private val MidnightLightBg = Color(0xFFEEF3FA)
+private val MidnightLightSurface = Color(0xFFFFFFFF)
+private val MidnightLightColorScheme =
+    lightColorScheme(
+        primary = MidnightBlue,
+        onPrimary = Color.White,
+        secondary = MidnightBlueLight,
+        onSecondary = Color.White,
+        background = MidnightLightBg,
+        surface = MidnightLightSurface,
+        onBackground = MidnightBg,
+        onSurface = Color(0xFF13243A),
+    )
+
+/** True-black AMOLED light fallback: AMOLED is a dark concept, so light mode uses the neutral light scheme. */
+
 /**
- * Resolves [themeMode] (null/"system", "light", "dark") and [themeColor] ("default", "amoled", etc.)
- * to a ColorScheme. E.g. Dark + Forest → Forest dark variant.
+ * Resolves [themeMode] (null/"system", "light", "dark") and [themeColor] ("default", "amoled",
+ * "dynamic", etc.) to a ColorScheme. E.g. Dark + Forest → Forest dark variant. "dynamic" uses
+ * Material You wallpaper colors on Android 12+ and falls back to the default scheme below that.
  */
 @Composable
 fun JottyTheme(
@@ -209,11 +246,18 @@ fun JottyTheme(
             "light" -> false
             else -> systemDark
         }
+    val context = LocalContext.current
     val colorScheme =
         when (themeColor) {
+            "dynamic" ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+                } else {
+                    if (dark) DarkColorScheme else LightColorScheme
+                }
             "amoled" -> if (dark) AmoledColorScheme else LightColorScheme
-            "sepia" -> if (dark) DarkColorScheme else SepiaColorScheme
-            "midnight" -> if (dark) MidnightColorScheme else OceanColorScheme
+            "sepia" -> if (dark) SepiaDarkColorScheme else SepiaColorScheme
+            "midnight" -> if (dark) MidnightColorScheme else MidnightLightColorScheme
             "rose" -> if (dark) RoseDarkColorScheme else RoseColorScheme
             "ocean" -> if (dark) OceanDarkColorScheme else OceanColorScheme
             "forest" -> if (dark) ForestDarkColorScheme else ForestColorScheme

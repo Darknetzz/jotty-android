@@ -35,6 +35,7 @@ import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.accentColor
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
@@ -235,15 +236,12 @@ private fun InstanceCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (instance.colorHex != null) {
+            instance.accentColor()?.let { accent ->
                 Box(
                     modifier =
                         Modifier
                             .size(12.dp)
-                            .background(
-                                Color((instance.colorHex.toInt() and 0xFFFFFF) or 0xFF000000.toInt()),
-                                CircleShape,
-                            ),
+                            .background(accent, CircleShape),
                 )
             }
             Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link))

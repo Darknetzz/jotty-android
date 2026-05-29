@@ -125,6 +125,7 @@ class NoteDetailViewModelTest {
                         title: String,
                         content: String,
                         category: String,
+                        originalCategory: String,
                     ): Result<Note> = Result.success(note.copy(title = title, content = content))
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> = Result.success(Unit)
@@ -159,6 +160,7 @@ class NoteDetailViewModelTest {
                         title: String,
                         content: String,
                         category: String,
+                        originalCategory: String,
                     ): Result<Note> = Result.failure(Exception("fail"))
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> = Result.success(Unit)
@@ -198,6 +200,7 @@ class NoteDetailViewModelTest {
                         title: String,
                         content: String,
                         category: String,
+                        originalCategory: String,
                     ): Result<Note> = Result.failure(UnsupportedOperationException())
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> =
@@ -231,6 +234,7 @@ class NoteDetailViewModelTest {
                         title: String,
                         content: String,
                         category: String,
+                        originalCategory: String,
                     ): Result<Note> = Result.failure(UnsupportedOperationException())
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> =

@@ -189,6 +189,7 @@ class OfflineChecklistsRepository(
     suspend fun updateChecklist(
         id: String,
         title: String,
+        category: String? = null,
     ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -198,6 +199,7 @@ class OfflineChecklistsRepository(
                 val updated =
                     existing.copy(
                         title = title,
+                        category = category ?: existing.category,
                         updatedAt = Instant.now().toString(),
                         isDirty = true,
                     )

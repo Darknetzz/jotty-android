@@ -2,6 +2,8 @@ package com.jotty.android.ui.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.WifiOff
@@ -147,22 +149,44 @@ fun ListScreenContent(
 ) {
     val pullRefreshState = rememberPullToRefreshState()
     when {
-        loading && isEmpty -> LoadingState()
-        error != null && isEmpty -> ErrorState(message = error, onRetry = onRetry)
-        isEmpty ->
-            EmptyState(
-                icon = emptyIcon,
-                title = emptyTitle,
-                subtitle = emptySubtitle,
-            )
+        loading && isEmpty -> ListLoadingSkeleton()
         else ->
             PullToRefreshBox(
                 isRefreshing = loading,
                 onRefresh = onRefresh,
                 state = pullRefreshState,
             ) {
-                content()
+                when {
+                    // Make empty/error states pull-to-refreshable: a scrollable wrapper lets the
+                    // overscroll gesture reach PullToRefreshBox even when the content fits the screen.
+                    error != null && isEmpty ->
+                        ScrollableFullSize {
+                            ErrorState(message = error, onRetry = onRetry)
+                        }
+                    isEmpty ->
+                        ScrollableFullSize {
+                            EmptyState(
+                                icon = emptyIcon,
+                                title = emptyTitle,
+                                subtitle = emptySubtitle,
+                            )
+                        }
+                    else -> content()
+                }
             }
+    }
+}
+
+/** Full-size vertically scrollable wrapper so a non-list child still drives pull-to-refresh. */
+@Composable
+private fun ScrollableFullSize(content: @Composable () -> Unit) {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState()),
+    ) {
+        content()
     }
 }
 

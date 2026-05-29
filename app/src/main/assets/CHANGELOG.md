@@ -8,6 +8,16 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Home-screen widget** — A **New note** Glance widget opens the app straight into the create-note dialog.
+- **Markdown formatting toolbar** — The note editor has a toolbar for bold, italic, code, heading, bullet list, quote, and link that wraps the current selection or inserts at the cursor.
+- **Share into Jotty** — Text shared from other apps (and the widget) opens a prefilled new note via an `ACTION_SEND` share target.
+- **Category management** — Pick or type a category when creating notes/checklists and change it from the detail editor, with suggestions from existing categories.
+- **Sort menu** — Notes and checklists can be sorted by Updated, Created, or Title; the choice is remembered.
+- **Material You** — Settings → Appearance → Theme color adds a **Dynamic** option using wallpaper colors on Android 12+.
+- **Reader text size** — Settings → Appearance → **Reader text size** (Small / Medium / Large / Extra large) scales note content.
+- **Quick instance switcher** — The top bar shows the current instance accent and a menu to switch instances or manage them.
+- **Richer dashboard** — Settings → Overview now breaks down checklist items and tasks with totals and completion progress bars.
+- **Reduced motion** — Settings → Appearance → **Reduced motion** (System / On / Off). System follows the device accessibility setting; On skips decorative transitions such as the setup ↔ main cross-fade.
 - **Note list preview toggle** — Settings → Behavior → **Note preview in list** shows or hides the body excerpt under each title in the notes list (encrypted notes still show the lock label).
 - **Update changelog from GitHub** — When checking for updates, the app fetches `CHANGELOG.md` from the matching branch (`main` for stable, `dev` for dev-latest) and uses it for “What’s new” instead of the bundled file on the installed APK.
 
@@ -18,6 +28,11 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **About update status** — Check-for-updates results use styled alert banners (success, info, error, and loading) with icons in the About dialog.
 - **In-app changelog** — About → View changelog shows the bundled `CHANGELOG.md` for the installed version; when an update is available, View changelog for … opens the matching section (or GitHub release notes as fallback) in a scrollable dialog.
 - **Detail top spacing** — Note and checklist detail screens now use a tighter top inset (4dp) so the title/header sits closer to the app bar while preserving a small visual gap.
+- **Online checklist parity** — The online-only checklists screen gains the search field and category filter chips already present in the offline-enabled screen.
+- **Animated list ↔ detail** — Opening and closing a note or checklist now slides between the list and detail (respecting Reduced motion).
+- **Loading skeletons** — List screens show shimmer placeholders while loading instead of a centered spinner.
+- **Pull-to-refresh on empty/error** — Empty and error states for notes and checklists can now be pulled to refresh.
+- **Category filter persistence** — The selected notes/checklists category filter survives app restarts.
 
 ### Added
 
@@ -36,6 +51,11 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Note image rendering from HTML content** — Notes containing HTML image tags now render images in-app: standalone `<img>` plus common wrapper patterns (`<figure>`, `<picture>`) are converted to Markdown image syntax before rendering, matching web-authored note content more reliably.
 - **Colored note text from web HTML** — Notes containing inline color spans (e.g. `<span style="color: ...">`) now preserve color in-app by converting them to a renderer-friendly HTML color format before markdown rendering.
 - **Bottom-tab reselect in detail** — While viewing a note or checklist, tapping the active bottom tab (Notes/Checklists) now closes detail and returns to the overview list, matching back-button behavior.
+- **Edit decrypted notes** — A decrypted note can now be edited; saving re-encrypts the body with a passphrase you confirm.
+- **Checklist undo restores items** — Undoing a checklist delete now restores the full item tree (including nested items and completion state), not just the title and type.
+- **Duplicate note title removed** — The note title no longer appears twice (it was rendered in both the app bar and the note view).
+- **Offline category moves** — Moving an offline note between categories now sends `originalCategory` on sync so the server moves it correctly.
+- **Theme palette edge cases** — `sepia`+dark and `midnight`+light now use matching variants instead of falling back to unrelated schemes.
 
 ---
 

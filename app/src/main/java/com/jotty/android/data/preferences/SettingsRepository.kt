@@ -3,6 +3,7 @@ package com.jotty.android.data.preferences
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -95,6 +96,36 @@ class SettingsRepository(
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_CONTENT_PADDING].takeIf { !it.isNullOrBlank() } ?: "comfortable"
         }.catch { emit("comfortable") }
+
+    /** List sort order for notes and checklists: "updated", "created", "title". Default "updated". */
+    val listSortOption: Flow<String> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_LIST_SORT].takeIf { !it.isNullOrBlank() } ?: "updated"
+        }.catch { emit("updated") }
+
+    /** Persisted category filter for the notes list; null = all categories. */
+    val notesCategoryFilter: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_NOTES_CATEGORY_FILTER].takeIf { !it.isNullOrBlank() }
+        }.catch { emit(null) }
+
+    /** Persisted category filter for the checklists list; null = all categories. */
+    val checklistsCategoryFilter: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_CHECKLISTS_CATEGORY_FILTER].takeIf { !it.isNullOrBlank() }
+        }.catch { emit(null) }
+
+    /** Reader text scale for note content: 0.85, 1.0, 1.15, 1.3. Default 1.0. */
+    val readerTextScale: Flow<Float> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_READER_TEXT_SCALE] ?: 1.0f
+        }.catch { emit(1.0f) }
+
+    /** Reduced motion: null/"system" = follow device; "on"; "off". */
+    val reducedMotionMode: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_REDUCED_MOTION].takeIf { !it.isNullOrBlank() }
+        }.catch { emit(null) }
 
     /** Local storage & sync: enable local cache and sync. Default true. */
     val offlineModeEnabled: Flow<Boolean> =
@@ -225,6 +256,41 @@ class SettingsRepository(
     suspend fun setContentPaddingMode(value: String) {
         context.jottySettingsDataStore.edit {
             if (value == "comfortable") it.remove(KEY_CONTENT_PADDING) else it[KEY_CONTENT_PADDING] = value
+        }
+    }
+
+    suspend fun setListSortOption(value: String) {
+        context.jottySettingsDataStore.edit {
+            if (value == "updated") it.remove(KEY_LIST_SORT) else it[KEY_LIST_SORT] = value
+        }
+    }
+
+    suspend fun setNotesCategoryFilter(value: String?) {
+        context.jottySettingsDataStore.edit {
+            if (value.isNullOrBlank()) it.remove(KEY_NOTES_CATEGORY_FILTER) else it[KEY_NOTES_CATEGORY_FILTER] = value
+        }
+    }
+
+    suspend fun setChecklistsCategoryFilter(value: String?) {
+        context.jottySettingsDataStore.edit {
+            if (value.isNullOrBlank()) it.remove(KEY_CHECKLISTS_CATEGORY_FILTER) else it[KEY_CHECKLISTS_CATEGORY_FILTER] = value
+        }
+    }
+
+    suspend fun setReaderTextScale(value: Float) {
+        context.jottySettingsDataStore.edit {
+            if (value == 1.0f) it.remove(KEY_READER_TEXT_SCALE) else it[KEY_READER_TEXT_SCALE] = value
+        }
+    }
+
+    suspend fun setReducedMotionMode(value: String?) {
+        context.jottySettingsDataStore.edit {
+            val v = value?.lowercase()?.trim()
+            if (v.isNullOrBlank() || v == "system") {
+                it.remove(KEY_REDUCED_MOTION)
+            } else {
+                it[KEY_REDUCED_MOTION] = v
+            }
         }
     }
 
@@ -381,6 +447,11 @@ class SettingsRepository(
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
         private val KEY_NOTE_LIST_PREVIEW = booleanPreferencesKey("note_list_preview_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
+        private val KEY_LIST_SORT = stringPreferencesKey("list_sort_option")
+        private val KEY_NOTES_CATEGORY_FILTER = stringPreferencesKey("notes_category_filter")
+        private val KEY_CHECKLISTS_CATEGORY_FILTER = stringPreferencesKey("checklists_category_filter")
+        private val KEY_READER_TEXT_SCALE = floatPreferencesKey("reader_text_scale")
+        private val KEY_REDUCED_MOTION = stringPreferencesKey("reduced_motion_mode")
         private val KEY_BIOMETRIC_AUTO_UNLOCK = booleanPreferencesKey("biometric_auto_unlock_enabled")
         private val KEY_BIOMETRIC_SAVE_OFFER = booleanPreferencesKey("biometric_save_offer_enabled")
         private val KEY_OFFLINE_MODE = booleanPreferencesKey("offline_mode_enabled")

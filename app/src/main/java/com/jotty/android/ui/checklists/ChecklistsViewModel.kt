@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.AddItemRequest
+import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.CreateChecklistRequest
@@ -165,6 +166,7 @@ class ChecklistsViewModel(
     fun createChecklist(
         title: String,
         projectTaskType: Boolean,
+        category: String = API_CATEGORY_UNCATEGORIZED,
         onFailure: () -> Unit,
     ) {
         viewModelScope.launch {
@@ -173,6 +175,7 @@ class ChecklistsViewModel(
                     api.createChecklist(
                         CreateChecklistRequest(
                             title = title,
+                            category = category,
                             type = if (projectTaskType) "task" else "simple",
                         ),
                     )

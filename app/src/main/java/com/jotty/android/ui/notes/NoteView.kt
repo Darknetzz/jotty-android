@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -23,6 +24,9 @@ import com.jotty.android.util.convertHtmlImagesToMarkdown
 import com.jotty.android.util.convertHtmlTablesToGfm
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
+/** Reader text scale (font multiplier) for note content; provided from app-level settings. */
+val LocalReaderTextScale = compositionLocalOf { 1.0f }
+
 @Composable
 internal fun NoteView(
     content: String,
@@ -30,6 +34,7 @@ internal fun NoteView(
 ) {
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
+    val textScale = LocalReaderTextScale.current
     val displayMarkdown =
         remember(content) {
             convertHtmlTablesToGfm(
@@ -50,9 +55,13 @@ internal fun NoteView(
                 markdown = displayMarkdown,
                 modifier = Modifier.fillMaxWidth(),
                 style =
-                    MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                    ),
+                    MaterialTheme.typography.bodyLarge.let { base ->
+                        base.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontSize = base.fontSize * textScale,
+                            lineHeight = base.lineHeight * textScale,
+                        )
+                    },
                 syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
                 syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 imageLoader = imageLoader,

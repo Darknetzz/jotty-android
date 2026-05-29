@@ -9,15 +9,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Room database for offline storage.
- * Database version: 4
+ * Database version: 5
  *
  * v1 → v2: add isLocalOnly column to notes.
  * v2 → v3: add checklists table for offline checklist support.
  * v3 → v4: add index on notes.instanceId for list queries.
+ * v4 → v5: add originalCategory column to notes (for category moves on sync).
  */
 @Database(
     entities = [NoteEntity::class, ChecklistEntity::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 abstract class JottyDatabase : RoomDatabase() {
@@ -78,6 +79,13 @@ abstract class JottyDatabase : RoomDatabase() {
                 }
             }
 
+        private val MIGRATION_4_5 =
+            object : Migration(4, 5) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE notes ADD COLUMN originalCategory TEXT DEFAULT NULL")
+                }
+            }
+
         fun getDatabase(context: Context): JottyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance =
@@ -86,7 +94,7 @@ abstract class JottyDatabase : RoomDatabase() {
                         JottyDatabase::class.java,
                         "jotty_database",
                     )
-                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                         .build()
                 INSTANCE = instance
                 instance

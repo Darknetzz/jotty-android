@@ -65,6 +65,7 @@ internal fun NoteDetailScreen(
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
     biometricSaveOfferEnabled: Boolean = true,
+    categorySuggestions: List<String> = emptyList(),
 ) {
     val detailVm: NoteDetailViewModel =
         viewModel(
@@ -74,6 +75,7 @@ internal fun NoteDetailScreen(
 
     val title by detailVm.title.collectAsStateWithLifecycle()
     val content by detailVm.content.collectAsStateWithLifecycle()
+    val category by detailVm.category.collectAsStateWithLifecycle()
     val isEditing by detailVm.isEditing.collectAsStateWithLifecycle()
     val saving by detailVm.saving.collectAsStateWithLifecycle()
     val decryptedContent by detailVm.decryptedContent.collectAsStateWithLifecycle()
@@ -310,6 +312,9 @@ internal fun NoteDetailScreen(
                         onContentChange = {
                             if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
                         },
+                        category = category,
+                        onCategoryChange = { detailVm.setCategory(it) },
+                        categorySuggestions = categorySuggestions,
                     )
                 else ->
                     Column {

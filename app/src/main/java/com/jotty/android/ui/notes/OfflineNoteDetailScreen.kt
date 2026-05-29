@@ -33,6 +33,7 @@ fun OfflineNoteDetailScreen(
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
     biometricSaveOfferEnabled: Boolean = true,
+    categorySuggestions: List<String> = emptyList(),
 ) {
     val scope = rememberCoroutineScope()
     val actions =
@@ -66,6 +67,7 @@ fun OfflineNoteDetailScreen(
             biometricStore = biometricStore,
             biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
             biometricSaveOfferEnabled = biometricSaveOfferEnabled,
+            categorySuggestions = categorySuggestions,
         )
     }
 }

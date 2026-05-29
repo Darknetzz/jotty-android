@@ -28,6 +28,12 @@ class NoteDetailViewModel(
     private val _content = MutableStateFlow(stripInvisibleFromEdges(note.content))
     val content: StateFlow<String> = _content.asStateFlow()
 
+    private val _category = MutableStateFlow(note.category)
+    val category: StateFlow<String> = _category.asStateFlow()
+
+    // Category currently stored on the server (used as originalCategory on the next save).
+    private var persistedCategory = note.category
+
     private val _isEditing = MutableStateFlow(false)
     val isEditing: StateFlow<Boolean> = _isEditing.asStateFlow()
 
@@ -89,6 +95,8 @@ class NoteDetailViewModel(
     fun resetFromNote(updated: Note) {
         _title.value = stripInvisibleFromEdges(updated.title)
         _content.value = stripInvisibleFromEdges(updated.content)
+        _category.value = updated.category
+        persistedCategory = updated.category
         _isEditing.value = false
         _saveFailed.value = false
         _legacyEncryptionDetected.value = false
@@ -116,6 +124,10 @@ class NoteDetailViewModel(
     /** Updates the in-memory decrypted plaintext while editing an encrypted note. */
     fun setDecryptedContent(value: String) {
         _decryptedContent.value = value
+    }
+
+    fun setCategory(value: String) {
+        _category.value = value
     }
 
     fun startEditing() {
@@ -182,9 +194,11 @@ class NoteDetailViewModel(
                     noteId = note.id,
                     title = _title.value,
                     content = _content.value,
-                    category = note.category,
+                    category = _category.value,
+                    originalCategory = persistedCategory,
                 )
             if (result.isSuccess) {
+                persistedCategory = _category.value
                 onSuccess(result.getOrThrow())
                 _isEditing.value = false
             } else {
@@ -215,7 +229,7 @@ class NoteDetailViewModel(
                         XChaCha20Encryptor.wrapWithFrontmatter(
                             note.id,
                             _title.value,
-                            note.category,
+                            _category.value,
                             body,
                         )
                     val result =
@@ -223,9 +237,11 @@ class NoteDetailViewModel(
                             noteId = note.id,
                             title = _title.value,
                             content = fullContent,
-                            category = note.category,
+                            category = _category.value,
+                            originalCategory = persistedCategory,
                         )
                     if (result.isSuccess) {
+                        persistedCategory = _category.value
                         // Keep the freshly-encrypted plaintext available so the note stays
                         // readable (and editable) without re-decrypting after save.
                         _decryptedContent.value = plainToEncrypt.takeIf { it.isNotBlank() }

@@ -6,12 +6,19 @@ import org.bouncycastle.crypto.params.Argon2Parameters
 import org.bouncycastle.crypto.params.KeyParameter
 import org.bouncycastle.crypto.params.ParametersWithIV
 import java.security.SecureRandom
-import java.util.Base64
+
+private fun encodeHex(bytes: ByteArray): String {
+    val sb = StringBuilder(bytes.size * 2)
+    for (b in bytes) {
+        sb.append(String.format("%02x", b.toInt() and 0xff))
+    }
+    return sb.toString()
+}
 
 /**
  * Encrypts plaintext with XChaCha20-Poly1305 for Jotty.
- * Output format: JSON with "alg","salt","nonce","data" (base64). Same params as XChaCha20Decryptor.
- * Uses AEAD combined format (ciphertext then tag) used by Jotty web's XChaCha20 implementation.
+ * Output format: JSON with "alg","salt","nonce","data" (hex). Same params as XChaCha20Decryptor.
+ * Uses AEAD combined format (ciphertext then tag) used by Jotty web's libsodium implementation.
  */
 object XChaCha20Encryptor {
     private const val ARGON2_ITERATIONS = 2
@@ -39,10 +46,10 @@ object XChaCha20Encryptor {
             val key = deriveKey(trimmed, salt) ?: return null
             val ciphertextAndTag =
                 encryptXChaCha20Poly1305(key, nonce24, plaintext.toByteArray(Charsets.UTF_8)) ?: return null
-            val saltB64 = Base64.getEncoder().encodeToString(salt)
-            val nonceB64 = Base64.getEncoder().encodeToString(nonce24)
-            val dataB64 = Base64.getEncoder().encodeToString(ciphertextAndTag)
-            """{"alg":"xchacha20","salt":"$saltB64","nonce":"$nonceB64","data":"$dataB64"}"""
+            val saltHex = encodeHex(salt)
+            val nonceHex = encodeHex(nonce24)
+            val dataHex = encodeHex(ciphertextAndTag)
+            """{"alg":"xchacha20","salt":"$saltHex","nonce":"$nonceHex","data":"$dataHex"}"""
         } finally {
             trimmed.clearPassphrase()
         }

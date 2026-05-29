@@ -7,6 +7,23 @@ import org.junit.Test
 
 class MarkdownHtmlTablesTest {
     @Test
+    fun `convertHtmlFontFamilySpans unwraps jotty web font span`() {
+        val html =
+            """<span style="font-family: 'Andale Mono', monospace">**My secretest secrets**</span>"""
+        val result = convertHtmlFontFamilySpans(html)
+        assertEquals("**My secretest secrets**", result)
+    }
+
+    @Test
+    fun `convertHtmlFontFamilySpans removes invisible chars before span when combined with strip`() {
+        val html =
+            """\uFEFF<span style="font-family: 'Andale Mono', monospace">text</span>"""
+                .replace("\\uFEFF", "\uFEFF")
+        val result = convertHtmlFontFamilySpans(stripInvisibleUnicode(html))
+        assertEquals("text", result)
+    }
+
+    @Test
     fun `convertHtmlColorSpans converts span with hex color`() {
         val html = """Start <span style="color: #22aa55;">green text</span> end"""
         val result = convertHtmlColorSpans(html)

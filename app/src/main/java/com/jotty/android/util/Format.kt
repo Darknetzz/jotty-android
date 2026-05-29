@@ -4,7 +4,7 @@ package com.jotty.android.util
  * Invisible/special Unicode that often render as "?" or cause layout issues.
  * BOM (U+FEFF) and zero-width characters are common when pasting from web/Word.
  */
-private val INVISIBLE_EDGE_CHARS =
+private val INVISIBLE_UNICODE_CHARS =
     setOf(
         // BOM (byte order mark)
         '\uFEFF',
@@ -19,14 +19,32 @@ private val INVISIBLE_EDGE_CHARS =
     )
 
 /**
+ * Removes BOM and zero-width characters anywhere in [s].
+ * These often appear inside web-authored HTML (e.g. before `<span>`) and break markdown/HTML
+ * rendering as "" while round-tripping back to the server on save.
+ */
+fun stripInvisibleUnicode(s: String): String {
+    if (s.isEmpty() || s.none { it in INVISIBLE_UNICODE_CHARS }) {
+        return s
+    }
+    return buildString(s.length) {
+        for (ch in s) {
+            if (ch !in INVISIBLE_UNICODE_CHARS) {
+                append(ch)
+            }
+        }
+    }
+}
+
+/**
  * Strips BOM and zero-width (and similar) characters from the start and end of [s].
  * Use when displaying or editing note title/content so they don't show as "?".
  */
 fun stripInvisibleFromEdges(s: String): String {
     var start = 0
     var end = s.length
-    while (start < end && s[start] in INVISIBLE_EDGE_CHARS) start++
-    while (end > start && s[end - 1] in INVISIBLE_EDGE_CHARS) end--
+    while (start < end && s[start] in INVISIBLE_UNICODE_CHARS) start++
+    while (end > start && s[end - 1] in INVISIBLE_UNICODE_CHARS) end--
     return if (start == 0 && end == s.length) s else s.substring(start, end)
 }
 

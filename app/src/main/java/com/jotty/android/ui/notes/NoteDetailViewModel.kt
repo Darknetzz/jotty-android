@@ -12,6 +12,7 @@ import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.util.AppLog
 import com.jotty.android.util.stripInvisibleFromEdges
+import com.jotty.android.util.stripInvisibleUnicode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -106,7 +107,7 @@ class NoteDetailViewModel(
     fun loadSessionDecryptedContent() {
         val cached =
             NoteDecryptionSession.get(note.id)
-                ?.let { stripInvisibleFromEdges(it) }
+                ?.let { stripInvisibleUnicode(stripInvisibleFromEdges(it)) }
                 ?.takeIf { it.isNotBlank() }
         _decryptedContent.value = cached
         if (cached == null) {
@@ -179,7 +180,7 @@ class NoteDetailViewModel(
         usedLegacyDataOrder: Boolean = false,
         passphrase: CharArray? = null,
     ) {
-        val cleaned = stripInvisibleFromEdges(plain)
+        val cleaned = stripInvisibleUnicode(stripInvisibleFromEdges(plain))
         if (cleaned.isBlank()) {
             _decryptedContent.value = null
             NoteDecryptionSession.remove(note.id)
@@ -240,7 +241,10 @@ class NoteDetailViewModel(
         viewModelScope.launch {
             _encryptError.value = null
             _isEncrypting.value = true
-            val plainToEncrypt = stripInvisibleFromEdges(displayContent ?: _content.value)
+            val plainToEncrypt =
+                stripInvisibleUnicode(
+                    stripInvisibleFromEdges(displayContent ?: _content.value),
+                )
             try {
                 val body =
                     withContext(Dispatchers.Default) {

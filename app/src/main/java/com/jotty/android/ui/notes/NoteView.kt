@@ -21,8 +21,10 @@ import androidx.compose.ui.unit.sp
 import coil.ImageLoader
 import com.jotty.android.R
 import com.jotty.android.util.convertHtmlColorSpans
+import com.jotty.android.util.convertHtmlFontFamilySpans
 import com.jotty.android.util.convertHtmlImagesToMarkdown
 import com.jotty.android.util.convertHtmlTablesToGfm
+import com.jotty.android.util.stripInvisibleUnicode
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
 /** Reader text scale (font multiplier) for note content; provided from app-level settings. */
@@ -63,7 +65,11 @@ internal fun NoteView(
         remember(content) {
             convertHtmlTablesToGfm(
                 convertHtmlImagesToMarkdown(
-                    convertHtmlColorSpans(content),
+                    convertHtmlColorSpans(
+                        convertHtmlFontFamilySpans(
+                            stripInvisibleUnicode(content),
+                        ),
+                    ),
                 ),
             )
         }

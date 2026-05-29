@@ -46,6 +46,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Fixed
 
 - **Web decrypt after Android save** — Notes encrypted or re-encrypted in the app now use hex-encoded salt, nonce, and payload (matching the Jotty web app) instead of base64, so the web UI can decrypt them with the same passphrase.
+- **Note content artifacts after save** — Invisible Unicode (BOM / zero-width characters) embedded in web-authored HTML is stripped on decrypt and before re-encrypt so it no longer appears as odd symbols in the app or syncs back to the web. Font-family `<span>` tags from the web editor are unwrapped for in-app display instead of showing broken HTML like `pan style=...`.
 - **XChaCha20 encryption and Jotty web** — Notes encrypted in the app now use AEAD combined order (`ciphertext` then `tag`), matching the Jotty web app. Previously, web showed “Incorrect password” for the correct passphrase; existing legacy-format notes still decrypt in the app and are flagged for re-encryption.
 - **Encrypted notes missing from list** — Notes returned by the API with sparse or null fields (common on some encrypted payloads) are normalized on fetch/sync so they appear in the notes list instead of being dropped.
 - **Biometric settings when unavailable** — Settings → Security hides auto-prompt, save-offer, and clear-all options when biometrics are not enrolled or not supported; only the status row is shown.

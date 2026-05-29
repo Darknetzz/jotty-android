@@ -19,6 +19,28 @@ fun convertHtmlTablesToGfm(markdown: String): String {
  * Converts inline HTML color spans (common in web-authored notes) to a simpler
  * `<font color="...">...</font>` format that Markwon's HTML support can render.
  */
+/**
+ * Unwraps font-family spans from the Jotty web editor (TipTap) so Markwon sees plain text /
+ * inner markdown instead of raw HTML that renders as broken tags (e.g. `pan style=...`).
+ */
+fun convertHtmlFontFamilySpans(markdown: String): String {
+    if (!markdown.contains("font-family", ignoreCase = true)) {
+        return markdown
+    }
+    val spanPattern =
+        Regex(
+            """<span\b[^>]*\bstyle\s*=\s*(['"])(?:(?!\1).)*font-family\s*:[^;'"]+(?:(?!\1).)*\1[^>]*>(.*?)</span>""",
+            regexDotIgnoreCase,
+        )
+    var result = markdown
+    var previous: String
+    do {
+        previous = result
+        result = spanPattern.replace(result) { match -> match.groupValues[2] }
+    } while (result != previous)
+    return result
+}
+
 fun convertHtmlColorSpans(markdown: String): String {
     if (!markdown.contains("<span", ignoreCase = true)) {
         return markdown

@@ -515,14 +515,10 @@ object XChaCha20Decryptor {
         return try {
             val cipher = ChaCha20Poly1305()
             cipher.init(false, ParametersWithIV(KeyParameter(subkey), nonce12))
-            val plain = ByteArray(ciphertextThenTag.size - TAG_BYTES)
-            cipher.processBytes(ciphertextThenTag, 0, ciphertextThenTag.size, plain, 0)
-            cipher.doFinal(plain, 0)
-            try {
-                String(plain, Charsets.UTF_8)
-            } catch (_: Exception) {
-                null
-            }
+            val plain = ByteArray(cipher.getOutputSize(ciphertextThenTag.size))
+            var outLen = cipher.processBytes(ciphertextThenTag, 0, ciphertextThenTag.size, plain, 0)
+            outLen += cipher.doFinal(plain, outLen)
+            String(plain, 0, outLen, Charsets.UTF_8)
         } catch (_: Exception) {
             null
         }

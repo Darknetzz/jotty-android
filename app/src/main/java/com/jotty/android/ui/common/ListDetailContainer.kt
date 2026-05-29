@@ -1,44 +1,49 @@
 package com.jotty.android.ui.common
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 
 /**
- * Animates the master/detail switch for list screens. [target] is the selected item (null = list).
- * Entering the detail slides in from the end; going back slides toward the start. Honors
- * [LocalReducedMotionEnabled] (no animation when on) and only animates the list↔detail switch,
- * not updates to an already-open detail. Shared by the notes and checklists screens.
+ * Switches between list (null) and detail (non-null) without composing both at once.
+ *
+ * [AnimatedContent] was avoided here because it keeps enter and exit children alive during the
+ * transition. Our list uses [LazyColumn] and detail uses a vertically scrolling note view; measuring
+ * both scrollables together triggers "infinity maximum height constraints" crashes when opening a note.
+ * Only the detail pane gets a slide-in animation (when reduced motion is off).
  */
 @Composable
 fun <T> ListDetailContainer(
     target: T?,
     modifier: Modifier = Modifier,
+    contentKey: (T?) -> Any = { it ?: "list" },
     content: @Composable (T?) -> Unit,
 ) {
     val reducedMotion = LocalReducedMotionEnabled.current
-    AnimatedContent(
-        targetState = target,
-        modifier = modifier,
-        transitionSpec = {
-            if (reducedMotion) {
-                EnterTransition.None togetherWith ExitTransition.None
-            } else {
-                val direction = if (targetState != null) SlideDirection.Start else SlideDirection.End
-                (slideIntoContainer(direction, tween(250)) + fadeIn(tween(250))) togetherWith
-                    (slideOutOfContainer(direction, tween(250)) + fadeOut(tween(250)))
+    Box(modifier) {
+        if (target == null) {
+            content(null)
+        } else {
+            key(contentKey(target)) {
+                if (reducedMotion) {
+                    content(target)
+                } else {
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = slideInHorizontally(animationSpec = tween(250)) { it / 2 } + fadeIn(tween(250)),
+                        exit = slideOutHorizontally(animationSpec = tween(250)) { it / 2 } + fadeOut(tween(250)),
+                    ) {
+                        content(target)
+                    }
+                }
             }
-        },
-        contentKey = { it != null },
-        label = "list-detail",
-    ) { state ->
-        content(state)
+        }
     }
 }

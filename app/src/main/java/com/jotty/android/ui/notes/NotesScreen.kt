@@ -152,7 +152,11 @@ fun NotesScreen(
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
-            ListDetailContainer(target = selectedNote, modifier = Modifier.fillMaxSize()) { note ->
+            ListDetailContainer(
+                target = selectedNote,
+                modifier = Modifier.fillMaxSize(),
+                contentKey = { it?.id ?: "list" },
+            ) { note ->
                 if (note == null) {
                     Column(Modifier.fillMaxSize()) {
                     Row(
@@ -208,6 +212,7 @@ fun NotesScreen(
                     }
 
                     ListScreenContent(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
                         loading = loading,
                         error = error,
                         isEmpty = sortedNotes.isEmpty(),

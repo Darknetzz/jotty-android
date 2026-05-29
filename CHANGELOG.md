@@ -56,6 +56,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Duplicate note title removed** — The note title no longer appears twice (it was rendered in both the app bar and the note view).
 - **Offline category moves** — Moving an offline note between categories now sends `originalCategory` on sync so the server moves it correctly.
 - **Theme palette edge cases** — `sepia`+dark and `midnight`+light now use matching variants instead of falling back to unrelated schemes.
+- **Note open crash** — Opening a note no longer crashes from measuring list and detail scrollables at the same time during the list↔detail transition.
 
 ---
 

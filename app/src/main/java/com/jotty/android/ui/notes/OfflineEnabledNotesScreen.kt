@@ -219,7 +219,11 @@ fun OfflineEnabledNotesScreen(
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
-            ListDetailContainer(target = selectedNote, modifier = Modifier.fillMaxSize()) { note ->
+            ListDetailContainer(
+                target = selectedNote,
+                modifier = Modifier.fillMaxSize(),
+                contentKey = { it?.id ?: "list" },
+            ) { note ->
                 if (note == null) {
                     Column(Modifier.fillMaxSize()) {
                     OfflineConnectivityBanner(
@@ -314,6 +318,7 @@ fun OfflineEnabledNotesScreen(
 
                     // Notes list
                     ListScreenContent(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
                         loading = screenState.loading,
                         error = screenState.errorMessage,
                         isEmpty = sortedNotes.isEmpty(),

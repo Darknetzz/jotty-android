@@ -234,7 +234,11 @@ fun OfflineEnabledChecklistsScreen(
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
-            ListDetailContainer(target = selectedList, modifier = Modifier.fillMaxSize()) { currentList ->
+            ListDetailContainer(
+                target = selectedList,
+                modifier = Modifier.fillMaxSize(),
+                contentKey = { it?.id ?: "list" },
+            ) { currentList ->
                 if (currentList != null) {
                 OfflineChecklistDetailContent(
                     checklist = currentList,
@@ -341,6 +345,7 @@ fun OfflineEnabledChecklistsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 ListScreenContent(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                     loading = screenState.loading,
                     error = screenState.errorMessage,
                     isEmpty = sortedChecklists.isEmpty(),

@@ -156,7 +156,11 @@ fun ChecklistsScreen(
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
-            ListDetailContainer(target = selectedList, modifier = Modifier.fillMaxSize()) { currentList ->
+            ListDetailContainer(
+                target = selectedList,
+                modifier = Modifier.fillMaxSize(),
+                contentKey = { it?.id ?: "list" },
+            ) { currentList ->
                 if (currentList != null) {
                 ChecklistDetailScreen(
                     checklist = currentList,
@@ -225,6 +229,7 @@ fun ChecklistsScreen(
                     Spacer(modifier = Modifier.height(8.dp))
                 }
                 ListScreenContent(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                     loading = loading,
                     error = error,
                     isEmpty = sortedChecklists.isEmpty(),

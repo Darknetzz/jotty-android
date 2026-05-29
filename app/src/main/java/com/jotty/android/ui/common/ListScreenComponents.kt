@@ -145,13 +145,15 @@ fun ListScreenContent(
     emptyTitle: String,
     emptySubtitle: String? = null,
     onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val pullRefreshState = rememberPullToRefreshState()
     when {
-        loading && isEmpty -> ListLoadingSkeleton()
+        loading && isEmpty -> ListLoadingSkeleton(modifier = modifier)
         else ->
             PullToRefreshBox(
+                modifier = modifier,
                 isRefreshing = loading,
                 onRefresh = onRefresh,
                 state = pullRefreshState,

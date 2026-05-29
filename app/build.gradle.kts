@@ -139,7 +139,7 @@ dependencies {
     implementation("androidx.glance:glance-material3:1.1.1")
 
     // Markdown rendering for notes (images via Coil)
-    implementation("com.github.jeziellago:compose-markdown:0.5.8")
+    implementation("com.github.jeziellago:compose-markdown:0.7.2")
     implementation("io.coil-kt:coil:2.6.0")
 
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)

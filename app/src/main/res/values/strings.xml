@@ -108,8 +108,12 @@
 
     <!-- Encrypt / Decrypt dialogs -->
     <string name="encrypt_note">Encrypt note</string>
+    <string name="save_encrypted_note">Save encrypted note</string>
     <string name="decrypt_note">Decrypt note</string>
     <string name="encrypt_passphrase_hint">Choose a passphrase. You\'ll need it to decrypt this note. Store it safely.</string>
+    <string name="reencrypt_passphrase_hint">Your changes will be saved and re-encrypted with the same passphrase you used to unlock this note.</string>
+    <string name="change_passphrase">Change passphrase</string>
+    <string name="use_current_passphrase">Use current passphrase</string>
     <string name="decrypt_passphrase_hint">Enter the passphrase you used to encrypt this note.</string>
     <string name="passphrase">Passphrase</string>
     <string name="confirm_passphrase">Confirm passphrase</string>

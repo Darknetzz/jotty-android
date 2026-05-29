@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteDecryptionSession
+import com.jotty.android.data.encryption.NotePassphraseSession
 import com.jotty.android.data.local.FakeJottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineNotesRepository
@@ -177,6 +178,7 @@ class NoteDetailViewModelTest {
     @After
     fun clearDecryptionSession() {
         NoteDecryptionSession.clear()
+        NotePassphraseSession.clear()
     }
 
     @Test
@@ -210,6 +212,43 @@ class NoteDetailViewModelTest {
         vm.onDecrypted("   ")
         assertNull(vm.decryptedContent.value)
         assertNull(NoteDecryptionSession.get(note.id))
+        assertNull(NotePassphraseSession.get(note.id))
+    }
+
+    @Test
+    fun onDecrypted_storesPassphraseInSession() {
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Secrets",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "---\nencrypted: true\nencryptionMethod: xchacha\n---\n{}",
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+            )
+        val pass = "my-long-passphrase".toCharArray()
+        vm.onDecrypted("Secret body", passphrase = pass)
+        assertTrue(vm.hasSessionPassphrase())
+        val stored = NotePassphraseSession.get(note.id)
+        assertArrayEquals("my-long-passphrase".toCharArray(), stored)
+        stored?.clearPassphrase()
     }
 
     @Test

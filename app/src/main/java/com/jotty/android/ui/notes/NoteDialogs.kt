@@ -127,55 +127,99 @@ internal fun EncryptNoteDialog(
     isEncrypting: Boolean = false,
     encryptError: String? = null,
     onEncrypt: (CharArray) -> Unit,
+    reEncryptMode: Boolean = false,
+    onUseStoredPassphrase: (() -> Unit)? = null,
 ) {
     var passphrase by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    var changePassphrase by remember { mutableStateOf(!reEncryptMode) }
     val errorShort = stringResource(R.string.error_passphrase_short)
     val errorMismatch = stringResource(R.string.error_passphrase_mismatch)
     val displayError = error ?: encryptError
+    val title =
+        if (reEncryptMode && !changePassphrase) {
+            stringResource(R.string.save_encrypted_note)
+        } else {
+            stringResource(R.string.encrypt_note)
+        }
+    val hint =
+        if (reEncryptMode && !changePassphrase) {
+            stringResource(R.string.reencrypt_passphrase_hint)
+        } else {
+            stringResource(R.string.encrypt_passphrase_hint)
+        }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.encrypt_note)) },
+        title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    stringResource(R.string.encrypt_passphrase_hint),
+                    hint,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                OutlinedTextField(
-                    value = passphrase,
-                    onValueChange = {
-                        passphrase = it
-                        error = null
-                    },
-                    label = { Text(stringResource(R.string.passphrase)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    enabled = !isEncrypting,
-                )
-                OutlinedTextField(
-                    value = confirm,
-                    onValueChange = {
-                        confirm = it
-                        error = null
-                    },
-                    label = { Text(stringResource(R.string.confirm_passphrase)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                    isError = displayError != null,
-                    supportingText = displayError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
-                    enabled = !isEncrypting,
-                )
+                if (changePassphrase) {
+                    OutlinedTextField(
+                        value = passphrase,
+                        onValueChange = {
+                            passphrase = it
+                            error = null
+                        },
+                        label = { Text(stringResource(R.string.passphrase)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        enabled = !isEncrypting,
+                    )
+                    OutlinedTextField(
+                        value = confirm,
+                        onValueChange = {
+                            confirm = it
+                            error = null
+                        },
+                        label = { Text(stringResource(R.string.confirm_passphrase)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        isError = displayError != null,
+                        supportingText = displayError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+                        enabled = !isEncrypting,
+                    )
+                } else if (displayError != null) {
+                    Text(displayError, color = MaterialTheme.colorScheme.error)
+                }
+                if (reEncryptMode) {
+                    TextButton(
+                        onClick = {
+                            changePassphrase = !changePassphrase
+                            error = null
+                            passphrase = ""
+                            confirm = ""
+                        },
+                        enabled = !isEncrypting,
+                    ) {
+                        Text(
+                            stringResource(
+                                if (changePassphrase) {
+                                    R.string.use_current_passphrase
+                                } else {
+                                    R.string.change_passphrase
+                                },
+                            ),
+                        )
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
                     if (isEncrypting) return@TextButton
+                    if (reEncryptMode && !changePassphrase) {
+                        onUseStoredPassphrase?.invoke()
+                        return@TextButton
+                    }
                     when {
                         passphrase.length < 12 -> error = errorShort
                         passphrase != confirm -> error = errorMismatch
@@ -192,7 +236,15 @@ internal fun EncryptNoteDialog(
                 if (isEncrypting) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp))
                 } else {
-                    Text(stringResource(R.string.encrypt))
+                    Text(
+                        stringResource(
+                            if (reEncryptMode && !changePassphrase) {
+                                R.string.save
+                            } else {
+                                R.string.encrypt
+                            },
+                        ),
+                    )
                 }
             }
         },
@@ -208,7 +260,7 @@ internal fun DecryptNoteDialog(
     biometricStore: BiometricPassphraseStore? = null,
     biometricSaveOfferEnabled: Boolean = true,
     onDismiss: () -> Unit,
-    onDecrypted: (plaintext: String, usedLegacyDataOrder: Boolean) -> Unit,
+    onDecrypted: (plaintext: String, usedLegacyDataOrder: Boolean, passphrase: CharArray?) -> Unit,
     onBiometricSaved: () -> Unit = {},
     decryptError: String?,
     decryptErrorDetail: String?,
@@ -242,7 +294,9 @@ internal fun DecryptNoteDialog(
             subtitle = biometricSubtitle,
             negativeButtonText = biometricCancelStr,
             encryptedBody = { encryptedBody },
-            onDecrypted = { onDecrypted(it, false) },
+            onDecrypted = { plain, pass ->
+                pass?.let { onDecrypted(plain, false, it) } ?: onDecrypted(plain, false, null)
+            },
             onDecryptFailed = { onDecryptError(decryptFailedMsg, null) },
             onAuthError = { _, _ -> onDecryptError(biometricErrorMsg, null) },
             onAuthCancelled = { biometricDialogTriggered = false },
@@ -274,9 +328,10 @@ internal fun DecryptNoteDialog(
                                 biometricStore.savePassphrase(noteId, pass, cipher)
                                 currentOnBiometricSaved.value()
                             }
-                            pass.clearPassphrase()
                             if (offerConsumed.compareAndSet(false, true)) {
-                                currentOnDecrypted.value(plaintext, false)
+                                currentOnDecrypted.value(plaintext, false, pass)
+                            } else {
+                                pass.clearPassphrase()
                             }
                         }
 
@@ -287,9 +342,11 @@ internal fun DecryptNoteDialog(
                             // User cancelled or hardware error — passphrase was already verified, so still deliver it.
                             val offer = currentOffer.value ?: return
                             val plaintext = offer.second
-                            offer.first.clearPassphrase()
+                            val pass = offer.first
                             if (offerConsumed.compareAndSet(false, true)) {
-                                currentOnDecrypted.value(plaintext, false)
+                                currentOnDecrypted.value(plaintext, false, pass)
+                            } else {
+                                pass.clearPassphrase()
                             }
                         }
 
@@ -311,12 +368,16 @@ internal fun DecryptNoteDialog(
 
     if (offerBiometric != null) {
         fun deliverFromOffer(plaintext: String) {
-            offerBiometric?.first?.clearPassphrase()
-            if (offerConsumed.compareAndSet(false, true)) onDecrypted(plaintext, false)
+            if (!offerConsumed.compareAndSet(false, true)) {
+                offerBiometric?.first?.clearPassphrase()
+                return
+            }
+            val pass = offerBiometric?.first
+            offerBiometric = null
+            onDecrypted(plaintext, false, pass)
         }
         AlertDialog(
             onDismissRequest = {
-                offerBiometric?.first?.clearPassphrase()
                 offerBiometric?.second?.let { deliverFromOffer(it) }
             },
             title = { Text(stringResource(R.string.biometric_save_passphrase)) },
@@ -340,7 +401,7 @@ internal fun DecryptNoteDialog(
                                 BiometricPrompt.CryptoObject(cipher),
                             )
                         } else {
-                            offerBiometric?.first?.clearPassphrase()
+                            offerBiometric = null
                             deliverFromOffer(plaintext)
                         }
                     }
@@ -473,8 +534,7 @@ internal fun DecryptNoteDialog(
                                         offerConsumed.set(false)
                                         offerBiometric = Pair(passCopy, plaintext)
                                     } else {
-                                        passCopy.clearPassphrase()
-                                        onDecrypted(plaintext, result.usedLegacyDataOrder)
+                                        onDecrypted(plaintext, result.usedLegacyDataOrder, passCopy)
                                     }
                                 } else {
                                     passCopy.clearPassphrase()

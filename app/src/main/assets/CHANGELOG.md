@@ -33,6 +33,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Loading skeletons** — List screens show shimmer placeholders while loading instead of a centered spinner.
 - **Pull-to-refresh on empty/error** — Empty and error states for notes and checklists can now be pulled to refresh.
 - **Category filter persistence** — The selected notes/checklists category filter survives app restarts.
+- **Editing encrypted notes** — Saving an edited encrypted note re-uses the passphrase from this session by default (same as when you unlocked it). Tap **Change passphrase** in the save dialog if you want a new one.
 
 ### Added
 

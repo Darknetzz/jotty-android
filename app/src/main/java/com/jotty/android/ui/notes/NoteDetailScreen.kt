@@ -136,7 +136,7 @@ internal fun NoteDetailScreen(
             subtitle = biometricSubtitle,
             negativeButtonText = biometricCancelStr,
             encryptedBody = { encryptedBodyForBiometric },
-            onDecrypted = { detailVm.onDecrypted(it) },
+            onDecrypted = { plain, pass -> detailVm.onDecrypted(plain, passphrase = pass) },
             onDecryptFailed = {
                 scope.launch { snackbarHostState.showSnackbar(decryptFailedMsg) }
             },
@@ -251,7 +251,6 @@ internal fun NoteDetailScreen(
                             IconButton(
                                 onClick = {
                                     if (isEncrypted) {
-                                        // Editing decrypted content: re-encrypt on save via passphrase dialog.
                                         detailVm.showEncryptDialog()
                                     } else {
                                         detailVm.saveEdit(
@@ -360,10 +359,19 @@ internal fun NoteDetailScreen(
 
     if (showEncryptDialog) {
         val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
+        val reEncryptMode = isEncrypted && detailVm.hasSessionPassphrase()
         EncryptNoteDialog(
             onDismiss = { detailVm.dismissEncryptDialog() },
             isEncrypting = isEncrypting,
             encryptError = encryptError,
+            reEncryptMode = reEncryptMode,
+            onUseStoredPassphrase = {
+                detailVm.encryptWithSessionPassphrase(
+                    encryptFailedMsg,
+                    onSuccess = onUpdate,
+                    onFailure = onSaveFailed,
+                )
+            },
             onEncrypt = { passChars ->
                 detailVm.encrypt(
                     passChars,
@@ -382,8 +390,8 @@ internal fun NoteDetailScreen(
             biometricStore = biometricStore,
             biometricSaveOfferEnabled = biometricSaveOfferEnabled,
             onDismiss = { detailVm.dismissDecryptDialog() },
-            onDecrypted = { plaintext, usedLegacyDataOrder ->
-                detailVm.onDecrypted(plaintext, usedLegacyDataOrder)
+            onDecrypted = { plaintext, usedLegacyDataOrder, passphrase ->
+                detailVm.onDecrypted(plaintext, usedLegacyDataOrder, passphrase)
             },
             onBiometricSaved = {
                 hasBiometricPassphrase = true

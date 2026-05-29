@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteDecryptionSession
+import com.jotty.android.data.encryption.NotePassphraseSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.data.encryption.XChaCha20Encryptor
@@ -110,7 +111,23 @@ class NoteDetailViewModel(
         _decryptedContent.value = cached
         if (cached == null) {
             NoteDecryptionSession.remove(note.id)
+            NotePassphraseSession.remove(note.id)
         }
+    }
+
+    fun hasSessionPassphrase(): Boolean = NotePassphraseSession.has(note.id)
+
+    fun encryptWithSessionPassphrase(
+        encryptFailedMsg: String,
+        onSuccess: (Note) -> Unit,
+        onFailure: () -> Unit,
+    ) {
+        val passChars = NotePassphraseSession.get(note.id)
+        if (passChars == null) {
+            showEncryptDialog()
+            return
+        }
+        encrypt(passChars, encryptFailedMsg, onSuccess, onFailure)
     }
 
     fun setTitle(value: String) {
@@ -160,17 +177,22 @@ class NoteDetailViewModel(
     fun onDecrypted(
         plain: String,
         usedLegacyDataOrder: Boolean = false,
+        passphrase: CharArray? = null,
     ) {
         val cleaned = stripInvisibleFromEdges(plain)
         if (cleaned.isBlank()) {
             _decryptedContent.value = null
             NoteDecryptionSession.remove(note.id)
+            NotePassphraseSession.remove(note.id)
+            passphrase?.clearPassphrase()
             dismissDecryptDialog()
             return
         }
         _decryptedContent.value = cleaned
         _legacyEncryptionDetected.value = usedLegacyDataOrder
         NoteDecryptionSession.put(note.id, cleaned)
+        passphrase?.let { NotePassphraseSession.put(note.id, it) }
+        passphrase?.clearPassphrase()
         dismissDecryptDialog()
     }
 
@@ -249,6 +271,7 @@ class NoteDetailViewModel(
                         if (plainToEncrypt.isNotBlank()) {
                             NoteDecryptionSession.put(note.id, plainToEncrypt)
                         }
+                        NotePassphraseSession.put(note.id, passChars)
                         _isEditing.value = false
                         onSuccess(result.getOrThrow())
                         dismissEncryptDialog()

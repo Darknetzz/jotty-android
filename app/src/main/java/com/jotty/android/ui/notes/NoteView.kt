@@ -25,7 +25,6 @@ import dev.jeziellago.compose.markdowntext.MarkdownText
 
 @Composable
 internal fun NoteView(
-    title: String,
     content: String,
     imageLoader: ImageLoader? = null,
 ) {
@@ -44,14 +43,8 @@ internal fun NoteView(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
         if (content.isNotBlank()) {
             MarkdownText(
                 markdown = displayMarkdown,

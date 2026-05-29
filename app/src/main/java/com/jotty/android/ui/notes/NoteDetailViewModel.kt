@@ -113,8 +113,17 @@ class NoteDetailViewModel(
         _content.value = value
     }
 
+    /** Updates the in-memory decrypted plaintext while editing an encrypted note. */
+    fun setDecryptedContent(value: String) {
+        _decryptedContent.value = value
+    }
+
     fun startEditing() {
         _isEditing.value = true
+    }
+
+    fun cancelEditing() {
+        _isEditing.value = false
     }
 
     fun showDecryptDialog() {
@@ -195,10 +204,11 @@ class NoteDetailViewModel(
         viewModelScope.launch {
             _encryptError.value = null
             _isEncrypting.value = true
+            val plainToEncrypt = stripInvisibleFromEdges(displayContent ?: _content.value)
             try {
                 val body =
                     withContext(Dispatchers.Default) {
-                        XChaCha20Encryptor.encrypt(displayContent ?: _content.value, passChars)
+                        XChaCha20Encryptor.encrypt(plainToEncrypt, passChars)
                     }
                 if (body != null) {
                     val fullContent =
@@ -216,6 +226,14 @@ class NoteDetailViewModel(
                             category = note.category,
                         )
                     if (result.isSuccess) {
+                        // Keep the freshly-encrypted plaintext available so the note stays
+                        // readable (and editable) without re-decrypting after save.
+                        _decryptedContent.value = plainToEncrypt.takeIf { it.isNotBlank() }
+                        _legacyEncryptionDetected.value = false
+                        if (plainToEncrypt.isNotBlank()) {
+                            NoteDecryptionSession.put(note.id, plainToEncrypt)
+                        }
+                        _isEditing.value = false
                         onSuccess(result.getOrThrow())
                         dismissEncryptDialog()
                     } else {

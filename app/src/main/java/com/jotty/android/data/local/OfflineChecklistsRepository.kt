@@ -142,6 +142,35 @@ class OfflineChecklistsRepository(
             }
         }
 
+    /**
+     * Recreate a previously-deleted checklist (e.g. via undo), restoring its full item tree
+     * and completion state locally. Items sync to the server on the next push.
+     */
+    suspend fun recreateChecklistWithItems(original: Checklist): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val now = Instant.now().toString()
+                val entity =
+                    ChecklistEntity(
+                        id = UUID.randomUUID().toString(),
+                        title = original.title,
+                        category = original.category,
+                        type = original.type,
+                        itemsJson = gson.toJson(original.items),
+                        pendingOpsJson = "[]",
+                        createdAt = now,
+                        updatedAt = now,
+                        isDirty = true,
+                        isDeleted = false,
+                        instanceId = instanceId,
+                        isLocalOnly = true,
+                    )
+                checklistDao.insert(entity)
+                AppLog.d(TAG, "Checklist recreated locally with ${original.items.size} item(s): ${entity.id}")
+                entity.toChecklist()
+            }
+        }
+
     suspend fun deleteChecklist(id: String): Result<Unit> =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -439,9 +468,7 @@ class OfflineChecklistsRepository(
                     ),
                 )
             val created = response.data ?: throw Exception("Create checklist failed")
-            for (item in entity.items()) {
-                runCatching { api.addChecklistItem(created.id, AddItemRequest(text = item.text)) }
-            }
+            replayItemsToServer(created.id, entity.items(), null)
             checklistDao.delete(entity.id)
             val fresh =
                 api.getChecklists().checklists.find { it.id == created.id }
@@ -462,6 +489,26 @@ class OfflineChecklistsRepository(
                     ?: throw Exception("Checklist not found after sync")
             checklistDao.insert(fresh.toEntity(instanceId))
             AppLog.d(TAG, "Checklist synced: ${entity.id}")
+        }
+    }
+
+    /** Re-adds [items] depth-first under [parentPath], preserving order and completion state. */
+    private suspend fun replayItemsToServer(
+        listId: String,
+        items: List<com.jotty.android.data.api.ChecklistItem>,
+        parentPath: String?,
+    ) {
+        items.forEachIndexed { index, item ->
+            val path = if (parentPath == null) "$index" else "$parentPath.$index"
+            runCatching {
+                api.addChecklistItem(
+                    listId,
+                    AddItemRequest(text = item.text, status = item.status, parentIndex = parentPath),
+                )
+                val children = item.children.orEmpty()
+                if (children.isNotEmpty()) replayItemsToServer(listId, children, path)
+                if (item.completed) api.checkItem(listId, path)
+            }
         }
     }
 

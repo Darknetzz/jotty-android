@@ -243,10 +243,15 @@ internal fun NoteDetailScreen(
                         } else {
                             IconButton(
                                 onClick = {
-                                    detailVm.saveEdit(
-                                        onSuccess = onUpdate,
-                                        onFailure = onSaveFailed,
-                                    )
+                                    if (isEncrypted) {
+                                        // Editing decrypted content: re-encrypt on save via passphrase dialog.
+                                        detailVm.showEncryptDialog()
+                                    } else {
+                                        detailVm.saveEdit(
+                                            onSuccess = onUpdate,
+                                            onFailure = onSaveFailed,
+                                        )
+                                    }
                                 },
                             ) {
                                 Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save))
@@ -256,6 +261,10 @@ internal fun NoteDetailScreen(
                         IconButton(onClick = { detailVm.showEncryptDialog() }) {
                             Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_encrypt))
                         }
+                        IconButton(onClick = { detailVm.startEditing() }) {
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
+                        }
+                    } else if (isDecrypted) {
                         IconButton(onClick = { detailVm.startEditing() }) {
                             Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
                         }
@@ -297,8 +306,10 @@ internal fun NoteDetailScreen(
                     NoteEditor(
                         title = title,
                         onTitleChange = { detailVm.setTitle(it) },
-                        content = content,
-                        onContentChange = { detailVm.setContent(it) },
+                        content = if (isEncrypted) decryptedContent.orEmpty() else content,
+                        onContentChange = {
+                            if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
+                        },
                     )
                 else ->
                     Column {
@@ -311,7 +322,6 @@ internal fun NoteDetailScreen(
                             )
                         }
                         NoteView(
-                            title = title,
                             content =
                                 when {
                                     isEncrypted -> decryptedContent.orEmpty()

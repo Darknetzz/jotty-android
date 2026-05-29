@@ -119,19 +119,7 @@ fun OfflineEnabledChecklistsScreen(
                 duration = SnackbarDuration.Short,
             )
         if (snackbarResult == SnackbarResult.ActionPerformed) {
-            val type =
-                if (snap.type.equals("task", ignoreCase = true) ||
-                    snap.type.equals("project", ignoreCase = true)
-                ) {
-                    "task"
-                } else {
-                    "simple"
-                }
-            val undoResult =
-                offlineRepository.createChecklist(
-                    title = snap.title,
-                    type = type,
-                )
+            val undoResult = offlineRepository.recreateChecklistWithItems(snap)
             if (undoResult.isFailure) {
                 snackbarHostState.showSnackbar(saveFailedMsg)
             } else if (!isOnline) {

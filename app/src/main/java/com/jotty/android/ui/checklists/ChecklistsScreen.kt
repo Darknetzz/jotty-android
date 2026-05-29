@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -64,6 +67,10 @@ fun ChecklistsScreen(
     val application = LocalContext.current.applicationContext as Application
     val vm: ChecklistsViewModel = viewModel { ChecklistsViewModel(application, api) }
     val checklists by vm.checklists.collectAsStateWithLifecycle()
+    val filteredChecklists by vm.filteredChecklists.collectAsStateWithLifecycle()
+    val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
+    val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
+    val checklistCategories by vm.checklistCategories.collectAsStateWithLifecycle()
     val selectedList by vm.selectedList.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
@@ -86,15 +93,7 @@ fun ChecklistsScreen(
                     duration = SnackbarDuration.Short,
                 )
             if (result == SnackbarResult.ActionPerformed) {
-                val type =
-                    if (list.type.equals("task", ignoreCase = true) ||
-                        list.type.equals("project", ignoreCase = true)
-                    ) {
-                        "task"
-                    } else {
-                        "simple"
-                    }
-                if (!vm.recreateChecklistAfterUndo(list.title, type)) {
+                if (!vm.recreateChecklistAfterUndo(list)) {
                     snackbarHostState.showSnackbar(saveFailedMsg)
                 }
             }

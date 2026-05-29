@@ -4,7 +4,11 @@ All notable changes to Jotty Android are documented here. The format is based on
 
 The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release (`[VERSION-dev]`). Dev APK `versionName` is `VERSION-dev+<short-sha>` (seven-character commit; see the release **Commit:** line).
 
-## [1.3.6-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+## [1.4.0-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+
+---
+
+## [1.4.0] - 2026-05-29
 
 ### Added
 
@@ -746,3 +750,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.3.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.5
 
 [1.3.6]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.6
+
+[1.4.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.4.0

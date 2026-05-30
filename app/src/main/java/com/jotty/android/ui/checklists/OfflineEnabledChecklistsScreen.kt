@@ -39,14 +39,20 @@ import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
+import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.ListSortOption
+import com.jotty.android.ui.common.SortMenuButton
+import com.jotty.android.ui.common.sortedBy
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.OfflineConnectivityBanner
-import com.jotty.android.ui.common.OfflineSyncStatusRow
+import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.util.ApiErrorHelper
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -57,6 +63,7 @@ fun OfflineEnabledChecklistsScreen(
     vmKey: String,
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
+    tabReselectToken: Int = 0,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -82,6 +89,9 @@ fun OfflineEnabledChecklistsScreen(
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val checklistCategories by vm.checklistCategories.collectAsStateWithLifecycle()
     val filteredChecklists by vm.filteredChecklists.collectAsStateWithLifecycle()
+    val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
+    val sortOption = ListSortOption.fromKey(sortKey)
+    val sortedChecklists = remember(filteredChecklists, sortOption) { filteredChecklists.sortedBy(sortOption) }
 
     val screenState = rememberListScreenState()
 
@@ -117,19 +127,7 @@ fun OfflineEnabledChecklistsScreen(
                 duration = SnackbarDuration.Short,
             )
         if (snackbarResult == SnackbarResult.ActionPerformed) {
-            val type =
-                if (snap.type.equals("task", ignoreCase = true) ||
-                    snap.type.equals("project", ignoreCase = true)
-                ) {
-                    "task"
-                } else {
-                    "simple"
-                }
-            val undoResult =
-                offlineRepository.createChecklist(
-                    title = snap.title,
-                    type = type,
-                )
+            val undoResult = offlineRepository.recreateChecklistWithItems(snap)
             if (undoResult.isFailure) {
                 snackbarHostState.showSnackbar(saveFailedMsg)
             } else if (!isOnline) {
@@ -194,6 +192,35 @@ fun OfflineEnabledChecklistsScreen(
     }
 
     BackHandler(enabled = selectedList != null) { vm.setSelectedList(null) }
+    LaunchedEffect(tabReselectToken) {
+        if (selectedList != null) {
+            vm.setSelectedList(null)
+        }
+    }
+
+    // Restore the persisted category filter once, then persist subsequent changes.
+    var filterRestored by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        settingsRepository.checklistsCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
+        filterRestored = true
+    }
+    LaunchedEffect(selectedCategory, filterRestored) {
+        if (filterRestored) settingsRepository.setChecklistsCategoryFilter(selectedCategory)
+    }
+
+    RegisterMainTabTopBar(
+        if (selectedList == null) {
+            MainTabTopBarState(
+                isOnline = isOnline,
+                isSyncing = isSyncing,
+                lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+                onRefresh = { requestSync(showLoading = false) },
+                onAdd = { vm.setShowCreateDialog(true) },
+            )
+        } else {
+            null
+        },
+    )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -203,15 +230,20 @@ fun OfflineEnabledChecklistsScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = contentVerticalDp,
+                    topComfortDp = if (selectedList != null) 4 else contentVerticalDp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
-            val currentList = selectedList
-            if (currentList != null) {
+            ListDetailContainer(
+                target = selectedList,
+                modifier = Modifier.fillMaxSize(),
+                contentKey = { it?.id ?: "list" },
+            ) { currentList ->
+                if (currentList != null) {
                 OfflineChecklistDetailContent(
                     checklist = currentList,
                     offlineRepository = offlineRepository,
+                    categorySuggestions = checklistCategories,
                     isOnline = isOnline,
                     onRetrySync = { requestSync(showLoading = true) },
                     onBack = { vm.setSelectedList(null) },
@@ -231,22 +263,12 @@ fun OfflineEnabledChecklistsScreen(
                     onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
                     onRenameUnsupported = { scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) } },
                 )
-            } else {
+                } else {
+                    Column(Modifier.fillMaxSize()) {
                 OfflineConnectivityBanner(
                     isOnline = isOnline,
                     onRetrySync = { requestSync(showLoading = true) },
                     modifier = Modifier.padding(bottom = 8.dp),
-                )
-                OfflineSyncStatusRow(
-                    isOnline = isOnline,
-                    isSyncing = isSyncing,
-                    lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
-                    onRefresh = { requestSync(showLoading = false) },
-                    trailingActions = {
-                        IconButton(onClick = { vm.setShowCreateDialog(true) }) {
-                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
-                        }
-                    },
                 )
                 if (lastSyncDurationText != null || lastSyncError != null) {
                     Text(
@@ -264,15 +286,24 @@ fun OfflineEnabledChecklistsScreen(
                     )
                 }
 
-                // Search bar
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { vm.setSearchQuery(it) },
+                // Search bar + sort
+                Row(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    placeholder = { Text(stringResource(R.string.search_checklists)) },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
-                    singleLine = true,
-                )
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { vm.setSearchQuery(it) },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text(stringResource(R.string.search_checklists)) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
+                        singleLine = true,
+                    )
+                    SortMenuButton(
+                        current = sortOption,
+                        onSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
+                    )
+                }
 
                 // Category chips
                 if (checklistCategories.isNotEmpty()) {
@@ -314,9 +345,10 @@ fun OfflineEnabledChecklistsScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 ListScreenContent(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                     loading = screenState.loading,
                     error = screenState.errorMessage,
-                    isEmpty = filteredChecklists.isEmpty(),
+                    isEmpty = sortedChecklists.isEmpty(),
                     onRetry = { requestSync() },
                     emptyIcon = Icons.Default.Checklist,
                     emptyTitle = stringResource(R.string.no_checklists_yet),
@@ -327,7 +359,7 @@ fun OfflineEnabledChecklistsScreen(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(filteredChecklists, key = { it.id }) { list ->
+                            items(sortedChecklists, key = { it.id }) { list ->
                                 if (swipeToDeleteEnabled) {
                                     val swipeDeleteConfirm =
                                         stringResource(
@@ -356,64 +388,31 @@ fun OfflineEnabledChecklistsScreen(
                         }
                     },
                 )
+                    }
+                }
             }
         }
     }
 
     if (showCreateDialog) {
-        var title by remember { mutableStateOf("") }
-        var isProjectType by remember { mutableStateOf(false) }
-        val untitled = stringResource(R.string.untitled)
-        AlertDialog(
-            onDismissRequest = { vm.setShowCreateDialog(false) },
-            title = { Text(stringResource(R.string.new_checklist)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text(stringResource(R.string.title)) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Checkbox(
-                            checked = isProjectType,
-                            onCheckedChange = { isProjectType = it },
+        ChecklistCreateDialog(
+            categorySuggestions = checklistCategories,
+            onDismiss = { vm.setShowCreateDialog(false) },
+            onCreate = { newTitle, isProjectType, newCategory ->
+                scope.launch {
+                    val result =
+                        offlineRepository.createChecklist(
+                            title = newTitle,
+                            type = if (isProjectType) "task" else "simple",
+                            category = newCategory,
                         )
-                        Text(
-                            stringResource(R.string.task_project_sub_tasks),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
+                    if (result.isSuccess) {
+                        vm.setSelectedList(result.getOrNull())
+                        vm.setShowCreateDialog(false)
+                        if (!isOnline) snackbarHostState.showSnackbar(savedLocallyMsg)
+                    } else {
+                        snackbarHostState.showSnackbar(saveFailedMsg)
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            val result =
-                                offlineRepository.createChecklist(
-                                    title = title.ifBlank { untitled },
-                                    type = if (isProjectType) "task" else "simple",
-                                )
-                            if (result.isSuccess) {
-                                vm.setSelectedList(result.getOrNull())
-                                vm.setShowCreateDialog(false)
-                                if (!isOnline) snackbarHostState.showSnackbar(savedLocallyMsg)
-                            } else {
-                                snackbarHostState.showSnackbar(saveFailedMsg)
-                            }
-                        }
-                    },
-                ) { Text(stringResource(R.string.create)) }
-            },
-            dismissButton = {
-                TextButton(onClick = { vm.setShowCreateDialog(false) }) {
-                    Text(stringResource(R.string.cancel))
                 }
             },
         )
@@ -528,6 +527,7 @@ private fun OfflineChecklistCard(
 private fun OfflineChecklistDetailContent(
     checklist: Checklist,
     offlineRepository: OfflineChecklistsRepository,
+    categorySuggestions: List<String> = emptyList(),
     isOnline: Boolean,
     onRetrySync: () -> Unit,
     onBack: () -> Unit,
@@ -567,11 +567,13 @@ private fun OfflineChecklistDetailContent(
     if (showRenameDialog) {
         ChecklistRenameDialog(
             initialTitle = liveChecklist.title,
+            initialCategory = liveChecklist.category,
+            categorySuggestions = categorySuggestions,
             onDismiss = { showRenameDialog = false },
-            onConfirm = { newTitle ->
+            onConfirm = { newTitle, newCategory ->
                 showRenameDialog = false
                 scope.launch {
-                    handleResult(offlineRepository.updateChecklist(liveChecklist.id, newTitle))
+                    handleResult(offlineRepository.updateChecklist(liveChecklist.id, newTitle, newCategory))
                 }
             },
         )

@@ -6,11 +6,14 @@ import androidx.test.core.app.ApplicationProvider
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteDecryptionSession
+import com.jotty.android.data.encryption.NotePassphraseSession
+import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.data.local.FakeJottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineNotesRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -125,11 +128,12 @@ class NoteDetailViewModelTest {
                         title: String,
                         content: String,
                         category: String,
+                        originalCategory: String,
                     ): Result<Note> = Result.success(note.copy(title = title, content = content))
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> = Result.success(Unit)
                 }
-            val vm = NoteDetailViewModel(note, actions, debugLoggingEnabled = false)
+            val vm = NoteDetailViewModel(note, actions)
             vm.setTitle("Updated")
             vm.startEditing()
 
@@ -159,11 +163,12 @@ class NoteDetailViewModelTest {
                         title: String,
                         content: String,
                         category: String,
+                        originalCategory: String,
                     ): Result<Note> = Result.failure(Exception("fail"))
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> = Result.success(Unit)
                 }
-            val vm = NoteDetailViewModel(note, actions, debugLoggingEnabled = false)
+            val vm = NoteDetailViewModel(note, actions)
             vm.startEditing()
             var failed = false
             vm.saveEdit(onSuccess = {}, onFailure = { failed = true })
@@ -175,6 +180,7 @@ class NoteDetailViewModelTest {
     @After
     fun clearDecryptionSession() {
         NoteDecryptionSession.clear()
+        NotePassphraseSession.clear()
     }
 
     @Test
@@ -198,16 +204,53 @@ class NoteDetailViewModelTest {
                         title: String,
                         content: String,
                         category: String,
+                        originalCategory: String,
                     ): Result<Note> = Result.failure(UnsupportedOperationException())
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> =
                         Result.failure(UnsupportedOperationException())
                 },
-                debugLoggingEnabled = false,
             )
         vm.onDecrypted("   ")
         assertNull(vm.decryptedContent.value)
         assertNull(NoteDecryptionSession.get(note.id))
+        assertNull(NotePassphraseSession.get(note.id))
+    }
+
+    @Test
+    fun onDecrypted_storesPassphraseInSession() {
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Secrets",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "---\nencrypted: true\nencryptionMethod: xchacha\n---\n{}",
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+            )
+        val pass = "my-long-passphrase".toCharArray()
+        vm.onDecrypted("Secret body", passphrase = pass)
+        assertTrue(vm.hasSessionPassphrase())
+        val stored = NotePassphraseSession.get(note.id)
+        assertArrayEquals("my-long-passphrase".toCharArray(), stored)
+        stored?.clearPassphrase()
     }
 
     @Test
@@ -232,12 +275,12 @@ class NoteDetailViewModelTest {
                         title: String,
                         content: String,
                         category: String,
+                        originalCategory: String,
                     ): Result<Note> = Result.failure(UnsupportedOperationException())
 
                     override suspend fun deleteNote(noteId: String): Result<Unit> =
                         Result.failure(UnsupportedOperationException())
                 },
-                debugLoggingEnabled = false,
             )
         vm.loadSessionDecryptedContent()
         assertNull(vm.decryptedContent.value)

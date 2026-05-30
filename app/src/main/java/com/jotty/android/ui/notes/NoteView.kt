@@ -2,7 +2,6 @@ package com.jotty.android.ui.notes
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -11,46 +10,81 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isUnspecified
+import androidx.compose.ui.unit.sp
 import coil.ImageLoader
 import com.jotty.android.R
+import com.jotty.android.util.convertHtmlColorSpans
+import com.jotty.android.util.convertHtmlFontFamilySpans
+import com.jotty.android.util.convertHtmlImagesToMarkdown
 import com.jotty.android.util.convertHtmlTablesToGfm
+import com.jotty.android.util.stripInvisibleUnicode
 import dev.jeziellago.compose.markdowntext.MarkdownText
+
+/** Reader text scale (font multiplier) for note content; provided from app-level settings. */
+val LocalReaderTextScale = compositionLocalOf { 1.0f }
 
 @Composable
 internal fun NoteView(
-    title: String,
     content: String,
     imageLoader: ImageLoader? = null,
+    modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
     val uriHandler = LocalUriHandler.current
-    val displayMarkdown = remember(content) { convertHtmlTablesToGfm(content) }
+    val textScale = LocalReaderTextScale.current.coerceIn(0.75f, 1.5f)
+    val baseStyle = MaterialTheme.typography.bodyLarge
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val bodyStyle =
+        remember(textScale, baseStyle, onSurface) {
+            val fontSize =
+                if (baseStyle.fontSize.isUnspecified) {
+                    16.sp
+                } else {
+                    (baseStyle.fontSize.value * textScale).sp
+                }
+            val lineHeight =
+                if (baseStyle.lineHeight.isUnspecified) {
+                    fontSize * 1.5f
+                } else {
+                    (baseStyle.lineHeight.value * textScale).sp
+                }
+            baseStyle.copy(
+                color = onSurface,
+                fontSize = fontSize,
+                lineHeight = lineHeight,
+            )
+        }
+    val displayMarkdown =
+        remember(content) {
+            convertHtmlTablesToGfm(
+                convertHtmlImagesToMarkdown(
+                    convertHtmlColorSpans(
+                        convertHtmlFontFamilySpans(
+                            stripInvisibleUnicode(content),
+                        ),
+                    ),
+                ),
+            )
+        }
     Column(
         modifier =
-            Modifier
-                .fillMaxSize()
+            modifier
+                .fillMaxWidth()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
         if (content.isNotBlank()) {
             MarkdownText(
                 markdown = displayMarkdown,
                 modifier = Modifier.fillMaxWidth(),
-                style =
-                    MaterialTheme.typography.bodyLarge.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                    ),
+                style = bodyStyle,
                 syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
                 syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 imageLoader = imageLoader,

@@ -2,6 +2,7 @@ package com.jotty.android.ui.notes
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -27,13 +28,13 @@ fun OfflineNoteDetailScreen(
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit = {},
     onSavedLocally: () -> Unit = {},
-    debugLoggingEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     isOnline: Boolean = false,
     onRetrySync: () -> Unit = {},
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
     biometricSaveOfferEnabled: Boolean = true,
+    categorySuggestions: List<String> = emptyList(),
 ) {
     val scope = rememberCoroutineScope()
     val actions =
@@ -54,6 +55,7 @@ fun OfflineNoteDetailScreen(
         NoteDetailScreen(
             note = note,
             actions = actions,
+            modifier = Modifier.weight(1f, fill = true).fillMaxWidth(),
             onBack = onBack,
             onUpdate = onUpdate,
             onDelete = {
@@ -63,11 +65,11 @@ fun OfflineNoteDetailScreen(
                 }
             },
             onSaveFailed = onSaveFailed,
-            debugLoggingEnabled = debugLoggingEnabled,
             imageLoader = imageLoader,
             biometricStore = biometricStore,
             biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
             biometricSaveOfferEnabled = biometricSaveOfferEnabled,
+            categorySuggestions = categorySuggestions,
         )
     }
 }

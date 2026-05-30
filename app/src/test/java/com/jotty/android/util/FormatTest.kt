@@ -23,6 +23,18 @@ class FormatTest {
     }
 
     @Test
+    fun `stripInvisibleUnicode removes BOM and zero-width throughout string`() {
+        assertEquals(
+            "<span>text</span>",
+            stripInvisibleUnicode("\uFEFF\u200B<span>text</span>\uFEFF"),
+        )
+        assertEquals(
+            "line one\n\nline two",
+            stripInvisibleUnicode("line one\n\n\uFEFF\u200Bline two"),
+        )
+    }
+
+    @Test
     fun `stripInvisibleFromEdges removes BOM and zero-width from edges`() {
         assertEquals("My secretest secrets", stripInvisibleFromEdges("\uFEFF\uFEFFMy secretest secrets"))
         assertEquals("hello", stripInvisibleFromEdges("\u200Bhello\u200C"))

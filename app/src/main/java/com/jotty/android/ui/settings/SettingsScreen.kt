@@ -1,5 +1,6 @@
 package com.jotty.android.ui.settings
 
+import android.os.Build
 import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -7,12 +8,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.ManageAccounts
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -33,15 +35,28 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.SummaryData
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.data.updates.BundledChangelog
 import com.jotty.android.data.updates.InstallResult
 import com.jotty.android.data.updates.UpdateChannel
 import com.jotty.android.data.updates.UpdateCheckResult
 import com.jotty.android.data.updates.UpdateChecker
 import com.jotty.android.data.updates.parseUpdateChannel
+import com.jotty.android.ui.common.ChangelogDialog
+import com.jotty.android.ui.common.UpdateStatusAlert
+import com.jotty.android.ui.common.UpdateStatusAlertVariant
 import com.jotty.android.ui.common.mainScreenTabContentPadding
-import dev.jeziellago.compose.markdowntext.MarkdownText
+import com.jotty.android.util.DebugLogExporter
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import retrofit2.HttpException
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+import java.time.format.FormatStyle
+import java.util.Locale
 
 @Composable
 fun SettingsScreen(
@@ -61,15 +76,17 @@ fun SettingsScreen(
     val currentInstance by settingsRepository.currentInstance.collectAsStateWithLifecycle(initialValue = null)
     val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = null)
     val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
+    val readerTextScale by settingsRepository.readerTextScale.collectAsStateWithLifecycle(initialValue = 1.0f)
     val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
-    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val reducedMotionMode by settingsRepository.reducedMotionMode.collectAsStateWithLifecycle(initialValue = null)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
     val updateChannelPref by settingsRepository.updateChannel.collectAsStateWithLifecycle(initialValue = "stable")
-    val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsStateWithLifecycle(initialValue = null)
+    var isExportingLogs by remember { mutableStateOf(false) }
     var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
     var summary by remember { mutableStateOf<SummaryData?>(null) }
     var healthOk by remember { mutableStateOf<Boolean?>(null) }
@@ -179,38 +196,21 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.clickable(onClick = onManageInstances),
                         )
-                        if (currentInstance != null) {
-                            HorizontalDivider()
-                            ListItem(
-                                headlineContent = { Text(stringResource(R.string.set_as_default_instance)) },
-                                supportingContent = {
-                                    Text(
-                                        stringResource(R.string.open_to_default_instance),
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                },
-                                leadingContent = {
-                                    Icon(
-                                        Icons.Default.Star,
-                                        contentDescription = stringResource(R.string.set_as_default_instance),
-                                        tint = if (defaultInstanceId == currentInstance?.id) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                },
-                                modifier =
-                                    Modifier.clickable {
-                                        scope.launch {
-                                            settingsRepository.setDefaultInstanceId(currentInstance?.id)
-                                        }
-                                    },
-                            )
-                        }
                     }
+                }
+
+                if (summary != null || adminOverview != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
+                    summary?.let { DashboardSummaryCard(it) }
+                    if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
+                    adminOverview?.let { AdminOverviewCard(it) }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // ─── General (appearance & behavior) ───────────────────────────────────
-                SettingsSectionTitle(stringResource(R.string.settings_category_general))
+                // ─── Appearance ───────────────────────────────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.appearance))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -255,15 +255,18 @@ fun SettingsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                listOf(
-                                    "default" to R.string.theme_color_default,
-                                    "amoled" to R.string.theme_amoled,
-                                    "sepia" to R.string.theme_sepia,
-                                    "midnight" to R.string.theme_midnight,
-                                    "rose" to R.string.theme_rose,
-                                    "ocean" to R.string.theme_ocean,
-                                    "forest" to R.string.theme_forest,
-                                ).forEach { (value, labelRes) ->
+                                buildList {
+                                    add("default" to R.string.theme_color_default)
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        add("dynamic" to R.string.theme_dynamic)
+                                    }
+                                    add("amoled" to R.string.theme_amoled)
+                                    add("sepia" to R.string.theme_sepia)
+                                    add("midnight" to R.string.theme_midnight)
+                                    add("rose" to R.string.theme_rose)
+                                    add("ocean" to R.string.theme_ocean)
+                                    add("forest" to R.string.theme_forest)
+                                }.forEach { (value, labelRes) ->
                                     FilterChip(
                                         selected = themeColor == value,
                                         onClick = {
@@ -304,6 +307,81 @@ fun SettingsScreen(
                         },
                     )
                     HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.reader_text_size)) },
+                        supportingContent = {
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    0.85f to R.string.text_size_small,
+                                    1.0f to R.string.text_size_medium,
+                                    1.15f to R.string.text_size_large,
+                                    1.3f to R.string.text_size_xlarge,
+                                ).forEach { (value, labelRes) ->
+                                    FilterChip(
+                                        selected = readerTextScale == value,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setReaderTextScale(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
+                                }
+                            }
+                        },
+                    )
+                    HorizontalDivider()
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.reduced_motion_label)) },
+                        supportingContent = {
+                            Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                                Text(
+                                    stringResource(R.string.reduced_motion_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                FlowRow(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    listOf(
+                                        null to R.string.reduced_motion_system,
+                                        "on" to R.string.reduced_motion_on,
+                                        "off" to R.string.reduced_motion_off,
+                                    ).forEach { (value, labelRes) ->
+                                        val isSelected =
+                                            when (value) {
+                                                null -> reducedMotionMode.isNullOrBlank()
+                                                else -> reducedMotionMode == value
+                                            }
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = {
+                                                scope.launch {
+                                                    settingsRepository.setReducedMotionMode(value)
+                                                }
+                                            },
+                                            label = { Text(stringResource(labelRes)) },
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ─── Behavior ───────────────────────────────────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.settings_category_behavior))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.start_screen)) },
                         supportingContent = {
@@ -352,27 +430,25 @@ fun SettingsScreen(
                     )
                     HorizontalDivider()
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.debug_logging)) },
+                        headlineContent = { Text(stringResource(R.string.note_list_preview)) },
                         supportingContent = {
                             Text(
-                                stringResource(R.string.debug_logging_description),
+                                stringResource(R.string.note_list_preview_description),
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         },
                         trailingContent = {
                             Switch(
-                                checked = debugLoggingEnabled,
+                                checked = noteListPreviewEnabled,
                                 onCheckedChange = {
                                     scope.launch {
-                                        settingsRepository.setDebugLoggingEnabled(it)
+                                        settingsRepository.setNoteListPreviewEnabled(it)
                                     }
                                 },
                             )
                         },
                     )
-
                     HorizontalDivider()
-
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.offline_mode)) },
                         supportingContent = {
@@ -396,12 +472,70 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // ─── Troubleshooting ────────────────────────────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.settings_category_troubleshooting))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.export_debug_logs)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.export_debug_logs_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.BugReport,
+                                contentDescription = stringResource(R.string.export_debug_logs),
+                            )
+                        },
+                        trailingContent = {
+                            if (isExportingLogs) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            } else {
+                                TextButton(
+                                    onClick = {
+                                        scope.launch {
+                                            isExportingLogs = true
+                                            val instance = currentInstance
+                                            val writeResult =
+                                                withContext(Dispatchers.IO) {
+                                                    DebugLogExporter.writeReport(context, instance)
+                                                }
+                                            isExportingLogs = false
+                                            when (writeResult) {
+                                                is DebugLogExporter.WriteResult.Failed ->
+                                                    snackbarHostState.showSnackbar(writeResult.message)
+                                                is DebugLogExporter.WriteResult.Ok ->
+                                                    when (val shareResult = DebugLogExporter.shareReport(context, writeResult.file)) {
+                                                        is DebugLogExporter.ShareResult.Failed ->
+                                                            snackbarHostState.showSnackbar(shareResult.message)
+                                                        is DebugLogExporter.ShareResult.Started -> Unit
+                                                    }
+                                            }
+                                        }
+                                    },
+                                ) {
+                                    Text(stringResource(R.string.export_debug_logs_action))
+                                }
+                            }
+                        },
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
                 // ─── Security (biometric note passphrases) ─────────────────────────────
                 SettingsSectionTitle(stringResource(R.string.settings_category_security))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 ) {
+                    val biometricAvailable =
+                        biometricAvailability == BiometricPassphraseStore.BiometricAvailability.Available
                     val biometricStatusText =
                         when (biometricAvailability) {
                             BiometricPassphraseStore.BiometricAvailability.Available ->
@@ -416,7 +550,7 @@ fun SettingsScreen(
                         supportingContent = {
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(biometricStatusText, style = MaterialTheme.typography.bodySmall)
-                                if (storedPassphraseCount > 0) {
+                                if (biometricAvailable && storedPassphraseCount > 0) {
                                     Text(
                                         stringResource(R.string.biometric_stored_count, storedPassphraseCount),
                                         style = MaterialTheme.typography.bodySmall,
@@ -426,52 +560,54 @@ fun SettingsScreen(
                             }
                         },
                     )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.biometric_auto_unlock)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.biometric_auto_unlock_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = biometricAutoUnlockEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setBiometricAutoUnlockEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.biometric_save_offer)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.biometric_save_offer_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = biometricSaveOfferEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setBiometricSaveOfferEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
-                    if (storedPassphraseCount > 0) {
+                    if (biometricAvailable) {
                         HorizontalDivider()
                         ListItem(
-                            headlineContent = { Text(stringResource(R.string.biometric_clear_all)) },
-                            modifier = Modifier.clickable { showClearBiometricConfirm = true },
+                            headlineContent = { Text(stringResource(R.string.biometric_auto_unlock)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.biometric_auto_unlock_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = biometricAutoUnlockEnabled,
+                                    onCheckedChange = {
+                                        scope.launch {
+                                            settingsRepository.setBiometricAutoUnlockEnabled(it)
+                                        }
+                                    },
+                                )
+                            },
                         )
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.biometric_save_offer)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.biometric_save_offer_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = biometricSaveOfferEnabled,
+                                    onCheckedChange = {
+                                        scope.launch {
+                                            settingsRepository.setBiometricSaveOfferEnabled(it)
+                                        }
+                                    },
+                                )
+                            },
+                        )
+                        if (storedPassphraseCount > 0) {
+                            HorizontalDivider()
+                            ListItem(
+                                headlineContent = { Text(stringResource(R.string.biometric_clear_all)) },
+                                modifier = Modifier.clickable { showClearBiometricConfirm = true },
+                            )
+                        }
                     }
                 }
 
@@ -554,13 +690,6 @@ fun SettingsScreen(
                         }
                     }
                 }
-                if (summary != null || adminOverview != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
-                    summary?.let { DashboardSummaryCard(it) }
-                    if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
-                    adminOverview?.let { AdminOverviewCard(it) }
-                }
 
                 Spacer(modifier = Modifier.height(32.dp))
 
@@ -582,6 +711,7 @@ fun SettingsScreen(
             onDismiss = { showAboutDialog = false },
             versionName = BuildConfig.VERSION_NAME ?: "\u2014",
             versionCode = BuildConfig.VERSION_CODE,
+            currentBuildDateUtc = BuildConfig.BUILD_DATE_UTC,
             serverVersion = serverVersion,
             updateChannelPref = updateChannelPref,
             onUpdateChannelChange = { ch ->
@@ -602,9 +732,11 @@ private sealed class UpdateUiState {
 
     data class InstallFailed(
         val versionName: String,
+        val buildDateUtc: String?,
         val downloadUrl: String,
         val userMessage: String,
         val releaseNotes: String? = null,
+        val changelogMarkdown: String? = null,
     ) : UpdateUiState()
 }
 
@@ -612,8 +744,10 @@ private sealed class UpdateUiState {
 private fun DashboardSummaryCard(summary: SummaryData) {
     val notesTotal = summary.notes?.total ?: 0
     val listsTotal = summary.checklists?.total ?: 0
-    val completionRate = summary.items?.completionRate
-    val hasAny = notesTotal > 0 || listsTotal > 0 || completionRate != null
+    val items = summary.items
+    val tasks = summary.tasks
+    val hasAny =
+        notesTotal > 0 || listsTotal > 0 || items != null || tasks != null
 
     if (!hasAny) return
 
@@ -621,7 +755,7 @@ private fun DashboardSummaryCard(summary: SummaryData) {
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             summary.username?.let { u ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -641,8 +775,72 @@ private fun DashboardSummaryCard(summary: SummaryData) {
             ) {
                 if (notesTotal > 0 || summary.notes != null) StatChip(stringResource(R.string.stat_notes), notesTotal)
                 if (listsTotal > 0 || summary.checklists != null) StatChip(stringResource(R.string.stat_checklists), listsTotal)
-                completionRate?.let { StatChip(stringResource(R.string.stat_done_percent), it) }
             }
+
+            items?.let { i ->
+                DashboardBreakdown(
+                    title = stringResource(R.string.dashboard_items_title),
+                    completionRate = i.completionRate,
+                    chips =
+                        buildList {
+                            i.total?.let { add(stringResource(R.string.stat_total) to it) }
+                            i.completed?.let { add(stringResource(R.string.stat_completed) to it) }
+                            i.pending?.let { add(stringResource(R.string.stat_pending) to it) }
+                        },
+                )
+            }
+
+            tasks?.let { t ->
+                DashboardBreakdown(
+                    title = stringResource(R.string.dashboard_tasks_title),
+                    completionRate = t.completionRate,
+                    chips =
+                        buildList {
+                            t.total?.let { add(stringResource(R.string.stat_total) to it) }
+                            t.completed?.let { add(stringResource(R.string.stat_completed) to it) }
+                            t.inProgress?.let { add(stringResource(R.string.stat_in_progress) to it) }
+                            t.todo?.let { add(stringResource(R.string.stat_todo) to it) }
+                        },
+                )
+            }
+        }
+    }
+}
+
+/** A titled stat breakdown with optional completion progress bar; used by the dashboard card. */
+@Composable
+private fun DashboardBreakdown(
+    title: String,
+    completionRate: Int?,
+    chips: List<Pair<String, Int>>,
+) {
+    if (chips.isEmpty() && completionRate == null) return
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+        if (chips.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                chips.forEach { (label, value) -> StatChip(label, value) }
+            }
+        }
+        completionRate?.let { rate ->
+            LinearProgressIndicator(
+                progress = { (rate.coerceIn(0, 100)) / 100f },
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
+            )
+            Text(
+                stringResource(R.string.dashboard_completion_format, rate),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
         }
     }
 }
@@ -711,6 +909,7 @@ private fun AboutDialog(
     onDismiss: () -> Unit,
     versionName: String,
     versionCode: Int,
+    currentBuildDateUtc: String?,
     serverVersion: String? = null,
     updateChannelPref: String,
     onUpdateChannelChange: (String) -> Unit,
@@ -725,9 +924,54 @@ private fun AboutDialog(
     var versionTapCount by remember { mutableIntStateOf(0) }
     var versionLastTapElapsedMs by remember { mutableLongStateOf(0L) }
     var showAboutEasterEgg by remember { mutableStateOf(false) }
+    var bundledChangelog by remember { mutableStateOf<BundledChangelog?>(null) }
+    var changelogDialog by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showChangelogUnavailable by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        bundledChangelog = BundledChangelog.load(context)
+    }
 
     LaunchedEffect(updateChannelPref) {
         updateState = UpdateUiState.Idle
+    }
+
+    fun openInstalledChangelog() {
+        val key = BundledChangelog.sectionKeyForInstalled(versionName)
+        val markdown =
+            BundledChangelog.resolveMarkdown(
+                changelog = bundledChangelog,
+                sectionKey = key,
+                useDevRollingSection = false,
+                fallbackMarkdown = null,
+            )
+        if (markdown != null) {
+            changelogDialog = context.getString(R.string.changelog_title_installed, key) to markdown
+        } else {
+            showChangelogUnavailable = true
+        }
+    }
+
+    fun openUpdateChangelog(
+        remoteVersionLabel: String,
+        releaseNotes: String?,
+        preResolvedMarkdown: String? = null,
+    ) {
+        val sectionKey = BundledChangelog.sectionKeyForRemote(remoteVersionLabel, parsedChannel)
+        val markdown =
+            preResolvedMarkdown?.trim()?.takeIf { it.isNotBlank() }
+                ?: BundledChangelog.resolveMarkdown(
+                    changelog = bundledChangelog,
+                    sectionKey = sectionKey,
+                    useDevRollingSection = parsedChannel == UpdateChannel.Dev,
+                    fallbackMarkdown = releaseNotes,
+                )
+        if (markdown != null) {
+            changelogDialog =
+                context.getString(R.string.changelog_title_update, remoteVersionLabel) to markdown
+        } else {
+            showChangelogUnavailable = true
+        }
     }
 
     AlertDialog(
@@ -769,6 +1013,15 @@ private fun AboutDialog(
                     Text(stringResource(R.string.version), style = MaterialTheme.typography.bodyMedium)
                     Text(stringResource(R.string.version_format, versionName, versionCode), style = MaterialTheme.typography.bodyMedium)
                 }
+                formatBuildDateLabel(currentBuildDateUtc)?.let { buildDate ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(stringResource(R.string.build_date), style = MaterialTheme.typography.bodyMedium)
+                        Text(buildDate, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
                 serverVersion?.let { version ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -778,21 +1031,22 @@ private fun AboutDialog(
                         Text(version, style = MaterialTheme.typography.bodyMedium)
                     }
                 }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                TextButton(
-                    onClick = { uriHandler.openUri(GITHUB_REPO_URL) },
-                    contentPadding = PaddingValues(0.dp),
+                HorizontalDivider()
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
-                    Icon(
-                        Icons.Default.Link,
-                        contentDescription = stringResource(R.string.view_source_github),
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.primary,
+                    ViewChangelogButton(
+                        label = stringResource(R.string.view_changelog),
+                        onClick = { openInstalledChangelog() },
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.view_source_github))
+                    ViewSourceOnGitHubButton(
+                        onClick = { uriHandler.openUri(GITHUB_REPO_URL) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                HorizontalDivider()
                 SettingsSectionSubtitle(stringResource(R.string.update_channel_label))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -814,7 +1068,7 @@ private fun AboutDialog(
                         text = stringResource(R.string.update_dev_channel_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
+                        modifier = Modifier.padding(top = 2.dp),
                     )
                 }
                 when (val state = updateState) {
@@ -843,21 +1097,15 @@ private fun AboutDialog(
                     }
                     is UpdateUiState.Checking, is UpdateUiState.Downloading -> {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                                Text(
+                            UpdateStatusAlert(
+                                message =
                                     if (state is UpdateUiState.Downloading) {
                                         stringResource(R.string.downloading)
                                     } else {
                                         stringResource(R.string.checking_for_updates)
                                     },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                                variant = UpdateStatusAlertVariant.Loading,
+                            )
                             if (state is UpdateUiState.Downloading) {
                                 if (downloadProgress != null) {
                                     LinearProgressIndicator(
@@ -875,10 +1123,18 @@ private fun AboutDialog(
                             is UpdateCheckResult.UpdateAvailable ->
                                 UpdateAvailableContent(
                                     versionName = r.versionName,
+                                    buildDateUtc = r.buildDateUtc,
                                     downloadUrl = r.downloadUrl,
                                     releaseNotes = r.releaseNotes,
                                     installFailedMessage = null,
                                     showSigningHints = parsedChannel == UpdateChannel.Dev,
+                                    onViewChangelog = {
+                                        openUpdateChangelog(
+                                            r.versionName,
+                                            r.releaseNotes,
+                                            r.changelogMarkdown,
+                                        )
+                                    },
                                     onDownloadAndInstall = {
                                         scope.launch {
                                             updateState = UpdateUiState.Downloading
@@ -893,7 +1149,12 @@ private fun AboutDialog(
                                                 is InstallResult.Failed ->
                                                     updateState =
                                                         UpdateUiState.InstallFailed(
-                                                            r.versionName, r.downloadUrl, result.userMessage, r.releaseNotes,
+                                                            r.versionName,
+                                                            r.buildDateUtc,
+                                                            r.downloadUrl,
+                                                            result.userMessage,
+                                                            r.releaseNotes,
+                                                            r.changelogMarkdown,
                                                         )
                                             }
                                             downloadProgress = null
@@ -902,10 +1163,9 @@ private fun AboutDialog(
                                     onOpenReleasePage = { uriHandler.openUri(releasePageUrl) },
                                 )
                             is UpdateCheckResult.UpToDate -> {
-                                Text(
-                                    stringResource(R.string.you_are_up_to_date),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                UpdateStatusAlert(
+                                    message = stringResource(R.string.you_are_up_to_date),
+                                    variant = UpdateStatusAlertVariant.Success,
                                 )
                                 TextButton(
                                     onClick = { updateState = UpdateUiState.Idle },
@@ -915,10 +1175,9 @@ private fun AboutDialog(
                                 }
                             }
                             is UpdateCheckResult.Error -> {
-                                Text(
-                                    stringResource(R.string.update_check_error, r.message),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
+                                UpdateStatusAlert(
+                                    message = stringResource(R.string.update_check_error, r.message),
+                                    variant = UpdateStatusAlertVariant.Danger,
                                 )
                                 TextButton(
                                     onClick = {
@@ -939,10 +1198,18 @@ private fun AboutDialog(
                     is UpdateUiState.InstallFailed ->
                         UpdateAvailableContent(
                             versionName = state.versionName,
+                            buildDateUtc = state.buildDateUtc,
                             downloadUrl = state.downloadUrl,
                             releaseNotes = state.releaseNotes,
                             installFailedMessage = state.userMessage,
                             showSigningHints = true,
+                            onViewChangelog = {
+                                openUpdateChangelog(
+                                    state.versionName,
+                                    state.releaseNotes,
+                                    state.changelogMarkdown,
+                                )
+                            },
                             onDownloadAndInstall = {
                                 scope.launch {
                                     updateState = UpdateUiState.Downloading
@@ -957,7 +1224,12 @@ private fun AboutDialog(
                                         is InstallResult.Failed ->
                                             updateState =
                                                 UpdateUiState.InstallFailed(
-                                                    state.versionName, state.downloadUrl, result.userMessage, state.releaseNotes,
+                                                    state.versionName,
+                                                    state.buildDateUtc,
+                                                    state.downloadUrl,
+                                                    result.userMessage,
+                                                    state.releaseNotes,
+                                                    state.changelogMarkdown,
                                                 )
                                     }
                                     downloadProgress = null
@@ -969,6 +1241,27 @@ private fun AboutDialog(
             }
         },
     )
+
+    changelogDialog?.let { (title, markdown) ->
+        ChangelogDialog(
+            title = title,
+            markdown = markdown,
+            onDismiss = { changelogDialog = null },
+        )
+    }
+
+    if (showChangelogUnavailable) {
+        AlertDialog(
+            onDismissRequest = { showChangelogUnavailable = false },
+            confirmButton = {
+                TextButton(onClick = { showChangelogUnavailable = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            },
+            title = { Text(stringResource(R.string.view_changelog)) },
+            text = { Text(stringResource(R.string.changelog_unavailable)) },
+        )
+    }
 
     if (showAboutEasterEgg) {
         AlertDialog(
@@ -990,20 +1283,92 @@ private fun AboutDialog(
 }
 
 @Composable
+private fun ViewChangelogButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    AboutLinkButton(
+        label = label,
+        onClick = onClick,
+        modifier = modifier,
+        icon = {
+            Icon(
+                Icons.AutoMirrored.Filled.Article,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        },
+    )
+}
+
+@Composable
+private fun ViewSourceOnGitHubButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val label = stringResource(R.string.view_source_github)
+    AboutLinkButton(
+        label = label,
+        onClick = onClick,
+        modifier = modifier,
+        icon = {
+            Icon(
+                Icons.Default.Link,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        },
+    )
+}
+
+@Composable
+private fun AboutLinkButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: @Composable () -> Unit,
+) {
+    TextButton(
+        onClick = onClick,
+        modifier = modifier.defaultMinSize(minHeight = 36.dp, minWidth = 0.dp),
+        contentPadding = PaddingValues(vertical = 2.dp),
+    ) {
+        icon()
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(label, maxLines = 2)
+    }
+}
+
+@Composable
 private fun UpdateAvailableContent(
     versionName: String,
+    buildDateUtc: String?,
     downloadUrl: String,
     releaseNotes: String?,
     installFailedMessage: String?,
     showSigningHints: Boolean = false,
+    onViewChangelog: () -> Unit,
     onDownloadAndInstall: () -> Unit,
     onOpenReleasePage: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            stringResource(R.string.update_available, versionName),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        UpdateStatusAlert(
+            message = stringResource(R.string.update_available, versionName),
+            variant = UpdateStatusAlertVariant.Info,
+        )
+        formatBuildDateLabel(buildDateUtc)?.let { buildDate ->
+            Text(
+                text = stringResource(R.string.update_build_date, buildDate),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        ViewChangelogButton(
+            label = stringResource(R.string.view_changelog_for_version, versionName),
+            onClick = onViewChangelog,
         )
         if (showSigningHints) {
             Text(
@@ -1012,38 +1377,10 @@ private fun UpdateAvailableContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        releaseNotes?.takeIf { it.isNotBlank() }?.let { notes ->
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    stringResource(R.string.whats_new),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 120.dp)
-                            .verticalScroll(rememberScrollState()),
-                ) {
-                    MarkdownText(
-                        markdown = notes,
-                        modifier = Modifier.fillMaxWidth(),
-                        style =
-                            MaterialTheme.typography.bodySmall.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            ),
-                        syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
-                        syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
         installFailedMessage?.let { msg ->
-            Text(
-                stringResource(R.string.install_failed, msg),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+            UpdateStatusAlert(
+                message = stringResource(R.string.install_failed, msg),
+                variant = UpdateStatusAlertVariant.Danger,
             )
         }
         Row(
@@ -1078,6 +1415,23 @@ private fun UpdateAvailableContent(
                     Text(stringResource(R.string.open_release_page))
                 }
             }
+        }
+    }
+}
+
+private fun formatBuildDateLabel(rawUtcIso: String?): String? {
+    if (rawUtcIso.isNullOrBlank()) return null
+    val formatter =
+        DateTimeFormatter
+            .ofLocalizedDate(FormatStyle.MEDIUM)
+            .withLocale(Locale.getDefault())
+    return try {
+        OffsetDateTime.parse(rawUtcIso).atZoneSameInstant(ZoneId.systemDefault()).toLocalDate().format(formatter)
+    } catch (_: DateTimeParseException) {
+        try {
+            Instant.parse(rawUtcIso).atZone(ZoneId.systemDefault()).toLocalDate().format(formatter)
+        } catch (_: DateTimeParseException) {
+            rawUtcIso
         }
     }
 }

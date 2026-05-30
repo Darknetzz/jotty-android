@@ -2,4 +2,5 @@
 <paths>
     <!-- Cache dir subdir for downloaded APK (UpdateChecker downloads here for in-app install). -->
     <cache-path name="updates" path="updates/" />
+    <cache-path name="debug_logs" path="debug-logs/" />
 </paths>

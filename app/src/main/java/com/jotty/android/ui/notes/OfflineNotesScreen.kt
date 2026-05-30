@@ -8,7 +8,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.encryption.BiometricPassphraseStore
-import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.preferences.SettingsRepository
 
 /**
@@ -27,8 +26,11 @@ fun OfflineNotesScreen(
     authFingerprint: String,
     initialNoteId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
+    sharedText: String? = null,
+    onSharedTextConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
+    tabReselectToken: Int = 0,
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -40,13 +42,6 @@ fun OfflineNotesScreen(
         )
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
-    val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
-
-    LaunchedEffect(offlineModeEnabled, instanceId, authFingerprint, isOnline) {
-        if (offlineModeEnabled && isOnline) {
-            offlineRepository.syncNotes()
-        }
-    }
 
     if (offlineModeEnabled) {
         OfflineEnabledNotesScreen(
@@ -55,9 +50,12 @@ fun OfflineNotesScreen(
             settingsRepository = settingsRepository,
             initialNoteId = initialNoteId,
             onDeepLinkConsumed = onDeepLinkConsumed,
+            sharedText = sharedText,
+            onSharedTextConsumed = onSharedTextConsumed,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
             imageLoader = imageLoader,
             biometricStore = biometricStore,
+            tabReselectToken = tabReselectToken,
         )
     } else {
         NotesScreen(
@@ -65,9 +63,12 @@ fun OfflineNotesScreen(
             settingsRepository = settingsRepository,
             initialNoteId = initialNoteId,
             onDeepLinkConsumed = onDeepLinkConsumed,
+            sharedText = sharedText,
+            onSharedTextConsumed = onSharedTextConsumed,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
             imageLoader = imageLoader,
             biometricStore = biometricStore,
+            tabReselectToken = tabReselectToken,
         )
     }
 }

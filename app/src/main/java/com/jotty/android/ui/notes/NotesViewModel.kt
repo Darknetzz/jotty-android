@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.api.normalizedForClient
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.FlowPreview
@@ -100,7 +101,7 @@ class NotesViewModel(
                     api.getNotes(
                         category = _selectedCategory.value,
                         search = _debouncedSearchQuery.value.takeIf { it.isNotBlank() },
-                    ).notes.orEmpty()
+                    ).notes.orEmpty().map { it.normalizedForClient() }
                 AppLog.d("notes", "Loaded ${_notes.value.size} notes")
             } catch (e: Exception) {
                 AppLog.e("notes", "Load failed", e)

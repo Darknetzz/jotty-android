@@ -1,8 +1,9 @@
+import com.android.build.api.dsl.ApplicationExtension
 import java.util.Properties
+import java.time.Instant
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.ksp)
     alias(libs.plugins.jlleitschuh.ktlint)
@@ -16,8 +17,9 @@ val keystoreProperties =
         }
     }
 val devBuildSha = rootProject.findProperty("DEV_BUILD_SHA")?.toString()?.take(7)
+val buildDateUtc = Instant.now().toString()
 
-android {
+extensions.configure<ApplicationExtension> {
     namespace = "com.jotty.android"
     compileSdk = 36
 
@@ -27,6 +29,7 @@ android {
         targetSdk = 36
         versionCode = (rootProject.findProperty("VERSION_CODE")?.toString()?.toIntOrNull() ?: 1)
         versionName = rootProject.findProperty("VERSION_NAME")?.toString() ?: "1.0.0"
+        buildConfigField("String", "BUILD_DATE_UTC", "\"$buildDateUtc\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -73,12 +76,22 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+val copyChangelogToAssets =
+    tasks.register<Copy>("copyChangelogToAssets") {
+        from(rootProject.file("CHANGELOG.md"))
+        into(layout.projectDirectory.dir("src/main/assets"))
     }
+
+tasks.named("preBuild") {
+    dependsOn(copyChangelogToAssets)
 }
 
 ktlint {
@@ -120,6 +133,10 @@ dependencies {
 
     // WorkManager for background sync
     implementation("androidx.work:work-runtime-ktx:2.10.0")
+
+    // Glance for home-screen widgets
+    implementation("androidx.glance:glance-appwidget:1.1.1")
+    implementation("androidx.glance:glance-material3:1.1.1")
 
     // Markdown rendering for notes (images via Coil)
     implementation("com.github.jeziellago:compose-markdown:0.5.8")

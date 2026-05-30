@@ -23,10 +23,15 @@ import com.jotty.android.data.api.SuccessResponse
 import com.jotty.android.data.api.SummaryResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateNoteRequest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -54,6 +59,44 @@ class OfflineChecklistsRepositoryTest {
     fun tearDown() {
         database.close()
     }
+
+    @Test
+    fun syncChecklists_whenCancelled_doesNotSetLastSyncError() =
+        runTest {
+            val block = CompletableDeferred<Unit>()
+            val remote =
+                mutableListOf(
+                    Checklist(
+                        id = "remote-1",
+                        title = "Remote",
+                        category = API_CATEGORY_UNCATEGORIZED,
+                        type = "simple",
+                        items = emptyList(),
+                        createdAt = "c",
+                        updatedAt = "u",
+                    ),
+                )
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    beforeGetChecklists = { block.await() },
+                )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+            val syncJob = async { repo.syncChecklists(force = true) }
+            while (!repo.isSyncing.value) {
+                yield()
+            }
+            syncJob.cancelAndJoin()
+            assertNull(repo.lastSyncError.value)
+        }
 
     @Test
     fun syncChecklists_whenOffline_returnsFailure() =
@@ -414,6 +457,7 @@ class OfflineChecklistsRepositoryTest {
 
 private class FakeChecklistApi(
     private val remoteChecklists: MutableList<Checklist> = mutableListOf(),
+    private val beforeGetChecklists: suspend () -> Unit = {},
     private val onDeleteItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
     private val onUpdateChecklist: suspend (String, UpdateChecklistRequest) -> ApiResponse<Checklist> = { listId, body ->
         val existing = remoteChecklists.first { it.id == listId }
@@ -432,7 +476,10 @@ private class FakeChecklistApi(
         category: String?,
         type: String?,
         search: String?,
-    ): ChecklistsResponse = ChecklistsResponse(remoteChecklists.toList())
+    ): ChecklistsResponse {
+        beforeGetChecklists()
+        return ChecklistsResponse(remoteChecklists.toList())
+    }
 
     override suspend fun createChecklist(body: CreateChecklistRequest): ApiResponse<Checklist> {
         val created =

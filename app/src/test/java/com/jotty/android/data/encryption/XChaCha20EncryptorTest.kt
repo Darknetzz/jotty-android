@@ -64,50 +64,81 @@ class XChaCha20EncryptorTest {
     }
 
     @Test
+    fun `encrypt outputs hex-encoded fields for Jotty web compatibility`() {
+        val plaintext = "Web-compatible secret"
+        val passphrase = "my secure passphrase 123"
+        val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphrase)
+        assertNotNull(encrypted)
+        val hexField = """"salt"\s*:\s*"([^"]+)"""".toRegex().find(encrypted!!)?.groupValues?.get(1)
+        assertNotNull(hexField)
+        assertTrue(hexField!!.matches(Regex("[0-9a-f]+")))
+        assertFalse(hexField.contains("+"))
+        assertFalse(hexField.contains("/"))
+        assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, passphrase))
+    }
+
+    @Test
     fun `decrypt accepts URL-safe base64 and unpadded base64 in JSON`() {
         val plaintext = "Note encrypted with standard base64"
         val passphrase = "pass"
         val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
-        // Convert to URL-safe base64 (e.g. as produced by Jotty web): + -> -, / -> _, remove padding
-        val urlSafeUnpadded = encrypted.replace("+", "-").replace("/", "_").replace("=", "")
+        // Legacy base64 payloads (older Android builds): convert to URL-safe unpadded form.
+        val base64Json =
+            encrypted
+                .replace(Regex(""""salt"\s*:\s*"([0-9a-f]+)"""")) {
+                    """"salt":"${Base64.getEncoder().encodeToString(hexToBytes(it.groupValues[1]))}""""
+                }.replace(Regex(""""nonce"\s*:\s*"([0-9a-f]+)"""")) {
+                    """"nonce":"${Base64.getEncoder().encodeToString(hexToBytes(it.groupValues[1]))}""""
+                }.replace(Regex(""""data"\s*:\s*"([0-9a-f]+)"""")) {
+                    """"data":"${Base64.getEncoder().encodeToString(hexToBytes(it.groupValues[1]))}""""
+                }
+        val urlSafeUnpadded = base64Json.replace("+", "-").replace("/", "_").replace("=", "")
         val decrypted = XChaCha20Decryptor.decrypt(urlSafeUnpadded, passphrase)
         assertNotNull(decrypted)
         assertEquals(plaintext, decrypted)
     }
 
+    private fun hexToBytes(hex: String): ByteArray =
+        hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+
     @Test
-    fun `decrypt accepts libsodium secretbox format tag then ciphertext`() {
-        // Encryptor now produces tag||ciphertext (libsodium format) so web can decrypt. Verify round-trip.
+    fun `encrypt outputs BC order ciphertext then tag and decrypt round-trips`() {
+        // Encryptor must output ciphertext||tag (AEAD combined) for Jotty web compatibility.
         val plaintext = "Secret from Jotty web"
         val passphrase = "web passphrase"
         val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
         val decrypted = XChaCha20Decryptor.decrypt(encryptedJson, passphrase)
         assertNotNull(decrypted)
         assertEquals(plaintext, decrypted)
+        val withReason = XChaCha20Decryptor.decryptWithReason(encryptedJson, passphrase)
+        assertFalse(withReason.usedLegacyDataOrder)
     }
 
     @Test
-    fun `decrypt accepts BC order ciphertext then tag for backward compatibility`() {
-        // Encryptor outputs tag||ciphertext. Reorder to ciphertext||tag (old app format); decryptor should still accept.
+    fun `decrypt accepts tag then ciphertext for backward compatibility`() {
+        // Old app builds wrote tag||ciphertext. Reorder current ciphertext||tag output and ensure decrypt still works.
         val plaintext = "Backward compat"
         val passphrase = "pass"
         val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
         val regex = """"data"\s*:\s*"([^"]+)"""".toRegex()
-        val dataB64 =
+        val dataHex =
             regex.find(encryptedJson)?.groupValues?.get(1)
                 ?: throw AssertionError("no data in JSON")
-        val data = Base64.getDecoder().decode(dataB64)
+        val data =
+            dataHex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         assertTrue(data.size >= 16)
-        val ciphertextThenTag =
+        val tagThenCiphertext =
             ByteArray(data.size).apply {
-                System.arraycopy(data, 16, this, 0, data.size - 16)
-                System.arraycopy(data, 0, this, data.size - 16, 16)
+                val ciphertextLen = data.size - 16
+                System.arraycopy(data, ciphertextLen, this, 0, 16)
+                System.arraycopy(data, 0, this, 16, ciphertextLen)
             }
-        val bcOrderB64 = Base64.getEncoder().encodeToString(ciphertextThenTag)
-        val bcOrderJson = encryptedJson.replace("\"$dataB64\"", "\"$bcOrderB64\"")
-        val decrypted = XChaCha20Decryptor.decrypt(bcOrderJson, passphrase)
-        assertNotNull(decrypted)
-        assertEquals(plaintext, decrypted)
+        val legacyOrderHex = tagThenCiphertext.joinToString("") { "%02x".format(it) }
+        val legacyOrderJson = encryptedJson.replace("\"$dataHex\"", "\"$legacyOrderHex\"")
+        val result = XChaCha20Decryptor.decryptWithReason(legacyOrderJson, passphrase)
+        assertNotNull(result.plaintext)
+        assertEquals(plaintext, result.plaintext)
+        assertTrue(result.usedLegacyDataOrder)
     }
 
     @Test

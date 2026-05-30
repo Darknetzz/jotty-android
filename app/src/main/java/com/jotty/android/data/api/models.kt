@@ -1,5 +1,7 @@
 package com.jotty.android.data.api
 
+import java.time.Instant
+
 /** Category value used by the API for uncategorized items; use when comparing or sending category. */
 const val API_CATEGORY_UNCATEGORIZED = "Uncategorized"
 
@@ -70,6 +72,30 @@ data class Note(
     /** Set by API when the note is stored encrypted (Jotty server may send this). */
     val encrypted: Boolean? = null,
 )
+
+/**
+ * Some servers can return sparse/corrupt note objects (e.g. null title/content on malformed notes).
+ * Normalize note fields so clients can still list/open these notes instead of dropping them.
+ */
+fun Note.normalizedForClient(): Note {
+    val now = Instant.now().toString()
+    val safeId = (id as String?)?.takeIf { it.isNotBlank() } ?: "missing-id-${now.hashCode()}"
+    val safeTitle = (title as String?)?.ifBlank { "Untitled" } ?: "Untitled"
+    val safeCategory = (category as String?)?.ifBlank { API_CATEGORY_UNCATEGORIZED } ?: API_CATEGORY_UNCATEGORIZED
+    val safeContent = (content as String?) ?: ""
+    val safeCreatedAt = (createdAt as String?)?.ifBlank { now } ?: now
+    val safeUpdatedAt = (updatedAt as String?)?.ifBlank { safeCreatedAt } ?: safeCreatedAt
+    val safeEncrypted = encrypted as Boolean?
+    return copy(
+        id = safeId,
+        title = safeTitle,
+        category = safeCategory,
+        content = safeContent,
+        createdAt = safeCreatedAt,
+        updatedAt = safeUpdatedAt,
+        encrypted = safeEncrypted,
+    )
+}
 
 data class CreateNoteRequest(
     val title: String,

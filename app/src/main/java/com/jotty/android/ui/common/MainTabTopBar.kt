@@ -1,0 +1,197 @@
+package com.jotty.android.ui.common
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.CloudQueue
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.jotty.android.R
+import java.text.DateFormat
+import java.util.Date
+
+@Stable
+class MainTabTopBarState(
+    val isOnline: Boolean,
+    val isSyncing: Boolean,
+    val lastSyncAttemptEpochMs: Long?,
+    val onRefresh: () -> Unit,
+    val onAdd: () -> Unit,
+    val showSyncStatus: Boolean = true,
+)
+
+class MainTabTopBarController {
+    var state by mutableStateOf<MainTabTopBarState?>(null)
+}
+
+val LocalMainTabTopBarController =
+    compositionLocalOf<MainTabTopBarController> {
+        error("MainTabTopBarController not provided")
+    }
+
+@Composable
+fun ProvideMainTabTopBarController(content: @Composable () -> Unit) {
+    val controller = remember { MainTabTopBarController() }
+    CompositionLocalProvider(LocalMainTabTopBarController provides controller) {
+        content()
+    }
+}
+
+/** Publishes list-tab actions into [MainScreen]'s shared TopAppBar; clears on dispose. */
+@Composable
+fun RegisterMainTabTopBar(state: MainTabTopBarState?) {
+    val controller = LocalMainTabTopBarController.current
+    SideEffect {
+        controller.state = state
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            controller.state = null
+        }
+    }
+}
+
+@Composable
+fun OfflineSyncStatusIndicator(
+    isOnline: Boolean,
+    isSyncing: Boolean,
+    lastSyncAttemptEpochMs: Long?,
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
+    val statusText =
+        when {
+            isSyncing -> stringResource(R.string.syncing)
+            isOnline -> stringResource(R.string.online)
+            else -> stringResource(R.string.server_unreachable)
+        }
+    val lastSyncText =
+        remember(lastSyncAttemptEpochMs) {
+            lastSyncAttemptEpochMs?.let {
+                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
+            }
+        }
+    val offline = !isOnline && !isSyncing
+    val iconSize = if (compact) 18.dp else 20.dp
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
+    ) {
+        when {
+            isSyncing ->
+                Icon(
+                    Icons.Default.CloudQueue,
+                    contentDescription = statusText,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(iconSize),
+                )
+            isOnline ->
+                Icon(
+                    Icons.Default.CloudDone,
+                    contentDescription = statusText,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(iconSize),
+                )
+            else ->
+                Icon(
+                    Icons.Default.CloudOff,
+                    contentDescription = statusText,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(if (compact) 18.dp else 22.dp),
+                )
+        }
+        Column {
+            Text(
+                text = statusText,
+                style =
+                    if (offline && !compact) {
+                        MaterialTheme.typography.titleSmall
+                    } else {
+                        MaterialTheme.typography.labelMedium
+                    },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color =
+                    if (offline) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+            )
+            if (offline) {
+                Text(
+                    text = stringResource(R.string.connectivity_status_offline_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (lastSyncText != null) {
+                Text(
+                    text = stringResource(R.string.last_sync_attempt_at, lastSyncText),
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MainTabTopBarSyncSlot(
+    isOnline: Boolean,
+    isSyncing: Boolean,
+    lastSyncAttemptEpochMs: Long?,
+    modifier: Modifier = Modifier,
+) {
+    OfflineSyncStatusIndicator(
+        isOnline = isOnline,
+        isSyncing = isSyncing,
+        lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+        modifier = modifier,
+        compact = true,
+    )
+}
+
+@Composable
+fun MainTabTopBarActions(state: MainTabTopBarState) {
+    val refreshEnabled =
+        if (state.showSyncStatus) {
+            state.isOnline && !state.isSyncing
+        } else {
+            !state.isSyncing
+        }
+    IconButton(onClick = state.onRefresh, enabled = refreshEnabled) {
+        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
+    }
+    IconButton(onClick = state.onAdd) {
+        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
+    }
+}

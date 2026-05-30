@@ -35,6 +35,7 @@ import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.accentColor
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
 import kotlinx.coroutines.launch
@@ -83,11 +84,19 @@ fun SetupScreen(
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                 }
-                Text(
-                    text = stringResource(R.string.manage_instances),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.manage_instances),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = stringResource(R.string.manage_instances_default_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
         } else {
             Spacer(modifier = Modifier.height(24.dp))
@@ -227,24 +236,34 @@ private fun InstanceCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (instance.colorHex != null) {
+            instance.accentColor()?.let { accent ->
                 Box(
                     modifier =
                         Modifier
                             .size(12.dp)
-                            .background(
-                                Color((instance.colorHex.toInt() and 0xFFFFFF) or 0xFF000000.toInt()),
-                                CircleShape,
-                            ),
+                            .background(accent, CircleShape),
                 )
             }
             Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = instance.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = instance.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (isDefault) {
+                        AssistChip(
+                            onClick = {},
+                            label = { Text(stringResource(R.string.instance_default_chip)) },
+                            enabled = false,
+                            modifier = Modifier.height(24.dp),
+                        )
+                    }
+                }
                 Text(
                     text = instance.serverUrl,
                     style = MaterialTheme.typography.bodySmall,

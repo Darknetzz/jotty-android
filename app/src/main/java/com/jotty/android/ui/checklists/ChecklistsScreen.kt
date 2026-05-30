@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -15,7 +16,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -41,13 +43,20 @@ import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
+import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.ListSortOption
+import com.jotty.android.ui.common.SortMenuButton
+import com.jotty.android.ui.common.sortedBy
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.MainTabTopBarState
+import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.appendedPath
 import com.jotty.android.util.deleteAtPath
 import com.jotty.android.util.parentPath
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -56,12 +65,20 @@ fun ChecklistsScreen(
     api: JottyApi,
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
+    tabReselectToken: Int = 0,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     val application = LocalContext.current.applicationContext as Application
     val vm: ChecklistsViewModel = viewModel { ChecklistsViewModel(application, api) }
     val checklists by vm.checklists.collectAsStateWithLifecycle()
+    val filteredChecklists by vm.filteredChecklists.collectAsStateWithLifecycle()
+    val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
+    val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
+    val checklistCategories by vm.checklistCategories.collectAsStateWithLifecycle()
+    val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
+    val sortOption = ListSortOption.fromKey(sortKey)
+    val sortedChecklists = remember(filteredChecklists, sortOption) { filteredChecklists.sortedBy(sortOption) }
     val selectedList by vm.selectedList.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
@@ -84,15 +101,7 @@ fun ChecklistsScreen(
                     duration = SnackbarDuration.Short,
                 )
             if (result == SnackbarResult.ActionPerformed) {
-                val type =
-                    if (list.type.equals("task", ignoreCase = true) ||
-                        list.type.equals("project", ignoreCase = true)
-                    ) {
-                        "task"
-                    } else {
-                        "simple"
-                    }
-                if (!vm.recreateChecklistAfterUndo(list.title, type)) {
+                if (!vm.recreateChecklistAfterUndo(list)) {
                     snackbarHostState.showSnackbar(saveFailedMsg)
                 }
             }
@@ -104,6 +113,36 @@ fun ChecklistsScreen(
     LaunchedEffect(Unit) { vm.loadChecklists() }
 
     BackHandler(enabled = selectedList != null) { vm.setSelectedList(null) }
+    LaunchedEffect(tabReselectToken) {
+        if (selectedList != null) {
+            vm.setSelectedList(null)
+        }
+    }
+
+    // Restore the persisted category filter once, then persist subsequent changes.
+    var filterRestored by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        settingsRepository.checklistsCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
+        filterRestored = true
+    }
+    LaunchedEffect(selectedCategory, filterRestored) {
+        if (filterRestored) settingsRepository.setChecklistsCategoryFilter(selectedCategory)
+    }
+
+    RegisterMainTabTopBar(
+        if (selectedList == null) {
+            MainTabTopBarState(
+                isOnline = true,
+                isSyncing = loading,
+                lastSyncAttemptEpochMs = null,
+                onRefresh = { vm.loadChecklists() },
+                onAdd = { vm.setShowCreateDialog(true) },
+                showSyncStatus = false,
+            )
+        } else {
+            null
+        },
+    )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -113,15 +152,20 @@ fun ChecklistsScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = contentVerticalDp,
+                    topComfortDp = if (selectedList != null) 4 else contentVerticalDp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
-            val currentList = selectedList
-            if (currentList != null) {
+            ListDetailContainer(
+                target = selectedList,
+                modifier = Modifier.fillMaxSize(),
+                contentKey = { it?.id ?: "list" },
+            ) { currentList ->
+                if (currentList != null) {
                 ChecklistDetailScreen(
                     checklist = currentList,
                     api = api,
+                    categorySuggestions = checklistCategories,
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = {
                         vm.loadChecklists()
@@ -132,26 +176,63 @@ fun ChecklistsScreen(
                     onDeleteFailed = { scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) } },
                     onRenameUnsupported = { scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) } },
                 )
-            } else {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row {
-                        IconButton(onClick = { vm.loadChecklists() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
-                        }
-                        IconButton(onClick = { vm.setShowCreateDialog(true) }) {
-                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
+                } else {
+                    Column(Modifier.fillMaxSize()) {
+                if (checklists.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { vm.setSearchQuery(it) },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text(stringResource(R.string.search_checklists)) },
+                            leadingIcon = {
+                                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search))
+                            },
+                            singleLine = true,
+                        )
+                        SortMenuButton(
+                            current = sortOption,
+                            onSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
+                        )
+                    }
+                    if (checklistCategories.isNotEmpty()) {
+                        LazyRow(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            item {
+                                FilterChip(
+                                    selected = selectedCategory == null,
+                                    onClick = { vm.setSelectedCategory(null) },
+                                    label = {
+                                        Text(
+                                            stringResource(R.string.all_categories),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                )
+                            }
+                            items(checklistCategories, key = { it }) { cat ->
+                                FilterChip(
+                                    selected = selectedCategory == cat,
+                                    onClick = { vm.toggleCategoryChip(cat) },
+                                    label = { Text(cat, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                )
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
-
                 ListScreenContent(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
                     loading = loading,
                     error = error,
-                    isEmpty = checklists.isEmpty(),
+                    isEmpty = sortedChecklists.isEmpty(),
                     onRetry = { vm.loadChecklists() },
                     emptyIcon = Icons.Default.Checklist,
                     emptyTitle = stringResource(R.string.no_checklists_yet),
@@ -162,7 +243,7 @@ fun ChecklistsScreen(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(checklists, key = { it.id }) { list ->
+                            items(sortedChecklists, key = { it.id }) { list ->
                                 if (swipeToDeleteEnabled) {
                                     val swipeDeleteConfirm =
                                         stringResource(
@@ -191,58 +272,23 @@ fun ChecklistsScreen(
                         }
                     },
                 )
+                    }
+                }
             }
         }
     }
 
     if (showCreateDialog) {
-        var title by remember { mutableStateOf("") }
-        var isProjectType by remember { mutableStateOf(false) }
-        AlertDialog(
-            onDismissRequest = { vm.setShowCreateDialog(false) },
-            title = { Text(stringResource(R.string.new_checklist)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = title,
-                        onValueChange = { title = it },
-                        label = { Text(stringResource(R.string.title)) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Checkbox(
-                            checked = isProjectType,
-                            onCheckedChange = { isProjectType = it },
-                        )
-                        Text(
-                            stringResource(R.string.task_project_sub_tasks),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                val untitled = stringResource(R.string.untitled)
-                TextButton(
-                    onClick = {
-                        vm.createChecklist(
-                            title = title.ifBlank { untitled },
-                            projectTaskType = isProjectType,
-                            onFailure = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
-                        )
-                    },
-                ) {
-                    Text(stringResource(R.string.create))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { vm.setShowCreateDialog(false) }) {
-                    Text(stringResource(R.string.cancel))
-                }
+        ChecklistCreateDialog(
+            categorySuggestions = checklistCategories,
+            onDismiss = { vm.setShowCreateDialog(false) },
+            onCreate = { newTitle, isProjectType, newCategory ->
+                vm.createChecklist(
+                    title = newTitle,
+                    projectTaskType = isProjectType,
+                    category = newCategory,
+                    onFailure = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
+                )
             },
         )
     }
@@ -353,6 +399,7 @@ private fun ChecklistCard(
 private fun ChecklistDetailScreen(
     checklist: Checklist,
     api: JottyApi,
+    categorySuggestions: List<String> = emptyList(),
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
     onDelete: () -> Unit,
@@ -388,17 +435,19 @@ private fun ChecklistDetailScreen(
     if (showRenameDialog) {
         ChecklistRenameDialog(
             initialTitle = displayTitle,
+            initialCategory = checklist.category,
+            categorySuggestions = categorySuggestions,
             onDismiss = { showRenameDialog = false },
-            onConfirm = { newTitle ->
+            onConfirm = { newTitle, newCategory ->
                 showRenameDialog = false
                 scope.launch {
                     try {
                         val response =
                             api.updateChecklist(
                                 checklist.id,
-                                UpdateChecklistRequest(title = newTitle, category = checklist.category),
+                                UpdateChecklistRequest(title = newTitle, category = newCategory),
                             )
-                        if (response.success && response.data != null) {
+                        if (response.success) {
                             displayTitle = response.data.title
                             onUpdate(response.data)
                         } else {

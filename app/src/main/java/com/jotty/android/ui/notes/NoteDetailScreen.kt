@@ -2,10 +2,12 @@ package com.jotty.android.ui.notes
 
 import android.content.Intent
 import androidx.activity.compose.LocalActivity
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
@@ -19,6 +21,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -49,6 +52,7 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,20 +64,22 @@ internal fun NoteDetailScreen(
     onUpdate: (Note) -> Unit,
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit = {},
-    debugLoggingEnabled: Boolean = false,
+    modifier: Modifier = Modifier,
     imageLoader: ImageLoader? = null,
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
     biometricSaveOfferEnabled: Boolean = true,
+    categorySuggestions: List<String> = emptyList(),
 ) {
     val detailVm: NoteDetailViewModel =
         viewModel(
             key = note.id,
-            factory = NoteDetailViewModel.Factory(note, actions, debugLoggingEnabled),
+            factory = NoteDetailViewModel.Factory(note, actions),
         )
 
     val title by detailVm.title.collectAsStateWithLifecycle()
     val content by detailVm.content.collectAsStateWithLifecycle()
+    val category by detailVm.category.collectAsStateWithLifecycle()
     val isEditing by detailVm.isEditing.collectAsStateWithLifecycle()
     val saving by detailVm.saving.collectAsStateWithLifecycle()
     val decryptedContent by detailVm.decryptedContent.collectAsStateWithLifecycle()
@@ -83,6 +89,7 @@ internal fun NoteDetailScreen(
     val encryptError by detailVm.encryptError.collectAsStateWithLifecycle()
     val decryptError by detailVm.decryptError.collectAsStateWithLifecycle()
     val decryptErrorDetail by detailVm.decryptErrorDetail.collectAsStateWithLifecycle()
+    val legacyEncryptionDetected by detailVm.legacyEncryptionDetected.collectAsStateWithLifecycle()
 
     val parsed = detailVm.parsed
     val isEncryptedByContent = detailVm.isEncryptedByContent
@@ -129,7 +136,7 @@ internal fun NoteDetailScreen(
             subtitle = biometricSubtitle,
             negativeButtonText = biometricCancelStr,
             encryptedBody = { encryptedBodyForBiometric },
-            onDecrypted = { detailVm.onDecrypted(it) },
+            onDecrypted = { plain, pass -> detailVm.onDecrypted(plain, passphrase = pass) },
             onDecryptFailed = {
                 scope.launch { snackbarHostState.showSnackbar(decryptFailedMsg) }
             },
@@ -159,12 +166,13 @@ internal fun NoteDetailScreen(
             !biometricAutoTriggered
         ) {
             biometricAutoTriggered = true
+            delay(150)
             launchBiometricUnlock()
         }
     }
 
-    LaunchedEffect(note.encrypted, content, parsed) {
-        detailVm.logEncryptionStateIfDebug()
+    LaunchedEffect(note.encrypted, content) {
+        detailVm.logEncryptionState()
     }
 
     if (showDeleteConfirm) {
@@ -186,9 +194,9 @@ internal fun NoteDetailScreen(
         }
 
     Scaffold(
+        modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        topBar = {
             TopAppBar(
                 title = {
                     Text(
@@ -242,10 +250,14 @@ internal fun NoteDetailScreen(
                         } else {
                             IconButton(
                                 onClick = {
-                                    detailVm.saveEdit(
-                                        onSuccess = onUpdate,
-                                        onFailure = onSaveFailed,
-                                    )
+                                    if (isEncrypted) {
+                                        detailVm.showEncryptDialog()
+                                    } else {
+                                        detailVm.saveEdit(
+                                            onSuccess = onUpdate,
+                                            onFailure = onSaveFailed,
+                                        )
+                                    }
                                 },
                             ) {
                                 Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save))
@@ -255,6 +267,10 @@ internal fun NoteDetailScreen(
                         IconButton(onClick = { detailVm.showEncryptDialog() }) {
                             Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_encrypt))
                         }
+                        IconButton(onClick = { detailVm.startEditing() }) {
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
+                        }
+                    } else if (isDecrypted) {
                         IconButton(onClick = { detailVm.startEditing() }) {
                             Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
                         }
@@ -277,7 +293,14 @@ internal fun NoteDetailScreen(
                     }
                 },
             )
-
+        },
+    ) { padding ->
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+        ) {
             when {
                 isEncrypted && !isDecrypted ->
                     EncryptedNotePlaceholder(
@@ -291,34 +314,64 @@ internal fun NoteDetailScreen(
                             } else {
                                 null
                             },
+                        modifier = Modifier.fillMaxSize(),
                     )
                 isEditing ->
                     NoteEditor(
                         title = title,
                         onTitleChange = { detailVm.setTitle(it) },
-                        content = content,
-                        onContentChange = { detailVm.setContent(it) },
+                        content = if (isEncrypted) decryptedContent.orEmpty() else content,
+                        onContentChange = {
+                            if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
+                        },
+                        category = category,
+                        onCategoryChange = { detailVm.setCategory(it) },
+                        categorySuggestions = categorySuggestions,
+                        modifier = Modifier.fillMaxSize(),
                     )
-                else ->
+                else -> {
+                    val viewContent =
+                        when {
+                            isEncrypted -> decryptedContent.orEmpty()
+                            else -> displayContent.orEmpty()
+                        }
                     NoteView(
-                        title = title,
-                        content =
-                            when {
-                                isEncrypted -> decryptedContent.orEmpty()
-                                else -> displayContent.orEmpty()
-                            },
+                        content = viewContent,
                         imageLoader = imageLoader,
+                        modifier = Modifier.fillMaxSize(),
                     )
+                    if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
+                        Text(
+                            text = stringResource(R.string.legacy_encryption_warning),
+                            modifier =
+                                Modifier
+                                    .align(Alignment.TopCenter)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
             }
         }
     }
 
     if (showEncryptDialog) {
         val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
+        val reEncryptMode = isEncrypted && detailVm.hasSessionPassphrase()
         EncryptNoteDialog(
             onDismiss = { detailVm.dismissEncryptDialog() },
             isEncrypting = isEncrypting,
             encryptError = encryptError,
+            reEncryptMode = reEncryptMode,
+            onUseStoredPassphrase = {
+                detailVm.encryptWithSessionPassphrase(
+                    encryptFailedMsg,
+                    onSuccess = onUpdate,
+                    onFailure = onSaveFailed,
+                )
+            },
             onEncrypt = { passChars ->
                 detailVm.encrypt(
                     passChars,
@@ -337,7 +390,9 @@ internal fun NoteDetailScreen(
             biometricStore = biometricStore,
             biometricSaveOfferEnabled = biometricSaveOfferEnabled,
             onDismiss = { detailVm.dismissDecryptDialog() },
-            onDecrypted = { detailVm.onDecrypted(it) },
+            onDecrypted = { plaintext, usedLegacyDataOrder, passphrase ->
+                detailVm.onDecrypted(plaintext, usedLegacyDataOrder, passphrase)
+            },
             onBiometricSaved = {
                 hasBiometricPassphrase = true
                 scope.launch { snackbarHostState.showSnackbar(biometricSavedMsg) }
@@ -345,7 +400,6 @@ internal fun NoteDetailScreen(
             decryptError = decryptError,
             decryptErrorDetail = decryptErrorDetail,
             onDecryptError = { main, detail -> detailVm.onDecryptError(main, detail) },
-            debugLoggingEnabled = debugLoggingEnabled,
         )
     }
 }

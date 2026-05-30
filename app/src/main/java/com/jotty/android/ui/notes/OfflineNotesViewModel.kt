@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineNotesRepository
+import com.jotty.android.data.local.scheduleInitialOfflineSyncWhenEmpty
+import kotlinx.coroutines.flow.map
 
 /**
  * Owns [OfflineNotesRepository] for the duration of the Notes destination.
@@ -33,6 +35,13 @@ class OfflineNotesViewModel(
             instanceId = instanceId,
             api = api,
         )
+
+    init {
+        scheduleInitialOfflineSyncWhenEmpty(
+            observeCacheEmpty = repository.getNotesFlow().map { it.isEmpty() },
+            sync = { repository.syncNotes() },
+        )
+    }
 
     override fun onCleared() {
         repository.close()

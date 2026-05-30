@@ -3,14 +3,21 @@ package com.jotty.android.ui.checklists
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.jotty.android.data.api.AddItemRequest
+import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Checklist
+import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class ChecklistsViewModel(
@@ -32,12 +39,40 @@ class ChecklistsViewModel(
     private val _showCreateDialog = MutableStateFlow(false)
     val showCreateDialog: StateFlow<Boolean> = _showCreateDialog.asStateFlow()
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _selectedCategory = MutableStateFlow<String?>(null)
+    val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
+
+    val checklistCategories: StateFlow<List<String>> =
+        _checklists
+            .map { lists -> lists.map { it.category }.distinct().sorted() }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val filteredChecklists: StateFlow<List<Checklist>> =
+        combine(_checklists, _searchQuery, _selectedCategory) { lists, query, category ->
+            filterChecklists(lists, query, category)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun setSelectedList(list: Checklist?) {
         _selectedList.value = list
     }
 
     fun setShowCreateDialog(show: Boolean) {
         _showCreateDialog.value = show
+    }
+
+    fun setSearchQuery(q: String) {
+        _searchQuery.value = q
+    }
+
+    fun setSelectedCategory(category: String?) {
+        _selectedCategory.value = category
+    }
+
+    fun toggleCategoryChip(cat: String) {
+        _selectedCategory.value = if (_selectedCategory.value == cat) null else cat
     }
 
     fun loadChecklists() {
@@ -79,29 +114,59 @@ class ChecklistsViewModel(
         }
     }
 
-    /** Recreate a checklist after undo; returns false if the server rejected the create. */
-    suspend fun recreateChecklistAfterUndo(
-        title: String,
-        type: String,
-    ): Boolean {
+    /**
+     * Recreate a checklist after undo, restoring its items (including nested sub-tasks and
+     * completion state). Returns false if the server rejected the create.
+     */
+    suspend fun recreateChecklistAfterUndo(original: Checklist): Boolean {
+        val type =
+            if (original.type.equals("task", ignoreCase = true) ||
+                original.type.equals("project", ignoreCase = true)
+            ) {
+                "task"
+            } else {
+                "simple"
+            }
         val created =
             api.createChecklist(
                 CreateChecklistRequest(
-                    title = title,
+                    title = original.title,
+                    category = original.category,
                     type = type,
                 ),
             )
-        return if (created.success && created.data != null) {
-            loadChecklists()
-            true
-        } else {
-            false
+        if (!created.success) return false
+        try {
+            replayItems(created.data.id, original.items, null)
+        } catch (e: Exception) {
+            AppLog.e("checklists", "Failed restoring items after undo", e)
+        }
+        loadChecklists()
+        return true
+    }
+
+    /** Re-adds [items] depth-first under [parentPath], preserving order and completion state. */
+    private suspend fun replayItems(
+        listId: String,
+        items: List<ChecklistItem>,
+        parentPath: String?,
+    ) {
+        items.forEachIndexed { index, item ->
+            val path = if (parentPath == null) "$index" else "$parentPath.$index"
+            api.addChecklistItem(
+                listId,
+                AddItemRequest(text = item.text, status = item.status, parentIndex = parentPath),
+            )
+            val children = item.children.orEmpty()
+            if (children.isNotEmpty()) replayItems(listId, children, path)
+            if (item.completed) api.checkItem(listId, path)
         }
     }
 
     fun createChecklist(
         title: String,
         projectTaskType: Boolean,
+        category: String = API_CATEGORY_UNCATEGORIZED,
         onFailure: () -> Unit,
     ) {
         viewModelScope.launch {
@@ -110,6 +175,7 @@ class ChecklistsViewModel(
                     api.createChecklist(
                         CreateChecklistRequest(
                             title = title,
+                            category = category,
                             type = if (projectTaskType) "task" else "simple",
                         ),
                     )

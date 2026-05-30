@@ -80,14 +80,6 @@ class OfflineEnabledChecklistsViewModel(
             _searchQuery,
             _selectedCategory,
         ) { lists, query, category ->
-            when {
-                query.isNotBlank() ->
-                    lists.filter {
-                        it.title.contains(query, ignoreCase = true) ||
-                            it.category.contains(query, ignoreCase = true)
-                    }
-                category != null -> lists.filter { it.category == category }
-                else -> lists
-            }
+            filterChecklists(lists, query, category)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 }

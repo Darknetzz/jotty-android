@@ -8,8 +8,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Note
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,11 +27,18 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.ListSortOption
+import com.jotty.android.ui.common.SortMenuButton
+import com.jotty.android.ui.common.sortedBy
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.MainTabTopBarState
+import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.AppLog
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,14 +48,18 @@ fun NotesScreen(
     settingsRepository: SettingsRepository,
     initialNoteId: String? = null,
     onDeepLinkConsumed: () -> Unit = {},
+    sharedText: String? = null,
+    onSharedTextConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     biometricStore: BiometricPassphraseStore? = null,
+    tabReselectToken: Int = 0,
 ) {
     val application = LocalContext.current.applicationContext as Application
     val vm: NotesViewModel = viewModel(factory = NotesViewModel.Factory(application, api))
 
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
+    val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -63,6 +72,9 @@ fun NotesScreen(
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val noteCategories by vm.noteCategories.collectAsStateWithLifecycle()
+    val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
+    val sortOption = ListSortOption.fromKey(sortKey)
+    val sortedNotes = remember(notes, sortOption) { notes.sortedBy(sortOption) }
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -86,7 +98,47 @@ fun NotesScreen(
         }
     }
 
+    var pendingSharedText by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(sharedText) {
+        if (sharedText != null) {
+            pendingSharedText = sharedText
+            vm.setSelectedNote(null)
+            vm.setShowCreateDialog(true)
+            onSharedTextConsumed()
+        }
+    }
+
+    // Restore the persisted category filter once, then persist subsequent changes.
+    var filterRestored by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        settingsRepository.notesCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
+        filterRestored = true
+    }
+    LaunchedEffect(selectedCategory, filterRestored) {
+        if (filterRestored) settingsRepository.setNotesCategoryFilter(selectedCategory)
+    }
+
     BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
+    LaunchedEffect(tabReselectToken) {
+        if (selectedNote != null) {
+            vm.setSelectedNote(null)
+        }
+    }
+
+    RegisterMainTabTopBar(
+        if (selectedNote == null) {
+            MainTabTopBarState(
+                isOnline = true,
+                isSyncing = loading,
+                lastSyncAttemptEpochMs = null,
+                onRefresh = { vm.loadNotes() },
+                onAdd = { vm.setShowCreateDialog(true) },
+                showSyncStatus = false,
+            )
+        } else {
+            null
+        },
+    )
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -96,35 +148,34 @@ fun NotesScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = contentVerticalDp,
+                    topComfortDp = if (selectedNote != null) 4 else contentVerticalDp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
-            when (val note = selectedNote) {
-                null -> {
+            ListDetailContainer(
+                target = selectedNote,
+                modifier = Modifier.fillMaxSize(),
+                contentKey = { it?.id ?: "list" },
+            ) { note ->
+                if (note == null) {
+                    Column(Modifier.fillMaxSize()) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Row {
-                            IconButton(onClick = { vm.loadNotes() }) {
-                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.cd_refresh))
-                            }
-                            IconButton(onClick = { vm.setShowCreateDialog(true) }) {
-                                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
-                            }
-                        }
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { vm.setSearchQuery(it) },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text(stringResource(R.string.search_notes)) },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
+                            singleLine = true,
+                        )
+                        SortMenuButton(
+                            current = sortOption,
+                            onSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
+                        )
                     }
-
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { vm.setSearchQuery(it) },
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        placeholder = { Text(stringResource(R.string.search_notes)) },
-                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
-                        singleLine = true,
-                    )
                     if (noteCategories.isNotEmpty()) {
                         LazyRow(
                             modifier = Modifier.fillMaxWidth(),
@@ -161,9 +212,10 @@ fun NotesScreen(
                     }
 
                     ListScreenContent(
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
                         loading = loading,
                         error = error,
-                        isEmpty = notes.isEmpty(),
+                        isEmpty = sortedNotes.isEmpty(),
                         onRetry = { vm.loadNotes() },
                         emptyIcon = Icons.AutoMirrored.Filled.Note,
                         emptyTitle = stringResource(R.string.no_notes_yet),
@@ -174,7 +226,7 @@ fun NotesScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                items(notes, key = { it.id }) { n ->
+                                items(sortedNotes, key = { it.id }) { n ->
                                     val noteDeleteConfirm =
                                         stringResource(
                                             R.string.delete_note_confirm,
@@ -205,7 +257,7 @@ fun NotesScreen(
                                                                         category = snapshot.category,
                                                                     ),
                                                                 )
-                                                            if (resp.success && resp.data != null) {
+                                                            if (resp.success) {
                                                                 vm.loadNotes()
                                                             } else {
                                                                 snackbarHostState.showSnackbar(saveFailedMsg)
@@ -225,17 +277,18 @@ fun NotesScreen(
                                         NoteCard(
                                             note = n,
                                             onClick = { vm.setSelectedNote(n) },
+                                            showPreview = noteListPreviewEnabled,
                                         )
                                     }
                                 }
                             }
                         },
                     )
-                }
-                else -> {
-                    val debugLoggingEnabled by settingsRepository.debugLoggingEnabled.collectAsStateWithLifecycle(initialValue = false)
+                    }
+                } else {
                     val noteActions = remember(api) { ApiNoteDetailActions(api) }
                     NoteDetailScreen(
+                        modifier = Modifier.fillMaxSize(),
                         note = note,
                         actions = noteActions,
                         onBack = { vm.setSelectedNote(null) },
@@ -251,11 +304,11 @@ fun NotesScreen(
                             }
                         },
                         onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
-                        debugLoggingEnabled = debugLoggingEnabled,
                         imageLoader = imageLoader,
                         biometricStore = biometricStore,
                         biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
                         biometricSaveOfferEnabled = biometricSaveOfferEnabled,
+                        categorySuggestions = noteCategories,
                     )
                 }
             }
@@ -263,47 +316,33 @@ fun NotesScreen(
     }
 
     if (showCreateDialog) {
-        var title by remember { mutableStateOf("") }
-        val untitled = stringResource(R.string.untitled)
-        AlertDialog(
-            onDismissRequest = { vm.setShowCreateDialog(false) },
-            title = { Text(stringResource(R.string.new_note)) },
-            text = {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text(stringResource(R.string.title)) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        CreateNoteDialog(
+            onDismiss = {
+                vm.setShowCreateDialog(false)
+                pendingSharedText = null
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            try {
-                                val created =
-                                    api.createNote(
-                                        CreateNoteRequest(
-                                            title = title.ifBlank { untitled },
-                                        ),
-                                    )
-                                if (created.success) {
-                                    vm.loadNotes()
-                                    vm.setSelectedNote(created.data)
-                                    vm.setShowCreateDialog(false)
-                                }
-                            } catch (_: Exception) {
-                                scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) }
-                            }
+            categorySuggestions = noteCategories,
+            initialContent = pendingSharedText.orEmpty(),
+            onCreate = { title, content, category ->
+                scope.launch {
+                    try {
+                        val created =
+                            api.createNote(
+                                CreateNoteRequest(
+                                    title = title,
+                                    content = content,
+                                    category = category,
+                                ),
+                            )
+                        if (created.success) {
+                            pendingSharedText = null
+                            vm.loadNotes()
+                            vm.setSelectedNote(created.data)
+                            vm.setShowCreateDialog(false)
                         }
-                    },
-                ) {
-                    Text(stringResource(R.string.create))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { vm.setShowCreateDialog(false) }) {
-                    Text(stringResource(R.string.cancel))
+                    } catch (_: Exception) {
+                        scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) }
+                    }
                 }
             },
         )

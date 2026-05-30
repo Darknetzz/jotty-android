@@ -119,9 +119,6 @@ class OfflineRepositoryLifecycle(
         if (useSharedConnectivity) {
             NetworkConnectivityMonitor.ensureStarted(appContext)
             var wasOnline = syncStatus.isOnline.value
-            if (wasOnline) {
-                coroutineScope.launch { onNetworkAvailable() }
-            }
             connectivityJob =
                 coroutineScope.launch {
                     NetworkConnectivityMonitor.isOnline.collect { online ->

@@ -30,6 +30,11 @@ data class NoteEntity(
     // whether syncNote() should call createNote or updateNote.
     @ColumnInfo(defaultValue = "0")
     val isLocalOnly: Boolean = false,
+    // Category the note had at the last successful server sync, captured before a local
+    // category change so syncNote() can send it as originalCategory (the server uses it to
+    // move the note between category folders). Null when the category was never changed locally.
+    @ColumnInfo(defaultValue = "NULL")
+    val originalCategory: String? = null,
 )
 
 /**

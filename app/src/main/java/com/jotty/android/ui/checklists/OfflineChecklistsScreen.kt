@@ -6,7 +6,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.data.api.JottyApi
-import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.preferences.SettingsRepository
 
 /**
@@ -20,6 +19,7 @@ fun OfflineChecklistsScreen(
     instanceId: String,
     authFingerprint: String,
     swipeToDeleteEnabled: Boolean = false,
+    tabReselectToken: Int = 0,
 ) {
     val application = LocalContext.current.applicationContext as Application
     val vm: OfflineChecklistsViewModel =
@@ -29,13 +29,6 @@ fun OfflineChecklistsScreen(
         )
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
-    val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
-
-    LaunchedEffect(offlineModeEnabled, instanceId, authFingerprint, isOnline) {
-        if (offlineModeEnabled && isOnline) {
-            offlineRepository.syncChecklists()
-        }
-    }
 
     if (offlineModeEnabled) {
         OfflineEnabledChecklistsScreen(
@@ -44,12 +37,14 @@ fun OfflineChecklistsScreen(
             vmKey = "$instanceId|$authFingerprint",
             settingsRepository = settingsRepository,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
+            tabReselectToken = tabReselectToken,
         )
     } else {
         ChecklistsScreen(
             api = api,
             settingsRepository = settingsRepository,
             swipeToDeleteEnabled = swipeToDeleteEnabled,
+            tabReselectToken = tabReselectToken,
         )
     }
 }

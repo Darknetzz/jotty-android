@@ -32,7 +32,7 @@ fun rememberBiometricNoteUnlock(
     subtitle: String,
     negativeButtonText: String,
     encryptedBody: () -> String?,
-    onDecrypted: (String) -> Unit,
+    onDecrypted: (String, CharArray?) -> Unit,
     onDecryptFailed: () -> Unit,
     onAuthError: (errorCode: Int, errString: CharSequence) -> Unit,
     onAuthCancelled: () -> Unit,
@@ -84,11 +84,11 @@ fun rememberBiometricNoteUnlock(
                                     withContext(Dispatchers.Default) {
                                         XChaCha20Decryptor.decrypt(encBody, passChars)
                                     }
-                                passChars.clearPassphrase()
                                 withContext(Dispatchers.Main) {
                                     if (!plain.isNullOrBlank()) {
-                                        currentOnDecrypted.value(plain)
+                                        currentOnDecrypted.value(plain, passChars)
                                     } else {
+                                        passChars.clearPassphrase()
                                         currentOnDecryptFailed.value()
                                     }
                                 }

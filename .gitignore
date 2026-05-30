@@ -15,6 +15,7 @@ bin/
 gen/
 out/
 release/
+app/src/main/assets/CHANGELOG.md
 
 # Gradle files
 .gradle/

@@ -15,6 +15,7 @@ interface NoteDetailActions {
         title: String,
         content: String,
         category: String,
+        originalCategory: String = category,
     ): Result<Note>
 
     suspend fun deleteNote(noteId: String): Result<Unit>
@@ -28,6 +29,7 @@ class ApiNoteDetailActions(
         title: String,
         content: String,
         category: String,
+        originalCategory: String,
     ): Result<Note> =
         runCatching {
             val response =
@@ -36,10 +38,11 @@ class ApiNoteDetailActions(
                     UpdateNoteRequest(
                         title = title,
                         content = content,
-                        originalCategory = category,
+                        category = category,
+                        originalCategory = originalCategory,
                     ),
                 )
-            if (response.success && response.data != null) {
+            if (response.success) {
                 response.data
             } else {
                 error("Update failed")
@@ -63,6 +66,7 @@ class OfflineNoteDetailActions(
         title: String,
         content: String,
         category: String,
+        originalCategory: String,
     ): Result<Note> {
         AppLog.d("OfflineNoteDetail", "Updating note offline: $noteId")
         val result =

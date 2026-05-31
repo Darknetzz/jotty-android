@@ -1,6 +1,5 @@
 package com.jotty.android.ui.settings
 
-import android.os.Build
 import android.os.SystemClock
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -15,6 +14,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -64,6 +64,7 @@ fun SettingsScreen(
     settingsRepository: SettingsRepository,
     onDisconnect: () -> Unit,
     onManageInstances: () -> Unit = {},
+    onAppearance: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -74,14 +75,10 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val biometricClearedMsg = stringResource(R.string.biometric_passphrase_forgotten)
     val currentInstance by settingsRepository.currentInstance.collectAsStateWithLifecycle(initialValue = null)
-    val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = null)
-    val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
-    val readerTextScale by settingsRepository.readerTextScale.collectAsStateWithLifecycle(initialValue = 1.0f)
     val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
-    val reducedMotionMode by settingsRepository.reducedMotionMode.collectAsStateWithLifecycle(initialValue = null)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -211,167 +208,25 @@ fun SettingsScreen(
 
                 // ─── Appearance ───────────────────────────────────────────────────────
                 SettingsSectionTitle(stringResource(R.string.appearance))
-                Card(
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    onClick = onAppearance,
                 ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.theme_mode_label)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                listOf(
-                                    null to R.string.theme_system,
-                                    "light" to R.string.theme_light,
-                                    "dark" to R.string.theme_dark,
-                                ).forEach { (value, labelRes) ->
-                                    val isSelected =
-                                        when (value) {
-                                            null -> themeMode.isNullOrBlank()
-                                            else -> themeMode == value
-                                        }
-                                    FilterChip(
-                                        selected = isSelected,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setThemeMode(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.theme_color_label)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                buildList {
-                                    add("default" to R.string.theme_color_default)
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        add("dynamic" to R.string.theme_dynamic)
-                                    }
-                                    add("amoled" to R.string.theme_amoled)
-                                    add("sepia" to R.string.theme_sepia)
-                                    add("midnight" to R.string.theme_midnight)
-                                    add("rose" to R.string.theme_rose)
-                                    add("ocean" to R.string.theme_ocean)
-                                    add("forest" to R.string.theme_forest)
-                                }.forEach { (value, labelRes) ->
-                                    FilterChip(
-                                        selected = themeColor == value,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setThemeColor(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.content_padding)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                listOf(
-                                    "comfortable" to R.string.content_padding_comfortable,
-                                    "compact" to R.string.content_padding_compact,
-                                ).forEach { (value, labelRes) ->
-                                    FilterChip(
-                                        selected = contentPaddingMode == value,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setContentPaddingMode(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.reader_text_size)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                listOf(
-                                    0.85f to R.string.text_size_small,
-                                    1.0f to R.string.text_size_medium,
-                                    1.15f to R.string.text_size_large,
-                                    1.3f to R.string.text_size_xlarge,
-                                ).forEach { (value, labelRes) ->
-                                    FilterChip(
-                                        selected = readerTextScale == value,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setReaderTextScale(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.reduced_motion_label)) },
-                        supportingContent = {
-                            Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                                Text(
-                                    stringResource(R.string.reduced_motion_description),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                                FlowRow(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    listOf(
-                                        null to R.string.reduced_motion_system,
-                                        "on" to R.string.reduced_motion_on,
-                                        "off" to R.string.reduced_motion_off,
-                                    ).forEach { (value, labelRes) ->
-                                        val isSelected =
-                                            when (value) {
-                                                null -> reducedMotionMode.isNullOrBlank()
-                                                else -> reducedMotionMode == value
-                                            }
-                                        FilterChip(
-                                            selected = isSelected,
-                                            onClick = {
-                                                scope.launch {
-                                                    settingsRepository.setReducedMotionMode(value)
-                                                }
-                                            },
-                                            label = { Text(stringResource(labelRes)) },
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                    )
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(Icons.Default.Palette, contentDescription = stringResource(R.string.appearance))
+                        Column {
+                            Text(stringResource(R.string.appearance), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.appearance_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))

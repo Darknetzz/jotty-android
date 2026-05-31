@@ -14,6 +14,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Settings → Appearance** — Theme, colors, padding, reader text size, and reduced motion now live on a dedicated Appearance screen opened from Settings.
 - **Checklist item row** — Shared `ChecklistItemRow` composable for online and offline checklist detail screens.
 - **Stable Jotty compatibility** — Checklist item rename tries PATCH first, then falls back to delete-and-recreate on servers without the new endpoint (current `main` branch) until the next Jotty release.
 

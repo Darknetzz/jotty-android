@@ -176,6 +176,7 @@
     <string name="open_to_default_instance">Open to this instance when opening the app</string>
     <string name="dashboard_overview">Dashboard Overview</string>
     <string name="appearance">Appearance</string>
+    <string name="appearance_description">Theme, colors, text size, and motion</string>
     <string name="theme">Theme</string>
     <string name="theme_mode_label">Light / Dark</string>
     <string name="theme_color_label">Color</string>

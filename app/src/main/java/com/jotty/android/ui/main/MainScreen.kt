@@ -34,6 +34,7 @@ import com.jotty.android.ui.common.MainTabTopBarActions
 import com.jotty.android.ui.common.MainTabTopBarSyncSlot
 import com.jotty.android.ui.common.ProvideMainTabTopBarController
 import com.jotty.android.ui.notes.OfflineNotesScreen
+import com.jotty.android.ui.settings.AppearanceSettingsScreen
 import com.jotty.android.ui.settings.SettingsScreen
 import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.util.createNoteImageLoader
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
+private const val ROUTE_APPEARANCE = "appearance"
 
 sealed class MainRoute(val route: String, val titleRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     data object Checklists : MainRoute("checklists", R.string.nav_checklists, Icons.Default.Checklist)
@@ -97,7 +99,7 @@ fun MainScreen(
     val currentRoute = navBackStackEntry?.destination?.route
     val selectedRoute =
         when (currentRoute) {
-            ROUTE_MANAGE_INSTANCES -> MainRoute.Settings.route
+            ROUTE_MANAGE_INSTANCES, ROUTE_APPEARANCE -> MainRoute.Settings.route
             else -> currentRoute
         }
     val titleRes =
@@ -106,6 +108,7 @@ fun MainScreen(
             MainRoute.Notes.route -> MainRoute.Notes.titleRes
             MainRoute.Settings.route -> MainRoute.Settings.titleRes
             ROUTE_MANAGE_INSTANCES -> R.string.manage_instances
+            ROUTE_APPEARANCE -> R.string.appearance
             else -> R.string.app_name
         }
 
@@ -152,7 +155,7 @@ fun MainScreen(
                         }
                     },
                     navigationIcon = {
-                        if (currentRoute == ROUTE_MANAGE_INSTANCES) {
+                        if (currentRoute == ROUTE_MANAGE_INSTANCES || currentRoute == ROUTE_APPEARANCE) {
                             IconButton(onClick = { navController.popBackStack() }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                             }
@@ -256,7 +259,11 @@ fun MainScreen(
                             settingsRepository = settingsRepository,
                             onDisconnect = onDisconnect,
                             onManageInstances = { navController.navigate(ROUTE_MANAGE_INSTANCES) },
+                            onAppearance = { navController.navigate(ROUTE_APPEARANCE) },
                         )
+                    }
+                    composable(ROUTE_APPEARANCE) {
+                        AppearanceSettingsScreen(settingsRepository = settingsRepository)
                     }
                     composable(ROUTE_MANAGE_INSTANCES) {
                         SetupScreen(

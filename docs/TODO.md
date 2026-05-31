@@ -16,7 +16,7 @@ Prioritized backlog after v1.3.5. See also [CHANGELOG.md](../CHANGELOG.md).
 
 ## Features (blocked or larger)
 
-- [ ] Checklist item reorder ([#29](https://github.com/Darknetzz/jotty-android/issues/29)) — needs Jotty REST API; see [CHECKLIST_REORDER.md](CHECKLIST_REORDER.md)
+- [x] Checklist item reorder ([#29](https://github.com/Darknetzz/jotty-android/issues/29)) — Jotty REST `PUT …/items/reorder`; see [CHECKLIST_REORDER.md](CHECKLIST_REORDER.md)
 - [ ] Background sync via WorkManager
 - [ ] Advanced conflict merge UI (side-by-side); see [CONFLICT_RESOLUTION.md](CONFLICT_RESOLUTION.md)
 - [ ] i18n (`values-*` locales)

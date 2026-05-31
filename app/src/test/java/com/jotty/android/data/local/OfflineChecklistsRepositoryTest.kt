@@ -256,7 +256,7 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
-    fun renameLeafItem_withChildren_returnsFailure() =
+    fun renameLeafItem_withChildren_updatesParentText() =
         runTest {
             val existingItems =
                 listOf(
@@ -294,9 +294,10 @@ class OfflineChecklistsRepositoryTest {
 
             val result = repo.renameLeafItem("list-1", "0", "Renamed")
 
-            assertTrue(result.isFailure)
-            val unchangedItems = database.checklistDao().getById("list-1")?.items().orEmpty()
-            assertEquals("Parent", unchangedItems.firstOrNull()?.text)
+            assertTrue(result.isSuccess)
+            val updatedItems = result.getOrNull()?.items.orEmpty()
+            assertEquals("Renamed", updatedItems.firstOrNull()?.text)
+            assertEquals("Child", updatedItems.firstOrNull()?.children?.firstOrNull()?.text)
         }
 
     @Test
@@ -525,6 +526,22 @@ private class FakeChecklistApi(
         listId: String,
         itemIndex: String,
     ): SuccessResponse = onDeleteItem(listId, itemIndex)
+
+    override suspend fun updateItem(
+        listId: String,
+        itemIndex: String,
+        body: com.jotty.android.data.api.UpdateItemRequest,
+    ): SuccessResponse = SuccessResponse(true)
+
+    override suspend fun reorderItems(
+        listId: String,
+        body: com.jotty.android.data.api.ReorderItemsRequest,
+    ): SuccessResponse = SuccessResponse(true)
+
+    override suspend fun search(
+        query: String,
+        type: String?,
+    ): com.jotty.android.data.api.SearchResponse = com.jotty.android.data.api.SearchResponse()
 
     override suspend fun getNotes(
         category: String?,

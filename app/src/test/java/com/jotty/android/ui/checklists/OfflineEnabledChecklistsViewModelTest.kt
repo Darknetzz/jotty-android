@@ -152,6 +152,22 @@ private class MinimalChecklistApi : JottyApi {
         itemIndex: String,
     ): SuccessResponse = error("unused")
 
+    override suspend fun updateItem(
+        listId: String,
+        itemIndex: String,
+        body: com.jotty.android.data.api.UpdateItemRequest,
+    ): SuccessResponse = error("unused")
+
+    override suspend fun reorderItems(
+        listId: String,
+        body: com.jotty.android.data.api.ReorderItemsRequest,
+    ): SuccessResponse = error("unused")
+
+    override suspend fun search(
+        query: String,
+        type: String?,
+    ): com.jotty.android.data.api.SearchResponse = com.jotty.android.data.api.SearchResponse()
+
     override suspend fun getNotes(
         category: String?,
         search: String?,

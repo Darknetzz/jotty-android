@@ -58,6 +58,35 @@ data class AddItemRequest(
     val parentIndex: String? = null,
 )
 
+data class UpdateItemRequest(
+    val text: String? = null,
+    val description: String? = null,
+)
+
+data class ReorderItemsRequest(
+    val activeItemId: String,
+    val overItemId: String,
+    val position: String? = null,
+    val isDropInto: Boolean? = null,
+)
+
+// ─── Search ─────────────────────────────────────────────────────────────────
+
+data class SearchResponse(
+    val query: String? = null,
+    val total: Int? = null,
+    val results: List<SearchResult> = emptyList(),
+)
+
+data class SearchResult(
+    val id: String,
+    val uuid: String? = null,
+    val type: String,
+    val title: String,
+    val category: String = API_CATEGORY_UNCATEGORIZED,
+    val excerpt: String? = null,
+)
+
 // ─── Notes ──────────────────────────────────────────────────────────────────
 
 data class NotesResponse(val notes: List<Note>)

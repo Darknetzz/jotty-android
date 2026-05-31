@@ -8,6 +8,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.util.reorderChecklistItems
 
 private val gson = Gson()
 
@@ -17,14 +18,21 @@ private val gson = Gson()
  * Paths may be stale if the server was modified concurrently; failing ops are skipped.
  */
 data class PendingItemOp(
-    /** CHECK, UNCHECK, ADD, DELETE */
+    /** CHECK, UNCHECK, ADD, DELETE, UPDATE, REORDER */
     val type: String,
     /** Positional path for existing-item ops */
     val path: String? = null,
-    /** ADD */
+    /** ADD / UPDATE */
     val text: String? = null,
     /** ADD with parent (project type) */
     val parentIndex: String? = null,
+    /** UPDATE */
+    val description: String? = null,
+    /** REORDER */
+    val activeItemId: String? = null,
+    val overItemId: String? = null,
+    val position: String? = null,
+    val isDropInto: Boolean? = null,
 )
 
 @Entity(tableName = "checklists", indices = [Index("instanceId")])
@@ -111,6 +119,29 @@ fun applyOpToItems(
                     val children = parent.children ?: emptyList()
                     parent.copy(children = children + ChecklistItem(index = children.size, text = op.text ?: ""))
                 }
+            }
+        }
+        "UPDATE" ->
+            op.path?.let { path ->
+                updateAtPath(items, path) { item ->
+                    item.copy(
+                        text = op.text ?: item.text,
+                    )
+                }
+            } ?: items
+        "REORDER" -> {
+            val activeId = op.activeItemId
+            val overId = op.overItemId
+            if (activeId == null || overId == null) {
+                items
+            } else {
+                reorderChecklistItems(
+                    items = items,
+                    activeItemId = activeId,
+                    overItemId = overId,
+                    position = op.position ?: "before",
+                    isDropInto = op.isDropInto ?: false,
+                )
             }
         }
         else -> items

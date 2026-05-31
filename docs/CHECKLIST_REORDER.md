@@ -2,74 +2,42 @@
 
 ## Status
 
-**Not supported in the Android app.** Reordering checklist items is only available in the [Jotty web app](https://jotty.page/) (drag and drop). Track [#29](https://github.com/Darknetzz/jotty-android/issues/29).
+**Supported** on Jotty servers with the develop REST API (Jotty PR [#523](https://github.com/fccview/jotty/pull/523) and later). The Android app uses:
 
-Order changed in the web app **does** sync to Android on the next pull (`GET /api/checklists`). This doc explains what the web does and what would unblock in-app reorder.
+- `PUT /api/checklists/{listId}/items/reorder` — move items before/after siblings or nest as a child (`isDropInto`)
+- `PATCH /api/checklists/{listId}/items/{itemIndex}` — update item text (including nested paths like `0.1`)
 
-## Decision (2026-05)
+Track UI polish in [#29](https://github.com/Darknetzz/jotty-android/issues/29).
 
-| Approach | Choice |
-|----------|--------|
-| Emulate web Next.js server action POST from Android | **No** — browser session, RSC/`Next-Action` encoding, brittle per release |
-| Document web behaviour + propose upstream REST | **Yes** — this file + [upstream/CHECKLIST_REORDER_API_PROPOSAL.md](upstream/CHECKLIST_REORDER_API_PROPOSAL.md) |
-| Android UI/API before Jotty ships reorder REST | **Deferred** |
-| Fake reorder via DELETE + ADD on existing REST | **No** — loses item ids, breaks nested/task metadata |
+## Android behaviour
 
-## Why the REST API does not cover reorder today
+- **Reorder:** Each checklist row shows **move up** / **move down** when the item has a stable server `id` and can move within its sibling group. Offline edits queue a `REORDER` pending op replayed on sync.
+- **Rename:** Tap item text to edit inline; saves via PATCH (no delete-and-recreate).
+- **Sync:** Order changed in the web app still syncs on pull (`GET /api/checklists`).
 
-The Jotty **REST API** (`/api/checklists/...`, `x-api-key`) supports creating items, checking/unchecking, updating text, and deleting by **index path** (`"0"`, `"0.1"`). It does **not** document a reorder endpoint ([public/api/paths/checklists.yaml](https://github.com/fccview/jotty/blob/main/public/api/paths/checklists.yaml) in [fccview/jotty](https://github.com/fccview/jotty)).
+## Server contract
 
-The web UI reorders via an internal Next.js server action ([`reorderItems`](https://github.com/fccview/jotty/blob/main/app/_server/actions/checklist-item/reorder.ts)), which writes the checklist markdown file directly. That path is **not** exposed to third-party clients.
+See [fccview/jotty `public/api/paths/checklists.yaml`](https://github.com/fccview/jotty/blob/develop/public/api/paths/checklists.yaml) and [`search.yaml`](https://github.com/fccview/jotty/blob/develop/public/api/paths/search.yaml).
 
-```mermaid
-flowchart LR
-  subgraph web [Web UI]
-    DnD[Drag and drop]
-  end
-  subgraph session [Browser session]
-    SA["POST /checklist/{category}/{listId}\nNext.js Server Action"]
-  end
-  subgraph api [REST API]
-    REST["/api/checklists/...\nx-api-key"]
-  end
-  subgraph android [jotty-android]
-    App[Retrofit ApiClient]
-  end
-  DnD --> SA
-  App --> REST
-  SA --> MD["Write listId.md"]
-  REST --> MD
+Reorder body (JSON):
+
+```json
+{
+  "activeItemId": "item-being-moved",
+  "overItemId": "reference-item",
+  "position": "before",
+  "isDropInto": false
+}
 ```
 
-## What the web sends (DevTools)
+Semantics match the web UI server action [`reorder.ts`](https://github.com/fccview/jotty/blob/main/app/_server/actions/checklist-item/reorder.ts).
 
-Example: reorder on `POST https://{host}/checklist/Uncategorized/test2` with a body like:
+## Older servers
 
-| DevTools field | Server action `FormData` key | Example |
-|----------------|------------------------------|---------|
-| `_1_listId` | `listId` | `test2` |
-| `_1_activeItemId` | `activeItemId` | `test2-1778329054869` |
-| `_1_overItemId` | `overItemId` | `test2-1779857748457` |
-| `_1_position` | `position` | `before` or `after` |
-| `_1_isDropInto` | `isDropInto` | `false` (nest under target when `true`) |
-| `_1_category` | `category` | `Uncategorized` |
-| `0` | (RSC flight) | e.g. `["$K1"]` — internal to Next.js, not for clients |
-
-- **URL:** page route `/checklist/{category}/{listId}`, **not** `/api/checklists/...`.
-- **Auth:** logged-in **session** (cookies), not `x-api-key`.
-- **Coordinates:** reorder uses stable **item ids**; other REST mutations use **index paths**. `GET /api/checklists` already returns `id` on each item, so a future Android reorder should be id-driven end-to-end.
-
-Semantics match [`reorder.ts`](https://github.com/fccview/jotty/blob/main/app/_server/actions/checklist-item/reorder.ts): clone tree, move `activeItemId` relative to `overItemId` (`before` / `after` / drop-into), save markdown, broadcast update.
-
-## What would unblock Android support
-
-1. **fccview/jotty** — Add documented REST reorder (proposal: [upstream/CHECKLIST_REORDER_API_PROPOSAL.md](upstream/CHECKLIST_REORDER_API_PROPOSAL.md)), e.g. `POST /api/checklists/{listId}/items/reorder` with the same body fields, `withApiAuth`.
-2. **jotty-android** — Retrofit method, offline `MOVE` pending op if needed, drag-and-drop UI (simple lists first, then nested projects).
-
-Until then, use the web app to reorder; the Android app shows a short hint on checklist detail ([#29](https://github.com/Darknetzz/jotty-android/issues/29)).
+Without the reorder endpoint, move buttons are hidden (items lack ids or the API returns 404). Item rename on very old servers may still fail if PATCH is unavailable — upgrade Jotty or use the web app.
 
 ## References
 
 - Android issue: [#29](https://github.com/Darknetzz/jotty-android/issues/29)
-- Upstream API proposal: [upstream/CHECKLIST_REORDER_API_PROPOSAL.md](upstream/CHECKLIST_REORDER_API_PROPOSAL.md)
-- Jotty server action: [`app/_server/actions/checklist-item/reorder.ts`](https://github.com/fccview/jotty/blob/main/app/_server/actions/checklist-item/reorder.ts)
+- Historical API proposal: [upstream/CHECKLIST_REORDER_API_PROPOSAL.md](upstream/CHECKLIST_REORDER_API_PROPOSAL.md)
+- Jotty reorder implementation: [`app/_server/actions/checklist-item/reorder.ts`](https://github.com/fccview/jotty/blob/main/app/_server/actions/checklist-item/reorder.ts)

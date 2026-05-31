@@ -39,6 +39,7 @@ import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateChecklistRequest
+import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
@@ -53,9 +54,8 @@ import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
-import com.jotty.android.util.appendedPath
-import com.jotty.android.util.deleteAtPath
-import com.jotty.android.util.parentPath
+import com.jotty.android.util.moveChecklistItemDownRequest
+import com.jotty.android.util.moveChecklistItemUpRequest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -469,8 +469,6 @@ private fun ChecklistDetailScreen(
             onDelete = onDelete,
         )
 
-        ChecklistReorderInfoBanner()
-
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
@@ -516,6 +514,24 @@ private fun ChecklistDetailScreen(
         val completed = flatItems.filter { it.item.completed }
         val total = flatItems.size
         val doneCount = completed.size
+
+        fun reorderItem(itemId: String?, up: Boolean) {
+            val id = itemId ?: return
+            val request =
+                if (up) {
+                    moveChecklistItemUpRequest(items, id)
+                } else {
+                    moveChecklistItemDownRequest(items, id)
+                } ?: return
+            scope.launch {
+                try {
+                    api.reorderItems(checklist.id, request)
+                    refresh()
+                } catch (_: Exception) {
+                    onSaveFailed()
+                }
+            }
+        }
 
         if (total > 0) {
             Text(
@@ -568,35 +584,28 @@ private fun ChecklistDetailScreen(
                             }
                         }
                     },
-                    onUpdate = {
+                    onUpdate = { text ->
                         scope.launch {
                             try {
-                                if (flat.item.children.orEmpty().isNotEmpty()) {
-                                    onRenameUnsupported()
-                                    return@launch
-                                }
-                                val parentIndex = parentPath(flat.apiPath)
-                                // Server-side append semantics can shift indexes; delete first to avoid deleting the wrong item.
-                                val deletedItems = deleteAtPath(items, flat.apiPath)
-                                val newPath = appendedPath(deletedItems, parentIndex)
-                                api.deleteItem(checklist.id, flat.apiPath)
-                                api.addChecklistItem(
+                                api.updateItem(
                                     checklist.id,
-                                    com.jotty.android.data.api.AddItemRequest(
-                                        text = it,
-                                        status = flat.item.status,
-                                        parentIndex = parentIndex,
-                                    ),
+                                    flat.apiPath,
+                                    UpdateItemRequest(text = text),
                                 )
-                                if (flat.item.completed) api.checkItem(checklist.id, newPath)
                                 refresh()
                             } catch (_: Exception) {
                                 onSaveFailed()
                             }
                         }
                     },
-                    canRename = flat.item.children.orEmpty().isEmpty(),
-                    onRenameUnsupported = onRenameUnsupported,
+                    onMoveUp =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
+                        },
+                    onMoveDown =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
+                        },
                     onAddSubItem =
                         if (isProject && flat.depth == 0) {
                             {
@@ -658,35 +667,28 @@ private fun ChecklistDetailScreen(
                             }
                         }
                     },
-                    onUpdate = {
+                    onUpdate = { text ->
                         scope.launch {
                             try {
-                                if (flat.item.children.orEmpty().isNotEmpty()) {
-                                    onRenameUnsupported()
-                                    return@launch
-                                }
-                                val parentIndex = parentPath(flat.apiPath)
-                                // Server-side append semantics can shift indexes; delete first to avoid deleting the wrong item.
-                                val deletedItems = deleteAtPath(items, flat.apiPath)
-                                val newPath = appendedPath(deletedItems, parentIndex)
-                                api.deleteItem(checklist.id, flat.apiPath)
-                                api.addChecklistItem(
+                                api.updateItem(
                                     checklist.id,
-                                    com.jotty.android.data.api.AddItemRequest(
-                                        text = it,
-                                        status = flat.item.status,
-                                        parentIndex = parentIndex,
-                                    ),
+                                    flat.apiPath,
+                                    UpdateItemRequest(text = text),
                                 )
-                                if (flat.item.completed) api.checkItem(checklist.id, newPath)
                                 refresh()
                             } catch (_: Exception) {
                                 onSaveFailed()
                             }
                         }
                     },
-                    canRename = flat.item.children.orEmpty().isEmpty(),
-                    onRenameUnsupported = onRenameUnsupported,
+                    onMoveUp =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
+                        },
+                    onMoveDown =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
+                        },
                     onAddSubItem = null,
                 )
             }
@@ -717,120 +719,4 @@ private fun SectionHeader(title: String) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
     )
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun ChecklistItemRow(
-    item: ChecklistItem,
-    depth: Int = 0,
-    isProject: Boolean = false,
-    onCheck: () -> Unit,
-    onUncheck: () -> Unit,
-    onDelete: () -> Unit,
-    onUpdate: (String) -> Unit,
-    canRename: Boolean = true,
-    onRenameUnsupported: () -> Unit = {},
-    onAddSubItem: (() -> Unit)? = null,
-) {
-    val indent = (depth * 20).dp
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    val taskLabel = item.text.ifBlank { stringResource(R.string.item_placeholder) }
-    var isEditing by remember { mutableStateOf(false) }
-    var editText by remember(item.text) { mutableStateOf(item.text) }
-    val focusRequester = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
-
-    LaunchedEffect(isEditing) {
-        if (isEditing) focusRequester.requestFocus()
-    }
-
-    if (showDeleteConfirm) {
-        ConfirmDeleteDialog(
-            message = stringResource(R.string.delete_task_named_confirm, taskLabel),
-            onDismiss = { showDeleteConfirm = false },
-            onConfirm = {
-                showDeleteConfirm = false
-                onDelete()
-            },
-        )
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Spacer(modifier = Modifier.width(indent))
-        Checkbox(
-            checked = item.completed,
-            onCheckedChange = { if (it) onCheck() else onUncheck() },
-        )
-        if (isEditing) {
-            OutlinedTextField(
-                value = editText,
-                onValueChange = { editText = it },
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions =
-                    KeyboardActions(
-                        onDone = {
-                            focusManager.clearFocus()
-                            val trimmed = editText.trim()
-                            if (trimmed.isNotBlank()) onUpdate(trimmed)
-                            isEditing = false
-                        },
-                    ),
-            )
-        } else {
-            Text(
-                text = item.text.ifBlank { stringResource(R.string.item_placeholder) },
-                style = MaterialTheme.typography.bodyLarge,
-                textDecoration = if (item.completed) TextDecoration.LineThrough else null,
-                color =
-                    if (item.completed) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .clickable(role = Role.Button) {
-                            if (!canRename) {
-                                onRenameUnsupported()
-                                return@clickable
-                            }
-                            isEditing = true
-                            editText = item.text
-                        },
-            )
-        }
-        if (isProject && depth == 0 && onAddSubItem != null) {
-            IconButton(
-                onClick = onAddSubItem,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = stringResource(R.string.add_sub_task),
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        }
-        IconButton(
-            onClick = { showDeleteConfirm = true },
-            modifier = Modifier.size(48.dp),
-        ) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = stringResource(R.string.delete_task),
-                tint = MaterialTheme.colorScheme.error,
-            )
-        }
-    }
 }

@@ -53,6 +53,25 @@ interface JottyApi {
         @Path("itemIndex") itemIndex: String,
     ): SuccessResponse
 
+    @PATCH("api/checklists/{listId}/items/{itemIndex}")
+    suspend fun updateItem(
+        @Path("listId") listId: String,
+        @Path("itemIndex") itemIndex: String,
+        @Body body: UpdateItemRequest,
+    ): SuccessResponse
+
+    @PUT("api/checklists/{listId}/items/reorder")
+    suspend fun reorderItems(
+        @Path("listId") listId: String,
+        @Body body: ReorderItemsRequest,
+    ): SuccessResponse
+
+    @GET("api/search")
+    suspend fun search(
+        @Query("q") query: String,
+        @Query("type") type: String? = null,
+    ): SearchResponse
+
     @GET("api/notes")
     suspend fun getNotes(
         @Query("category") category: String? = null,

@@ -44,6 +44,8 @@ import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.ListSortOption
 import com.jotty.android.ui.common.SortMenuButton
 import com.jotty.android.ui.common.sortedBy
+import com.jotty.android.util.moveChecklistItemDownRequest
+import com.jotty.android.util.moveChecklistItemUpRequest
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.OfflineConnectivityBanner
@@ -587,8 +589,6 @@ private fun OfflineChecklistDetailContent(
             onDelete = onDelete,
         )
 
-        ChecklistReorderInfoBanner()
-
         OfflineConnectivityBanner(
             isOnline = isOnline,
             onRetrySync = onRetrySync,
@@ -644,6 +644,19 @@ private fun OfflineChecklistDetailContent(
             )
         }
 
+        fun reorderItem(itemId: String?, up: Boolean) {
+            val id = itemId ?: return
+            val request =
+                if (up) {
+                    moveChecklistItemUpRequest(items, id)
+                } else {
+                    moveChecklistItemDownRequest(items, id)
+                } ?: return
+            scope.launch {
+                handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
+            }
+        }
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -652,7 +665,7 @@ private fun OfflineChecklistDetailContent(
                 SectionLabel(stringResource(R.string.section_to_do, toDo.size))
             }
             items(toDo, key = { "todo-${it.apiPath}-${it.item.text}" }) { flat ->
-                OfflineItemRow(
+                ChecklistItemRow(
                     item = flat.item,
                     depth = flat.depth,
                     isProject = isProject,
@@ -673,15 +686,17 @@ private fun OfflineChecklistDetailContent(
                     },
                     onUpdate = { text ->
                         scope.launch {
-                            if (flat.item.children.orEmpty().isNotEmpty()) {
-                                onRenameUnsupported()
-                                return@launch
-                            }
-                            handleResult(offlineRepository.renameLeafItem(liveChecklist.id, flat.apiPath, text))
+                            handleResult(offlineRepository.updateItemText(liveChecklist.id, flat.apiPath, text))
                         }
                     },
-                    canRename = flat.item.children.orEmpty().isEmpty(),
-                    onRenameUnsupported = onRenameUnsupported,
+                    onMoveUp =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
+                        },
+                    onMoveDown =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
+                        },
                     onAddSubItem =
                         if (isProject && flat.depth == 0) {
                             {
@@ -694,13 +709,15 @@ private fun OfflineChecklistDetailContent(
                         } else {
                             null
                         },
+                    actionIconSize = 32.dp,
+                    actionGlyphSize = 18.dp,
                 )
             }
             item(key = "header-done") {
                 SectionLabel(stringResource(R.string.section_completed, done.size))
             }
             items(done, key = { "done-${it.apiPath}-${it.item.text}" }) { flat ->
-                OfflineItemRow(
+                ChecklistItemRow(
                     item = flat.item,
                     depth = flat.depth,
                     isProject = isProject,
@@ -721,130 +738,22 @@ private fun OfflineChecklistDetailContent(
                     },
                     onUpdate = { text ->
                         scope.launch {
-                            if (flat.item.children.orEmpty().isNotEmpty()) {
-                                onRenameUnsupported()
-                                return@launch
-                            }
-                            handleResult(offlineRepository.renameLeafItem(liveChecklist.id, flat.apiPath, text))
+                            handleResult(offlineRepository.updateItemText(liveChecklist.id, flat.apiPath, text))
                         }
                     },
-                    canRename = flat.item.children.orEmpty().isEmpty(),
-                    onRenameUnsupported = onRenameUnsupported,
+                    onMoveUp =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
+                        },
+                    onMoveDown =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
+                        },
                     onAddSubItem = null,
+                    actionIconSize = 32.dp,
+                    actionGlyphSize = 18.dp,
                 )
             }
-        }
-    }
-}
-
-// ─── Item row ─────────────────────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun OfflineItemRow(
-    item: ChecklistItem,
-    depth: Int = 0,
-    isProject: Boolean = false,
-    onCheck: () -> Unit,
-    onUncheck: () -> Unit,
-    onDelete: () -> Unit,
-    onUpdate: (String) -> Unit,
-    canRename: Boolean = true,
-    onRenameUnsupported: () -> Unit = {},
-    onAddSubItem: (() -> Unit)? = null,
-) {
-    val indent = (depth * 20).dp
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    val taskLabel = item.text.ifBlank { stringResource(R.string.item_placeholder) }
-    var isEditing by remember { mutableStateOf(false) }
-    var editText by remember(item.text) { mutableStateOf(item.text) }
-    val focusRequester = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
-
-    LaunchedEffect(isEditing) {
-        if (isEditing) focusRequester.requestFocus()
-    }
-
-    if (showDeleteConfirm) {
-        ConfirmDeleteDialog(
-            message = stringResource(R.string.delete_task_named_confirm, taskLabel),
-            onDismiss = { showDeleteConfirm = false },
-            onConfirm = {
-                showDeleteConfirm = false
-                onDelete()
-            },
-        )
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Spacer(modifier = Modifier.width(indent))
-        Checkbox(
-            checked = item.completed,
-            onCheckedChange = { if (it) onCheck() else onUncheck() },
-        )
-        if (isEditing) {
-            OutlinedTextField(
-                value = editText,
-                onValueChange = { editText = it },
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions =
-                    KeyboardActions(
-                        onDone = {
-                            focusManager.clearFocus()
-                            val trimmed = editText.trim()
-                            if (trimmed.isNotBlank()) onUpdate(trimmed)
-                            isEditing = false
-                        },
-                    ),
-            )
-        } else {
-            Text(
-                text = item.text.ifBlank { stringResource(R.string.item_placeholder) },
-                style = MaterialTheme.typography.bodyLarge,
-                textDecoration = if (item.completed) TextDecoration.LineThrough else null,
-                color =
-                    if (item.completed) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .clickable {
-                            if (!canRename) {
-                                onRenameUnsupported()
-                                return@clickable
-                            }
-                            isEditing = true
-                            editText = item.text
-                        },
-            )
-        }
-        if (isProject && depth == 0 && onAddSubItem != null) {
-            IconButton(onClick = onAddSubItem, modifier = Modifier.size(32.dp)) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = stringResource(R.string.add_sub_task),
-                    modifier = Modifier.size(18.dp),
-                )
-            }
-        }
-        IconButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.size(32.dp)) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = stringResource(R.string.delete_task),
-                tint = MaterialTheme.colorScheme.error,
-            )
         }
     }
 }

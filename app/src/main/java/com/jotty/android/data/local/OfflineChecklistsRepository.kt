@@ -8,13 +8,11 @@ import com.jotty.android.data.api.AddItemRequest
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.api.ReorderItemsRequest
 import com.jotty.android.data.api.UpdateChecklistRequest
+import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
-import com.jotty.android.util.appendedPath
-import com.jotty.android.util.deleteAtPath
-import com.jotty.android.util.itemAtPath
-import com.jotty.android.util.parentPath
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -302,53 +300,54 @@ class OfflineChecklistsRepository(
         checklistId: String,
         path: String,
         text: String,
+    ): Result<Checklist> = updateItemText(checklistId, path, text)
+
+    suspend fun updateItemText(
+        checklistId: String,
+        path: String,
+        text: String,
     ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                    val checklist =
-                        checklistDao.getById(checklistId)?.toChecklist()
-                            ?: throw Exception("Checklist not found: $checklistId")
-                    val item =
-                        itemAtPath(checklist.items, path)
-                            ?: throw Exception("Checklist item not found: $path")
-                    if (item.children.orEmpty().isNotEmpty()) {
-                        throw IllegalArgumentException("Only leaf items can be renamed")
-                    }
                     val itemText = text.trim()
                     if (itemText.isEmpty()) {
                         throw IllegalArgumentException("Item text cannot be empty")
                     }
-                    val parentIndex = parentPath(path)
-                    val deletedItems = deleteAtPath(checklist.items, path)
-                    val newPath = appendedPath(deletedItems, parentIndex)
                     if (isOnline.value) {
-                        api.deleteItem(checklistId, path)
-                        api.addChecklistItem(
-                            checklistId,
-                            AddItemRequest(text = itemText, status = item.status, parentIndex = parentIndex),
-                        )
-                        if (item.completed) api.checkItem(checklistId, newPath)
+                        api.updateItem(checklistId, path, UpdateItemRequest(text = itemText))
                         return@withItemMutation refreshFromServer(checklistId)
                     } else {
-                        var updated =
-                            applyOpLocally(
-                                checklistId,
-                                PendingItemOp(type = "DELETE", path = path),
-                            )
-                        updated =
-                            applyOpLocally(
-                                updated.id,
-                                PendingItemOp(type = "ADD", text = itemText, parentIndex = parentIndex),
-                            )
-                        if (item.completed) {
-                            updated =
-                                applyOpLocally(
-                                    updated.id,
-                                    PendingItemOp(type = "CHECK", path = newPath),
-                                )
-                        }
-                        return@withItemMutation updated
+                        return@withItemMutation applyOpLocally(
+                            checklistId,
+                            PendingItemOp(type = "UPDATE", path = path, text = itemText),
+                        )
+                    }
+                }
+            }
+        }
+
+    suspend fun reorderItems(
+        checklistId: String,
+        request: ReorderItemsRequest,
+    ): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                withItemMutation {
+                    if (isOnline.value) {
+                        api.reorderItems(checklistId, request)
+                        return@withItemMutation refreshFromServer(checklistId)
+                    } else {
+                        return@withItemMutation applyOpLocally(
+                            checklistId,
+                            PendingItemOp(
+                                type = "REORDER",
+                                activeItemId = request.activeItemId,
+                                overItemId = request.overItemId,
+                                position = request.position,
+                                isDropInto = request.isDropInto,
+                            ),
+                        )
                     }
                 }
             }
@@ -535,6 +534,22 @@ class OfflineChecklistsRepository(
                             AddItemRequest(text = op.text ?: "", parentIndex = op.parentIndex),
                         )
                     "DELETE" -> api.deleteItem(entity.id, op.path!!)
+                    "UPDATE" ->
+                        api.updateItem(
+                            entity.id,
+                            op.path!!,
+                            UpdateItemRequest(text = op.text),
+                        )
+                    "REORDER" ->
+                        api.reorderItems(
+                            entity.id,
+                            ReorderItemsRequest(
+                                activeItemId = op.activeItemId!!,
+                                overItemId = op.overItemId!!,
+                                position = op.position,
+                                isDropInto = op.isDropInto,
+                            ),
+                        )
                 }
             }.onFailure {
                 failedOps += 1

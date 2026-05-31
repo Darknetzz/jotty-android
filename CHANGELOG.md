@@ -6,6 +6,20 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [1.4.0-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Unified search API** — Notes search (online) uses Jotty’s new `GET /api/search` when the query is at least two characters, with relevance ranking and fallback to `GET /api/notes?q=` on older servers.
+- **Checklist item reorder ([#29](https://github.com/Darknetzz/jotty-android/issues/29))** — Up/down controls on each checklist row call `PUT /api/checklists/{id}/items/reorder`; works offline with sync replay.
+- **Checklist item PATCH** — Inline item edits use `PATCH /api/checklists/{id}/items/{index}` instead of delete-and-recreate, including parent/project rows with children.
+
+### Changed
+
+- **Checklist item row** — Shared `ChecklistItemRow` composable for online and offline checklist detail screens.
+
+### Documentation
+
+- **Checklist reorder** — [CHECKLIST_REORDER.md](docs/CHECKLIST_REORDER.md) updated for the shipped Jotty REST API (`PUT …/items/reorder`, `PATCH …/items/{index}`, `GET /api/search`).
+
 ---
 
 ## [1.4.0] - 2026-05-29

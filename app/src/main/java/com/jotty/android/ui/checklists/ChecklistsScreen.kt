@@ -39,7 +39,6 @@ import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateChecklistRequest
-import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
@@ -56,6 +55,7 @@ import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.moveChecklistItemDownRequest
 import com.jotty.android.util.moveChecklistItemUpRequest
+import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -587,12 +587,16 @@ private fun ChecklistDetailScreen(
                     onUpdate = { text ->
                         scope.launch {
                             try {
-                                api.updateItem(
-                                    checklist.id,
-                                    flat.apiPath,
-                                    UpdateItemRequest(text = text),
+                                updateChecklistItemText(
+                                    api = api,
+                                    listId = checklist.id,
+                                    path = flat.apiPath,
+                                    text = text,
+                                    items = items,
                                 )
                                 refresh()
+                            } catch (e: UnsupportedOperationException) {
+                                onRenameUnsupported()
                             } catch (_: Exception) {
                                 onSaveFailed()
                             }
@@ -670,12 +674,16 @@ private fun ChecklistDetailScreen(
                     onUpdate = { text ->
                         scope.launch {
                             try {
-                                api.updateItem(
-                                    checklist.id,
-                                    flat.apiPath,
-                                    UpdateItemRequest(text = text),
+                                updateChecklistItemText(
+                                    api = api,
+                                    listId = checklist.id,
+                                    path = flat.apiPath,
+                                    text = text,
+                                    items = items,
                                 )
                                 refresh()
+                            } catch (e: UnsupportedOperationException) {
+                                onRenameUnsupported()
                             } catch (_: Exception) {
                                 onSaveFailed()
                             }

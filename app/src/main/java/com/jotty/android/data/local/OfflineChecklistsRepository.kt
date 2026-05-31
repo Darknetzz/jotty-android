@@ -13,6 +13,7 @@ import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
+import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -314,8 +315,17 @@ class OfflineChecklistsRepository(
                     if (itemText.isEmpty()) {
                         throw IllegalArgumentException("Item text cannot be empty")
                     }
+                    val checklist =
+                        checklistDao.getById(checklistId)?.toChecklist()
+                            ?: throw Exception("Checklist not found: $checklistId")
                     if (isOnline.value) {
-                        api.updateItem(checklistId, path, UpdateItemRequest(text = itemText))
+                        updateChecklistItemText(
+                            api = api,
+                            listId = checklistId,
+                            path = path,
+                            text = itemText,
+                            items = checklist.items,
+                        )
                         return@withItemMutation refreshFromServer(checklistId)
                     } else {
                         return@withItemMutation applyOpLocally(
@@ -535,11 +545,25 @@ class OfflineChecklistsRepository(
                         )
                     "DELETE" -> api.deleteItem(entity.id, op.path!!)
                     "UPDATE" ->
-                        api.updateItem(
-                            entity.id,
-                            op.path!!,
-                            UpdateItemRequest(text = op.text),
-                        )
+                        runCatching {
+                            api.updateItem(
+                                entity.id,
+                                op.path!!,
+                                UpdateItemRequest(text = op.text),
+                            )
+                        }.getOrElse { error ->
+                            if (error is retrofit2.HttpException && error.code() in setOf(404, 405)) {
+                                updateChecklistItemText(
+                                    api = api,
+                                    listId = entity.id,
+                                    path = op.path!!,
+                                    text = op.text ?: "",
+                                    items = entity.items(),
+                                )
+                            } else {
+                                throw error
+                            }
+                        }
                     "REORDER" ->
                         api.reorderItems(
                             entity.id,

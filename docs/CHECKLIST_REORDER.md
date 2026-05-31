@@ -2,7 +2,15 @@
 
 ## Status
 
-**Supported** on Jotty servers with the develop REST API (Jotty PR [#523](https://github.com/fccview/jotty/pull/523) and later). The Android app uses:
+**Supported** on Jotty **develop** (merged via [PR #523](https://github.com/fccview/jotty/pull/523); not yet on stable `main` until the next Jotty release). The Android app targets these endpoints and degrades gracefully on older servers:
+
+| Feature | Develop Jotty | Stable `main` Jotty (today) |
+|---------|---------------|------------------------------|
+| `GET /api/search` | Relevance-ranked search | Falls back to `GET /api/notes?q=` / local filter |
+| `PUT …/items/reorder` | Up/down reorder buttons | Hidden (no endpoint); web reorder still syncs on pull |
+| `PATCH …/items/{index}` | Inline rename, including parents | Leaf rename via legacy delete+recreate fallback |
+
+The Android app uses:
 
 - `PUT /api/checklists/{listId}/items/reorder` — move items before/after siblings or nest as a child (`isDropInto`)
 - `PATCH /api/checklists/{listId}/items/{itemIndex}` — update item text (including nested paths like `0.1`)
@@ -32,9 +40,9 @@ Reorder body (JSON):
 
 Semantics match the web UI server action [`reorder.ts`](https://github.com/fccview/jotty/blob/main/app/_server/actions/checklist-item/reorder.ts).
 
-## Older servers
+## Older / stable servers
 
-Without the reorder endpoint, move buttons are hidden (items lack ids or the API returns 404). Item rename on very old servers may still fail if PATCH is unavailable — upgrade Jotty or use the web app.
+Until Jotty ships the next release, run **develop** if you want search, PATCH rename (including parent items), and in-app reorder. On stable `main`, search and leaf rename still work via fallbacks; reorder and parent rename need develop or the web app.
 
 ## References
 

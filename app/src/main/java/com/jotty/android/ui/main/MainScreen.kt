@@ -35,6 +35,8 @@ import com.jotty.android.ui.common.MainTabTopBarSyncSlot
 import com.jotty.android.ui.common.ProvideMainTabTopBarController
 import com.jotty.android.ui.notes.OfflineNotesScreen
 import com.jotty.android.ui.settings.AppearanceSettingsScreen
+import com.jotty.android.ui.settings.BehaviorSettingsScreen
+import com.jotty.android.ui.settings.DashboardOverviewScreen
 import com.jotty.android.ui.settings.SettingsScreen
 import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.util.createNoteImageLoader
@@ -43,6 +45,8 @@ import kotlinx.coroutines.launch
 
 private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
 private const val ROUTE_APPEARANCE = "appearance"
+private const val ROUTE_DASHBOARD = "dashboard"
+private const val ROUTE_BEHAVIOR = "behavior"
 
 sealed class MainRoute(val route: String, val titleRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     data object Checklists : MainRoute("checklists", R.string.nav_checklists, Icons.Default.Checklist)
@@ -99,7 +103,7 @@ fun MainScreen(
     val currentRoute = navBackStackEntry?.destination?.route
     val selectedRoute =
         when (currentRoute) {
-            ROUTE_MANAGE_INSTANCES, ROUTE_APPEARANCE -> MainRoute.Settings.route
+            ROUTE_MANAGE_INSTANCES, ROUTE_APPEARANCE, ROUTE_DASHBOARD, ROUTE_BEHAVIOR -> MainRoute.Settings.route
             else -> currentRoute
         }
     val titleRes =
@@ -109,6 +113,8 @@ fun MainScreen(
             MainRoute.Settings.route -> MainRoute.Settings.titleRes
             ROUTE_MANAGE_INSTANCES -> R.string.manage_instances
             ROUTE_APPEARANCE -> R.string.appearance
+            ROUTE_DASHBOARD -> R.string.dashboard_overview
+            ROUTE_BEHAVIOR -> R.string.settings_category_behavior
             else -> R.string.app_name
         }
 
@@ -155,7 +161,12 @@ fun MainScreen(
                         }
                     },
                     navigationIcon = {
-                        if (currentRoute == ROUTE_MANAGE_INSTANCES || currentRoute == ROUTE_APPEARANCE) {
+                        if (
+                            currentRoute == ROUTE_MANAGE_INSTANCES ||
+                                currentRoute == ROUTE_APPEARANCE ||
+                                currentRoute == ROUTE_DASHBOARD ||
+                                currentRoute == ROUTE_BEHAVIOR
+                        ) {
                             IconButton(onClick = { navController.popBackStack() }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                             }
@@ -260,10 +271,21 @@ fun MainScreen(
                             onDisconnect = onDisconnect,
                             onManageInstances = { navController.navigate(ROUTE_MANAGE_INSTANCES) },
                             onAppearance = { navController.navigate(ROUTE_APPEARANCE) },
+                            onDashboard = { navController.navigate(ROUTE_DASHBOARD) },
+                            onBehavior = { navController.navigate(ROUTE_BEHAVIOR) },
                         )
                     }
                     composable(ROUTE_APPEARANCE) {
                         AppearanceSettingsScreen(settingsRepository = settingsRepository)
+                    }
+                    composable(ROUTE_BEHAVIOR) {
+                        BehaviorSettingsScreen(settingsRepository = settingsRepository)
+                    }
+                    composable(ROUTE_DASHBOARD) {
+                        DashboardOverviewScreen(
+                            api = currentApi,
+                            settingsRepository = settingsRepository,
+                        )
                     }
                     composable(ROUTE_MANAGE_INSTANCES) {
                         SetupScreen(

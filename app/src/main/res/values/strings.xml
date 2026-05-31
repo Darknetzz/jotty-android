@@ -169,12 +169,16 @@
     <string name="settings_category_overview">Overview</string>
     <string name="settings_category_general">General</string>
     <string name="settings_category_behavior">Behavior</string>
+    <string name="behavior_description">Start screen, swipe to delete, note previews, and offline sync</string>
     <string name="connection">Connection</string>
     <string name="instance_label">Instance</string>
     <string name="connected">Connected</string>
     <string name="server_unreachable">Server unreachable</string>
     <string name="open_to_default_instance">Open to this instance when opening the app</string>
     <string name="dashboard_overview">Dashboard Overview</string>
+    <string name="dashboard_overview_description">Notes, checklists, tasks, and completion stats</string>
+    <string name="dashboard_overview_empty_title">No dashboard data</string>
+    <string name="dashboard_overview_empty_subtitle">Pull down to refresh, or check your connection in Settings.</string>
     <string name="appearance">Appearance</string>
     <string name="appearance_description">Theme, colors, text size, and motion</string>
     <string name="theme">Theme</string>

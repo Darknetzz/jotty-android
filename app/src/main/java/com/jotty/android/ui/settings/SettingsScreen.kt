@@ -14,7 +14,9 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -30,9 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.BuildConfig
 import com.jotty.android.R
-import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
-import com.jotty.android.data.api.SummaryData
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.data.updates.BundledChangelog
@@ -49,7 +49,6 @@ import com.jotty.android.util.DebugLogExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import retrofit2.HttpException
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -65,6 +64,8 @@ fun SettingsScreen(
     onDisconnect: () -> Unit,
     onManageInstances: () -> Unit = {},
     onAppearance: () -> Unit = {},
+    onDashboard: () -> Unit = {},
+    onBehavior: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -75,23 +76,17 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val biometricClearedMsg = stringResource(R.string.biometric_passphrase_forgotten)
     val currentInstance by settingsRepository.currentInstance.collectAsStateWithLifecycle(initialValue = null)
-    val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
-    val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
-    val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
-    val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
     val updateChannelPref by settingsRepository.updateChannel.collectAsStateWithLifecycle(initialValue = "stable")
     var isExportingLogs by remember { mutableStateOf(false) }
-    var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
-    var summary by remember { mutableStateOf<SummaryData?>(null) }
     var healthOk by remember { mutableStateOf<Boolean?>(null) }
     var serverVersion by remember { mutableStateOf<String?>(null) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
-    fun refreshOverview(showRefreshingIndicator: Boolean) {
+    fun refreshConnection(showRefreshingIndicator: Boolean) {
         scope.launch {
             if (showRefreshingIndicator) isRefreshing = true
             try {
@@ -104,18 +99,6 @@ fun SettingsScreen(
                         healthOk = false
                         serverVersion = null
                     }
-                    try {
-                        summary = a.getSummary().summary
-                    } catch (_: Exception) {
-                        summary = null
-                    }
-                    try {
-                        adminOverview = a.getAdminOverview()
-                    } catch (e: HttpException) {
-                        if (e.code() != 403) adminOverview = null
-                    } catch (_: Exception) {
-                        adminOverview = null
-                    }
                 }
             } finally {
                 if (showRefreshingIndicator) isRefreshing = false
@@ -124,13 +107,13 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(api) {
-        refreshOverview(showRefreshingIndicator = false)
+        refreshConnection(showRefreshingIndicator = false)
     }
 
     val pullRefreshState = rememberPullToRefreshState()
     PullToRefreshBox(
         isRefreshing = isRefreshing,
-        onRefresh = { refreshOverview(showRefreshingIndicator = true) },
+        onRefresh = { refreshConnection(showRefreshingIndicator = true) },
         state = pullRefreshState,
     ) {
         Box(Modifier.fillMaxSize()) {
@@ -193,15 +176,24 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.clickable(onClick = onManageInstances),
                         )
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.dashboard_overview)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.dashboard_overview_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.Dashboard,
+                                    contentDescription = stringResource(R.string.dashboard_overview),
+                                )
+                            },
+                            modifier = Modifier.clickable(onClick = onDashboard),
+                        )
                     }
-                }
-
-                if (summary != null || adminOverview != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
-                    summary?.let { DashboardSummaryCard(it) }
-                    if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
-                    adminOverview?.let { AdminOverviewCard(it) }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -233,96 +225,25 @@ fun SettingsScreen(
 
                 // ─── Behavior ───────────────────────────────────────────────────────────
                 SettingsSectionTitle(stringResource(R.string.settings_category_behavior))
-                Card(
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    onClick = onBehavior,
                 ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.start_screen)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                listOf(
-                                    "checklists" to R.string.nav_checklists,
-                                    "notes" to R.string.nav_notes,
-                                    "settings" to R.string.nav_settings,
-                                ).forEach { (value, labelRes) ->
-                                    FilterChip(
-                                        selected = (startTab ?: "checklists") == value,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setStartTab(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
-                        supportingContent = {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(Icons.Default.Tune, contentDescription = stringResource(R.string.settings_category_behavior))
+                        Column {
+                            Text(stringResource(R.string.settings_category_behavior), style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                stringResource(R.string.swipe_to_delete_description),
+                                stringResource(R.string.behavior_description),
                                 style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = swipeToDeleteEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setSwipeToDeleteEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.note_list_preview)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.note_list_preview_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = noteListPreviewEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setNoteListPreviewEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.offline_mode)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.offline_mode_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = offlineModeEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setOfflineModeEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -593,144 +514,6 @@ private sealed class UpdateUiState {
         val releaseNotes: String? = null,
         val changelogMarkdown: String? = null,
     ) : UpdateUiState()
-}
-
-@Composable
-private fun DashboardSummaryCard(summary: SummaryData) {
-    val notesTotal = summary.notes?.total ?: 0
-    val listsTotal = summary.checklists?.total ?: 0
-    val items = summary.items
-    val tasks = summary.tasks
-    val hasAny =
-        notesTotal > 0 || listsTotal > 0 || items != null || tasks != null
-
-    if (!hasAny) return
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            summary.username?.let { u ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        stringResource(R.string.user_label),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                    Text(u, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                if (notesTotal > 0 || summary.notes != null) StatChip(stringResource(R.string.stat_notes), notesTotal)
-                if (listsTotal > 0 || summary.checklists != null) StatChip(stringResource(R.string.stat_checklists), listsTotal)
-            }
-
-            items?.let { i ->
-                DashboardBreakdown(
-                    title = stringResource(R.string.dashboard_items_title),
-                    completionRate = i.completionRate,
-                    chips =
-                        buildList {
-                            i.total?.let { add(stringResource(R.string.stat_total) to it) }
-                            i.completed?.let { add(stringResource(R.string.stat_completed) to it) }
-                            i.pending?.let { add(stringResource(R.string.stat_pending) to it) }
-                        },
-                )
-            }
-
-            tasks?.let { t ->
-                DashboardBreakdown(
-                    title = stringResource(R.string.dashboard_tasks_title),
-                    completionRate = t.completionRate,
-                    chips =
-                        buildList {
-                            t.total?.let { add(stringResource(R.string.stat_total) to it) }
-                            t.completed?.let { add(stringResource(R.string.stat_completed) to it) }
-                            t.inProgress?.let { add(stringResource(R.string.stat_in_progress) to it) }
-                            t.todo?.let { add(stringResource(R.string.stat_todo) to it) }
-                        },
-                )
-            }
-        }
-    }
-}
-
-/** A titled stat breakdown with optional completion progress bar; used by the dashboard card. */
-@Composable
-private fun DashboardBreakdown(
-    title: String,
-    completionRate: Int?,
-    chips: List<Pair<String, Int>>,
-) {
-    if (chips.isEmpty() && completionRate == null) return
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-        if (chips.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                chips.forEach { (label, value) -> StatChip(label, value) }
-            }
-        }
-        completionRate?.let { rate ->
-            LinearProgressIndicator(
-                progress = { (rate.coerceIn(0, 100)) / 100f },
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
-            )
-            Text(
-                stringResource(R.string.dashboard_completion_format, rate),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
-    }
-}
-
-@Composable
-private fun AdminOverviewCard(overview: AdminOverviewResponse) {
-    val hasAny = overview.users != null || overview.checklists != null || overview.notes != null
-    if (!hasAny) return
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                overview.users?.let { StatChip(stringResource(R.string.stat_users), it) }
-                overview.checklists?.let { StatChip(stringResource(R.string.stat_checklists), it) }
-                overview.notes?.let { StatChip(stringResource(R.string.stat_notes), it) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatChip(
-    label: String,
-    value: Int,
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("$value", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-    }
 }
 
 @Composable

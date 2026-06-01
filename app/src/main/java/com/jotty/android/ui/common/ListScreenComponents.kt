@@ -171,8 +171,8 @@ data class StaleListDisplay<T>(
  * Use when you have a list that can be loading, in error, empty, or showing items with pull-to-refresh.
  *
  * [showSkeleton] — full-list shimmer (initial load). [isRefreshing] — pull-to-refresh indicator only
- * (user-initiated refresh). Lists with items use a non-blocking top indicator instead of [PullToRefreshBox]
- * (which can swallow taps on short [LazyColumn]s). Use the top-bar refresh action to sync when the list is shown.
+ * (user-initiated refresh). Do not bind background sync to [isRefreshing]; [PullToRefreshBox] blocks touches
+ * while refreshing.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -192,7 +192,7 @@ fun ListScreenContent(
     val pullRefreshState = rememberPullToRefreshState()
     when {
         showSkeleton -> ListLoadingSkeleton(modifier = modifier)
-        isEmpty ->
+        else ->
             PullToRefreshBox(
                 modifier = modifier,
                 isRefreshing = isRefreshing,
@@ -204,7 +204,7 @@ fun ListScreenContent(
                         ScrollableFullSize {
                             ErrorState(message = error, onRetry = onRetry)
                         }
-                    else ->
+                    isEmpty ->
                         ScrollableFullSize {
                             EmptyState(
                                 icon = emptyIcon,
@@ -212,20 +212,7 @@ fun ListScreenContent(
                                 subtitle = emptySubtitle,
                             )
                         }
-                }
-            }
-        else ->
-            // PullToRefreshBox intercepts taps on short LazyColumns; use top-bar refresh for lists.
-            Box(modifier) {
-                content()
-                if (isRefreshing) {
-                    LinearProgressIndicator(
-                        modifier =
-                            Modifier
-                                .align(Alignment.TopCenter)
-                                .fillMaxWidth()
-                                .height(3.dp),
-                    )
+                    else -> content()
                 }
             }
     }

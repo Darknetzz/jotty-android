@@ -290,6 +290,134 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
+    fun syncChecklists_whenServerUsesStatusCompleted_skipsPendingCheck() =
+        runTest {
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "List",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson =
+                        Gson().toJson(
+                            listOf(
+                                ChecklistItem(index = 0, text = "A", status = "completed"),
+                                ChecklistItem(index = 1, text = "B"),
+                            ),
+                        ),
+                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "CHECK", path = "0"))),
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+
+            var checkCalled = false
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists =
+                        mutableListOf(
+                            Checklist(
+                                id = "list-1",
+                                title = "List",
+                                category = API_CATEGORY_UNCATEGORIZED,
+                                type = "simple",
+                                items =
+                                    listOf(
+                                        ChecklistItem(index = 0, text = "A", status = "completed"),
+                                        ChecklistItem(index = 1, text = "B"),
+                                    ),
+                                createdAt = "c",
+                                updatedAt = "u",
+                            ),
+                        ),
+                    onCheckItem = { _, _ ->
+                        checkCalled = true
+                        throw IllegalStateException("should not call check when status is completed")
+                    },
+                )
+
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+            assertFalse(checkCalled)
+
+            val entity = database.checklistDao().getById("list-1")
+            assertEquals(false, entity?.isDirty)
+            assertTrue(entity?.pendingOps().orEmpty().isEmpty())
+            assertTrue(entity?.items()?.get(0)?.completed == true)
+        }
+
+    @Test
+    fun syncChecklists_whenOnlyItemPending_skipsMetadataUpdate() =
+        runTest {
+            var updateCalled = false
+            val serverList =
+                Checklist(
+                    id = "list-1",
+                    title = "List",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    items =
+                        listOf(
+                            ChecklistItem(index = 0, text = "A"),
+                            ChecklistItem(index = 1, text = "B", completed = true),
+                        ),
+                    createdAt = "c",
+                    updatedAt = "u",
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "List",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = Gson().toJson(serverList.items),
+                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "CHECK", path = "0"))),
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = mutableListOf(serverList),
+                    onUpdateChecklist = { _, _ ->
+                        updateCalled = true
+                        ApiResponse(true, serverList)
+                    },
+                )
+
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+            assertFalse(updateCalled)
+        }
+
+    @Test
     fun syncChecklists_whenPendingReplayPartiallyFails_keepsOnlyFailedOps() =
         runTest {
             database.checklistDao().insert(
@@ -303,7 +431,7 @@ class OfflineChecklistsRepositoryTest {
                         Gson().toJson(
                             listOf(
                                 PendingItemOp(type = "CHECK", path = "0"),
-                                PendingItemOp(type = "DELETE", path = "99"),
+                                PendingItemOp(type = "UPDATE", path = "0", text = "Renamed"),
                             ),
                         ),
                     createdAt = "c",
@@ -329,7 +457,7 @@ class OfflineChecklistsRepositoryTest {
                                 updatedAt = "u",
                             ),
                         ),
-                    onDeleteItem = { _, _ -> throw IllegalStateException("stale path") },
+                    onUpdateItem = { _, _, _ -> throw IllegalStateException("update failed") },
                 )
 
             val repo =
@@ -347,7 +475,7 @@ class OfflineChecklistsRepositoryTest {
             val entity = database.checklistDao().getById("list-1")
             assertEquals(true, entity?.isDirty)
             assertEquals(1, entity?.pendingOps()?.size)
-            assertEquals("DELETE", entity?.pendingOps()?.single()?.type)
+            assertEquals("UPDATE", entity?.pendingOps()?.single()?.type)
         }
 
     @Test
@@ -477,7 +605,7 @@ class OfflineChecklistsRepositoryTest {
                     category = API_CATEGORY_UNCATEGORIZED,
                     type = "simple",
                     itemsJson = Gson().toJson(listOf(ChecklistItem(index = 0, text = "A"))),
-                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "DELETE", path = "99"))),
+                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "CHECK", path = "0"))),
                     createdAt = "c",
                     updatedAt = "u",
                     isDirty = true,
@@ -501,7 +629,7 @@ class OfflineChecklistsRepositoryTest {
                                 updatedAt = "u",
                             ),
                         ),
-                    onDeleteItem = { _, _ -> throw IllegalStateException("stale path") },
+                    onCheckItem = { _, _ -> throw IllegalStateException("check failed") },
                 )
 
             val repo =
@@ -773,6 +901,8 @@ private class FakeChecklistApi(
     private val beforeGetChecklists: suspend () -> Unit = {},
     private val onDeleteItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
     private val onCheckItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
+    private val onUpdateItem: suspend (String, String, com.jotty.android.data.api.UpdateItemRequest) -> SuccessResponse =
+        { _, _, _ -> SuccessResponse(true) },
     private val onUpdateChecklist: suspend (String, UpdateChecklistRequest) -> ApiResponse<Checklist> = { listId, body ->
         val existing = remoteChecklists.first { it.id == listId }
         val updated =
@@ -844,7 +974,7 @@ private class FakeChecklistApi(
         listId: String,
         itemIndex: String,
         body: com.jotty.android.data.api.UpdateItemRequest,
-    ): SuccessResponse = SuccessResponse(true)
+    ): SuccessResponse = onUpdateItem(listId, itemIndex, body)
 
     override suspend fun reorderItems(
         listId: String,

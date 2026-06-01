@@ -41,6 +41,27 @@ data class ChecklistItem(
     val children: List<ChecklistItem>? = null,
 )
 
+/** Jotty may mark completion via [status] (`completed`) or [completed]; treat either as done. */
+fun ChecklistItem.isCompletedForApi(): Boolean =
+    completed || status.equals("completed", ignoreCase = true)
+
+/** Align local storage with API completion fields so offline sync can detect already-applied ops. */
+fun ChecklistItem.normalizedForLocal(): ChecklistItem {
+    val done = isCompletedForApi()
+    val normalizedChildren = children?.map { it.normalizedForLocal() }
+    return copy(
+        completed = done,
+        status =
+            when {
+                done -> status?.takeIf { it.isNotBlank() } ?: "completed"
+                else -> status?.takeIf { it.isNotBlank() } ?: "in_progress"
+            },
+        children = normalizedChildren,
+    )
+}
+
+fun List<ChecklistItem>.normalizedForLocal(): List<ChecklistItem> = map { it.normalizedForLocal() }
+
 data class CreateChecklistRequest(
     val title: String,
     val category: String? = API_CATEGORY_UNCATEGORIZED,

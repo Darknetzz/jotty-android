@@ -99,7 +99,7 @@ fun OfflineEnabledChecklistsScreen(
 
     val screenState = rememberListScreenState()
     var pullRefreshing by remember { mutableStateOf(false) }
-    val listRefreshing = screenState.loading || isSyncing
+    val listRefreshing = screenState.loading
     val checklistListDisplay = rememberStaleListWhileRefresh(sortedChecklists, listRefreshing)
 
     val context = LocalContext.current

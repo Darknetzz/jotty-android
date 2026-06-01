@@ -8,6 +8,8 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.isCompletedForApi
+import com.jotty.android.data.api.normalizedForLocal
 import com.jotty.android.util.reorderChecklistItems
 
 private val gson = Gson()
@@ -89,7 +91,7 @@ fun Checklist.toEntity(
         title = title,
         category = category,
         type = type,
-        itemsJson = gson.toJson(items),
+        itemsJson = gson.toJson(items.normalizedForLocal()),
         pendingOpsJson = "[]",
         createdAt = createdAt,
         updatedAt = updatedAt,
@@ -107,8 +109,12 @@ fun applyOpToItems(
     op: PendingItemOp,
 ): List<ChecklistItem> =
     when (op.type) {
-        "CHECK" -> op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = true) } } ?: items
-        "UNCHECK" -> op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = false) } } ?: items
+        "CHECK" ->
+            op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = true, status = "completed") } }
+                ?: items
+        "UNCHECK" ->
+            op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = false, status = "in_progress") } }
+                ?: items
         "DELETE" -> op.path?.let { deleteAtPath(items, it) } ?: items
         "ADD" -> {
             if (op.parentIndex == null) {
@@ -182,8 +188,8 @@ fun isPendingOpSatisfied(
     op: PendingItemOp,
 ): Boolean =
     when (op.type) {
-        "CHECK" -> op.path?.let { itemAtPath(items, it)?.completed == true } == true
-        "UNCHECK" -> op.path?.let { itemAtPath(items, it)?.completed == false } == true
+        "CHECK" -> op.path?.let { itemAtPath(items, it)?.isCompletedForApi() == true } == true
+        "UNCHECK" -> op.path?.let { itemAtPath(items, it)?.isCompletedForApi() == false } == true
         else -> false
     }
 

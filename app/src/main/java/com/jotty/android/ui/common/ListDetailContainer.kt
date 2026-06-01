@@ -1,16 +1,15 @@
 package com.jotty.android.ui.common
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 
@@ -29,16 +28,23 @@ fun <T> ListDetailContainer(
     content: @Composable (T?) -> Unit,
 ) {
     val reducedMotion = LocalReducedMotionEnabled.current
+    if (reducedMotion) {
+        Box(modifier) {
+            key(contentKey(target)) {
+                content(target)
+            }
+        }
+        return
+    }
+
     Box(modifier) {
         key(contentKey(target)) {
-            var visible by remember { mutableStateOf(reducedMotion) }
-            LaunchedEffect(reducedMotion) {
-                if (!reducedMotion) visible = true
-            }
+            var visible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { visible = true }
             val alpha =
                 animateFloatAsState(
                     targetValue = if (visible) 1f else 0f,
-                    animationSpec = if (reducedMotion) snap() else tween(durationMillis = 180),
+                    animationSpec = tween(durationMillis = 180),
                     label = "list-detail-fade-in",
                 )
             Box(Modifier.graphicsLayer(alpha = alpha.value)) {

@@ -153,6 +153,40 @@ fun applyOpToItems(
  */
 private fun pathSegments(path: String): List<Int>? = path.split(".").map { it.toIntOrNull() ?: return null }
 
+/** Item at a positional API path (e.g. `"0"`, `"0.1"`), or null if the path is invalid or out of range. */
+fun itemAtPath(
+    items: List<ChecklistItem>,
+    path: String,
+): ChecklistItem? {
+    val segments = pathSegments(path) ?: return null
+    return itemAtSegments(items, segments)
+}
+
+private fun itemAtSegments(
+    items: List<ChecklistItem>,
+    segments: List<Int>,
+): ChecklistItem? {
+    if (segments.isEmpty()) return null
+    val idx = segments[0]
+    if (idx < 0 || idx >= items.size) return null
+    return if (segments.size == 1) {
+        items[idx]
+    } else {
+        itemAtSegments(items[idx].children.orEmpty(), segments.drop(1))
+    }
+}
+
+/** True when [op] is already reflected in [items] (e.g. CHECK and the item is already completed). */
+fun isPendingOpSatisfied(
+    items: List<ChecklistItem>,
+    op: PendingItemOp,
+): Boolean =
+    when (op.type) {
+        "CHECK" -> op.path?.let { itemAtPath(items, it)?.completed == true } == true
+        "UNCHECK" -> op.path?.let { itemAtPath(items, it)?.completed == false } == true
+        else -> false
+    }
+
 private fun updateAtPath(
     items: List<ChecklistItem>,
     path: String,

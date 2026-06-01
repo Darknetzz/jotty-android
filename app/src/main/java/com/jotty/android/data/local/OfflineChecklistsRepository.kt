@@ -6,6 +6,7 @@ import com.google.gson.Gson
 import com.jotty.android.R
 import com.jotty.android.data.api.AddItemRequest
 import com.jotty.android.data.api.Checklist
+import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.ReorderItemsRequest
@@ -15,6 +16,7 @@ import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.CancellationException
+import retrofit2.HttpException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,8 +43,8 @@ private val gson = Gson()
  *  2. Recorded as [PendingItemOp] entries replayed on the next successful sync.
  *
  * Paths in pending ops are positional (e.g. "0", "0.1") captured at mutation time.
- * If the server was also modified during the offline period a path may be stale; the
- * replay silently skips such failing ops — acceptable for a single-user homelab app.
+ * If the server was also modified during the offline period a path may be stale; replay
+ * skips ops that are already satisfied on the server and drops idempotent DELETE 404s.
  */
 class OfflineChecklistsRepository(
     context: Context,
@@ -634,29 +636,61 @@ class OfflineChecklistsRepository(
     private suspend fun replayPendingOps(entity: ChecklistEntity): Int {
         var failedOps = 0
         val remaining = mutableListOf<PendingItemOp>()
+        var serverItems = fetchServerItems(entity.id) ?: entity.items()
+
         for (op in entity.pendingOps().distinct()) {
-            runCatching {
-                executePendingOp(entity, op)
-            }.onSuccess {
-                // consumed
-            }.onFailure {
-                failedOps += 1
-                remaining.add(op)
-                AppLog.d(TAG, "Pending op ${op.type} failed (stale path?): ${it.message}")
+            if (isPendingOpSatisfied(serverItems, op)) {
+                AppLog.d(TAG, "Pending op ${op.type} already on server — skipping")
+                continue
+            }
+            val result = runCatching { executePendingOp(entity, op) }
+            fetchServerItems(entity.id)?.let { refreshed ->
+                serverItems = refreshed
+            }
+            when {
+                result.isSuccess -> Unit
+                isPendingOpSatisfied(serverItems, op) ->
+                    AppLog.d(TAG, "Pending op ${op.type} satisfied after server refresh — skipping")
+                isStaleIdempotentReplayFailure(result.exceptionOrNull(), op) ->
+                    AppLog.d(TAG, "Pending op ${op.type} treated as satisfied (${result.exceptionOrNull()?.message})")
+                else -> {
+                    failedOps += 1
+                    remaining.add(op)
+                    AppLog.d(TAG, "Pending op ${op.type} failed (stale path?): ${result.exceptionOrNull()?.message}")
+                }
             }
         }
 
-        if (failedOps > 0) {
-            _replayFailuresDetected.value += failedOps
+        val consumedAny = remaining.size < entity.pendingOps().size
+        if (failedOps > 0 || consumedAny) {
+            if (failedOps > 0) {
+                _replayFailuresDetected.value += failedOps
+            }
+            val latestItems = fetchServerItems(entity.id) ?: serverItems
             checklistDao.update(
                 entity.copy(
+                    itemsJson = gson.toJson(latestItems),
                     pendingOpsJson = gson.toJson(remaining),
-                    isDirty = true,
+                    isDirty = remaining.isNotEmpty(),
                 ),
             )
-            AppLog.d(TAG, "Replay completed with $failedOps failed operation(s)")
+            AppLog.d(TAG, "Replay completed with $failedOps failed operation(s), ${remaining.size} remaining")
         }
         return failedOps
+    }
+
+    private suspend fun fetchServerItems(checklistId: String): List<ChecklistItem>? =
+        api.getChecklists().checklists.find { it.id == checklistId }?.items
+
+    private fun isStaleIdempotentReplayFailure(
+        error: Throwable?,
+        op: PendingItemOp,
+    ): Boolean {
+        val http = error as? HttpException ?: return false
+        return when (op.type) {
+            "DELETE" -> http.code() == 404
+            else -> false
+        }
     }
 
     private suspend fun syncDeletedChecklist(id: String) {

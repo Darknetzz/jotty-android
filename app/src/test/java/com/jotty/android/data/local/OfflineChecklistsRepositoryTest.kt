@@ -224,6 +224,72 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
+    fun syncChecklists_whenPendingCheckAlreadyOnServer_clearsDirty() =
+        runTest {
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "List",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson =
+                        Gson().toJson(
+                            listOf(
+                                ChecklistItem(index = 0, text = "A", completed = true),
+                                ChecklistItem(index = 1, text = "B"),
+                            ),
+                        ),
+                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "CHECK", path = "0"))),
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists =
+                        mutableListOf(
+                            Checklist(
+                                id = "list-1",
+                                title = "List",
+                                category = API_CATEGORY_UNCATEGORIZED,
+                                type = "simple",
+                                items =
+                                    listOf(
+                                        ChecklistItem(index = 0, text = "A", completed = true),
+                                        ChecklistItem(index = 1, text = "B"),
+                                    ),
+                                createdAt = "c",
+                                updatedAt = "u",
+                            ),
+                        ),
+                    onCheckItem = { _, _ ->
+                        throw IllegalStateException("should not call check when already completed on server")
+                    },
+                )
+
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            val entity = database.checklistDao().getById("list-1")
+            assertEquals(false, entity?.isDirty)
+            assertTrue(entity?.pendingOps().orEmpty().isEmpty())
+        }
+
+    @Test
     fun syncChecklists_whenPendingReplayPartiallyFails_keepsOnlyFailedOps() =
         runTest {
             database.checklistDao().insert(

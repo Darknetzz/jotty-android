@@ -213,7 +213,8 @@ class OfflineChecklistsRepository(
                 checklistDao.update(updated)
                 AppLog.d(TAG, "Checklist title updated locally: $id")
                 if (isOnline.value) {
-                    syncChecklist(updated)
+                    runCatching { syncChecklist(updated) }
+                        .onFailure { AppLog.d(TAG, "Checklist title sync deferred: ${it.message}") }
                 }
                 checklistDao.getById(id)?.toChecklist()
                     ?: updated.toChecklist()
@@ -221,6 +222,12 @@ class OfflineChecklistsRepository(
         }
 
     // ─── Item operations ────────────────────────────────────────────────────
+
+    /** True when item changes must stay local until [syncChecklist] clears pending ops. */
+    private suspend fun needsLocalItemMutations(checklistId: String): Boolean {
+        val entity = checklistDao.getById(checklistId) ?: return false
+        return entity.isDirty || entity.pendingOps().isNotEmpty()
+    }
 
     suspend fun addItem(
         checklistId: String,
@@ -230,7 +237,7 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                    if (isOnline.value) {
+                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
                         val response =
                             api.addChecklistItem(
                                 checklistId,
@@ -258,7 +265,7 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                    if (isOnline.value) {
+                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
                         api.checkItem(checklistId, path)
                         refreshFromServer(checklistId)
                     } else {
@@ -275,7 +282,7 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                    if (isOnline.value) {
+                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
                         api.uncheckItem(checklistId, path)
                         refreshFromServer(checklistId)
                     } else {
@@ -292,7 +299,7 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                    if (isOnline.value) {
+                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
                         api.deleteItem(checklistId, path)
                         refreshFromServer(checklistId)
                     } else {
@@ -323,7 +330,7 @@ class OfflineChecklistsRepository(
                     val checklist =
                         checklistDao.getById(checklistId)?.toChecklist()
                             ?: throw Exception("Checklist not found: $checklistId")
-                    if (isOnline.value) {
+                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
                         updateChecklistItemText(
                             api = api,
                             listId = checklistId,
@@ -349,7 +356,7 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 withItemMutation {
-                    if (isOnline.value) {
+                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
                         api.reorderItems(checklistId, request)
                         return@withItemMutation refreshFromServer(checklistId)
                     } else {
@@ -535,59 +542,76 @@ class OfflineChecklistsRepository(
         }
     }
 
+    private suspend fun executePendingOp(
+        entity: ChecklistEntity,
+        op: PendingItemOp,
+    ) {
+        when (op.type) {
+            "CHECK" -> api.checkItem(entity.id, op.path!!)
+            "UNCHECK" -> api.uncheckItem(entity.id, op.path!!)
+            "ADD" ->
+                api.addChecklistItem(
+                    entity.id,
+                    AddItemRequest(text = op.text ?: "", parentIndex = op.parentIndex),
+                )
+            "DELETE" -> api.deleteItem(entity.id, op.path!!)
+            "UPDATE" ->
+                runCatching {
+                    api.updateItem(
+                        entity.id,
+                        op.path!!,
+                        UpdateItemRequest(text = op.text),
+                    )
+                }.getOrElse { error ->
+                    if (error is retrofit2.HttpException && error.code() in setOf(404, 405)) {
+                        updateChecklistItemText(
+                            api = api,
+                            listId = entity.id,
+                            path = op.path!!,
+                            text = op.text ?: "",
+                            items = entity.items(),
+                        )
+                    } else {
+                        throw error
+                    }
+                }
+            "REORDER" ->
+                api.reorderItems(
+                    entity.id,
+                    ReorderItemsRequest(
+                        activeItemId = op.activeItemId!!,
+                        overItemId = op.overItemId!!,
+                        position = op.position,
+                        isDropInto = op.isDropInto,
+                    ),
+                )
+        }
+    }
+
     /** @return number of ops that failed to replay */
     private suspend fun replayPendingOps(entity: ChecklistEntity): Int {
         var failedOps = 0
+        val remaining = mutableListOf<PendingItemOp>()
         for (op in entity.pendingOps().distinct()) {
             runCatching {
-                when (op.type) {
-                    "CHECK" -> api.checkItem(entity.id, op.path!!)
-                    "UNCHECK" -> api.uncheckItem(entity.id, op.path!!)
-                    "ADD" ->
-                        api.addChecklistItem(
-                            entity.id,
-                            AddItemRequest(text = op.text ?: "", parentIndex = op.parentIndex),
-                        )
-                    "DELETE" -> api.deleteItem(entity.id, op.path!!)
-                    "UPDATE" ->
-                        runCatching {
-                            api.updateItem(
-                                entity.id,
-                                op.path!!,
-                                UpdateItemRequest(text = op.text),
-                            )
-                        }.getOrElse { error ->
-                            if (error is retrofit2.HttpException && error.code() in setOf(404, 405)) {
-                                updateChecklistItemText(
-                                    api = api,
-                                    listId = entity.id,
-                                    path = op.path!!,
-                                    text = op.text ?: "",
-                                    items = entity.items(),
-                                )
-                            } else {
-                                throw error
-                            }
-                        }
-                    "REORDER" ->
-                        api.reorderItems(
-                            entity.id,
-                            ReorderItemsRequest(
-                                activeItemId = op.activeItemId!!,
-                                overItemId = op.overItemId!!,
-                                position = op.position,
-                                isDropInto = op.isDropInto,
-                            ),
-                        )
-                }
+                executePendingOp(entity, op)
+            }.onSuccess {
+                // consumed
             }.onFailure {
                 failedOps += 1
+                remaining.add(op)
                 AppLog.d(TAG, "Pending op ${op.type} failed (stale path?): ${it.message}")
             }
         }
 
         if (failedOps > 0) {
             _replayFailuresDetected.value += failedOps
+            checklistDao.update(
+                entity.copy(
+                    pendingOpsJson = gson.toJson(remaining),
+                    isDirty = true,
+                ),
+            )
             AppLog.d(TAG, "Replay completed with $failedOps failed operation(s)")
         }
         return failedOps
@@ -627,6 +651,9 @@ class OfflineChecklistsRepository(
                 updatedAt = Instant.now().toString(),
             )
         checklistDao.update(updated)
+        if (isOnline.value) {
+            runtime.coroutineScope.launch { syncChecklists() }
+        }
         return updated.toChecklist()
     }
 

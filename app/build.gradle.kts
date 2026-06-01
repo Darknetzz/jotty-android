@@ -1,6 +1,6 @@
 import com.android.build.api.dsl.ApplicationExtension
-import java.util.Properties
 import java.time.Instant
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -108,31 +108,31 @@ dependencies {
     implementation("androidx.compose.material:material")
     implementation("androidx.compose.material:material-icons-extended")
 
-    implementation("androidx.core:core-ktx:1.15.0")
-    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.core:core-ktx:1.18.0")
+    implementation("androidx.lifecycle:lifecycle-process:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.activity:activity-compose:1.11.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.navigation:navigation-compose:2.9.7")
 
     // Retrofit for REST API
-    implementation("com.squareup.retrofit2:retrofit:2.12.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.12.0")
+    implementation("com.squareup.retrofit2:retrofit:3.0.0")
+    implementation("com.squareup.retrofit2:converter-gson:3.0.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
     // Secure storage for API key
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation("androidx.security:security-crypto:1.1.0")
 
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
 
     // Room for offline storage
-    implementation("androidx.room:room-runtime:2.7.1")
-    implementation("androidx.room:room-ktx:2.7.1")
-    ksp("androidx.room:room-compiler:2.7.1")
+    implementation("androidx.room:room-runtime:2.8.4")
+    implementation("androidx.room:room-ktx:2.8.4")
+    ksp("androidx.room:room-compiler:2.8.4")
 
     // WorkManager for background sync
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
 
     // Glance for home-screen widgets
     implementation("androidx.glance:glance-appwidget:1.1.1")
@@ -153,9 +153,9 @@ dependencies {
     // Unit tests
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.test:core:1.7.0")
-    testImplementation("androidx.room:room-testing:2.7.1")
+    testImplementation("androidx.room:room-testing:2.8.4")
     testImplementation("org.robolectric:robolectric:4.16.1")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

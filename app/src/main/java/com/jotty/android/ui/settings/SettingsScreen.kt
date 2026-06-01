@@ -554,6 +554,7 @@ private fun AboutDialog(
 ) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val resources = context.resources
     val scope = rememberCoroutineScope()
     val parsedChannel = parseUpdateChannel(updateChannelPref)
     val releasePageUrl = if (parsedChannel == UpdateChannel.Dev) GITHUB_DEV_RELEASE_URL else GITHUB_RELEASES_URL
@@ -584,7 +585,7 @@ private fun AboutDialog(
                 fallbackMarkdown = null,
             )
         if (markdown != null) {
-            changelogDialog = context.getString(R.string.changelog_title_installed, key) to markdown
+            changelogDialog = resources.getString(R.string.changelog_title_installed, key) to markdown
         } else {
             showChangelogUnavailable = true
         }
@@ -606,7 +607,7 @@ private fun AboutDialog(
                 )
         if (markdown != null) {
             changelogDialog =
-                context.getString(R.string.changelog_title_update, remoteVersionLabel) to markdown
+                resources.getString(R.string.changelog_title_update, remoteVersionLabel) to markdown
         } else {
             showChangelogUnavailable = true
         }

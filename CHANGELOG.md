@@ -14,6 +14,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Dependencies** — Updated AndroidX (Compose BOM, Lifecycle, Room, DataStore, Work, Security Crypto), Retrofit 3, and CI actions; no intended behavior change.
 - **Settings → Appearance** — Theme, colors, padding, reader text size, and reduced motion now live on a dedicated Appearance screen opened from Settings.
 - **Settings → Dashboard overview** — Summary stats and admin totals open on a dedicated screen with pull-to-refresh, instead of inline on Settings.
 - **Settings → Behavior** — Start screen, swipe-to-delete, note previews, and offline sync now live on a dedicated Behavior screen opened from Settings.

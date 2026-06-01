@@ -3,8 +3,8 @@ package com.jotty.android.ui.checklists
 import android.app.Application
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -340,9 +339,10 @@ private fun ChecklistCard(
                         modifier =
                             Modifier
                                 .weight(1f, fill = false)
-                                .pointerInput(Unit) {
-                                    detectTapGestures(onLongPress = { menuExpanded = true })
-                                },
+                                .combinedClickable(
+                                    onClick = onClick,
+                                    onLongClick = { menuExpanded = true },
+                                ),
                     )
                     if (isProject) {
                         Text(

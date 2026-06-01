@@ -531,6 +531,7 @@ private fun OfflineChecklistDetailContent(
 
     var newItemText by remember { mutableStateOf("") }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var editingItemKey by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     val isProject =
@@ -652,6 +653,9 @@ private fun OfflineChecklistDetailContent(
             items(toDo, key = { "todo-${it.apiPath}-${it.item.text}" }) { flat ->
                 ChecklistItemRow(
                     item = flat.item,
+                    itemKey = flat.apiPath,
+                    editingItemKey = editingItemKey,
+                    onEditingItemKeyChange = { editingItemKey = it },
                     depth = flat.depth,
                     isProject = isProject,
                     onCheck = {
@@ -704,6 +708,9 @@ private fun OfflineChecklistDetailContent(
             items(done, key = { "done-${it.apiPath}-${it.item.text}" }) { flat ->
                 ChecklistItemRow(
                     item = flat.item,
+                    itemKey = flat.apiPath,
+                    editingItemKey = editingItemKey,
+                    onEditingItemKeyChange = { editingItemKey = it },
                     depth = flat.depth,
                     isProject = isProject,
                     onCheck = {

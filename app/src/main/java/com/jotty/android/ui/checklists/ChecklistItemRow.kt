@@ -43,6 +43,9 @@ import com.jotty.android.ui.common.ConfirmDeleteDialog
 @Composable
 fun ChecklistItemRow(
     item: ChecklistItem,
+    itemKey: String,
+    editingItemKey: String?,
+    onEditingItemKeyChange: (String?) -> Unit,
     depth: Int = 0,
     isProject: Boolean = false,
     onCheck: () -> Unit,
@@ -58,12 +61,12 @@ fun ChecklistItemRow(
     val indent = (depth * 20).dp
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val taskLabel = item.text.ifBlank { stringResource(R.string.item_placeholder) }
-    var isEditing by remember { mutableStateOf(false) }
-    var editText by remember(item.text) { mutableStateOf(item.text) }
+    val isEditing = editingItemKey == itemKey
+    var editText by remember(item.text, isEditing) { mutableStateOf(item.text) }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
 
-    LaunchedEffect(isEditing) {
+    LaunchedEffect(isEditing, itemKey) {
         if (isEditing) focusRequester.requestFocus()
     }
 
@@ -104,7 +107,7 @@ fun ChecklistItemRow(
                             focusManager.clearFocus()
                             val trimmed = editText.trim()
                             if (trimmed.isNotBlank()) onUpdate(trimmed)
-                            isEditing = false
+                            onEditingItemKeyChange(null)
                         },
                     ),
             )
@@ -123,7 +126,7 @@ fun ChecklistItemRow(
                     Modifier
                         .weight(1f)
                         .clickable(role = Role.Button) {
-                            isEditing = true
+                            onEditingItemKeyChange(itemKey)
                             editText = item.text
                         },
             )

@@ -411,11 +411,13 @@ private fun ChecklistDetailScreen(
     var displayTitle by remember { mutableStateOf(checklist.title) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var newItemText by remember { mutableStateOf("") }
+    var editingItemKey by remember(checklist.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(checklist.id, checklist.title, checklist.items) {
         displayTitle = checklist.title
         items = checklist.items
+        editingItemKey = null
     }
 
     fun refresh() {
@@ -552,6 +554,9 @@ private fun ChecklistDetailScreen(
             items(toDo, key = { "todo-${it.apiPath}-${it.item.text}" }) { flat ->
                 ChecklistItemRow(
                     item = flat.item,
+                    itemKey = flat.apiPath,
+                    editingItemKey = editingItemKey,
+                    onEditingItemKeyChange = { editingItemKey = it },
                     depth = flat.depth,
                     isProject = isProject,
                     onCheck = {
@@ -639,6 +644,9 @@ private fun ChecklistDetailScreen(
             items(completed, key = { "done-${it.apiPath}-${it.item.text}" }) { flat ->
                 ChecklistItemRow(
                     item = flat.item,
+                    itemKey = flat.apiPath,
+                    editingItemKey = editingItemKey,
+                    onEditingItemKeyChange = { editingItemKey = it },
                     depth = flat.depth,
                     isProject = isProject,
                     onCheck = {

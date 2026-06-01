@@ -1,6 +1,6 @@
 [versions]
-agp = "9.0.1"
-kotlin = "2.2.21"
+agp = "9.2.1"
+kotlin = "2.3.21"
 ksp = "2.3.9"
 compose-bom = "2026.05.01"
 ktlint = "12.1.1"

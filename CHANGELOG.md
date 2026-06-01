@@ -16,6 +16,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Dependencies** — Updated AndroidX (Compose BOM, Lifecycle, Room, DataStore, Work, Security Crypto), Retrofit 3, and CI actions; no intended behavior change.
 - **Dependencies** — Bumped Navigation Compose, Fragment KTX, KSP, and Android test JUnit; no intended behavior change.
+- **Build toolchain** — Gradle 9.5.1, Android Gradle Plugin 9.2.1, and Kotlin 2.3.21; no intended behavior change.
 - **Settings → Appearance** — Theme, colors, padding, reader text size, and reduced motion now live on a dedicated Appearance screen opened from Settings.
 - **Settings → Dashboard overview** — Summary stats and admin totals open on a dedicated screen with pull-to-refresh, instead of inline on Settings.
 - **Settings → Behavior** — Start screen, swipe-to-delete, note previews, and offline sync now live on a dedicated Behavior screen opened from Settings.

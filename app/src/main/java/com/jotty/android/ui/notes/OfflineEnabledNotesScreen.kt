@@ -105,8 +105,6 @@ fun OfflineEnabledNotesScreen(
     val undoActionLabel = stringResource(R.string.undo)
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
-    val syncDurationLabel = stringResource(R.string.sync_duration)
-    val syncLastErrorLabel = stringResource(R.string.sync_last_error)
 
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
@@ -199,6 +197,8 @@ fun OfflineEnabledNotesScreen(
                 isOnline = isOnline,
                 isSyncing = isSyncing,
                 lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+                lastSyncDurationText = lastSyncDurationText,
+                lastSyncError = lastSyncError,
                 onRefresh = { requestSync(showLoading = false) },
                 onAdd = { vm.setShowCreateDialog(true) },
             )
@@ -231,21 +231,6 @@ fun OfflineEnabledNotesScreen(
                         onRetrySync = { requestSync(showLoading = true) },
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
-                    if (lastSyncDurationText != null || lastSyncError != null) {
-                        Text(
-                            text =
-                                buildString {
-                                    if (lastSyncDurationText != null) append("$syncDurationLabel: $lastSyncDurationText")
-                                    if (lastSyncError != null) {
-                                        if (isNotEmpty()) append(" • ")
-                                        append("$syncLastErrorLabel: $lastSyncError")
-                                    }
-                                },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp),
-                        )
-                    }
 
                     // Search bar + sort
                     Row(

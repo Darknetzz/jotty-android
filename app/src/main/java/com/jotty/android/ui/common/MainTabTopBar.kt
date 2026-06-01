@@ -38,6 +38,8 @@ class MainTabTopBarState(
     val isOnline: Boolean,
     val isSyncing: Boolean,
     val lastSyncAttemptEpochMs: Long?,
+    val lastSyncDurationText: String? = null,
+    val lastSyncError: String? = null,
     val onRefresh: () -> Unit,
     val onAdd: () -> Unit,
     val showSyncStatus: Boolean = true,
@@ -75,10 +77,53 @@ fun RegisterMainTabTopBar(state: MainTabTopBarState?) {
 }
 
 @Composable
+private fun rememberSyncDetailText(
+    lastSyncAttemptEpochMs: Long?,
+    lastSyncDurationText: String?,
+    lastSyncError: String?,
+): String? {
+    val lastSyncText =
+        remember(lastSyncAttemptEpochMs) {
+            lastSyncAttemptEpochMs?.let {
+                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
+            }
+        }
+    val syncDurationLabel = stringResource(R.string.sync_duration)
+    val syncLastErrorLabel = stringResource(R.string.sync_last_error)
+    val lastSyncAttemptTemplate = stringResource(R.string.last_sync_attempt_at)
+    return remember(
+        lastSyncText,
+        lastSyncDurationText,
+        lastSyncError,
+        syncDurationLabel,
+        syncLastErrorLabel,
+        lastSyncAttemptTemplate,
+    ) {
+        when {
+            lastSyncText != null || lastSyncDurationText != null || lastSyncError != null ->
+                buildString {
+                    lastSyncText?.let { append(lastSyncAttemptTemplate.format(it)) }
+                    if (lastSyncDurationText != null) {
+                        if (isNotEmpty()) append(" • ")
+                        append("$syncDurationLabel: $lastSyncDurationText")
+                    }
+                    if (lastSyncError != null) {
+                        if (isNotEmpty()) append(" • ")
+                        append("$syncLastErrorLabel: $lastSyncError")
+                    }
+                }
+            else -> null
+        }
+    }
+}
+
+@Composable
 fun OfflineSyncStatusIndicator(
     isOnline: Boolean,
     isSyncing: Boolean,
     lastSyncAttemptEpochMs: Long?,
+    lastSyncDurationText: String? = null,
+    lastSyncError: String? = null,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
 ) {
@@ -88,12 +133,12 @@ fun OfflineSyncStatusIndicator(
             isOnline -> stringResource(R.string.online)
             else -> stringResource(R.string.server_unreachable)
         }
-    val lastSyncText =
-        remember(lastSyncAttemptEpochMs) {
-            lastSyncAttemptEpochMs?.let {
-                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
-            }
-        }
+    val syncDetailText =
+        rememberSyncDetailText(
+            lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+            lastSyncDurationText = lastSyncDurationText,
+            lastSyncError = lastSyncError,
+        )
     val offline = !isOnline && !isSyncing
     val iconSize = if (compact) 18.dp else 20.dp
 
@@ -151,9 +196,10 @@ fun OfflineSyncStatusIndicator(
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            } else if (lastSyncText != null) {
+            }
+            if (syncDetailText != null) {
                 Text(
-                    text = stringResource(R.string.last_sync_attempt_at, lastSyncText),
+                    text = syncDetailText,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -169,12 +215,16 @@ fun MainTabTopBarSyncSlot(
     isOnline: Boolean,
     isSyncing: Boolean,
     lastSyncAttemptEpochMs: Long?,
+    lastSyncDurationText: String? = null,
+    lastSyncError: String? = null,
     modifier: Modifier = Modifier,
 ) {
     OfflineSyncStatusIndicator(
         isOnline = isOnline,
         isSyncing = isSyncing,
         lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+        lastSyncDurationText = lastSyncDurationText,
+        lastSyncError = lastSyncError,
         modifier = modifier,
         compact = true,
     )

@@ -107,8 +107,6 @@ fun OfflineEnabledChecklistsScreen(
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
     val replayFailedMsg = stringResource(R.string.sync_replay_ops_failed, replayFailuresDetected)
-    val syncDurationLabel = stringResource(R.string.sync_duration)
-    val syncLastErrorLabel = stringResource(R.string.sync_last_error)
     val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
     val undoActionLabel = stringResource(R.string.undo)
 
@@ -216,6 +214,8 @@ fun OfflineEnabledChecklistsScreen(
                 isOnline = isOnline,
                 isSyncing = isSyncing,
                 lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+                lastSyncDurationText = lastSyncDurationText,
+                lastSyncError = lastSyncError,
                 onRefresh = { requestSync(showLoading = false) },
                 onAdd = { vm.setShowCreateDialog(true) },
             )
@@ -272,21 +272,6 @@ fun OfflineEnabledChecklistsScreen(
                     onRetrySync = { requestSync(showLoading = true) },
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
-                if (lastSyncDurationText != null || lastSyncError != null) {
-                    Text(
-                        text =
-                            buildString {
-                                if (lastSyncDurationText != null) append("$syncDurationLabel: $lastSyncDurationText")
-                                if (lastSyncError != null) {
-                                    if (isNotEmpty()) append(" • ")
-                                    append("$syncLastErrorLabel: $lastSyncError")
-                                }
-                            },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
 
                 // Search bar + sort
                 Row(

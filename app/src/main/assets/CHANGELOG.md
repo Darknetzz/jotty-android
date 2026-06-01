@@ -19,6 +19,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Settings → Dashboard overview** — Summary stats and admin totals open on a dedicated screen with pull-to-refresh, instead of inline on Settings.
 - **Settings → Behavior** — Start screen, swipe-to-delete, note previews, and offline sync now live on a dedicated Behavior screen opened from Settings.
 - **Checklist item row** — Shared `ChecklistItemRow` composable for online and offline checklist detail screens.
+- **Sync status in top bar** — Last sync duration (and last error) now appear in the top-bar sync indicator instead of below the list title.
 - **Stable Jotty compatibility** — Checklist item rename tries PATCH first, then falls back to delete-and-recreate on servers without the new endpoint (current `main` branch) until the next Jotty release.
 
 ### Documentation

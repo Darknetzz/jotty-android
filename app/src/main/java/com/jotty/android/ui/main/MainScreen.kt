@@ -156,6 +156,8 @@ fun MainScreen(
                                     isOnline = barState.isOnline,
                                     isSyncing = barState.isSyncing,
                                     lastSyncAttemptEpochMs = barState.lastSyncAttemptEpochMs,
+                                    lastSyncDurationText = barState.lastSyncDurationText,
+                                    lastSyncError = barState.lastSyncError,
                                 )
                             }
                         }

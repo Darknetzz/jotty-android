@@ -44,6 +44,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Deep-link feedback visibility** — `Note not found` feedback now appears even when the note list is empty.
 - **Update download progress updates** — In-app update progress callbacks are now throttled to avoid excessive main-thread updates during APK download.
 - **CI release parity check** — CI now assembles the release variant to catch release-only build issues earlier.
+- **Bottom-tab safe area in reduced motion** — The low-motion bottom tab bar now applies system navigation insets, so the gesture/home indicator no longer overlaps or shifts relative to the bar.
 
 ---
 

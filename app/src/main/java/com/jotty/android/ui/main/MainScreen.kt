@@ -220,6 +220,7 @@ fun MainScreen(
             bottomBar = {
                 if (showBottomBar && reducedMotion) {
                     Surface(
+                        modifier = Modifier.windowInsetsPadding(NavigationBarDefaults.windowInsets),
                         tonalElevation = 3.dp,
                         color = MaterialTheme.colorScheme.surface,
                     ) {

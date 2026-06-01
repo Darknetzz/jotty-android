@@ -98,6 +98,7 @@ fun OfflineEnabledChecklistsScreen(
     val sortedChecklists = remember(filteredChecklists, sortOption) { filteredChecklists.sortedBy(sortOption) }
 
     val screenState = rememberListScreenState()
+    var pullRefreshing by remember { mutableStateOf(false) }
     val listRefreshing = screenState.loading || isSyncing
     val checklistListDisplay = rememberStaleListWhileRefresh(sortedChecklists, listRefreshing)
 
@@ -144,27 +145,35 @@ fun OfflineEnabledChecklistsScreen(
         }
     }
 
-    fun requestSync(showLoading: Boolean = true) {
+    fun requestSync(
+        showLoading: Boolean = true,
+        fromPull: Boolean = false,
+    ) {
         scope.launch {
-            if (!isOnline) return@launch
+            if (fromPull) pullRefreshing = true
             val showSkeleton = showLoading && sortedChecklists.isEmpty()
-            if (showSkeleton) screenState.loading = true
-            screenState.errorMessage = null
-            val result = offlineRepository.syncChecklists(force = true)
-            if (result.isFailure) {
-                val msg =
-                    offlineRepository.lastSyncError.value?.takeIf { it.isNotBlank() }
-                        ?: ApiErrorHelper.userMessage(
-                            context,
-                            result.exceptionOrNull() ?: Exception("Sync failed"),
-                        )
-                if (checklists.isEmpty()) {
-                    screenState.errorMessage = msg
-                } else {
-                    snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Long)
+            try {
+                if (!isOnline) return@launch
+                if (showSkeleton) screenState.loading = true
+                screenState.errorMessage = null
+                val result = offlineRepository.syncChecklists(force = true)
+                if (result.isFailure) {
+                    val msg =
+                        offlineRepository.lastSyncError.value?.takeIf { it.isNotBlank() }
+                            ?: ApiErrorHelper.userMessage(
+                                context,
+                                result.exceptionOrNull() ?: Exception("Sync failed"),
+                            )
+                    if (checklists.isEmpty()) {
+                        screenState.errorMessage = msg
+                    } else {
+                        snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Long)
+                    }
                 }
+            } finally {
+                if (showSkeleton) screenState.loading = false
+                pullRefreshing = false
             }
-            if (showSkeleton) screenState.loading = false
         }
     }
 
@@ -353,14 +362,14 @@ fun OfflineEnabledChecklistsScreen(
                 ListScreenContent(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     showSkeleton = screenState.loading && checklistListDisplay.showEmpty,
-                    isRefreshing = isSyncing,
+                    isRefreshing = pullRefreshing,
                     error = screenState.errorMessage,
                     isEmpty = checklistListDisplay.showEmpty,
                     onRetry = { requestSync(showLoading = checklistListDisplay.showEmpty) },
                     emptyIcon = Icons.Default.Checklist,
                     emptyTitle = stringResource(R.string.no_checklists_yet),
                     emptySubtitle = stringResource(R.string.tap_add_checklist),
-                    onRefresh = { requestSync(showLoading = false) },
+                    onRefresh = { requestSync(showLoading = false, fromPull = true) },
                     content = {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),

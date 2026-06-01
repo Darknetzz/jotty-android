@@ -95,6 +95,7 @@ fun OfflineEnabledNotesScreen(
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
     val sortedNotes = remember(filteredNotes, sortOption) { filteredNotes.sortedBy(sortOption) }
+    var pullRefreshing by remember { mutableStateOf(false) }
     val listRefreshing = screenState.loading || isSyncing
     val noteListDisplay = rememberStaleListWhileRefresh(sortedNotes, listRefreshing)
 
@@ -111,27 +112,35 @@ fun OfflineEnabledNotesScreen(
     val conflictActionLabel = stringResource(R.string.view_conflicts)
     val pendingSyncLabel = stringResource(R.string.pending_sync)
 
-    fun requestSync(showLoading: Boolean = true) {
+    fun requestSync(
+        showLoading: Boolean = true,
+        fromPull: Boolean = false,
+    ) {
         scope.launch {
-            if (!isOnline) return@launch
+            if (fromPull) pullRefreshing = true
             val showSkeleton = showLoading && sortedNotes.isEmpty()
-            if (showSkeleton) screenState.loading = true
-            screenState.errorMessage = null
-            val result = offlineRepository.syncNotes()
-            if (result.isFailure) {
-                val msg =
-                    offlineRepository.lastSyncError.value?.takeIf { it.isNotBlank() }
-                        ?: ApiErrorHelper.userMessage(
-                            context,
-                            result.exceptionOrNull() ?: Exception("Sync failed"),
-                        )
-                if (notes.isEmpty()) {
-                    screenState.errorMessage = msg
-                } else {
-                    snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Long)
+            try {
+                if (!isOnline) return@launch
+                if (showSkeleton) screenState.loading = true
+                screenState.errorMessage = null
+                val result = offlineRepository.syncNotes()
+                if (result.isFailure) {
+                    val msg =
+                        offlineRepository.lastSyncError.value?.takeIf { it.isNotBlank() }
+                            ?: ApiErrorHelper.userMessage(
+                                context,
+                                result.exceptionOrNull() ?: Exception("Sync failed"),
+                            )
+                    if (notes.isEmpty()) {
+                        screenState.errorMessage = msg
+                    } else {
+                        snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Long)
+                    }
                 }
+            } finally {
+                if (showSkeleton) screenState.loading = false
+                pullRefreshing = false
             }
-            if (showSkeleton) screenState.loading = false
         }
     }
 
@@ -312,7 +321,7 @@ fun OfflineEnabledNotesScreen(
                     ListScreenContent(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         showSkeleton = screenState.loading && noteListDisplay.showEmpty,
-                        isRefreshing = isSyncing,
+                        isRefreshing = pullRefreshing,
                         error = screenState.errorMessage,
                         isEmpty = noteListDisplay.showEmpty,
                         onRetry = {
@@ -322,7 +331,7 @@ fun OfflineEnabledNotesScreen(
                         emptyTitle = stringResource(R.string.no_notes_yet),
                         emptySubtitle = stringResource(R.string.tap_add_note),
                         onRefresh = {
-                            requestSync(showLoading = false)
+                            requestSync(showLoading = false, fromPull = true)
                         },
                         content = {
                             LazyColumn(

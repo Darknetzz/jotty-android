@@ -21,6 +21,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Checklist list not opening during sync** — Background checklist/note sync no longer drives pull-to-refresh “refreshing” state, so list cards stay tappable while sync runs (sync status still shows in the top bar).
 - **Checklist pending sync while online** — Sync replay now skips item ops already applied on the server (e.g. a pending check when the task is already completed remotely), treats DELETE 404 as done, and refreshes local item state from the server after partial replay so lists are less likely to stay stuck on “Pending sync” with a repeated push failure.
 - **Checklist stuck after offline edits** — While a checklist still has pending sync, item changes stay local instead of calling the server with stale paths (which caused “Request failed” and blocked further edits after reconnecting). Successful replay ops are removed on partial sync failure so retries do not double-apply.
 - **Discard pending sync** — Checklist detail ⋮ menu → **Discard pending sync** when a checklist is stuck pending. Restores the server version when online, or deletes a never-synced local-only checklist.

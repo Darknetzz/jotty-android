@@ -170,7 +170,8 @@ data class StaleListDisplay<T>(
  * Shared list-screen layout: shows [LoadingState], [ErrorState], [EmptyState], or [PullToRefreshBox] with [content].
  * Use when you have a list that can be loading, in error, empty, or showing items with pull-to-refresh.
  *
- * [showSkeleton] — full-list shimmer (initial load). [isRefreshing] — pull-to-refresh indicator only.
+ * [showSkeleton] — full-list shimmer (initial load). [isRefreshing] — pull-to-refresh indicator only
+ * (user-initiated refresh). Do not bind background sync; [PullToRefreshBox] blocks list touches while refreshing.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

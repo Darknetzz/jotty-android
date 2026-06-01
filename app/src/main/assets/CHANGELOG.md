@@ -25,6 +25,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Stable Jotty compatibility** — Checklist item rename tries PATCH first, then falls back to delete-and-recreate on servers without the new endpoint (current `main` branch) until the next Jotty release.
 - **Reduced motion behavior** — List/detail navigation now uses a subtle fade-in only when reduced motion is off, so the setting has a visible effect while still composing one pane at a time (no dual-scroll transition crash risk).
 - **Checklist inline editing** — Checklist detail now allows editing only one item at a time across both online and offline screens.
+- **Settings tab reselection** — Tapping the Settings bottom-nav item while on a Settings subpage now returns to the main Settings screen.
 
 ### Documentation
 

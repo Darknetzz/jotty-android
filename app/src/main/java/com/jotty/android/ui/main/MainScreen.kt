@@ -203,7 +203,11 @@ fun MainScreen(
                                 when (route) {
                                     MainRoute.Checklists -> checklistsTabReselectToken++
                                     MainRoute.Notes -> notesTabReselectToken++
-                                    MainRoute.Settings -> Unit
+                                    MainRoute.Settings -> {
+                                        if (currentRoute != MainRoute.Settings.route) {
+                                            navController.popBackStack(MainRoute.Settings.route, false)
+                                        }
+                                    }
                                 }
                             } else {
                                 navController.navigate(route.route) {

@@ -22,6 +22,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Fixed
 
 - **Checklist stuck after offline edits** — While a checklist still has pending sync, item changes stay local instead of calling the server with stale paths (which caused “Request failed” and blocked further edits after reconnecting). Successful replay ops are removed on partial sync failure so retries do not double-apply.
+- **Discard pending sync** — Checklist detail ⋮ menu → **Discard pending sync** when a checklist is stuck pending. Restores the server version when online, or deletes a never-synced local-only checklist.
 - **Dependencies** — Updated AndroidX (Compose BOM, Lifecycle, Room, DataStore, Work, Security Crypto), Retrofit 3, and CI actions; no intended behavior change.
 - **Dependencies** — Bumped Navigation Compose, Fragment KTX, KSP, and Android test JUnit; no intended behavior change.
 - **Build toolchain** — Gradle 9.5.1, Android Gradle Plugin 9.2.1, and Kotlin 2.3.21; no intended behavior change.

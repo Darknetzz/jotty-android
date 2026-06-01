@@ -28,7 +28,9 @@ import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.ui.common.CategorySelector
 import com.jotty.android.ui.common.ConfirmDeleteDialog
+import com.jotty.android.ui.common.ConfirmDiscardPendingSyncDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
+import com.jotty.android.ui.common.DiscardPendingSyncDropdownMenuItem
 import com.jotty.android.ui.common.RenameDropdownMenuItem
 
 @Composable
@@ -38,6 +40,7 @@ fun ChecklistDetailHeader(
     onRename: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    onDiscardPendingSync: (() -> Unit)? = null,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -82,6 +85,14 @@ fun ChecklistDetailHeader(
                     onRename()
                 },
             )
+            if (onDiscardPendingSync != null) {
+                DiscardPendingSyncDropdownMenuItem(
+                    onClick = {
+                        menuExpanded = false
+                        onDiscardPendingSync()
+                    },
+                )
+            }
             DeleteDropdownMenuItem(
                 onClick = {
                     menuExpanded = false

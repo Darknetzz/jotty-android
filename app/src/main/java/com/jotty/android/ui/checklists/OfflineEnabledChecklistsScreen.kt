@@ -35,6 +35,7 @@ import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
+import com.jotty.android.ui.common.ConfirmDiscardPendingSyncDialog
 import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
@@ -110,6 +111,7 @@ fun OfflineEnabledChecklistsScreen(
     val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
     val undoActionLabel = stringResource(R.string.undo)
     val pendingSyncLabel = stringResource(R.string.pending_sync)
+    val discardPendingSyncDoneMsg = stringResource(R.string.discard_pending_sync_done)
 
     suspend fun offlineDeleteWithUndo(list: Checklist) {
         val snap = list
@@ -248,6 +250,7 @@ fun OfflineEnabledChecklistsScreen(
                     offlineRepository = offlineRepository,
                     categorySuggestions = checklistCategories,
                     isOnline = isOnline,
+                    hasPendingSync = currentList.id in dirtyChecklistIds,
                     onRetrySync = { requestSync(showLoading = true) },
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = { vm.setSelectedList(it) },
@@ -265,6 +268,16 @@ fun OfflineEnabledChecklistsScreen(
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
                     onRenameUnsupported = { scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) } },
+                    onDiscardPendingSyncFailed = {
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                ApiErrorHelper.userMessage(context, it),
+                            )
+                        }
+                    },
+                    onDiscardPendingSyncDone = {
+                        scope.launch { snackbarHostState.showSnackbar(discardPendingSyncDoneMsg) }
+                    },
                 )
                 } else {
                     Column(Modifier.fillMaxSize()) {
@@ -531,6 +544,7 @@ private fun OfflineChecklistDetailContent(
     offlineRepository: OfflineChecklistsRepository,
     categorySuggestions: List<String> = emptyList(),
     isOnline: Boolean,
+    hasPendingSync: Boolean = false,
     onRetrySync: () -> Unit,
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
@@ -538,6 +552,8 @@ private fun OfflineChecklistDetailContent(
     onSaveFailed: () -> Unit,
     onSavedLocally: () -> Unit,
     onRenameUnsupported: () -> Unit,
+    onDiscardPendingSyncFailed: (Throwable) -> Unit = {},
+    onDiscardPendingSyncDone: () -> Unit = {},
 ) {
     // Drive item list from the repository flow so offline mutations are reflected immediately.
     val allChecklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -546,8 +562,16 @@ private fun OfflineChecklistDetailContent(
 
     var newItemText by remember { mutableStateOf("") }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showDiscardPendingSyncDialog by remember { mutableStateOf(false) }
+    var discardConfirmIsLocalOnly by remember { mutableStateOf(false) }
     var editingItemKey by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val discardConfirmMessage =
+        if (discardConfirmIsLocalOnly) {
+            stringResource(R.string.discard_pending_sync_local_only_confirm)
+        } else {
+            stringResource(R.string.discard_pending_sync_confirm)
+        }
 
     val isProject =
         liveChecklist.type.equals("project", ignoreCase = true) ||
@@ -565,6 +589,27 @@ private fun OfflineChecklistDetailContent(
         }.onFailure {
             if (!isOnline) onSavedLocally() else onSaveFailed()
         }
+    }
+
+    if (showDiscardPendingSyncDialog) {
+        ConfirmDiscardPendingSyncDialog(
+            message = discardConfirmMessage,
+            onDismiss = { showDiscardPendingSyncDialog = false },
+            onConfirm = {
+                showDiscardPendingSyncDialog = false
+                scope.launch {
+                    val result = offlineRepository.discardPendingSync(liveChecklist.id)
+                    result.onSuccess { restored ->
+                        if (restored == null) {
+                            onBack()
+                        } else {
+                            onUpdate(restored)
+                        }
+                        onDiscardPendingSyncDone()
+                    }.onFailure { onDiscardPendingSyncFailed(it) }
+                }
+            },
+        )
     }
 
     if (showRenameDialog) {
@@ -588,6 +633,18 @@ private fun OfflineChecklistDetailContent(
             onBack = onBack,
             onRename = { showRenameDialog = true },
             onDelete = onDelete,
+            onDiscardPendingSync =
+                if (hasPendingSync) {
+                    {
+                        scope.launch {
+                            discardConfirmIsLocalOnly =
+                                offlineRepository.isLocalOnlyChecklist(liveChecklist.id)
+                            showDiscardPendingSyncDialog = true
+                        }
+                    }
+                } else {
+                    null
+                },
         )
 
         OfflineConnectivityBanner(

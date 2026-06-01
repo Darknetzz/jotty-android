@@ -115,6 +115,41 @@ class OfflineChecklistsRepository(
         _replayFailuresDetected.value = 0
     }
 
+    suspend fun isLocalOnlyChecklist(checklistId: String): Boolean =
+        withContext(Dispatchers.IO) {
+            checklistDao.getById(checklistId)?.isLocalOnly == true
+        }
+
+    /**
+     * Abandons unsynced local changes. Local-only checklists are deleted. Server-backed checklists
+     * are replaced with the current server version (requires connectivity).
+     */
+    suspend fun discardPendingSync(checklistId: String): Result<Checklist?> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val entity =
+                    checklistDao.getById(checklistId)
+                        ?: throw Exception("Checklist not found")
+                if (!entity.isDirty && entity.pendingOps().isEmpty()) {
+                    return@runCatching entity.toChecklist()
+                }
+                if (entity.isLocalOnly) {
+                    checklistDao.delete(checklistId)
+                    AppLog.d(TAG, "Local-only checklist discarded: $checklistId")
+                    return@runCatching null
+                }
+                if (!isOnline.value) {
+                    throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
+                }
+                val fresh =
+                    api.getChecklists().checklists.find { it.id == checklistId }
+                        ?: throw Exception(appContext.getString(R.string.error_not_found))
+                checklistDao.insert(fresh.toEntity(instanceId))
+                AppLog.d(TAG, "Pending sync discarded — restored checklist from server: $checklistId")
+                fresh
+            }
+        }
+
     // ─── CRUD ───────────────────────────────────────────────────────────────
 
     suspend fun createChecklist(

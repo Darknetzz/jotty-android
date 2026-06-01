@@ -285,6 +285,123 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
+    fun discardPendingSync_whenDirty_restoresServerVersion() =
+        runTest {
+            val serverList =
+                Checklist(
+                    id = "list-1",
+                    title = "Server title",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    items = listOf(ChecklistItem(index = 0, text = "Server item")),
+                    createdAt = "c",
+                    updatedAt = "u",
+                )
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Local title",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = Gson().toJson(listOf(ChecklistItem(index = 0, text = "Local item"))),
+                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "ADD", text = "Local item"))),
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(remoteChecklists = mutableListOf(serverList)),
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            val result = repo.discardPendingSync("list-1")
+
+            assertTrue(result.isSuccess)
+            assertEquals("Server item", result.getOrNull()?.items?.single()?.text)
+            val entity = database.checklistDao().getById("list-1")
+            assertEquals(false, entity?.isDirty)
+            assertTrue(entity?.pendingOps().orEmpty().isEmpty())
+        }
+
+    @Test
+    fun discardPendingSync_whenLocalOnly_deletesChecklist() =
+        runTest {
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "local-1",
+                    title = "Offline list",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = "[]",
+                    pendingOpsJson = "[]",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = true,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            val result = repo.discardPendingSync("local-1")
+
+            assertTrue(result.isSuccess)
+            assertNull(result.getOrNull())
+            assertNull(database.checklistDao().getById("local-1"))
+        }
+
+    @Test
+    fun discardPendingSync_whenOfflineAndDirty_fails() =
+        runTest {
+            database.checklistDao().insert(
+                ChecklistEntity(
+                    id = "list-1",
+                    title = "Local list",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    type = "simple",
+                    itemsJson = "[]",
+                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "ADD", text = "A"))),
+                    createdAt = "c",
+                    updatedAt = "u",
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.discardPendingSync("list-1").isFailure)
+            assertEquals(true, database.checklistDao().getById("list-1")?.isDirty)
+        }
+
+    @Test
     fun syncChecklists_whenPendingReplayFails_tracksReplayFailureCount() =
         runTest {
             database.checklistDao().insert(

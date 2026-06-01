@@ -3,6 +3,7 @@ package com.jotty.android.ui.common
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.SyncProblem
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -81,6 +82,48 @@ fun DeleteDropdownMenuItem(
         text = { Text(stringResource(R.string.delete), color = errorColor) },
         leadingIcon = {
             Icon(Icons.Default.Delete, contentDescription = null, tint = errorColor)
+        },
+        onClick = onClick,
+        modifier = modifier,
+    )
+}
+
+@Composable
+fun ConfirmDiscardPendingSyncDialog(
+    message: String,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val errorColor = MaterialTheme.colorScheme.error
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+        title = { Text(stringResource(R.string.discard_pending_sync_title)) },
+        text = { Text(message) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.discard_pending_sync), color = errorColor)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
+}
+
+@Composable
+fun DiscardPendingSyncDropdownMenuItem(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val errorColor = MaterialTheme.colorScheme.error
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.discard_pending_sync), color = errorColor) },
+        leadingIcon = {
+            Icon(Icons.Default.SyncProblem, contentDescription = null, tint = errorColor)
         },
         onClick = onClick,
         modifier = modifier,

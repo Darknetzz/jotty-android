@@ -114,7 +114,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.11.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
-    implementation("androidx.navigation:navigation-compose:2.9.7")
+    implementation("androidx.navigation:navigation-compose:2.9.8")
 
     // Retrofit for REST API
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
@@ -148,7 +148,7 @@ dependencies {
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")
     // FragmentActivity is required by BiometricPrompt; declared explicitly to avoid relying on transitive resolution.
-    implementation("androidx.fragment:fragment-ktx:1.8.5")
+    implementation("androidx.fragment:fragment-ktx:1.8.9")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")
@@ -162,6 +162,6 @@ dependencies {
 
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.6.2")
 }

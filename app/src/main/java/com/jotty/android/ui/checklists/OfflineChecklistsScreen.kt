@@ -23,10 +23,14 @@ fun OfflineChecklistsScreen(
     tabReselectToken: Int = 0,
 ) {
     val application = LocalContext.current.applicationContext as Application
+    val vmFactory =
+        remember(application, instanceId, api) {
+            OfflineChecklistsViewModel.Factory(application, instanceId, api)
+        }
     val vm: OfflineChecklistsViewModel =
         viewModel(
             key = "$instanceId|$authFingerprint",
-            factory = OfflineChecklistsViewModel.Factory(application, instanceId, api),
+            factory = vmFactory,
         )
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)

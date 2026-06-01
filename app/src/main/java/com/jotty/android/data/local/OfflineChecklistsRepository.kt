@@ -458,7 +458,18 @@ class OfflineChecklistsRepository(
                         }
                     pushResult.onFailure { e ->
                         if (e is CancellationException) throw e
-                        AppLog.d(TAG, "Push failed for checklist ${entity.id}: ${e.message}")
+                        val opSummary =
+                            entity.pendingOps().joinToString(",") { op ->
+                                buildString {
+                                    append(op.type)
+                                    op.path?.let { append("@$it") }
+                                }
+                            }.ifBlank { "none" }
+                        AppLog.d(
+                            TAG,
+                            "Push failed for checklist ${entity.id} (${entity.title}): " +
+                                "${ApiErrorHelper.userMessage(appContext, e)}; pendingOps=[$opSummary]",
+                        )
                     }
                 }
 
@@ -550,10 +561,15 @@ class OfflineChecklistsRepository(
             checklistDao.insert(fresh.toEntity(instanceId))
             AppLog.d(TAG, "Local-only checklist pushed: ${created.id}")
         } else {
-            api.updateChecklist(
-                entity.id,
-                UpdateChecklistRequest(title = entity.title, category = entity.category),
-            )
+            runCatching {
+                api.updateChecklist(
+                    entity.id,
+                    UpdateChecklistRequest(title = entity.title, category = entity.category),
+                )
+            }.onFailure { e ->
+                AppLog.d(TAG, "updateChecklist failed for ${entity.id}: ${ApiErrorHelper.userMessage(appContext, e)}")
+                throw e
+            }
             val failedOps = replayPendingOps(entity)
             if (failedOps > 0) {
                 throw Exception(appContext.getString(R.string.sync_replay_ops_failed, failedOps))

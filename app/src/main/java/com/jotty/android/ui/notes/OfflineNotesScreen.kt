@@ -36,10 +36,14 @@ fun OfflineNotesScreen(
     val context = LocalContext.current
     val application = context.applicationContext as Application
     val biometricStore = remember { BiometricPassphraseStore(context.applicationContext) }
+    val vmFactory =
+        remember(application, instanceId, api) {
+            OfflineNotesViewModel.Factory(application, instanceId, api)
+        }
     val vm: OfflineNotesViewModel =
         viewModel(
             key = "$instanceId|$authFingerprint",
-            factory = OfflineNotesViewModel.Factory(application, instanceId, api),
+            factory = vmFactory,
         )
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)

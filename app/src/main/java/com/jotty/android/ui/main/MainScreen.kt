@@ -291,12 +291,16 @@ fun MainScreen(
                 ) {
                     composable(MainRoute.Checklists.route) {
                         val instanceId = currentInstance?.id
+                        val authFingerprint =
+                            remember(serverUrl, apiKey) {
+                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
+                            }
                         if (instanceId != null) {
                             OfflineChecklistsScreen(
                                 api = currentApi,
                                 settingsRepository = settingsRepository,
                                 instanceId = instanceId,
-                                authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
+                                authFingerprint = authFingerprint,
                                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                                 tabReselectToken = checklistsTabReselectToken,
                             )
@@ -306,12 +310,16 @@ fun MainScreen(
                     }
                     composable(MainRoute.Notes.route) {
                         val instanceId = currentInstance?.id
+                        val authFingerprint =
+                            remember(serverUrl, apiKey) {
+                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
+                            }
                         if (instanceId != null) {
                             OfflineNotesScreen(
                                 api = currentApi,
                                 settingsRepository = settingsRepository,
                                 instanceId = instanceId,
-                                authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
+                                authFingerprint = authFingerprint,
                                 initialNoteId = deepLinkNoteId?.value,
                                 onDeepLinkConsumed = { deepLinkNoteId?.value = null },
                                 sharedText = sharedNoteText?.value,

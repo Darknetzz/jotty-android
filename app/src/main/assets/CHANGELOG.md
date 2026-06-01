@@ -17,6 +17,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Motion effects opt-in** — Cross-fade, list/detail fade-in, shimmer skeletons, and animated bottom tabs are now off by default. Settings → Appearance → **Motion effects** can turn them on, or choose **System** to follow the device accessibility setting.
 - **Dependencies** — Updated AndroidX (Compose BOM, Lifecycle, Room, DataStore, Work, Security Crypto), Retrofit 3, and CI actions; no intended behavior change.
 - **Dependencies** — Bumped Navigation Compose, Fragment KTX, KSP, and Android test JUnit; no intended behavior change.
 - **Build toolchain** — Gradle 9.5.1, Android Gradle Plugin 9.2.1, and Kotlin 2.3.21; no intended behavior change.
@@ -44,6 +45,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Deep-link feedback visibility** — `Note not found` feedback now appears even when the note list is empty.
 - **Update download progress updates** — In-app update progress callbacks are now throttled to avoid excessive main-thread updates during APK download.
 - **CI release parity check** — CI now assembles the release variant to catch release-only build issues earlier.
+- **Bottom-tab safe area in reduced motion** — The low-motion bottom tab bar now applies system navigation insets, so the gesture/home indicator no longer overlaps or shifts relative to the bar.
+- **Checklist card title taps** — Tapping a checklist title now opens the checklist (same as tapping the card body), while long-press on the title still opens the row actions menu.
 
 ---
 

@@ -121,7 +121,7 @@ class SettingsRepository(
             prefs[KEY_READER_TEXT_SCALE] ?: 1.0f
         }.catch { emit(1.0f) }
 
-    /** Reduced motion: null/"system" = follow device; "on"; "off". */
+    /** Motion effects: unset/"on" = off (default); "off" = on; "system" = follow device accessibility. */
     val reducedMotionMode: Flow<String?> =
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_REDUCED_MOTION].takeIf { !it.isNullOrBlank() }
@@ -286,10 +286,10 @@ class SettingsRepository(
     suspend fun setReducedMotionMode(value: String?) {
         context.jottySettingsDataStore.edit {
             val v = value?.lowercase()?.trim()
-            if (v.isNullOrBlank() || v == "system") {
-                it.remove(KEY_REDUCED_MOTION)
-            } else {
-                it[KEY_REDUCED_MOTION] = v
+            when {
+                v.isNullOrBlank() -> it.remove(KEY_REDUCED_MOTION)
+                v == "system" -> it[KEY_REDUCED_MOTION] = "system"
+                else -> it[KEY_REDUCED_MOTION] = v
             }
         }
     }

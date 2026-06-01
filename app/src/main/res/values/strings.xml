@@ -225,11 +225,11 @@
     <string name="content_padding_description">Vertical spacing at top and bottom of screens</string>
     <string name="content_padding_comfortable">Comfortable</string>
     <string name="content_padding_compact">Compact</string>
-    <string name="reduced_motion_label">Reduced motion</string>
-    <string name="reduced_motion_description">Limits cross-fade and other decorative transitions. System follows your device accessibility setting.</string>
-    <string name="reduced_motion_system">System</string>
-    <string name="reduced_motion_on">On</string>
-    <string name="reduced_motion_off">Off</string>
+    <string name="motion_effects_label">Motion effects</string>
+    <string name="motion_effects_description">Cross-fade when switching screens and animated bottom tabs. Off by default; turn on if you want decorative transitions.</string>
+    <string name="motion_effects_off">Off</string>
+    <string name="motion_effects_on">On</string>
+    <string name="motion_effects_system">System</string>
     <string name="settings_category_troubleshooting">Troubleshooting</string>
     <string name="export_debug_logs">Export debug logs</string>
     <string name="export_debug_logs_description">Save recent in-app diagnostics (sync, encryption, etc.) to share for troubleshooting.</string>

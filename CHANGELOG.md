@@ -17,6 +17,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Motion effects opt-in** — Cross-fade, list/detail fade-in, shimmer skeletons, and animated bottom tabs are now off by default. Settings → Appearance → **Motion effects** can turn them on, or choose **System** to follow the device accessibility setting.
 - **Dependencies** — Updated AndroidX (Compose BOM, Lifecycle, Room, DataStore, Work, Security Crypto), Retrofit 3, and CI actions; no intended behavior change.
 - **Dependencies** — Bumped Navigation Compose, Fragment KTX, KSP, and Android test JUnit; no intended behavior change.
 - **Build toolchain** — Gradle 9.5.1, Android Gradle Plugin 9.2.1, and Kotlin 2.3.21; no intended behavior change.

@@ -158,11 +158,11 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
             )
             HorizontalDivider()
             ListItem(
-                headlineContent = { Text(stringResource(R.string.reduced_motion_label)) },
+                headlineContent = { Text(stringResource(R.string.motion_effects_label)) },
                 supportingContent = {
                     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
                         Text(
-                            stringResource(R.string.reduced_motion_description),
+                            stringResource(R.string.motion_effects_description),
                             style = MaterialTheme.typography.bodySmall,
                         )
                         FlowRow(
@@ -171,20 +171,23 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             listOf(
-                                null to R.string.reduced_motion_system,
-                                "on" to R.string.reduced_motion_on,
-                                "off" to R.string.reduced_motion_off,
-                            ).forEach { (value, labelRes) ->
+                                null to R.string.motion_effects_off,
+                                "off" to R.string.motion_effects_on,
+                                "system" to R.string.motion_effects_system,
+                            ).forEach { (storedValue, labelRes) ->
                                 val isSelected =
-                                    when (value) {
-                                        null -> reducedMotionMode.isNullOrBlank()
-                                        else -> reducedMotionMode == value
+                                    when (storedValue) {
+                                        null ->
+                                            reducedMotionMode.isNullOrBlank() || reducedMotionMode == "on"
+                                        "off" -> reducedMotionMode == "off"
+                                        "system" -> reducedMotionMode == "system"
+                                        else -> false
                                     }
                                 FilterChip(
                                     selected = isSelected,
                                     onClick = {
                                         scope.launch {
-                                            settingsRepository.setReducedMotionMode(value)
+                                            settingsRepository.setReducedMotionMode(storedValue)
                                         }
                                     },
                                     label = { Text(stringResource(labelRes)) },

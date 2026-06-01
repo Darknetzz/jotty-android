@@ -7,6 +7,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.OfflineModeContent
 
 /**
  * Wrapper that selects between [OfflineEnabledChecklistsScreen] (offline mode on) and
@@ -30,21 +31,25 @@ fun OfflineChecklistsScreen(
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
 
-    if (offlineModeEnabled) {
-        OfflineEnabledChecklistsScreen(
-            offlineRepository = offlineRepository,
-            api = api,
-            vmKey = "$instanceId|$authFingerprint",
-            settingsRepository = settingsRepository,
-            swipeToDeleteEnabled = swipeToDeleteEnabled,
-            tabReselectToken = tabReselectToken,
-        )
-    } else {
-        ChecklistsScreen(
-            api = api,
-            settingsRepository = settingsRepository,
-            swipeToDeleteEnabled = swipeToDeleteEnabled,
-            tabReselectToken = tabReselectToken,
-        )
-    }
+    OfflineModeContent(
+        offlineModeEnabled = offlineModeEnabled,
+        offlineContent = {
+            OfflineEnabledChecklistsScreen(
+                offlineRepository = offlineRepository,
+                api = api,
+                vmKey = "$instanceId|$authFingerprint",
+                settingsRepository = settingsRepository,
+                swipeToDeleteEnabled = swipeToDeleteEnabled,
+                tabReselectToken = tabReselectToken,
+            )
+        },
+        onlineContent = {
+            ChecklistsScreen(
+                api = api,
+                settingsRepository = settingsRepository,
+                swipeToDeleteEnabled = swipeToDeleteEnabled,
+                tabReselectToken = tabReselectToken,
+            )
+        },
+    )
 }

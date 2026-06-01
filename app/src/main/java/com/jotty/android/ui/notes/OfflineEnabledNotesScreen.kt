@@ -79,6 +79,7 @@ fun OfflineEnabledNotesScreen(
     val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
     val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
+    val dirtyNoteIds by offlineRepository.getDirtyNoteIdsFlow().collectAsStateWithLifecycle(initialValue = emptySet())
     val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsStateWithLifecycle()
     val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsStateWithLifecycle()
     val lastSyncError by offlineRepository.lastSyncError.collectAsStateWithLifecycle()
@@ -105,6 +106,7 @@ fun OfflineEnabledNotesScreen(
     val undoActionLabel = stringResource(R.string.undo)
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
+    val pendingSyncLabel = stringResource(R.string.pending_sync)
 
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
@@ -365,6 +367,7 @@ fun OfflineEnabledNotesScreen(
                                             note = n,
                                             onClick = { vm.setSelectedNote(n) },
                                             showPreview = noteListPreviewEnabled,
+                                            syncStatusLabel = if (n.id in dirtyNoteIds) pendingSyncLabel else null,
                                         )
                                     }
                                 }

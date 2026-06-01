@@ -81,6 +81,7 @@ fun OfflineEnabledChecklistsScreen(
     val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
     val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
     val replayFailuresDetected by offlineRepository.replayFailuresDetected.collectAsStateWithLifecycle()
+    val dirtyChecklistIds by offlineRepository.getDirtyChecklistIdsFlow().collectAsStateWithLifecycle(initialValue = emptySet())
     val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsStateWithLifecycle()
     val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsStateWithLifecycle()
     val lastSyncError by offlineRepository.lastSyncError.collectAsStateWithLifecycle()
@@ -109,6 +110,7 @@ fun OfflineEnabledChecklistsScreen(
     val replayFailedMsg = stringResource(R.string.sync_replay_ops_failed, replayFailuresDetected)
     val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
     val undoActionLabel = stringResource(R.string.undo)
+    val pendingSyncLabel = stringResource(R.string.pending_sync)
 
     suspend fun offlineDeleteWithUndo(list: Checklist) {
         val snap = list
@@ -362,6 +364,7 @@ fun OfflineEnabledChecklistsScreen(
                                             checklist = list,
                                             onClick = { vm.setSelectedList(list) },
                                             onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
+                                            syncStatusLabel = if (list.id in dirtyChecklistIds) pendingSyncLabel else null,
                                         )
                                     }
                                 } else {
@@ -369,6 +372,7 @@ fun OfflineEnabledChecklistsScreen(
                                         checklist = list,
                                         onClick = { vm.setSelectedList(list) },
                                         onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
+                                        syncStatusLabel = if (list.id in dirtyChecklistIds) pendingSyncLabel else null,
                                     )
                                 }
                             }
@@ -413,6 +417,7 @@ private fun OfflineChecklistCard(
     checklist: Checklist,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    syncStatusLabel: String? = null,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -483,6 +488,16 @@ private fun OfflineChecklistCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+                if (!syncStatusLabel.isNullOrBlank()) {
+                    Text(
+                        text = syncStatusLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(top = 6.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }

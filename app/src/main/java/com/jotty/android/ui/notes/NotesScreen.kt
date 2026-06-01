@@ -92,7 +92,7 @@ fun NotesScreen(
         }
     }
     LaunchedEffect(notes, loading, initialNoteId) {
-        if (!loading && initialNoteId != null && notes.isNotEmpty() && notes.none { it.id == initialNoteId }) {
+        if (!loading && initialNoteId != null && notes.none { it.id == initialNoteId }) {
             scope.launch { snackbarHostState.showSnackbar(noteNotFoundMsg) }
             onDeepLinkConsumed()
         }

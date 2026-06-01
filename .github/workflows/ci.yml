@@ -44,6 +44,9 @@ jobs:
       - name: ktlint
         run: ./gradlew ktlintCheck --no-daemon
 
+      - name: Assemble release
+        run: ./gradlew assembleRelease --no-daemon
+
   android-smoke-test:
     runs-on: ubuntu-latest
     steps:

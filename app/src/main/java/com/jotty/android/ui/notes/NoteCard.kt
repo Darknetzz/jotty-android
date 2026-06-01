@@ -33,6 +33,7 @@ internal fun NoteCard(
     note: Note,
     onClick: () -> Unit,
     showPreview: Boolean = true,
+    syncStatusLabel: String? = null,
 ) {
     val titleText = remember(note.title) { stripInvisibleFromEdges(note.title) }
     val strippedContent = remember(note.content) { stripInvisibleFromEdges(note.content) }
@@ -96,6 +97,15 @@ internal fun NoteCard(
                 modifier = Modifier.padding(top = 6.dp),
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
             ) {
+                if (!syncStatusLabel.isNullOrBlank()) {
+                    Text(
+                        text = syncStatusLabel,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
                 if (note.category.isNotBlank() && note.category != API_CATEGORY_UNCATEGORIZED) {
                     Text(
                         text = note.category,

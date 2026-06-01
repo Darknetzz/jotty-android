@@ -102,6 +102,11 @@ class OfflineChecklistsRepository(
             }
             .flowOn(Dispatchers.IO)
 
+    fun getDirtyChecklistIdsFlow(): Flow<Set<String>> =
+        checklistDao.getDirtyChecklistIdsFlow(instanceId)
+            .map { it.toSet() }
+            .flowOn(Dispatchers.IO)
+
     fun clearConflictNotification() {
         runtime.syncStatus.setConflictsDetected(0)
     }

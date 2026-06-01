@@ -89,6 +89,11 @@ class OfflineNotesRepository(
             .flowOn(Dispatchers.IO)
     }
 
+    fun getDirtyNoteIdsFlow(): Flow<Set<String>> =
+        noteDao.getDirtyNoteIdsFlow(instanceId)
+            .map { it.toSet() }
+            .flowOn(Dispatchers.IO)
+
     /**
      * Get all notes (one-time fetch).
      */

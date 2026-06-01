@@ -19,6 +19,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 /** Which GitHub release track to use for "Check for updates". */
 enum class UpdateChannel {
@@ -65,6 +66,7 @@ object UpdateChecker {
     private const val CHANGELOG_BRANCH_STABLE = "main"
     private const val CHANGELOG_BRANCH_DEV = "dev"
     private const val TAG = "UpdateChecker"
+    private const val DOWNLOAD_PROGRESS_UPDATE_STEP = 0.01f
 
     private val userAgent: String
         get() = "Jotty-Android/${BuildConfig.VERSION_NAME ?: "0"}"
@@ -324,13 +326,17 @@ object UpdateChecker {
                         apkFile.outputStream().use { output ->
                             val buffer = ByteArray(8192)
                             var bytesRead = 0L
+                            var lastProgressReported = -1f
                             var n: Int
                             while (input.read(buffer).also { n = it } != -1) {
                                 output.write(buffer, 0, n)
                                 bytesRead += n
                                 if (totalBytes > 0 && onProgress != null) {
                                     val p = (bytesRead.toFloat() / totalBytes).coerceIn(0f, 1f)
-                                    withContext(Dispatchers.Main) { onProgress(p) }
+                                    if (lastProgressReported < 0f || abs(p - lastProgressReported) >= DOWNLOAD_PROGRESS_UPDATE_STEP || p >= 1f) {
+                                        lastProgressReported = p
+                                        withContext(Dispatchers.Main) { onProgress(p) }
+                                    }
                                 }
                             }
                         }

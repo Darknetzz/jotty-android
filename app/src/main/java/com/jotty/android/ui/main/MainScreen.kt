@@ -139,6 +139,7 @@ fun MainScreen(
         }
 
     val mainRoutes = listOf(MainRoute.Checklists, MainRoute.Notes, MainRoute.Settings)
+    val showBottomBar = currentRoute in mainRoutes.map { it.route }
     fun onMainRouteClick(route: MainRoute) {
         if (selectedRoute == route.route) {
             when (route) {
@@ -217,7 +218,7 @@ fun MainScreen(
                 )
             },
             bottomBar = {
-                if (reducedMotion) {
+                if (showBottomBar && reducedMotion) {
                     Surface(
                         tonalElevation = 3.dp,
                         color = MaterialTheme.colorScheme.surface,
@@ -254,7 +255,7 @@ fun MainScreen(
                             }
                         }
                     }
-                } else {
+                } else if (showBottomBar) {
                     NavigationBar {
                         mainRoutes.forEach { route ->
                             NavigationBarItem(

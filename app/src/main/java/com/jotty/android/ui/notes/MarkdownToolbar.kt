@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FormatBold
 import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.FormatListNumbered
 import androidx.compose.material.icons.filled.FormatQuote
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Title
@@ -51,6 +53,18 @@ fun prefixLine(
     return value.copy(text = newText, selection = TextRange(cursor + prefix.length))
 }
 
+fun prefixLineWithAutoIndex(value: TextFieldValue): TextFieldValue {
+    val text = value.text
+    val cursor = value.selection.min
+    val lineStart = text.lastIndexOf('\n', (cursor - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+    val lineEnd = text.indexOf('\n', startIndex = cursor).let { if (it < 0) text.length else it }
+    val currentLine = text.substring(lineStart, lineEnd)
+    val currentIndex = Regex("""^\s*(\d+)\.\s+""").find(currentLine)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 1
+    val prefix = "$currentIndex. "
+    val newText = text.substring(0, lineStart) + prefix + text.substring(lineStart)
+    return value.copy(text = newText, selection = TextRange(cursor + prefix.length))
+}
+
 /** Inserts a Markdown link template, selecting the placeholder text so it can be overwritten. */
 fun insertLink(value: TextFieldValue): TextFieldValue {
     val sel = value.selection
@@ -87,6 +101,12 @@ fun MarkdownToolbar(
         }
         IconButton(onClick = { onValueChange(prefixLine(value, "- ")) }) {
             Icon(Icons.AutoMirrored.Filled.FormatListBulleted, contentDescription = stringResource(R.string.md_list))
+        }
+        IconButton(onClick = { onValueChange(prefixLineWithAutoIndex(value)) }) {
+            Icon(Icons.Default.FormatListNumbered, contentDescription = stringResource(R.string.md_numbered_list))
+        }
+        IconButton(onClick = { onValueChange(prefixLine(value, "- [ ] ")) }) {
+            Icon(Icons.Default.CheckBox, contentDescription = stringResource(R.string.md_task_list))
         }
         IconButton(onClick = { onValueChange(prefixLine(value, "> ")) }) {
             Icon(Icons.Default.FormatQuote, contentDescription = stringResource(R.string.md_quote))

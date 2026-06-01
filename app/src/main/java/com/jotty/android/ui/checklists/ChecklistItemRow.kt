@@ -13,7 +13,10 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,6 +68,7 @@ fun ChecklistItemRow(
     var editText by remember(item.text, isEditing) { mutableStateOf(item.text) }
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
+    var menuExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(isEditing, itemKey) {
         if (isEditing) focusRequester.requestFocus()
@@ -131,31 +135,61 @@ fun ChecklistItemRow(
                         },
             )
         }
-        if (onMoveUp != null) {
-            IconButton(onClick = onMoveUp, modifier = Modifier.size(actionIconSize)) {
+        val hasSecondaryActions = onMoveUp != null || onMoveDown != null || (isProject && depth == 0 && onAddSubItem != null)
+        if (hasSecondaryActions) {
+            IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(actionIconSize)) {
                 Icon(
-                    Icons.Default.KeyboardArrowUp,
-                    contentDescription = stringResource(R.string.cd_move_item_up),
+                    Icons.Default.MoreVert,
+                    contentDescription = stringResource(R.string.more_options),
                     modifier = Modifier.size(actionGlyphSize),
                 )
             }
-        }
-        if (onMoveDown != null) {
-            IconButton(onClick = onMoveDown, modifier = Modifier.size(actionIconSize)) {
-                Icon(
-                    Icons.Default.KeyboardArrowDown,
-                    contentDescription = stringResource(R.string.cd_move_item_down),
-                    modifier = Modifier.size(actionGlyphSize),
-                )
-            }
-        }
-        if (isProject && depth == 0 && onAddSubItem != null) {
-            IconButton(onClick = onAddSubItem, modifier = Modifier.size(actionIconSize)) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = stringResource(R.string.add_sub_task),
-                    modifier = Modifier.size(actionGlyphSize),
-                )
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                if (onMoveUp != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.cd_move_item_up)) },
+                        onClick = {
+                            menuExpanded = false
+                            onMoveUp()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.KeyboardArrowUp,
+                                contentDescription = null,
+                            )
+                        },
+                    )
+                }
+                if (onMoveDown != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.cd_move_item_down)) },
+                        onClick = {
+                            menuExpanded = false
+                            onMoveDown()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.KeyboardArrowDown,
+                                contentDescription = null,
+                            )
+                        },
+                    )
+                }
+                if (isProject && depth == 0 && onAddSubItem != null) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.add_sub_task)) },
+                        onClick = {
+                            menuExpanded = false
+                            onAddSubItem()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = null,
+                            )
+                        },
+                    )
+                }
             }
         }
         IconButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.size(actionIconSize)) {

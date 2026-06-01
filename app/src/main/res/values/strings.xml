@@ -147,6 +147,10 @@
     <string name="api_key_placeholder">ck_…</string>
     <string name="api_key_setup_hint">Jotty Android uses an API key instead of your account password. Log in to Jotty in a browser, open Profile &gt; Settings, generate an API key, then paste it here.</string>
     <string name="open_jotty_in_browser">Open Jotty to generate an API key</string>
+    <string name="setup_step_connection">Step 1: Server connection</string>
+    <string name="setup_step_optional">Step 2: Optional details</string>
+    <string name="setup_show_advanced">Show optional details</string>
+    <string name="setup_hide_advanced">Hide optional details</string>
     <string name="open_jotty_browser_failed">Couldn\'t open Jotty in your browser.</string>
     <string name="show">Show</string>
     <string name="hide">Hide</string>
@@ -206,6 +210,8 @@
     <string name="md_code">Code</string>
     <string name="md_heading">Heading</string>
     <string name="md_list">Bullet list</string>
+    <string name="md_numbered_list">Numbered list</string>
+    <string name="md_task_list">Task list</string>
     <string name="md_quote">Quote</string>
     <string name="md_link">Link</string>
     <string name="widget_new_note">New note</string>
@@ -244,6 +250,7 @@
     <string name="connectivity_retry_sync">Try sync</string>
     <string name="connectivity_status_offline_hint">Server unreachable — pull to refresh after you are back online</string>
     <string name="saved_locally">Saved locally</string>
+    <string name="pending_sync">Pending sync</string>
     <string name="undo">Undo</string>
     <string name="will_sync_when_online">Will sync when online</string>
     <string name="last_sync_attempt_at">Last sync: %1$s</string>

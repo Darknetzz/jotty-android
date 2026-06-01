@@ -213,6 +213,7 @@ internal fun NoteDetailScreen(
                 actions = {
                     val ctx = LocalContext.current
                     val exportTitle = stringResource(R.string.export_note)
+                    val canEdit = !isEncrypted || isDecrypted
                     if (!isEditing && (isDecrypted || (!isEncrypted && content.isNotBlank()))) {
                         IconButton(
                             onClick = {
@@ -267,10 +268,8 @@ internal fun NoteDetailScreen(
                         IconButton(onClick = { detailVm.showEncryptDialog() }) {
                             Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_encrypt))
                         }
-                        IconButton(onClick = { detailVm.startEditing() }) {
-                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
-                        }
-                    } else if (isDecrypted) {
+                    }
+                    if (!isEditing && canEdit) {
                         IconButton(onClick = { detailVm.startEditing() }) {
                             Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
                         }

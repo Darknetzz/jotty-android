@@ -9,6 +9,7 @@ import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.OfflineModeContent
 
 /**
  * Wrapper for NotesScreen that adds offline support.
@@ -43,32 +44,36 @@ fun OfflineNotesScreen(
     val offlineRepository = vm.repository
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
 
-    if (offlineModeEnabled) {
-        OfflineEnabledNotesScreen(
-            offlineRepository = offlineRepository,
-            api = api,
-            settingsRepository = settingsRepository,
-            initialNoteId = initialNoteId,
-            onDeepLinkConsumed = onDeepLinkConsumed,
-            sharedText = sharedText,
-            onSharedTextConsumed = onSharedTextConsumed,
-            swipeToDeleteEnabled = swipeToDeleteEnabled,
-            imageLoader = imageLoader,
-            biometricStore = biometricStore,
-            tabReselectToken = tabReselectToken,
-        )
-    } else {
-        NotesScreen(
-            api = api,
-            settingsRepository = settingsRepository,
-            initialNoteId = initialNoteId,
-            onDeepLinkConsumed = onDeepLinkConsumed,
-            sharedText = sharedText,
-            onSharedTextConsumed = onSharedTextConsumed,
-            swipeToDeleteEnabled = swipeToDeleteEnabled,
-            imageLoader = imageLoader,
-            biometricStore = biometricStore,
-            tabReselectToken = tabReselectToken,
-        )
-    }
+    OfflineModeContent(
+        offlineModeEnabled = offlineModeEnabled,
+        offlineContent = {
+            OfflineEnabledNotesScreen(
+                offlineRepository = offlineRepository,
+                api = api,
+                settingsRepository = settingsRepository,
+                initialNoteId = initialNoteId,
+                onDeepLinkConsumed = onDeepLinkConsumed,
+                sharedText = sharedText,
+                onSharedTextConsumed = onSharedTextConsumed,
+                swipeToDeleteEnabled = swipeToDeleteEnabled,
+                imageLoader = imageLoader,
+                biometricStore = biometricStore,
+                tabReselectToken = tabReselectToken,
+            )
+        },
+        onlineContent = {
+            NotesScreen(
+                api = api,
+                settingsRepository = settingsRepository,
+                initialNoteId = initialNoteId,
+                onDeepLinkConsumed = onDeepLinkConsumed,
+                sharedText = sharedText,
+                onSharedTextConsumed = onSharedTextConsumed,
+                swipeToDeleteEnabled = swipeToDeleteEnabled,
+                imageLoader = imageLoader,
+                biometricStore = biometricStore,
+                tabReselectToken = tabReselectToken,
+            )
+        },
+    )
 }

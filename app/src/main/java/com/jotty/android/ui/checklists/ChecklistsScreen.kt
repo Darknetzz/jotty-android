@@ -229,7 +229,8 @@ fun ChecklistsScreen(
                 }
                 ListScreenContent(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    loading = loading,
+                    showSkeleton = loading && sortedChecklists.isEmpty(),
+                    isRefreshing = loading && sortedChecklists.isNotEmpty(),
                     error = error,
                     isEmpty = sortedChecklists.isEmpty(),
                     onRetry = { vm.loadChecklists() },

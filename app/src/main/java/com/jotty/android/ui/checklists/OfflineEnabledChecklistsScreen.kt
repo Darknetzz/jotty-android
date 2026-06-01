@@ -41,6 +41,7 @@ import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.rememberStaleListWhileRefresh
 import com.jotty.android.ui.common.ListSortOption
 import com.jotty.android.ui.common.SortMenuButton
 import com.jotty.android.ui.common.sortedBy
@@ -97,6 +98,8 @@ fun OfflineEnabledChecklistsScreen(
     val sortedChecklists = remember(filteredChecklists, sortOption) { filteredChecklists.sortedBy(sortOption) }
 
     val screenState = rememberListScreenState()
+    val listRefreshing = screenState.loading || isSyncing
+    val checklistListDisplay = rememberStaleListWhileRefresh(sortedChecklists, listRefreshing)
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -349,10 +352,11 @@ fun OfflineEnabledChecklistsScreen(
 
                 ListScreenContent(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    loading = screenState.loading || isSyncing,
+                    showSkeleton = screenState.loading && checklistListDisplay.showEmpty,
+                    isRefreshing = isSyncing,
                     error = screenState.errorMessage,
-                    isEmpty = sortedChecklists.isEmpty(),
-                    onRetry = { requestSync(showLoading = sortedChecklists.isEmpty()) },
+                    isEmpty = checklistListDisplay.showEmpty,
+                    onRetry = { requestSync(showLoading = checklistListDisplay.showEmpty) },
                     emptyIcon = Icons.Default.Checklist,
                     emptyTitle = stringResource(R.string.no_checklists_yet),
                     emptySubtitle = stringResource(R.string.tap_add_checklist),
@@ -362,7 +366,7 @@ fun OfflineEnabledChecklistsScreen(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(sortedChecklists, key = { it.id }) { list ->
+                            items(checklistListDisplay.displayItems, key = { it.id }) { list ->
                                 if (swipeToDeleteEnabled) {
                                     val swipeDeleteConfirm =
                                         stringResource(

@@ -49,6 +49,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Checklist overview flicker during sync** — The list no longer flashes “No checklists yet” while offline sync replaces the local cache; the last loaded list stays visible with pull-to-refresh until sync finishes (notes list uses the same pattern).
 - **Deep-link feedback visibility** — `Note not found` feedback now appears even when the note list is empty.
 - **Update download progress updates** — In-app update progress callbacks are now throttled to avoid excessive main-thread updates during APK download.
 - **CI release parity check** — CI now assembles the release variant to catch release-only build issues earlier.

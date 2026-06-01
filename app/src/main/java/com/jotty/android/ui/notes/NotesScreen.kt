@@ -213,7 +213,8 @@ fun NotesScreen(
 
                     ListScreenContent(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
-                        loading = loading,
+                        showSkeleton = loading && sortedNotes.isEmpty(),
+                        isRefreshing = loading && sortedNotes.isNotEmpty(),
                         error = error,
                         isEmpty = sortedNotes.isEmpty(),
                         onRetry = { vm.loadNotes() },

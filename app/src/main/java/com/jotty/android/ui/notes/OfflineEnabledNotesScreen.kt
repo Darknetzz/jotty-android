@@ -29,6 +29,7 @@ import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.rememberStaleListWhileRefresh
 import com.jotty.android.ui.common.ListSortOption
 import com.jotty.android.ui.common.SortMenuButton
 import com.jotty.android.ui.common.sortedBy
@@ -94,6 +95,8 @@ fun OfflineEnabledNotesScreen(
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
     val sortedNotes = remember(filteredNotes, sortOption) { filteredNotes.sortedBy(sortOption) }
+    val listRefreshing = screenState.loading || isSyncing
+    val noteListDisplay = rememberStaleListWhileRefresh(sortedNotes, listRefreshing)
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -308,11 +311,12 @@ fun OfflineEnabledNotesScreen(
                     // Notes list
                     ListScreenContent(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
-                        loading = screenState.loading || isSyncing,
+                        showSkeleton = screenState.loading && noteListDisplay.showEmpty,
+                        isRefreshing = isSyncing,
                         error = screenState.errorMessage,
-                        isEmpty = sortedNotes.isEmpty(),
+                        isEmpty = noteListDisplay.showEmpty,
                         onRetry = {
-                            requestSync(showLoading = sortedNotes.isEmpty())
+                            requestSync(showLoading = noteListDisplay.showEmpty)
                         },
                         emptyIcon = Icons.AutoMirrored.Filled.Note,
                         emptyTitle = stringResource(R.string.no_notes_yet),
@@ -325,7 +329,7 @@ fun OfflineEnabledNotesScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                items(sortedNotes, key = { it.id }) { n ->
+                                items(noteListDisplay.displayItems, key = { it.id }) { n ->
                                     val noteDeleteConfirm =
                                         stringResource(
                                             R.string.delete_note_confirm,

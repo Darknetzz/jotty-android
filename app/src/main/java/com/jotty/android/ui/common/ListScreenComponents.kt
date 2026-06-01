@@ -131,13 +131,43 @@ fun ErrorState(
 }
 
 /**
+ * Keeps the last non-empty [current] list visible while [refreshing] so Room sync replace
+ * (delete-all + insert) does not flash an empty state between the old and new snapshots.
+ * Clears the stale cache when [refreshing] ends and [current] is still empty.
+ */
+@Composable
+fun <T> rememberStaleListWhileRefresh(
+    current: List<T>,
+    refreshing: Boolean,
+): StaleListDisplay<T> {
+    var stale by remember { mutableStateOf(emptyList<T>()) }
+    if (current.isNotEmpty()) {
+        stale = current
+    } else if (!refreshing) {
+        stale = emptyList()
+    }
+    val display = if (current.isNotEmpty()) current else stale
+    val showEmpty = current.isEmpty() && stale.isEmpty()
+    return StaleListDisplay(displayItems = display, showEmpty = showEmpty)
+}
+
+@Stable
+data class StaleListDisplay<T>(
+    val displayItems: List<T>,
+    val showEmpty: Boolean,
+)
+
+/**
  * Shared list-screen layout: shows [LoadingState], [ErrorState], [EmptyState], or [PullToRefreshBox] with [content].
  * Use when you have a list that can be loading, in error, empty, or showing items with pull-to-refresh.
+ *
+ * [showSkeleton] — full-list shimmer (initial load). [isRefreshing] — pull-to-refresh indicator only.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListScreenContent(
-    loading: Boolean,
+    showSkeleton: Boolean,
+    isRefreshing: Boolean,
     error: String?,
     isEmpty: Boolean,
     onRetry: () -> Unit,
@@ -150,11 +180,11 @@ fun ListScreenContent(
 ) {
     val pullRefreshState = rememberPullToRefreshState()
     when {
-        loading && isEmpty -> ListLoadingSkeleton(modifier = modifier)
+        showSkeleton -> ListLoadingSkeleton(modifier = modifier)
         else ->
             PullToRefreshBox(
                 modifier = modifier,
-                isRefreshing = loading,
+                isRefreshing = isRefreshing,
                 onRefresh = onRefresh,
                 state = pullRefreshState,
             ) {

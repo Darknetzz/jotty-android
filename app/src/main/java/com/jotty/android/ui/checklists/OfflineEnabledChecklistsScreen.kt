@@ -144,22 +144,24 @@ fun OfflineEnabledChecklistsScreen(
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
             if (!isOnline) return@launch
-            if (showLoading) screenState.loading = true
+            val showSkeleton = showLoading && sortedChecklists.isEmpty()
+            if (showSkeleton) screenState.loading = true
             screenState.errorMessage = null
-            val result = offlineRepository.syncChecklists(force = showLoading)
+            val result = offlineRepository.syncChecklists(force = true)
             if (result.isFailure) {
                 val msg =
-                    ApiErrorHelper.userMessage(
-                        context,
-                        result.exceptionOrNull() ?: Exception("Sync failed"),
-                    )
+                    lastSyncError?.takeIf { it.isNotBlank() }
+                        ?: ApiErrorHelper.userMessage(
+                            context,
+                            result.exceptionOrNull() ?: Exception("Sync failed"),
+                        )
                 if (checklists.isEmpty()) {
                     screenState.errorMessage = msg
                 } else {
-                    snackbarHostState.showSnackbar(msg)
+                    snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Long)
                 }
             }
-            if (showLoading) screenState.loading = false
+            if (showSkeleton) screenState.loading = false
         }
     }
 
@@ -347,14 +349,14 @@ fun OfflineEnabledChecklistsScreen(
 
                 ListScreenContent(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    loading = screenState.loading,
+                    loading = screenState.loading || isSyncing,
                     error = screenState.errorMessage,
                     isEmpty = sortedChecklists.isEmpty(),
-                    onRetry = { requestSync() },
+                    onRetry = { requestSync(showLoading = sortedChecklists.isEmpty()) },
                     emptyIcon = Icons.Default.Checklist,
                     emptyTitle = stringResource(R.string.no_checklists_yet),
                     emptySubtitle = stringResource(R.string.tap_add_checklist),
-                    onRefresh = { requestSync() },
+                    onRefresh = { requestSync(showLoading = false) },
                     content = {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),

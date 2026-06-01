@@ -547,7 +547,7 @@ class OfflineChecklistsRepository(
             )
             val failedOps = replayPendingOps(entity)
             if (failedOps > 0) {
-                throw Exception("Replay failed: $failedOps operation(s)")
+                throw Exception(appContext.getString(R.string.sync_replay_ops_failed, failedOps))
             }
             val fresh =
                 api.getChecklists().checklists.find { it.id == entity.id }

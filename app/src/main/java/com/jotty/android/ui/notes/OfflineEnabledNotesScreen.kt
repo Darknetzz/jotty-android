@@ -111,22 +111,24 @@ fun OfflineEnabledNotesScreen(
     fun requestSync(showLoading: Boolean = true) {
         scope.launch {
             if (!isOnline) return@launch
-            if (showLoading) screenState.loading = true
+            val showSkeleton = showLoading && sortedNotes.isEmpty()
+            if (showSkeleton) screenState.loading = true
             screenState.errorMessage = null
             val result = offlineRepository.syncNotes()
             if (result.isFailure) {
                 val msg =
-                    ApiErrorHelper.userMessage(
-                        context,
-                        result.exceptionOrNull() ?: Exception("Sync failed"),
-                    )
+                    lastSyncError?.takeIf { it.isNotBlank() }
+                        ?: ApiErrorHelper.userMessage(
+                            context,
+                            result.exceptionOrNull() ?: Exception("Sync failed"),
+                        )
                 if (notes.isEmpty()) {
                     screenState.errorMessage = msg
                 } else {
-                    snackbarHostState.showSnackbar(msg)
+                    snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Long)
                 }
             }
-            if (showLoading) screenState.loading = false
+            if (showSkeleton) screenState.loading = false
         }
     }
 
@@ -306,17 +308,17 @@ fun OfflineEnabledNotesScreen(
                     // Notes list
                     ListScreenContent(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
-                        loading = screenState.loading,
+                        loading = screenState.loading || isSyncing,
                         error = screenState.errorMessage,
                         isEmpty = sortedNotes.isEmpty(),
                         onRetry = {
-                            requestSync()
+                            requestSync(showLoading = sortedNotes.isEmpty())
                         },
                         emptyIcon = Icons.AutoMirrored.Filled.Note,
                         emptyTitle = stringResource(R.string.no_notes_yet),
                         emptySubtitle = stringResource(R.string.tap_add_note),
                         onRefresh = {
-                            requestSync()
+                            requestSync(showLoading = false)
                         },
                         content = {
                             LazyColumn(

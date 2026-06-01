@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Stable
@@ -143,11 +144,19 @@ fun <T> rememberStaleListWhileRefresh(
     var stale by remember { mutableStateOf(emptyList<T>()) }
     if (current.isNotEmpty()) {
         stale = current
-    } else if (!refreshing) {
-        stale = emptyList()
+    }
+    // Room may emit an empty list for a frame after sync ends but before the replace is visible.
+    // Wait until refresh finishes and the cache stays empty before dropping the stale snapshot.
+    LaunchedEffect(refreshing, current) {
+        if (!refreshing && current.isEmpty() && stale.isNotEmpty()) {
+            delay(150)
+            if (!refreshing && current.isEmpty()) {
+                stale = emptyList()
+            }
+        }
     }
     val display = if (current.isNotEmpty()) current else stale
-    val showEmpty = current.isEmpty() && stale.isEmpty()
+    val showEmpty = display.isEmpty() && !refreshing
     return StaleListDisplay(displayItems = display, showEmpty = showEmpty)
 }
 

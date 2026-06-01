@@ -153,7 +153,7 @@ fun OfflineEnabledChecklistsScreen(
             val result = offlineRepository.syncChecklists(force = true)
             if (result.isFailure) {
                 val msg =
-                    lastSyncError?.takeIf { it.isNotBlank() }
+                    offlineRepository.lastSyncError.value?.takeIf { it.isNotBlank() }
                         ?: ApiErrorHelper.userMessage(
                             context,
                             result.exceptionOrNull() ?: Exception("Sync failed"),

@@ -49,7 +49,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
-- **Checklist overview flicker during sync** — The list no longer flashes “No checklists yet” while offline sync replaces the local cache; the last loaded list stays visible with pull-to-refresh until sync finishes (notes list uses the same pattern).
+- **Checklist overview flicker during sync** — The list no longer flashes “No checklists yet” while offline sync replaces the local cache; stale list snapshots are held briefly after refresh ends so Room’s empty emission does not flash the empty state (notes list uses the same pattern).
+- **Pull-to-refresh with pending checklist changes** — A failed push for one checklist no longer aborts the whole sync with a generic “Request failed”; other lists still refresh and the snackbar shows the repository sync message (e.g. pending changes kept locally).
 - **Deep-link feedback visibility** — `Note not found` feedback now appears even when the note list is empty.
 - **Update download progress updates** — In-app update progress callbacks are now throttled to avoid excessive main-thread updates during APK download.
 - **CI release parity check** — CI now assembles the release variant to catch release-only build issues earlier.

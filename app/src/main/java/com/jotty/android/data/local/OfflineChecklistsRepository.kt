@@ -446,10 +446,17 @@ class OfflineChecklistsRepository(
                 val dirty = checklistDao.getDirty(instanceId)
                 AppLog.d(TAG, "${dirty.size} dirty checklists")
                 for (entity in dirty) {
-                    if (entity.isDeleted) {
-                        syncDeletedChecklist(entity.id)
-                    } else {
-                        syncChecklist(entity)
+                    val pushResult =
+                        runCatching {
+                            if (entity.isDeleted) {
+                                syncDeletedChecklist(entity.id)
+                            } else {
+                                syncChecklist(entity)
+                            }
+                        }
+                    pushResult.onFailure { e ->
+                        if (e is CancellationException) throw e
+                        AppLog.d(TAG, "Push failed for checklist ${entity.id}: ${e.message}")
                     }
                 }
 

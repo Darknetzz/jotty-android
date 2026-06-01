@@ -11,6 +11,9 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Unified search API** — Notes search (online) uses Jotty’s new `GET /api/search` when the query is at least two characters, with relevance ranking and fallback to `GET /api/notes?q=` on older servers.
 - **Checklist item reorder ([#29](https://github.com/Darknetzz/jotty-android/issues/29))** — Up/down controls on each checklist row call `PUT /api/checklists/{id}/items/reorder`; works offline with sync replay.
 - **Checklist item PATCH** — Inline item edits use `PATCH /api/checklists/{id}/items/{index}` instead of delete-and-recreate, including parent/project rows with children.
+- **Background offline sync** — Added a periodic WorkManager job that attempts notes/checklists sync for saved instances when connectivity is available, improving eventual consistency when the app is not foregrounded.
+- **Per-item sync indicators** — Offline notes and checklists now show a `Pending sync` label at card level when local changes have not reached the server yet.
+- **Markdown toolbar actions** — Note editor toolbar now includes numbered-list and task-list insert actions.
 
 ### Changed
 
@@ -28,10 +31,19 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Settings tab reselection** — Tapping the Settings bottom-nav item while on a Settings subpage now returns to the main Settings screen.
 - **Reduced motion on bottom tabs** — When Reduced motion is enabled, the bottom navigation switches to a low-motion tab bar to avoid Material selection/indicator animations.
 - **Top-bar sync status readability** — Compact sync status now shows `Last sync: <relative time>` and moves full sync details behind a tap on the cloud icon.
+- **Bottom navigation behavior** — Bottom tabs are now hidden on nested Settings subpages for a cleaner, focused settings flow.
+- **Setup flow guidance** — Setup form now prioritizes URL/API key first and collapses optional details (name/color) behind an explicit advanced toggle.
+- **Checklist row actions** — Move/reorder/add-subtask actions are now grouped under an overflow menu to reduce row clutter and accidental taps.
 
 ### Documentation
 
 - **Checklist reorder** — [CHECKLIST_REORDER.md](docs/CHECKLIST_REORDER.md) updated for the shipped Jotty REST API (`PUT …/items/reorder`, `PATCH …/items/{index}`, `GET /api/search`).
+
+### Fixed
+
+- **Deep-link feedback visibility** — `Note not found` feedback now appears even when the note list is empty.
+- **Update download progress updates** — In-app update progress callbacks are now throttled to avoid excessive main-thread updates during APK download.
+- **CI release parity check** — CI now assembles the release variant to catch release-only build issues earlier.
 
 ---
 

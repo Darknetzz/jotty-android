@@ -15,7 +15,8 @@ class JottyApp : Application() {
         super.onCreate()
         AppLog.installCrashHandler()
         NetworkConnectivityMonitor.ensureStarted(this)
-        OfflineSyncWorker.schedule(this)
+        runCatching { OfflineSyncWorker.schedule(this) }
+            .onFailure { AppLog.d("JottyApp", "Background sync scheduling skipped: ${it.message}") }
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : androidx.lifecycle.DefaultLifecycleObserver {
                 override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {

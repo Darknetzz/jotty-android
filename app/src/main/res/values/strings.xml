@@ -233,10 +233,14 @@
     <string name="settings_category_troubleshooting">Troubleshooting</string>
     <string name="export_debug_logs">Export debug logs</string>
     <string name="export_debug_logs_description">Save recent in-app diagnostics (sync, encryption, etc.) to share for troubleshooting.</string>
-    <string name="export_debug_logs_action">Export</string>
+    <string name="export_debug_logs_action">Share</string>
+    <string name="export_debug_logs_save">Save</string>
     <string name="export_debug_logs_failed">Could not export debug logs</string>
     <string name="export_debug_logs_empty">No debug logs captured yet. Use the app (e.g. open a note or sync) and try again.</string>
     <string name="export_debug_logs_exporting">Exporting…</string>
+    <string name="export_debug_logs_saved_downloads">Saved to Downloads: %1$s</string>
+    <string name="export_debug_logs_saved_picker">Log file saved</string>
+    <string name="export_debug_logs_save_failed">Could not save log file</string>
     <string name="offline_mode">Local storage &amp; sync</string>
     <string name="offline_mode_description">Keep notes and checklists on this device and sync with your server when connected. Turn off to fetch directly from the server only (no local copy).</string>
     <string name="syncing">Syncing…</string>

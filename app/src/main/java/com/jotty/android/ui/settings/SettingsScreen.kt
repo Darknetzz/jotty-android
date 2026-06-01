@@ -1,6 +1,8 @@
 package com.jotty.android.ui.settings
 
 import android.os.SystemClock
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -49,6 +51,7 @@ import com.jotty.android.util.DebugLogExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -81,6 +84,26 @@ fun SettingsScreen(
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val updateChannelPref by settingsRepository.updateChannel.collectAsStateWithLifecycle(initialValue = "stable")
     var isExportingLogs by remember { mutableStateOf(false) }
+    var pendingLogFile by remember { mutableStateOf<File?>(null) }
+    val logSavedPickerMsg = stringResource(R.string.export_debug_logs_saved_picker)
+    val logSaveFailedMsg = stringResource(R.string.export_debug_logs_save_failed)
+    val saveLogLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("text/plain"),
+        ) { uri ->
+            val file = pendingLogFile
+            pendingLogFile = null
+            if (uri == null || file == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                val ok =
+                    withContext(Dispatchers.IO) {
+                        DebugLogExporter.copyToUri(context, file, uri)
+                    }
+                snackbarHostState.showSnackbar(
+                    if (ok) logSavedPickerMsg else logSaveFailedMsg,
+                )
+            }
+        }
     var healthOk by remember { mutableStateOf<Boolean?>(null) }
     var serverVersion by remember { mutableStateOf<String?>(null) }
     var showAboutDialog by remember { mutableStateOf(false) }
@@ -272,30 +295,81 @@ fun SettingsScreen(
                             if (isExportingLogs) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
                             } else {
-                                TextButton(
-                                    onClick = {
-                                        scope.launch {
-                                            isExportingLogs = true
-                                            val instance = currentInstance
-                                            val writeResult =
-                                                withContext(Dispatchers.IO) {
-                                                    DebugLogExporter.writeReport(context, instance)
-                                                }
-                                            isExportingLogs = false
-                                            when (writeResult) {
-                                                is DebugLogExporter.WriteResult.Failed ->
-                                                    snackbarHostState.showSnackbar(writeResult.message)
-                                                is DebugLogExporter.WriteResult.Ok ->
-                                                    when (val shareResult = DebugLogExporter.shareReport(context, writeResult.file)) {
-                                                        is DebugLogExporter.ShareResult.Failed ->
-                                                            snackbarHostState.showSnackbar(shareResult.message)
-                                                        is DebugLogExporter.ShareResult.Started -> Unit
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                isExportingLogs = true
+                                                val instance = currentInstance
+                                                val writeResult =
+                                                    withContext(Dispatchers.IO) {
+                                                        DebugLogExporter.writeReport(context, instance)
                                                     }
+                                                isExportingLogs = false
+                                                when (writeResult) {
+                                                    is DebugLogExporter.WriteResult.Failed ->
+                                                        snackbarHostState.showSnackbar(writeResult.message)
+                                                    is DebugLogExporter.WriteResult.Ok ->
+                                                        when (
+                                                            val saveResult =
+                                                                withContext(Dispatchers.IO) {
+                                                                    DebugLogExporter.saveToDownloads(
+                                                                        context,
+                                                                        writeResult.file,
+                                                                    )
+                                                                }
+                                                        ) {
+                                                            is DebugLogExporter.SaveResult.Saved ->
+                                                                snackbarHostState.showSnackbar(
+                                                                    context.getString(
+                                                                        R.string.export_debug_logs_saved_downloads,
+                                                                        saveResult.displayName,
+                                                                    ),
+                                                                )
+                                                            is DebugLogExporter.SaveResult.NeedsPicker -> {
+                                                                pendingLogFile = saveResult.file
+                                                                saveLogLauncher.launch(saveResult.suggestedName)
+                                                            }
+                                                            is DebugLogExporter.SaveResult.Failed ->
+                                                                snackbarHostState.showSnackbar(saveResult.message)
+                                                        }
+                                                }
                                             }
-                                        }
-                                    },
-                                ) {
-                                    Text(stringResource(R.string.export_debug_logs_action))
+                                        },
+                                    ) {
+                                        Text(stringResource(R.string.export_debug_logs_save))
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                isExportingLogs = true
+                                                val instance = currentInstance
+                                                val writeResult =
+                                                    withContext(Dispatchers.IO) {
+                                                        DebugLogExporter.writeReport(context, instance)
+                                                    }
+                                                isExportingLogs = false
+                                                when (writeResult) {
+                                                    is DebugLogExporter.WriteResult.Failed ->
+                                                        snackbarHostState.showSnackbar(writeResult.message)
+                                                    is DebugLogExporter.WriteResult.Ok ->
+                                                        when (
+                                                            val shareResult =
+                                                                DebugLogExporter.shareReport(
+                                                                    context,
+                                                                    writeResult.file,
+                                                                )
+                                                        ) {
+                                                            is DebugLogExporter.ShareResult.Failed ->
+                                                                snackbarHostState.showSnackbar(shareResult.message)
+                                                            is DebugLogExporter.ShareResult.Started -> Unit
+                                                        }
+                                                }
+                                            }
+                                        },
+                                    ) {
+                                        Text(stringResource(R.string.export_debug_logs_action))
+                                    }
                                 }
                             }
                         },

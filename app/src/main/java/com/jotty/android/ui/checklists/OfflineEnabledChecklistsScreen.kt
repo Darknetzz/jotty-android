@@ -469,6 +469,7 @@ private fun OfflineChecklistCard(
 
     Card(
         onClick = onClick,
+        onLongClick = { menuExpanded = true },
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
@@ -482,13 +483,7 @@ private fun OfflineChecklistCard(
                         text = displayTitle,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
-                        modifier =
-                            Modifier
-                                .weight(1f, fill = false)
-                                .combinedClickable(
-                                    onClick = onClick,
-                                    onLongClick = { menuExpanded = true },
-                                ),
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     if (isProject) {
                         Text(

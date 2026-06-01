@@ -29,7 +29,7 @@ fun OfflineChecklistsScreen(
         }
     val vm: OfflineChecklistsViewModel =
         viewModel(
-            key = "$instanceId|$authFingerprint",
+            key = "checklists_repo|$instanceId|$authFingerprint",
             factory = vmFactory,
         )
     val offlineRepository = vm.repository
@@ -41,7 +41,7 @@ fun OfflineChecklistsScreen(
             OfflineEnabledChecklistsScreen(
                 offlineRepository = offlineRepository,
                 api = api,
-                vmKey = "$instanceId|$authFingerprint",
+                vmKey = "checklists_ui|$instanceId|$authFingerprint",
                 settingsRepository = settingsRepository,
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                 tabReselectToken = tabReselectToken,

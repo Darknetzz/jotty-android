@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -189,6 +190,11 @@ fun ListScreenContent(
     content: @Composable () -> Unit,
 ) {
     val pullRefreshState = rememberPullToRefreshState()
+    LaunchedEffect(isRefreshing) {
+        if (!isRefreshing) {
+            pullRefreshState.snapToHidden()
+        }
+    }
     when {
         showSkeleton -> ListLoadingSkeleton(modifier = modifier)
         else ->
@@ -198,22 +204,26 @@ fun ListScreenContent(
                 onRefresh = onRefresh,
                 state = pullRefreshState,
             ) {
-                when {
-                    // Make empty/error states pull-to-refreshable: a scrollable wrapper lets the
-                    // overscroll gesture reach PullToRefreshBox even when the content fits the screen.
-                    error != null && isEmpty ->
-                        ScrollableFullSize {
-                            ErrorState(message = error, onRetry = onRetry)
-                        }
-                    isEmpty ->
-                        ScrollableFullSize {
-                            EmptyState(
-                                icon = emptyIcon,
-                                title = emptyTitle,
-                                subtitle = emptySubtitle,
-                            )
-                        }
-                    else -> content()
+                // Forward nested scroll to the pull-to-refresh state so taps reach list items
+                // (LazyColumn) instead of being consumed as pull gestures when the list is short.
+                Box(Modifier.fillMaxSize().nestedScroll(pullRefreshState.nestedScrollConnection)) {
+                    when {
+                        // Make empty/error states pull-to-refreshable: a scrollable wrapper lets the
+                        // overscroll gesture reach PullToRefreshBox even when the content fits the screen.
+                        error != null && isEmpty ->
+                            ScrollableFullSize {
+                                ErrorState(message = error, onRetry = onRetry)
+                            }
+                        isEmpty ->
+                            ScrollableFullSize {
+                                EmptyState(
+                                    icon = emptyIcon,
+                                    title = emptyTitle,
+                                    subtitle = emptySubtitle,
+                                )
+                            }
+                        else -> content()
+                    }
                 }
             }
     }

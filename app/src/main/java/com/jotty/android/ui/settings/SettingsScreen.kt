@@ -485,7 +485,7 @@ fun SettingsScreen(
     if (showAboutDialog) {
         AboutDialog(
             onDismiss = { showAboutDialog = false },
-            versionName = BuildConfig.VERSION_NAME ?: "\u2014",
+            versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE,
             currentBuildDateUtc = BuildConfig.BUILD_DATE_UTC,
             serverVersion = serverVersion,

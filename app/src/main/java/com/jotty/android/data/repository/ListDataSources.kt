@@ -69,7 +69,7 @@ class OnlineNotesListDataSource(
                         category = category,
                     ),
                 )
-            response.data ?: error("Create failed")
+            response.data
         }
 
     override suspend fun deleteNote(noteId: String): Result<Unit> =
@@ -117,7 +117,7 @@ class OnlineChecklistsListDataSource(
                         category = category,
                     ),
                 )
-            response.data ?: error("Create failed")
+            response.data
         }
 
     override suspend fun deleteChecklist(checklistId: String): Result<Unit> =

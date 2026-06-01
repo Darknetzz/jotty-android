@@ -353,7 +353,7 @@ fun OfflineEnabledNotesScreen(
                                                         val undoResult =
                                                             offlineRepository.createNote(
                                                                 title = n.title,
-                                                                content = n.content ?: "",
+                                                                content = n.content,
                                                                 category = n.category,
                                                             )
                                                         if (undoResult.isFailure) {

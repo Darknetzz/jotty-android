@@ -69,7 +69,7 @@ object UpdateChecker {
     private const val DOWNLOAD_PROGRESS_UPDATE_STEP = 0.01f
 
     private val userAgent: String
-        get() = "Jotty-Android/${BuildConfig.VERSION_NAME ?: "0"}"
+        get() = "Jotty-Android/${BuildConfig.VERSION_NAME}"
     private const val CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes; errors are not cached
 
     private data class CacheEntry(val at: Long, val result: UpdateCheckResult)
@@ -148,7 +148,7 @@ object UpdateChecker {
             preferredApkAsset(release.assets)
                 ?: return UpdateCheckResult.Error(context.getString(R.string.no_apk_in_release))
 
-        val current = BuildConfig.VERSION_NAME?.trim() ?: "0.0.0"
+        val current = BuildConfig.VERSION_NAME.trim()
         val baseCurrent = baseVersionNameWithoutDevSuffix(current)
         return if (!isNewerVersion(latestVersion, baseCurrent)) {
             UpdateCheckResult.UpToDate
@@ -174,7 +174,7 @@ object UpdateChecker {
             commitFromDevReleaseBody(release.body)
                 ?: return UpdateCheckResult.Error(context.getString(R.string.update_check_dev_parse_error))
 
-        val current = BuildConfig.VERSION_NAME?.trim() ?: "0.0.0"
+        val current = BuildConfig.VERSION_NAME.trim()
         if (localDevBuildMatchesRemote(current, remoteCommit)) {
             return UpdateCheckResult.UpToDate
         }

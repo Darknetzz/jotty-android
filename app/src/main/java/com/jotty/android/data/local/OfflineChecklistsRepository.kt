@@ -539,7 +539,7 @@ class OfflineChecklistsRepository(
                         type = entity.type,
                     ),
                 )
-            val created = response.data ?: throw Exception("Create checklist failed")
+            val created = response.data
             replayItemsToServer(created.id, entity.items(), null)
             checklistDao.delete(entity.id)
             val fresh =

@@ -20,7 +20,7 @@ import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.Note
 
 /** Sort orders shared by the notes and checklists lists. */
-enum class ListSortOption(val key: String, @StringRes val labelRes: Int) {
+enum class ListSortOption(val key: String, @param:StringRes val labelRes: Int) {
     UPDATED("updated", R.string.sort_updated),
     CREATED("created", R.string.sort_created),
     TITLE("title", R.string.sort_title),

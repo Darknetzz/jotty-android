@@ -236,6 +236,7 @@
     <string name="syncing">Syncing…</string>
     <string name="sync_complete">Sync complete</string>
     <string name="sync_failed">Sync failed</string>
+    <string name="sync_details">Sync details</string>
     <string name="offline">Offline</string>
     <string name="online">Online</string>
     <string name="connectivity_not_established_title">No connection to Jotty</string>
@@ -246,6 +247,10 @@
     <string name="undo">Undo</string>
     <string name="will_sync_when_online">Will sync when online</string>
     <string name="last_sync_attempt_at">Last sync: %1$s</string>
+    <string name="relative_time_just_now">just now</string>
+    <string name="relative_time_minutes_ago">%1$dm ago</string>
+    <string name="relative_time_hours_ago">%1$dh ago</string>
+    <string name="relative_time_days_ago">%1$dd ago</string>
     <string name="sync_duration">Duration</string>
     <string name="sync_last_error">Last error</string>
     <string name="sync_conflicts_detected">%d conflict(s) detected. Local copies created to preserve your data.</string>

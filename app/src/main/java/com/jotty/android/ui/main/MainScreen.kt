@@ -28,6 +28,7 @@ import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.checklists.OfflineChecklistsScreen
 import com.jotty.android.ui.common.LoadingState
+import com.jotty.android.ui.common.LocalReducedMotionEnabled
 import com.jotty.android.ui.common.accentColor
 import com.jotty.android.ui.common.LocalMainTabTopBarController
 import com.jotty.android.ui.common.MainTabTopBarActions
@@ -99,6 +100,7 @@ fun MainScreen(
     val serverUrl by settingsRepository.serverUrl.collectAsStateWithLifecycle(initialValue = null)
     val apiKey by settingsRepository.apiKey.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val reducedMotion = LocalReducedMotionEnabled.current
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val selectedRoute =
@@ -135,6 +137,27 @@ fun MainScreen(
                 null
             }
         }
+
+    val mainRoutes = listOf(MainRoute.Checklists, MainRoute.Notes, MainRoute.Settings)
+    fun onMainRouteClick(route: MainRoute) {
+        if (selectedRoute == route.route) {
+            when (route) {
+                MainRoute.Checklists -> checklistsTabReselectToken++
+                MainRoute.Notes -> notesTabReselectToken++
+                MainRoute.Settings -> {
+                    if (currentRoute != MainRoute.Settings.route) {
+                        navController.popBackStack(MainRoute.Settings.route, false)
+                    }
+                }
+            }
+        } else {
+            navController.navigate(route.route) {
+                popUpTo(MainRoute.Checklists.route) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
 
     ProvideMainTabTopBarController {
         val topBarController = LocalMainTabTopBarController.current
@@ -193,36 +216,57 @@ fun MainScreen(
                         ),
                 )
             },
-        bottomBar = {
-            NavigationBar {
-                listOf(MainRoute.Checklists, MainRoute.Notes, MainRoute.Settings).forEach { route ->
-                    NavigationBarItem(
-                        selected = selectedRoute == route.route,
-                        onClick = {
-                            if (selectedRoute == route.route) {
-                                when (route) {
-                                    MainRoute.Checklists -> checklistsTabReselectToken++
-                                    MainRoute.Notes -> notesTabReselectToken++
-                                    MainRoute.Settings -> {
-                                        if (currentRoute != MainRoute.Settings.route) {
-                                            navController.popBackStack(MainRoute.Settings.route, false)
-                                        }
+            bottomBar = {
+                if (reducedMotion) {
+                    Surface(
+                        tonalElevation = 3.dp,
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                        ) {
+                            mainRoutes.forEach { route ->
+                                val selected = selectedRoute == route.route
+                                val color =
+                                    if (selected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                TextButton(
+                                    onClick = { onMainRouteClick(route) },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            route.icon,
+                                            contentDescription = stringResource(route.titleRes),
+                                            tint = color,
+                                        )
+                                        Text(
+                                            text = stringResource(route.titleRes),
+                                            color = color,
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
                                     }
                                 }
-                            } else {
-                                navController.navigate(route.route) {
-                                    popUpTo(MainRoute.Checklists.route) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
                             }
-                        },
-                        icon = { Icon(route.icon, contentDescription = stringResource(route.titleRes)) },
-                        label = { Text(stringResource(route.titleRes)) },
-                    )
+                        }
+                    }
+                } else {
+                    NavigationBar {
+                        mainRoutes.forEach { route ->
+                            NavigationBarItem(
+                                selected = selectedRoute == route.route,
+                                onClick = { onMainRouteClick(route) },
+                                icon = { Icon(route.icon, contentDescription = stringResource(route.titleRes)) },
+                                label = { Text(stringResource(route.titleRes)) },
+                            )
+                        }
+                    }
                 }
-            }
-        },
+            },
     ) { padding ->
         val currentApi = api
         val currentStart = startDestination

@@ -30,6 +30,10 @@ import com.jotty.android.ui.checklists.OfflineChecklistsScreen
 import com.jotty.android.ui.common.LoadingState
 import com.jotty.android.ui.common.LocalReducedMotionEnabled
 import com.jotty.android.ui.common.accentColor
+import com.jotty.android.ui.common.navEnterTransition
+import com.jotty.android.ui.common.navExitTransition
+import com.jotty.android.ui.common.navPopEnterTransition
+import com.jotty.android.ui.common.navPopExitTransition
 import com.jotty.android.ui.common.LocalMainTabTopBarController
 import com.jotty.android.ui.common.MainTabTopBarActions
 import com.jotty.android.ui.common.MainTabTopBarSyncSlot
@@ -280,6 +284,10 @@ fun MainScreen(
                     navController = navController,
                     startDestination = currentStart,
                     modifier = Modifier.fillMaxSize().padding(padding),
+                    enterTransition = navEnterTransition(reducedMotion),
+                    exitTransition = navExitTransition(reducedMotion),
+                    popEnterTransition = navPopEnterTransition(reducedMotion),
+                    popExitTransition = navPopExitTransition(reducedMotion),
                 ) {
                     composable(MainRoute.Checklists.route) {
                         val instanceId = currentInstance?.id

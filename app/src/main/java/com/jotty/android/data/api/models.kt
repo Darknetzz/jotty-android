@@ -99,9 +99,25 @@ data class TaskStatus(
     val label: String,
     val order: Int = 0,
     val color: String? = null,
+    val autoComplete: Boolean? = null,
 )
 
 data class TaskStatusesResponse(val statuses: List<TaskStatus> = emptyList())
+
+data class CreateTaskStatusRequest(
+    val id: String,
+    val label: String,
+    val color: String? = null,
+    val order: Int? = null,
+    val autoComplete: Boolean? = null,
+)
+
+data class UpdateTaskStatusRequest(
+    val label: String? = null,
+    val color: String? = null,
+    val order: Int? = null,
+    val autoComplete: Boolean? = null,
+)
 
 data class UpdateTaskItemStatusRequest(val status: String)
 

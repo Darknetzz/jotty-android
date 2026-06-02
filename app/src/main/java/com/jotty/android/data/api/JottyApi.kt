@@ -76,6 +76,25 @@ interface JottyApi {
         @Path("taskId") taskId: String,
     ): TaskStatusesResponse
 
+    @POST("api/tasks/{taskId}/statuses")
+    suspend fun createTaskStatus(
+        @Path("taskId") taskId: String,
+        @Body body: CreateTaskStatusRequest,
+    ): ApiResponse<TaskStatus>
+
+    @PUT("api/tasks/{taskId}/statuses/{statusId}")
+    suspend fun updateTaskStatus(
+        @Path("taskId") taskId: String,
+        @Path("statusId") statusId: String,
+        @Body body: UpdateTaskStatusRequest,
+    ): ApiResponse<TaskStatus>
+
+    @DELETE("api/tasks/{taskId}/statuses/{statusId}")
+    suspend fun deleteTaskStatus(
+        @Path("taskId") taskId: String,
+        @Path("statusId") statusId: String,
+    ): SuccessResponse
+
     @PUT("api/tasks/{taskId}/items/{itemIndex}/status")
     suspend fun updateTaskItemStatus(
         @Path("taskId") taskId: String,

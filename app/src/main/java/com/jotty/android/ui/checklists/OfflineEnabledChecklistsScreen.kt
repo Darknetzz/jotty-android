@@ -578,6 +578,7 @@ private fun OfflineChecklistDetailContent(
 
     var newItemText by remember { mutableStateOf("") }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showManageStatusesDialog by remember { mutableStateOf(false) }
     var showDiscardPendingSyncDialog by remember { mutableStateOf(false) }
     var discardConfirmIsLocalOnly by remember { mutableStateOf(false) }
     var editingItemKey by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
@@ -669,6 +670,38 @@ private fun OfflineChecklistDetailContent(
             },
         )
     }
+    if (showManageStatusesDialog) {
+        ManageTaskStatusesDialog(
+            statuses = taskStatuses,
+            onDismiss = { showManageStatusesDialog = false },
+            onSave = { updated ->
+                showManageStatusesDialog = false
+                if (!isOnline) {
+                    onSaveFailed()
+                    return@ManageTaskStatusesDialog
+                }
+                scope.launch {
+                    runCatching {
+                        saveTaskStatuses(
+                            api = api,
+                            taskId = liveChecklist.id,
+                            previous = taskStatuses,
+                            updated = updated,
+                        )
+                    }.onSuccess {
+                        val syncResult = offlineRepository.syncChecklists(force = true)
+                        if (syncResult.isFailure) {
+                            onSaveFailed()
+                        } else {
+                            refreshTaskStatuses()
+                        }
+                    }.onFailure {
+                        onSaveFailed()
+                    }
+                }
+            },
+        )
+    }
 
     Column(Modifier.fillMaxSize()) {
         ChecklistDetailHeader(
@@ -751,11 +784,22 @@ private fun OfflineChecklistDetailContent(
 
         if (isProject && canUseKanbanBoard) {
             val columns = remember(items, taskStatuses) { buildKanbanColumns(items = items, statuses = taskStatuses) }
-            Text(
-                text = stringResource(R.string.kanban_board),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.kanban_board),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = { showManageStatusesDialog = true },
+                    enabled = isOnline,
+                ) {
+                    Text(stringResource(R.string.kanban_manage_statuses))
+                }
+            }
             if (!isOnline) {
                 Text(
                     text = stringResource(R.string.kanban_move_online_only),

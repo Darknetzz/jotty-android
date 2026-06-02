@@ -70,6 +70,10 @@
     <string name="kanban_no_tasks">No tasks in this column</string>
     <string name="kanban_move_to">Move to %1$s</string>
     <string name="kanban_subtasks_count">%1$d sub-task(s)</string>
+    <string name="kanban_manage_statuses">Manage statuses</string>
+    <string name="kanban_add_status">Add status</string>
+    <string name="kanban_new_status">New status</string>
+    <string name="kanban_status_auto_complete">Auto complete</string>
     <string name="kanban_move_online_only">Connect to your server to move tasks between Kanban columns.</string>
     <string name="kanban_not_supported_fallback">Kanban columns are not available on this server yet. Showing checklist view instead.</string>
     <string name="done_progress">%1$d / %2$d done</string>

@@ -411,6 +411,7 @@ private fun ChecklistDetailScreen(
     var items by remember { mutableStateOf(checklist.items) }
     var displayTitle by remember { mutableStateOf(checklist.title) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showManageStatusesDialog by remember { mutableStateOf(false) }
     var newItemText by remember { mutableStateOf("") }
     var editingItemKey by remember(checklist.id) { mutableStateOf<String?>(null) }
     var taskStatuses by remember(checklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
@@ -483,6 +484,29 @@ private fun ChecklistDetailScreen(
                         } else {
                             onSaveFailed()
                         }
+                    } catch (_: Exception) {
+                        onSaveFailed()
+                    }
+                }
+            },
+        )
+    }
+    if (showManageStatusesDialog) {
+        ManageTaskStatusesDialog(
+            statuses = taskStatuses,
+            onDismiss = { showManageStatusesDialog = false },
+            onSave = { updated ->
+                showManageStatusesDialog = false
+                scope.launch {
+                    try {
+                        saveTaskStatuses(
+                            api = api,
+                            taskId = checklist.id,
+                            previous = taskStatuses,
+                            updated = updated,
+                        )
+                        refreshTaskStatuses()
+                        refresh()
                     } catch (_: Exception) {
                         onSaveFailed()
                     }
@@ -577,11 +601,19 @@ private fun ChecklistDetailScreen(
 
         if (isProject && canUseKanbanBoard) {
             val columns = remember(items, taskStatuses) { buildKanbanColumns(items = items, statuses = taskStatuses) }
-            Text(
-                text = stringResource(R.string.kanban_board),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.kanban_board),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { showManageStatusesDialog = true }) {
+                    Text(stringResource(R.string.kanban_manage_statuses))
+                }
+            }
             TaskKanbanBoard(
                 columns = columns,
                 allStatuses = taskStatuses,

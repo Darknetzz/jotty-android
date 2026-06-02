@@ -19,7 +19,7 @@ Track UI polish in [#29](https://github.com/Darknetzz/jotty-android/issues/29).
 
 ## Android behaviour
 
-- **Reorder:** Each checklist row shows a **drag handle** (and **move up** / **move down** in the overflow menu) when the item has a stable server `id`. Drag-and-drop and up/down only reorder among **siblings** (same parent); To Do and Completed are separate lists. Offline edits queue a `REORDER` pending op replayed on sync.
+- **Reorder:** Each checklist row shows a **drag handle** (and **move up** / **move down** in the overflow menu) when the item has a stable server `id`. Drag-and-drop and up/down only reorder among **siblings** (same parent); To Do and Completed are separate lists. Turn off the drag handle in Settings → Behavior → **Drag to reorder checklists** (menu reorder still works). Offline edits queue a `REORDER` pending op replayed on sync.
 - **Rename:** Tap item text to edit inline; saves via PATCH (no delete-and-recreate).
 - **Sync:** Order changed in the web app still syncs on pull (`GET /api/checklists`).
 

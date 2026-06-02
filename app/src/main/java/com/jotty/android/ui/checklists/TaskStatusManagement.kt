@@ -96,7 +96,7 @@ fun ManageTaskStatusesDialog(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             IconButton(
@@ -109,6 +109,7 @@ fun ManageTaskStatusesDialog(
                                             }
                                     }
                                 },
+                                modifier = Modifier.size(40.dp),
                             ) {
                                 Icon(Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.cd_move_item_up))
                             }
@@ -122,27 +123,34 @@ fun ManageTaskStatusesDialog(
                                             }
                                     }
                                 },
+                                modifier = Modifier.size(40.dp),
                             ) {
                                 Icon(Icons.Default.ArrowDownward, contentDescription = stringResource(R.string.cd_move_item_down))
                             }
-                            OutlinedTextField(
-                                value = row.label,
-                                onValueChange = { value ->
-                                    rows = rows.toMutableList().also { it[index] = row.copy(label = value) }
-                                },
-                                label = { Text(stringResource(R.string.title)) },
-                                singleLine = true,
+                            Column(
                                 modifier = Modifier.weight(1f),
-                            )
-                            StatusColorSwatchPicker(
-                                selectedHex = row.color,
-                                onSelect = { color ->
-                                    rows = rows.toMutableList().also { it[index] = row.copy(color = color) }
-                                },
-                            )
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                OutlinedTextField(
+                                    value = row.label,
+                                    onValueChange = { value ->
+                                        rows = rows.toMutableList().also { it[index] = row.copy(label = value) }
+                                    },
+                                    label = { Text(stringResource(R.string.title)) },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                StatusColorSwatchPicker(
+                                    selectedHex = row.color,
+                                    onSelect = { color ->
+                                        rows = rows.toMutableList().also { it[index] = row.copy(color = color) }
+                                    },
+                                )
+                            }
                             IconButton(
                                 onClick = { rows = rows.toMutableList().also { it.removeAt(index) } },
                                 enabled = rows.size > 1,
+                                modifier = Modifier.size(40.dp),
                             ) {
                                 Icon(
                                     Icons.Default.Delete,
@@ -294,8 +302,12 @@ suspend fun saveTaskStatuses(
 private fun StatusColorSwatchPicker(
     selectedHex: String?,
     onSelect: (String?) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         statusColorPalette.forEach { hex ->
             val color = parseHexColorOrNull(hex) ?: MaterialTheme.colorScheme.surfaceVariant
             val selected = selectedHex.equals(hex, ignoreCase = true)

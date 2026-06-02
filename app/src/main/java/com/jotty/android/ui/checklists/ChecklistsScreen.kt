@@ -635,13 +635,14 @@ private fun ChecklistDetailScreen(
                 total = total,
                 dragReorderEnabled = dragReorderEnabled,
                 onReorder = ::applyDragReorder,
-            ) { flat, reorderableScope, _ ->
+        ) { flat, reorderableScope, _, onDragStopped ->
                 ChecklistDetailItemRow(
                     flat = flat,
                     editingItemKey = editingItemKey,
                     onEditingItemKeyChange = { editingItemKey = it },
                     isProject = isProject,
                     reorderableScope = reorderableScope,
+                onDragStopped = onDragStopped,
                     onCheck = {
                         scope.launch {
                             try {

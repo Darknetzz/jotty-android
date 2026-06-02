@@ -824,13 +824,14 @@ private fun OfflineChecklistDetailContent(
                         handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
                     }
                 },
-            ) { flat, reorderableScope, _ ->
+        ) { flat, reorderableScope, _, onDragStopped ->
                 ChecklistDetailItemRow(
                     flat = flat,
                     editingItemKey = editingItemKey,
                     onEditingItemKeyChange = { editingItemKey = it },
                     isProject = isProject,
                     reorderableScope = reorderableScope,
+                onDragStopped = onDragStopped,
                     onCheck = {
                         scope.launch {
                             handleResult(offlineRepository.checkItem(liveChecklist.id, flat.apiPath))

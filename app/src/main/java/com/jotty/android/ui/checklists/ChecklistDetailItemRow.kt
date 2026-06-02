@@ -13,6 +13,7 @@ fun ChecklistDetailItemRow(
     onEditingItemKeyChange: (String?) -> Unit,
     isProject: Boolean,
     reorderableScope: ReorderableCollectionItemScope?,
+    onDragStopped: (() -> Unit)?,
     onCheck: () -> Unit,
     onUncheck: () -> Unit,
     onDelete: () -> Unit,
@@ -38,6 +39,7 @@ fun ChecklistDetailItemRow(
         onMoveDown = onMoveDown,
         onAddSubItem = onAddSubItem,
         reorderableScope = if (flat.item.id != null) reorderableScope else null,
+        onDragStopped = onDragStopped,
         actionIconSize = actionIconSize,
         actionGlyphSize = actionGlyphSize,
     )

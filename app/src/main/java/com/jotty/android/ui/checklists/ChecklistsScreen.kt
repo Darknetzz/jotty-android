@@ -437,9 +437,7 @@ private fun ChecklistDetailScreen(
         }
     }
 
-    val isProject =
-        checklist.type.equals("project", ignoreCase = true) ||
-            checklist.type.equals("task", ignoreCase = true)
+    val isProject = isProjectChecklistType(checklist.type)
 
     fun refreshTaskStatuses() {
         if (!isProject) return

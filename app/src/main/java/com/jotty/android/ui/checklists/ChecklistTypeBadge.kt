@@ -10,8 +10,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 
-fun isProjectChecklistType(type: String?): Boolean =
-    type.equals("project", ignoreCase = true) || type.equals("task", ignoreCase = true)
+fun isProjectChecklistType(type: String?): Boolean {
+    val normalized = type?.trim()?.lowercase().orEmpty()
+    if (normalized.isBlank()) return false
+    return when (normalized) {
+        "simple", "regular", "checklist", "list" -> false
+        "project", "task", "kanban" -> true
+        else -> true
+    }
+}
 
 @Composable
 fun ChecklistTypeBadge(type: String?) {

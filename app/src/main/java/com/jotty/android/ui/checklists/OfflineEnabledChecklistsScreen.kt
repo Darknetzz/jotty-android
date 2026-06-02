@@ -591,9 +591,7 @@ private fun OfflineChecklistDetailContent(
             stringResource(R.string.discard_pending_sync_confirm)
         }
 
-    val isProject =
-        liveChecklist.type.equals("project", ignoreCase = true) ||
-            liveChecklist.type.equals("task", ignoreCase = true)
+    val isProject = isProjectChecklistType(liveChecklist.type)
     val flatItems =
         remember(items, isProject) {
             if (isProject) {

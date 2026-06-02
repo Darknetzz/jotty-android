@@ -57,6 +57,7 @@ import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
+import com.jotty.android.util.visibleKanbanColumns
 import com.jotty.android.util.moveChecklistItemDownRequest
 import com.jotty.android.util.moveChecklistItemUpRequest
 import com.jotty.android.util.updateChecklistItemText
@@ -83,6 +84,7 @@ fun ChecklistsScreen(
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val checklistCategories by vm.checklistCategories.collectAsStateWithLifecycle()
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
     val sortedChecklists = remember(filteredChecklists, sortOption) { filteredChecklists.sortedBy(sortOption) }
@@ -178,6 +180,7 @@ fun ChecklistsScreen(
                     api = api,
                     categorySuggestions = checklistCategories,
                     dragReorderEnabled = checklistDragReorderEnabled,
+                    kanbanHideEmptyColumns = kanbanHideEmptyColumns,
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = {
                         vm.loadChecklists()
@@ -394,6 +397,7 @@ private fun ChecklistDetailScreen(
     api: JottyApi,
     categorySuggestions: List<String> = emptyList(),
     dragReorderEnabled: Boolean = true,
+    kanbanHideEmptyColumns: Boolean = false,
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
     onDelete: () -> Unit,
@@ -601,7 +605,11 @@ private fun ChecklistDetailScreen(
         }
 
         if (isProject && canUseKanbanBoard) {
-            val columns = remember(items, taskStatuses) { buildKanbanColumns(items = items, statuses = taskStatuses) }
+            val columns =
+                remember(items, taskStatuses, kanbanHideEmptyColumns) {
+                    buildKanbanColumns(items = items, statuses = taskStatuses)
+                        .visibleKanbanColumns(kanbanHideEmptyColumns)
+                }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,

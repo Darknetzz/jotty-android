@@ -29,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -163,6 +164,7 @@ fun OfflineSyncStatusIndicator(
             }
         }
     val relativeLastSyncText = lastSyncAttemptEpochMs?.let { formatRelativeTime(it, nowMs) }
+    val hasSyncFailure = !lastSyncError.isNullOrBlank()
     val compactStatusText =
         when {
             isSyncing -> statusText
@@ -178,10 +180,10 @@ fun OfflineSyncStatusIndicator(
         horizontalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 8.dp),
     ) {
         val iconTint =
-            if (offline) {
-                MaterialTheme.colorScheme.error
+            if (offline || hasSyncFailure) {
+                Color(0xFFC62828)
             } else {
-                MaterialTheme.colorScheme.primary
+                Color(0xFF2E7D32)
             }
         val iconModifier = Modifier.size(if (offline && !compact) 22.dp else iconSize)
         val icon: @Composable () -> Unit = {

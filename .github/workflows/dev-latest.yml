@@ -112,7 +112,7 @@ jobs:
             Rolling pre-release build from `dev`.
             ⚠️ This preview build may contain unstable or breaking bugs.
 
-            <!-- Commit: ${{ github.sha }} -->
+            Commit: ${{ github.sha }}
 
             | Item | Link |
             | --- | --- |

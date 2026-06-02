@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.ui.common.ConfirmDeleteDialog
+import sh.calvin.reorderable.ReorderableCollectionItemScope
 
 @Composable
 fun ChecklistItemRow(
@@ -58,6 +60,7 @@ fun ChecklistItemRow(
     onAddSubItem: (() -> Unit)? = null,
     onMoveUp: (() -> Unit)? = null,
     onMoveDown: (() -> Unit)? = null,
+    reorderableScope: ReorderableCollectionItemScope? = null,
     actionIconSize: Dp = 48.dp,
     actionGlyphSize: Dp = 22.dp,
 ) {
@@ -90,6 +93,24 @@ fun ChecklistItemRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Spacer(modifier = Modifier.width(indent))
+        if (reorderableScope != null) {
+            IconButton(
+                onClick = {},
+                modifier =
+                    with(reorderableScope) {
+                        Modifier
+                            .size(actionIconSize)
+                            .draggableHandle()
+                    },
+            ) {
+                Icon(
+                    Icons.Default.DragHandle,
+                    contentDescription = stringResource(R.string.cd_drag_to_reorder),
+                    modifier = Modifier.size(actionGlyphSize),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         Checkbox(
             checked = item.completed,
             onCheckedChange = { if (it) onCheck() else onUncheck() },

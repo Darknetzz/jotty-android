@@ -53,6 +53,55 @@ fun moveChecklistItemUpRequest(
     return ReorderItemsRequest(activeItemId = itemId, overItemId = overId, position = "before")
 }
 
+/** True when [id1] and [id2] share the same parent in [items]. */
+fun areSiblingChecklistItems(
+    items: List<ChecklistItem>,
+    id1: String,
+    id2: String,
+): Boolean {
+    if (id1 == id2) return false
+    val cloned = cloneChecklistItems(items)
+    val loc1 = findItemLocation(cloned, id1) ?: return false
+    val loc2 = findItemLocation(cloned, id2) ?: return false
+    return loc1.siblings === loc2.siblings
+}
+
+/**
+ * Builds a reorder request after a drag within a flat section list, or null when the move is invalid
+ * (e.g. across different sibling groups or into an illegal position).
+ */
+fun reorderRequestForFlatMove(
+    treeItems: List<ChecklistItem>,
+    sectionItems: List<ChecklistItem>,
+    fromIndex: Int,
+    toIndex: Int,
+): ReorderItemsRequest? {
+    if (fromIndex == toIndex) return null
+    if (fromIndex !in sectionItems.indices || toIndex !in sectionItems.indices) return null
+
+    val activeId = sectionItems[fromIndex].id ?: return null
+    val reordered =
+        sectionItems.toMutableList().apply {
+            add(toIndex, removeAt(fromIndex))
+        }
+    val newIndex = reordered.indexOfFirst { it.id == activeId }
+    if (newIndex < 0) return null
+
+    val overIndex =
+        when {
+            fromIndex < toIndex -> newIndex - 1
+            else -> newIndex + 1
+        }
+    if (overIndex !in reordered.indices) return null
+
+    val overId = reordered[overIndex].id ?: return null
+    if (!areSiblingChecklistItems(treeItems, activeId, overId)) return null
+    if (isDescendantOf(treeItems, activeId, overId)) return null
+
+    val position = if (fromIndex < toIndex) "after" else "before"
+    return ReorderItemsRequest(activeItemId = activeId, overItemId = overId, position = position)
+}
+
 /** Returns a reorder request to move [itemId] down among its siblings, or null if already last. */
 fun moveChecklistItemDownRequest(
     items: List<ChecklistItem>,

@@ -4,6 +4,7 @@ kotlin = "2.3.21"
 ksp = "2.3.9"
 compose-bom = "2026.05.01"
 ktlint = "12.1.1"
+reorderable = "3.0.0"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -13,3 +14,4 @@ jlleitschuh-ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktli
 
 [libraries]
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
+reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }

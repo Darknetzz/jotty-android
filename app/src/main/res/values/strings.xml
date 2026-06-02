@@ -6,6 +6,7 @@
     <string name="cd_search">Search</string>
     <string name="cd_move_item_up">Move item up</string>
     <string name="cd_move_item_down">Move item down</string>
+    <string name="cd_drag_to_reorder">Drag to reorder</string>
     <string name="cd_link">Link</string>
     <string name="cd_refresh">Refresh list</string>
     <string name="cd_add">Add</string>

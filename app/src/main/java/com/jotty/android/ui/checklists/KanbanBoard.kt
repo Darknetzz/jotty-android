@@ -95,14 +95,9 @@ private fun KanbanStatusColumn(
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .padding(end = 8.dp)
-                        .clip(CircleShape)
-                        .background(accent)
-                        .height(10.dp)
-                        .width(10.dp),
+            KanbanStatusDot(
+                colorHex = column.status.color,
+                modifier = Modifier.padding(end = 8.dp),
             )
             Text(
                 text = column.status.label,
@@ -201,7 +196,7 @@ private fun KanbanTaskCard(
                             .forEach { target ->
                                 DropdownMenuItem(
                                     text = {
-                                        Text(stringResource(R.string.kanban_move_to, target.label))
+                                        KanbanMoveMenuLabel(status = target)
                                     },
                                     onClick = {
                                         menuExpanded = false
@@ -213,6 +208,37 @@ private fun KanbanTaskCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun KanbanStatusDot(
+    colorHex: String?,
+    modifier: Modifier = Modifier,
+) {
+    val accent = parseHexColorOrNull(colorHex) ?: MaterialTheme.colorScheme.primary
+    Box(
+        modifier =
+            modifier
+                .clip(CircleShape)
+                .background(accent)
+                .height(10.dp)
+                .width(10.dp),
+    )
+}
+
+@Composable
+private fun KanbanMoveMenuLabel(status: TaskStatus) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        KanbanStatusDot(colorHex = status.color)
+        Text(
+            text = stringResource(R.string.kanban_move_to, status.label),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

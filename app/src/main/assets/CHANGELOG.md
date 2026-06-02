@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Kanban move menu status dots** — “Move to …” actions on Kanban cards show a colored dot matching the target column status.
 - **Checklist type badge** — Checklist cards now show whether each item is a **Checklist** or **Project / Kanban**.
 - **Smarter note editor lists** — Pressing Enter on a bullet, numbered, task, or quote line continues the same prefix; Enter on an empty list item exits the list. Toolbar list/checkbox actions toggle off when tapped again on the same line.
 - **Note editor text size** — Settings → Appearance → **Reader text size** now also scales the note editor; added **Extra small** option.

@@ -10,6 +10,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Hide empty Kanban columns** — Settings → Behavior toggle to hide status columns with no tasks on project boards.
 
+### Fixed
+
+- **Note images** — Jotty media URLs resolve with RFC 3986 rules (fixes root-relative paths when the instance URL includes a subpath), rewrite HTML `<img src>` before conversion, remap absolute `/api/image/` URLs to the configured instance host (e.g. LAN IP vs hostname), and always attach the API key on Jotty media paths. Export debug logs record HTTP failures for media loads. **Note:** standard Jotty servers still require `SERVE_PUBLIC_IMAGES=yes` or upstream API-key support on `/api/image/` for private uploads (see [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
+
 ---
 
 ## [1.5.0] - 2026-06-02

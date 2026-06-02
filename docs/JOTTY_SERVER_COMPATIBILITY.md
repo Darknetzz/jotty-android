@@ -24,7 +24,8 @@ Older stable Jotty installs without PATCH still work for leaf renames; parent re
 ## Notes
 
 - Encrypted notes (XChaCha20) match the Jotty web format; PGP notes are view-only in-app.
-- Note images: relative URLs such as `/api/image/...` are resolved against the instance base URL before Markdown render.
+- Note images: relative URLs such as `/api/image/...` are resolved against the instance base URL (RFC 3986) before Markdown render; HTML `<img src>` attributes are rewritten too. Absolute Jotty media URLs that use a different host than the configured instance (e.g. LAN IP vs hostname) are rewritten to the instance origin.
+- **Image authentication:** Jotty’s `/api/image/` and `/api/file/` routes authenticate via **browser session cookies**, not `x-api-key`. The Android app sends `x-api-key` on same-origin media requests, but **standard Jotty server versions return HTTP 401** for private images unless `SERVE_PUBLIC_IMAGES=yes` is set on the server. Notes/checklists API calls are unaffected. Upstream Jotty would need API-key support on media routes for private images to load in-app without that env var.
 
 ## In-app signals
 

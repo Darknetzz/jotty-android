@@ -42,10 +42,63 @@ class XChaCha20EncryptorTest {
         val passphrase = "my secure passphrase 123"
         val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphrase)
         assertNotNull(encrypted)
-        assertTrue("JSON should include Argon2 params for decrypt compatibility", encrypted!!.contains("\"m\":") && encrypted.contains("\"t\":"))
+        assertArgonParamsPresent(encrypted!!)
         val decrypted = XChaCha20Decryptor.decrypt(encrypted, passphrase)
         assertNotNull(decrypted)
         assertEquals(plaintext, decrypted)
+    }
+
+    @Test
+    fun `encrypt uses 64 MiB Argon2 on devices where primary preset succeeds`() {
+        val encrypted =
+            XChaCha20Encryptor.encrypt("Primary preset probe", "my secure passphrase 123")
+                ?: return // Primary OOM on this runner; covered by 32 MiB fallback test
+        assertEquals(65536, parseArgonMemoryKb(encrypted))
+        assertEquals(2, parseArgonIterations(encrypted))
+        assertEquals(1, parseArgonParallelism(encrypted))
+    }
+
+    @Test
+    fun `32 MiB Argon2 params encrypt and decrypt round-trip`() {
+        val plaintext = "Low memory device note"
+        val passphrase = "my secure passphrase 123".toCharArray()
+        val encrypted =
+            XChaCha20Encryptor.encryptWithArgonDims(
+                plaintext,
+                passphrase,
+                XChaCha20Encryptor.ARGON_FALLBACK,
+            )
+        passphrase.clearPassphrase()
+        assertNotNull(encrypted)
+        assertEquals(32768, parseArgonMemoryKb(encrypted!!))
+        assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, "my secure passphrase 123"))
+    }
+
+    @Test
+    fun `decrypt uses embedded m field before preset guessing`() {
+        val plaintext = "Embedded Argon params"
+        val passphrase = "my secure passphrase 123".toCharArray()
+        val encrypted =
+            XChaCha20Encryptor.encryptWithArgonDims(
+                plaintext,
+                passphrase,
+                XChaCha20Encryptor.ARGON_FALLBACK,
+            )
+        passphrase.clearPassphrase()
+        assertNotNull(encrypted)
+        val result = XChaCha20Decryptor.decryptWithReason(encrypted!!, "my secure passphrase 123")
+        assertEquals(plaintext, result.plaintext)
+        assertFalse(result.usedLegacyDataOrder)
+    }
+
+    @Test
+    fun `encrypt with whitespace-only passphrase returns null`() {
+        assertNull(XChaCha20Encryptor.encrypt("Secret", "   \t\n  "))
+    }
+
+    @Test
+    fun `encrypt with empty passphrase returns null`() {
+        assertNull(XChaCha20Encryptor.encrypt("Secret", ""))
     }
 
     @Test
@@ -102,6 +155,23 @@ class XChaCha20EncryptorTest {
     private fun hexToBytes(hex: String): ByteArray =
         hex.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
 
+    private fun assertArgonParamsPresent(json: String) {
+        assertTrue("JSON should include Argon2 params for decrypt compatibility", json.contains("\"m\":") && json.contains("\"t\":"))
+        assertTrue("JSON should include Argon2 parallelism", json.contains("\"p\":"))
+    }
+
+    private fun parseArgonMemoryKb(json: String): Int =
+        """"m"\s*:\s*(\d+)""".toRegex().find(json)?.groupValues?.get(1)?.toInt()
+            ?: throw AssertionError("missing m in $json")
+
+    private fun parseArgonIterations(json: String): Int =
+        """"t"\s*:\s*(\d+)""".toRegex().find(json)?.groupValues?.get(1)?.toInt()
+            ?: throw AssertionError("missing t in $json")
+
+    private fun parseArgonParallelism(json: String): Int =
+        """"p"\s*:\s*(\d+)""".toRegex().find(json)?.groupValues?.get(1)?.toInt()
+            ?: throw AssertionError("missing p in $json")
+
     @Test
     fun `encrypt outputs BC order ciphertext then tag and decrypt round-trips`() {
         // Encryptor must output ciphertext||tag (AEAD combined) for Jotty web compatibility.
@@ -152,9 +222,10 @@ class XChaCha20EncryptorTest {
         val result = XChaCha20Decryptor.decryptWithReason(hexJson, "any passphrase")
         assertNull(result.plaintext)
         assertNotNull(result.failureReason)
+        val reason = requireNotNull(result.failureReason)
         assertTrue(
-            "Expected auth failure (hex parsed), not parse failure: ${result.failureReason}",
-            result.failureReason!!.contains("Auth failed") || result.failureReason!!.contains("Key derivation"),
+            "Expected auth failure (hex parsed), not parse failure: $reason",
+            reason.contains("Auth failed") || reason.contains("Key derivation"),
         )
     }
 }

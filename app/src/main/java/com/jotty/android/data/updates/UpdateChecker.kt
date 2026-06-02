@@ -258,6 +258,7 @@ object UpdateChecker {
         val patterns =
             listOf(
                 Regex("""(?m)^Commit:\s*([a-fA-F0-9]{7,40})\b"""),
+                Regex("""(?i)<!--\s*Commit:\s*([a-fA-F0-9]{7,40})\s*-->"""),
                 Regex("""(?mi)^\|\s*Commit\s*\|\s*\[\s*([a-fA-F0-9]{7,40})\s*\]"""),
                 Regex("""(?mi)^\|\s*Commit\s*\|\s*([a-fA-F0-9]{7,40})\s*\|"""),
             )

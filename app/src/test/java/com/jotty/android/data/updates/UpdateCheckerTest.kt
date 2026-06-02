@@ -70,6 +70,19 @@ class UpdateCheckerTest {
     }
 
     @Test
+    fun `commitFromDevReleaseBody parses HTML comment`() {
+        val body =
+            """
+            Rolling pre-release build from `dev`.
+            <!-- Commit: abcdef0123456789abcdef0123456789abcdef01 -->
+            """.trimIndent()
+        assertEquals(
+            "abcdef0123456789abcdef0123456789abcdef01",
+            UpdateChecker.commitFromDevReleaseBody(body),
+        )
+    }
+
+    @Test
     fun `commitFromDevReleaseBody parses Commit row in markdown table`() {
         val body =
             """

@@ -2,13 +2,13 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release (`[VERSION-dev]`). Dev APK `versionName` is `VERSION-dev+<short-sha>` (seven-character commit; see the release **Commit:** line).
+The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release (`[VERSION-dev]`). Dev APK `versionName` is `VERSION-dev+<short-sha>` (seven-character commit; see the release commit metadata or **Commit** table row).
 
 ## [1.4.0-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
 ### Fixed
 
-- **Dev update check** — Dev channel update checks again read the commit SHA from `dev-latest` release notes (plain `Commit:` line and markdown table format).
+- **Dev update check** — Dev channel update checks again read the commit SHA from `dev-latest` release notes (HTML comment, plain `Commit:` line, or markdown table).
 
 ### Added
 

@@ -24,6 +24,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Changed
 
 - **Motion effects opt-in** — Cross-fade, list/detail fade-in, shimmer skeletons, and animated bottom tabs are now off by default. Settings → Appearance → **Motion effects** can turn them on, or choose **System** to follow the device accessibility setting. Bottom-tab navigation no longer uses Navigation Compose’s default cross-fade when motion is off.
+- **Dashboard overview layout** — Dashboard cards are now split into clearer sections with grouped stat tiles for notes/checklists, checklist items, tasks, and admin totals to improve readability on small screens.
 
 ### Fixed
 

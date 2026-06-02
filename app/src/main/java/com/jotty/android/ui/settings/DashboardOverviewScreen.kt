@@ -11,6 +11,7 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -142,9 +143,13 @@ private fun DashboardSummaryCard(summary: SummaryData) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(
+                text = stringResource(R.string.dashboard_personal_section_title),
+                style = MaterialTheme.typography.titleSmall,
+            )
             summary.username?.let { u ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -153,18 +158,20 @@ private fun DashboardSummaryCard(summary: SummaryData) {
                     Text(
                         stringResource(R.string.user_label),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text(u, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(u, style = MaterialTheme.typography.bodyMedium)
                 }
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                if (notesTotal > 0 || summary.notes != null) StatChip(stringResource(R.string.stat_notes), notesTotal)
-                if (listsTotal > 0 || summary.checklists != null) StatChip(stringResource(R.string.stat_checklists), listsTotal)
-            }
+            DashboardStatGrid(
+                chips =
+                    buildList {
+                        if (notesTotal > 0 || summary.notes != null) add(stringResource(R.string.stat_notes) to notesTotal)
+                        if (listsTotal > 0 || summary.checklists != null) add(stringResource(R.string.stat_checklists) to listsTotal)
+                    },
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            )
 
             items?.let { i ->
                 DashboardBreakdown(
@@ -203,32 +210,38 @@ private fun DashboardBreakdown(
     chips: List<Pair<String, Int>>,
 ) {
     if (chips.isEmpty() && completionRate == null) return
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-        if (chips.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                chips.forEach { (label, value) -> StatChip(label, value) }
-            }
-        }
-        completionRate?.let { rate ->
-            LinearProgressIndicator(
-                progress = { (rate.coerceIn(0, 100)) / 100f },
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
-            )
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
             Text(
-                stringResource(R.string.dashboard_completion_format, rate),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            DashboardStatGrid(
+                chips = chips,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            )
+            completionRate?.let { rate ->
+                LinearProgressIndicator(
+                    progress = { (rate.coerceIn(0, 100)) / 100f },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                )
+                Text(
+                    stringResource(R.string.dashboard_completion_format, rate),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -240,16 +253,52 @@ private fun AdminOverviewCard(overview: AdminOverviewResponse) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = stringResource(R.string.dashboard_admin_section_title),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            DashboardStatGrid(
+                chips =
+                    buildList {
+                        overview.users?.let { add(stringResource(R.string.stat_users) to it) }
+                        overview.checklists?.let { add(stringResource(R.string.stat_checklists) to it) }
+                        overview.notes?.let { add(stringResource(R.string.stat_notes) to it) }
+                    },
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DashboardStatGrid(
+    chips: List<Pair<String, Int>>,
+    containerColor: Color,
+    contentColor: Color,
+) {
+    if (chips.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        chips.chunked(2).forEach { rowItems ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                overview.users?.let { StatChip(stringResource(R.string.stat_users), it) }
-                overview.checklists?.let { StatChip(stringResource(R.string.stat_checklists), it) }
-                overview.notes?.let { StatChip(stringResource(R.string.stat_notes), it) }
+                rowItems.forEach { (label, value) ->
+                    StatChip(
+                        label = label,
+                        value = value,
+                        modifier = Modifier.weight(1f),
+                        containerColor = containerColor,
+                        contentColor = contentColor,
+                    )
+                }
+                repeat(2 - rowItems.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
@@ -259,9 +308,21 @@ private fun AdminOverviewCard(overview: AdminOverviewResponse) {
 private fun StatChip(
     label: String,
     value: Int,
+    modifier: Modifier = Modifier,
+    containerColor: Color = Color.Transparent,
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("$value", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+    Surface(
+        modifier = modifier,
+        color = containerColor,
+        shape = MaterialTheme.shapes.small,
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            Text("$value", style = MaterialTheme.typography.titleMedium, color = contentColor)
+            Text(label, style = MaterialTheme.typography.labelSmall, color = contentColor.copy(alpha = 0.9f))
+        }
     }
 }

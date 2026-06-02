@@ -364,6 +364,8 @@
     <string name="dashboard_items_title">Checklist items</string>
     <string name="dashboard_tasks_title">Tasks</string>
     <string name="dashboard_completion_format">%1$d%% complete</string>
+    <string name="dashboard_personal_section_title">Your overview</string>
+    <string name="dashboard_admin_section_title">Server overview</string>
 
     <!-- Biometric passphrase protection -->
     <string name="biometric_prompt_title">Unlock passphrase</string>

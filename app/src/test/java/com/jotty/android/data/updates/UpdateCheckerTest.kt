@@ -70,6 +70,18 @@ class UpdateCheckerTest {
     }
 
     @Test
+    fun `commitFromDevReleaseBody parses Commit row in markdown table`() {
+        val body =
+            """
+            | Item | Link |
+            | --- | --- |
+            | Commit | [`abcdef0123456`](https://github.com/example/commit/abcdef0123456) |
+            | Run | [GitHub Actions run](https://github.com/example/actions/runs/1) |
+            """.trimIndent()
+        assertEquals("abcdef0123456", UpdateChecker.commitFromDevReleaseBody(body))
+    }
+
+    @Test
     fun `commitFromDevReleaseBody returns null for missing or malformed body`() {
         assertNull(UpdateChecker.commitFromDevReleaseBody(null))
         assertNull(UpdateChecker.commitFromDevReleaseBody(""))

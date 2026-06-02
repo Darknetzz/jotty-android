@@ -255,8 +255,16 @@ object UpdateChecker {
 
     internal fun commitFromDevReleaseBody(body: String?): String? {
         if (body.isNullOrBlank()) return null
-        val m = Regex("""(?m)^Commit:\s*([a-fA-F0-9]{7,40})\b""").find(body) ?: return null
-        return m.groupValues[1].lowercase()
+        val patterns =
+            listOf(
+                Regex("""(?m)^Commit:\s*([a-fA-F0-9]{7,40})\b"""),
+                Regex("""(?mi)^\|\s*Commit\s*\|\s*\[\s*([a-fA-F0-9]{7,40})\s*\]"""),
+                Regex("""(?mi)^\|\s*Commit\s*\|\s*([a-fA-F0-9]{7,40})\s*\|"""),
+            )
+        for (pattern in patterns) {
+            pattern.find(body)?.groupValues?.get(1)?.let { return it.lowercase() }
+        }
+        return null
     }
 
     internal fun localDevBuildMatchesRemote(

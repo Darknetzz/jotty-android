@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [1.4.0-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Dev update check** — Dev channel update checks again read the commit SHA from `dev-latest` release notes (plain `Commit:` line and markdown table format).
+
 ### Added
 
 - **Kanban status management** — Project/Kanban boards now include **Manage statuses** to add, edit, delete, recolor, and reorder columns using Jotty task status REST endpoints.

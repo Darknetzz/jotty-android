@@ -88,6 +88,9 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
                             add("rose" to R.string.theme_rose)
                             add("ocean" to R.string.theme_ocean)
                             add("forest" to R.string.theme_forest)
+                            add("lavender" to R.string.theme_lavender)
+                            add("sunset" to R.string.theme_sunset)
+                            add("graphite" to R.string.theme_graphite)
                         }.forEach { (value, labelRes) ->
                             FilterChip(
                                 selected = themeColor == value,
@@ -138,6 +141,7 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf(
+                            0.75f to R.string.text_size_xsmall,
                             0.85f to R.string.text_size_small,
                             1.0f to R.string.text_size_medium,
                             1.15f to R.string.text_size_large,

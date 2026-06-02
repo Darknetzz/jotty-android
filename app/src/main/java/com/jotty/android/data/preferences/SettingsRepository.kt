@@ -65,7 +65,7 @@ class SettingsRepository(
                 ?: migrateThemeModeFromLegacy(prefs[KEY_THEME])
         }.catch { emit(null) }
 
-    /** Theme color: "default", "amoled", "sepia", "midnight", "rose", "ocean", "forest". Default "default". */
+    /** Theme color: "default", "amoled", "sepia", "midnight", "rose", "ocean", "forest", "lavender", "sunset", "graphite". Default "default". */
     val themeColor: Flow<String> =
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_THEME_COLOR].takeIf { !it.isNullOrBlank() }
@@ -115,7 +115,7 @@ class SettingsRepository(
             prefs[KEY_CHECKLISTS_CATEGORY_FILTER].takeIf { !it.isNullOrBlank() }
         }.catch { emit(null) }
 
-    /** Reader text scale for note content: 0.85, 1.0, 1.15, 1.3. Default 1.0. */
+    /** Reader text scale for note content and editor: 0.75, 0.85, 1.0, 1.15, 1.3. Default 1.0. */
     val readerTextScale: Flow<Float> =
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_READER_TEXT_SCALE] ?: 1.0f

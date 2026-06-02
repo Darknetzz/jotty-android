@@ -198,8 +198,12 @@
     <string name="theme_rose">Rose</string>
     <string name="theme_ocean">Ocean</string>
     <string name="theme_forest">Forest</string>
+    <string name="theme_lavender">Lavender</string>
+    <string name="theme_sunset">Sunset</string>
+    <string name="theme_graphite">Graphite</string>
     <string name="theme_dynamic">Dynamic</string>
     <string name="reader_text_size">Reader text size</string>
+    <string name="text_size_xsmall">Extra small</string>
     <string name="text_size_small">Small</string>
     <string name="text_size_medium">Medium</string>
     <string name="text_size_large">Large</string>

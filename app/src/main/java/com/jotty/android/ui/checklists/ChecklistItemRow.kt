@@ -61,6 +61,7 @@ fun ChecklistItemRow(
     onMoveUp: (() -> Unit)? = null,
     onMoveDown: (() -> Unit)? = null,
     reorderableScope: ReorderableCollectionItemScope? = null,
+    onDragStarted: (() -> Unit)? = null,
     onDragStopped: (() -> Unit)? = null,
     actionIconSize: Dp = 48.dp,
     actionGlyphSize: Dp = 22.dp,
@@ -102,6 +103,7 @@ fun ChecklistItemRow(
                         Modifier
                             .size(actionIconSize)
                             .draggableHandle(
+                                onDragStarted = { onDragStarted?.invoke() },
                                 onDragStopped = { onDragStopped?.invoke() },
                             )
                     },

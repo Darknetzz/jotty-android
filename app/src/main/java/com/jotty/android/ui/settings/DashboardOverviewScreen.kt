@@ -4,7 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AdminPanelSettings
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -12,7 +16,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.R
@@ -146,9 +152,9 @@ private fun DashboardSummaryCard(summary: SummaryData) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(
+            SectionTitleRow(
                 text = stringResource(R.string.dashboard_personal_section_title),
-                style = MaterialTheme.typography.titleSmall,
+                icon = Icons.Default.Person,
             )
             summary.username?.let { u ->
                 Row(
@@ -162,6 +168,7 @@ private fun DashboardSummaryCard(summary: SummaryData) {
                     )
                     Text(u, style = MaterialTheme.typography.bodyMedium)
                 }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f))
             }
             DashboardStatGrid(
                 chips =
@@ -176,6 +183,7 @@ private fun DashboardSummaryCard(summary: SummaryData) {
             items?.let { i ->
                 DashboardBreakdown(
                     title = stringResource(R.string.dashboard_items_title),
+                    icon = Icons.Default.Checklist,
                     completionRate = i.completionRate,
                     chips =
                         buildList {
@@ -189,6 +197,7 @@ private fun DashboardSummaryCard(summary: SummaryData) {
             tasks?.let { t ->
                 DashboardBreakdown(
                     title = stringResource(R.string.dashboard_tasks_title),
+                    icon = Icons.Default.TaskAlt,
                     completionRate = t.completionRate,
                     chips =
                         buildList {
@@ -206,6 +215,7 @@ private fun DashboardSummaryCard(summary: SummaryData) {
 @Composable
 private fun DashboardBreakdown(
     title: String,
+    icon: ImageVector,
     completionRate: Int?,
     chips: List<Pair<String, Int>>,
 ) {
@@ -219,10 +229,12 @@ private fun DashboardBreakdown(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(
-                title,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            SectionTitleRow(
+                text = title,
+                icon = icon,
+                textStyle = MaterialTheme.typography.labelLarge,
+                textColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                iconTint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             DashboardStatGrid(
                 chips = chips,
@@ -256,9 +268,9 @@ private fun AdminOverviewCard(overview: AdminOverviewResponse) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(
+            SectionTitleRow(
                 text = stringResource(R.string.dashboard_admin_section_title),
-                style = MaterialTheme.typography.titleSmall,
+                icon = Icons.Default.AdminPanelSettings,
             )
             DashboardStatGrid(
                 chips =
@@ -271,6 +283,28 @@ private fun AdminOverviewCard(overview: AdminOverviewResponse) {
                 contentColor = MaterialTheme.colorScheme.onSurface,
             )
         }
+    }
+}
+
+@Composable
+private fun SectionTitleRow(
+    text: String,
+    icon: ImageVector,
+    textStyle: TextStyle = MaterialTheme.typography.titleSmall,
+    textColor: Color = MaterialTheme.colorScheme.onSurface,
+    iconTint: Color = MaterialTheme.colorScheme.primary,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = iconTint,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(text = text, style = textStyle, color = textColor)
     }
 }
 

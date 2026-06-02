@@ -91,6 +91,41 @@ data class ReorderItemsRequest(
     val isDropInto: Boolean? = null,
 )
 
+// ─── Task checklists (Kanban) ───────────────────────────────────────────────
+
+/** Kanban column definition for a task checklist. */
+data class TaskStatus(
+    val id: String,
+    val label: String,
+    val order: Int = 0,
+    val color: String? = null,
+)
+
+data class TaskStatusesResponse(val statuses: List<TaskStatus> = emptyList())
+
+data class UpdateTaskItemStatusRequest(val status: String)
+
+data class TaskResponse(val task: TaskChecklist)
+
+/** Task checklist as returned by `/api/tasks` (includes column definitions). */
+data class TaskChecklist(
+    val id: String,
+    val title: String,
+    val category: String = API_CATEGORY_UNCATEGORIZED,
+    val statuses: List<TaskStatus> = emptyList(),
+    val items: List<ChecklistItem> = emptyList(),
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+/** Default Kanban columns when the server does not return custom statuses. */
+val DEFAULT_TASK_STATUSES: List<TaskStatus> =
+    listOf(
+        TaskStatus(id = "todo", label = "To Do", order = 0),
+        TaskStatus(id = "in_progress", label = "In Progress", order = 1),
+        TaskStatus(id = "completed", label = "Completed", order = 2),
+    )
+
 // ─── Search ─────────────────────────────────────────────────────────────────
 
 data class SearchResponse(

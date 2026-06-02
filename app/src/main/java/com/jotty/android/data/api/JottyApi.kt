@@ -66,6 +66,23 @@ interface JottyApi {
         @Body body: ReorderItemsRequest,
     ): SuccessResponse
 
+    @GET("api/tasks/{taskId}")
+    suspend fun getTask(
+        @Path("taskId") taskId: String,
+    ): TaskResponse
+
+    @GET("api/tasks/{taskId}/statuses")
+    suspend fun getTaskStatuses(
+        @Path("taskId") taskId: String,
+    ): TaskStatusesResponse
+
+    @PUT("api/tasks/{taskId}/items/{itemIndex}/status")
+    suspend fun updateTaskItemStatus(
+        @Path("taskId") taskId: String,
+        @Path("itemIndex") itemIndex: String,
+        @Body body: UpdateTaskItemStatusRequest,
+    ): SuccessResponse
+
     @GET("api/search")
     suspend fun search(
         @Query("q") query: String,

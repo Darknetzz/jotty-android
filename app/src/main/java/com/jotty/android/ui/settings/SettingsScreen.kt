@@ -86,6 +86,7 @@ fun SettingsScreen(
     var isExportingLogs by remember { mutableStateOf(false) }
     var pendingLogFile by remember { mutableStateOf<File?>(null) }
     val logSavedPickerMsg = stringResource(R.string.export_debug_logs_saved_picker)
+    val logSavedDownloadsFormat = stringResource(R.string.export_debug_logs_saved_downloads)
     val logSaveFailedMsg = stringResource(R.string.export_debug_logs_save_failed)
     val saveLogLauncher =
         rememberLauncherForActivityResult(
@@ -321,8 +322,9 @@ fun SettingsScreen(
                                                         ) {
                                                             is DebugLogExporter.SaveResult.Saved ->
                                                                 snackbarHostState.showSnackbar(
-                                                                    context.getString(
-                                                                        R.string.export_debug_logs_saved_downloads,
+                                                                    String.format(
+                                                                        Locale.getDefault(),
+                                                                        logSavedDownloadsFormat,
                                                                         saveResult.displayName,
                                                                     ),
                                                                 )

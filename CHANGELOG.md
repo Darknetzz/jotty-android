@@ -84,6 +84,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **CI release parity check** — CI assembles the release variant to catch release-only build issues earlier.
 - **Bottom-tab safe area in reduced motion** — Low-motion bottom tab bar respects system navigation insets.
 - **Checklist card title taps** — Tapping a checklist title opens the checklist (long-press still opens the row menu).
+- **Export debug logs snackbar** — Fixed Compose lint failure when showing the Downloads save confirmation.
 
 ### Documentation
 

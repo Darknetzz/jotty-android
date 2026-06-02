@@ -64,6 +64,11 @@
     <string name="add_sub_task">Add sub-task</string>
     <string name="delete_task">Delete task</string>
     <string name="project_label">Project</string>
+    <string name="kanban_board">Kanban board</string>
+    <string name="kanban_no_tasks">No tasks in this column</string>
+    <string name="kanban_move_to">Move to %1$s</string>
+    <string name="kanban_subtasks_count">%1$d sub-task(s)</string>
+    <string name="kanban_not_supported_fallback">Kanban columns are not available on this server yet. Showing checklist view instead.</string>
     <string name="done_progress">%1$d / %2$d done</string>
     <string name="progress_fraction">%1$d / %2$d</string>
     <string name="section_to_do">• To Do (%1$d)</string>

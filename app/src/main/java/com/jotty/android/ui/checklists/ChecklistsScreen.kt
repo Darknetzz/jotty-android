@@ -36,8 +36,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.DEFAULT_TASK_STATUSES
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.api.TaskStatus
 import com.jotty.android.data.api.UpdateChecklistRequest
+import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
@@ -52,11 +55,13 @@ import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.util.buildKanbanColumns
 import com.jotty.android.util.moveChecklistItemDownRequest
 import com.jotty.android.util.moveChecklistItemUpRequest
 import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -419,6 +424,8 @@ private fun ChecklistDetailScreen(
     var showRenameDialog by remember { mutableStateOf(false) }
     var newItemText by remember { mutableStateOf("") }
     var editingItemKey by remember(checklist.id) { mutableStateOf<String?>(null) }
+    var taskStatuses by remember(checklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
+    var canUseKanbanBoard by remember(checklist.id) { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(checklist.id, checklist.title, checklist.items) {
@@ -439,6 +446,33 @@ private fun ChecklistDetailScreen(
                 onSaveFailed()
             }
         }
+    }
+
+    val isProject =
+        checklist.type.equals("project", ignoreCase = true) ||
+            checklist.type.equals("task", ignoreCase = true)
+
+    fun refreshTaskStatuses() {
+        if (!isProject) return
+        scope.launch {
+            try {
+                val statuses = api.getTaskStatuses(checklist.id).statuses.sortedBy { it.order }
+                taskStatuses = if (statuses.isNotEmpty()) statuses else DEFAULT_TASK_STATUSES
+                canUseKanbanBoard = true
+            } catch (e: Exception) {
+                if (e is HttpException && e.code() in setOf(404, 405)) {
+                    canUseKanbanBoard = false
+                    return@launch
+                }
+                canUseKanbanBoard = false
+            }
+        }
+    }
+
+    LaunchedEffect(checklist.id, isProject) {
+        taskStatuses = DEFAULT_TASK_STATUSES
+        canUseKanbanBoard = true
+        if (isProject) refreshTaskStatuses()
     }
 
     if (showRenameDialog) {
@@ -512,9 +546,6 @@ private fun ChecklistDetailScreen(
             }
         }
 
-        val isProject =
-            checklist.type.equals("project", ignoreCase = true) ||
-                checklist.type.equals("task", ignoreCase = true)
         val flatItems =
             remember(items, isProject) {
                 if (isProject) {
@@ -557,99 +588,139 @@ private fun ChecklistDetailScreen(
             }
         }
 
-        ChecklistDetailItemsList(
-            treeItems = items,
-            toDo = toDo,
-            completed = completed,
-            doneCount = doneCount,
-            total = total,
-            dragReorderEnabled = dragReorderEnabled,
-            onReorder = ::applyDragReorder,
-        ) { flat, reorderableScope, _ ->
-            ChecklistDetailItemRow(
-                flat = flat,
-                editingItemKey = editingItemKey,
-                onEditingItemKeyChange = { editingItemKey = it },
-                isProject = isProject,
-                reorderableScope = reorderableScope,
-                onCheck = {
+        if (isProject && canUseKanbanBoard) {
+            val columns = remember(items, taskStatuses) { buildKanbanColumns(items = items, statuses = taskStatuses) }
+            Text(
+                text = stringResource(R.string.kanban_board),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            TaskKanbanBoard(
+                columns = columns,
+                allStatuses = taskStatuses,
+                moveEnabled = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                onMoveItem = { apiPath, newStatusId ->
                     scope.launch {
                         try {
-                            api.checkItem(checklist.id, flat.apiPath)
-                            refresh()
-                        } catch (_: Exception) {
-                            onSaveFailed()
-                        }
-                    }
-                },
-                onUncheck = {
-                    scope.launch {
-                        try {
-                            api.uncheckItem(checklist.id, flat.apiPath)
-                            refresh()
-                        } catch (_: Exception) {
-                            onSaveFailed()
-                        }
-                    }
-                },
-                onDelete = {
-                    scope.launch {
-                        try {
-                            api.deleteItem(checklist.id, flat.apiPath)
-                            refresh()
-                        } catch (_: Exception) {
-                            onDeleteFailed()
-                        }
-                    }
-                },
-                onUpdate = { text ->
-                    scope.launch {
-                        try {
-                            updateChecklistItemText(
-                                api = api,
-                                listId = checklist.id,
-                                path = flat.apiPath,
-                                text = text,
-                                items = items,
+                            api.updateTaskItemStatus(
+                                taskId = checklist.id,
+                                itemIndex = apiPath,
+                                body = UpdateTaskItemStatusRequest(status = newStatusId),
                             )
                             refresh()
-                        } catch (e: UnsupportedOperationException) {
-                            onRenameUnsupported()
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            if (e is HttpException && e.code() in setOf(404, 405)) {
+                                canUseKanbanBoard = false
+                            }
                             onSaveFailed()
                         }
                     }
                 },
-                onMoveUp =
-                    flat.item.id?.let { itemId ->
-                        moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
-                    },
-                onMoveDown =
-                    flat.item.id?.let { itemId ->
-                        moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
-                    },
-                onAddSubItem =
-                    if (isProject && flat.depth == 0) {
-                        {
-                            scope.launch {
-                                try {
-                                    api.addChecklistItem(
-                                        checklist.id,
-                                        com.jotty.android.data.api.AddItemRequest(
-                                            text = "",
-                                            parentIndex = flat.apiPath,
-                                        ),
-                                    )
-                                    refresh()
-                                } catch (_: Exception) {
-                                    onSaveFailed()
-                                }
+            )
+        } else {
+            if (isProject && !canUseKanbanBoard) {
+                Text(
+                    text = stringResource(R.string.kanban_not_supported_fallback),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+            ChecklistDetailItemsList(
+                treeItems = items,
+                toDo = toDo,
+                completed = completed,
+                doneCount = doneCount,
+                total = total,
+                dragReorderEnabled = dragReorderEnabled,
+                onReorder = ::applyDragReorder,
+            ) { flat, reorderableScope, _ ->
+                ChecklistDetailItemRow(
+                    flat = flat,
+                    editingItemKey = editingItemKey,
+                    onEditingItemKeyChange = { editingItemKey = it },
+                    isProject = isProject,
+                    reorderableScope = reorderableScope,
+                    onCheck = {
+                        scope.launch {
+                            try {
+                                api.checkItem(checklist.id, flat.apiPath)
+                                refresh()
+                            } catch (_: Exception) {
+                                onSaveFailed()
                             }
                         }
-                    } else {
-                        null
                     },
-            )
+                    onUncheck = {
+                        scope.launch {
+                            try {
+                                api.uncheckItem(checklist.id, flat.apiPath)
+                                refresh()
+                            } catch (_: Exception) {
+                                onSaveFailed()
+                            }
+                        }
+                    },
+                    onDelete = {
+                        scope.launch {
+                            try {
+                                api.deleteItem(checklist.id, flat.apiPath)
+                                refresh()
+                            } catch (_: Exception) {
+                                onDeleteFailed()
+                            }
+                        }
+                    },
+                    onUpdate = { text ->
+                        scope.launch {
+                            try {
+                                updateChecklistItemText(
+                                    api = api,
+                                    listId = checklist.id,
+                                    path = flat.apiPath,
+                                    text = text,
+                                    items = items,
+                                )
+                                refresh()
+                            } catch (e: UnsupportedOperationException) {
+                                onRenameUnsupported()
+                            } catch (_: Exception) {
+                                onSaveFailed()
+                            }
+                        }
+                    },
+                    onMoveUp =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
+                        },
+                    onMoveDown =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
+                        },
+                    onAddSubItem =
+                        if (isProject && flat.depth == 0) {
+                            {
+                                scope.launch {
+                                    try {
+                                        api.addChecklistItem(
+                                            checklist.id,
+                                            com.jotty.android.data.api.AddItemRequest(
+                                                text = "",
+                                                parentIndex = flat.apiPath,
+                                            ),
+                                        )
+                                        refresh()
+                                    } catch (_: Exception) {
+                                        onSaveFailed()
+                                    }
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                )
+            }
         }
     }
 }

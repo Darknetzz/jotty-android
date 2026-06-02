@@ -43,7 +43,6 @@ import com.jotty.android.R
 import com.jotty.android.data.api.TaskStatus
 import com.jotty.android.util.KanbanCard
 import com.jotty.android.util.KanbanColumn
-import com.jotty.android.util.parseHexColorOrNull
 
 private val ColumnWidth = 280.dp
 private val BoardHeight = 420.dp

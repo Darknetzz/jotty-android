@@ -42,7 +42,8 @@ class XChaCha20EncryptorTest {
         val passphrase = "my secure passphrase 123"
         val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphrase)
         assertNotNull(encrypted)
-        val decrypted = XChaCha20Decryptor.decrypt(encrypted!!, passphrase)
+        assertTrue("JSON should include Argon2 params for decrypt compatibility", encrypted!!.contains("\"m\":") && encrypted.contains("\"t\":"))
+        val decrypted = XChaCha20Decryptor.decrypt(encrypted, passphrase)
         assertNotNull(decrypted)
         assertEquals(plaintext, decrypted)
     }

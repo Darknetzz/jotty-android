@@ -9,6 +9,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Fixed
 
 - **Manage statuses layout** — Status title fields in the Kanban dialog no longer collapse when color swatches are shown; colors sit on their own row below the title.
+- **Manage statuses colors** — Selected status color shows a larger swatch, primary ring, and checkmark so the current choice is easier to see.
 - **Dev update check** — Dev channel update checks again read the commit SHA from `dev-latest` release notes (plain `Commit:` line or markdown table).
 
 ### Added

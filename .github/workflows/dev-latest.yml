@@ -110,6 +110,7 @@ jobs:
           name: Dev Latest
           body: |
             Rolling pre-release build from `dev`.
+            ⚠️ This preview build may contain unstable or breaking bugs.
 
             | Item | Link |
             | --- | --- |

@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.jotty.android.ui.theme.DEFAULT_CUSTOM_ACCENT_HEX
+import com.jotty.android.ui.theme.normalizeThemeAccentHex
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -65,13 +67,26 @@ class SettingsRepository(
                 ?: migrateThemeModeFromLegacy(prefs[KEY_THEME])
         }.catch { emit(null) }
 
-    /** Theme color: "default", "amoled", "sepia", "midnight", "rose", "ocean", "forest", "lavender", "sunset", "graphite". Default "default". */
+    /** Theme color: preset id or "custom". Default "default". */
     val themeColor: Flow<String> =
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_THEME_COLOR].takeIf { !it.isNullOrBlank() }
                 ?: migrateThemeColorFromLegacy(prefs[KEY_THEME])
                 ?: "default"
         }.catch { emit("default") }
+
+    /** Custom accent `#RRGGBB` when [themeColor] is "custom". Default [DEFAULT_CUSTOM_ACCENT_HEX]. */
+    val themeCustomAccentHex: Flow<String> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_THEME_CUSTOM_ACCENT]?.takeIf { !it.isNullOrBlank() }
+                ?: DEFAULT_CUSTOM_ACCENT_HEX
+        }.catch { emit(DEFAULT_CUSTOM_ACCENT_HEX) }
+
+    /** Tint background/surface with the custom accent (vs neutral gray bases). Default false. */
+    val themeCustomTintedBackgrounds: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_THEME_CUSTOM_TINTED] ?: false
+        }.catch { emit(false) }
 
     /** Start tab: "checklists", "notes", "settings". Default checklists. */
     val startTab: Flow<String?> =
@@ -234,6 +249,24 @@ class SettingsRepository(
     suspend fun setThemeColor(value: String) {
         context.jottySettingsDataStore.edit {
             if (value == "default") it.remove(KEY_THEME_COLOR) else it[KEY_THEME_COLOR] = value
+        }
+    }
+
+    suspend fun setThemeCustomAccentHex(hex: String) {
+        val normalized = normalizeThemeAccentHex(hex) ?: DEFAULT_CUSTOM_ACCENT_HEX
+        context.jottySettingsDataStore.edit {
+            if (normalized == DEFAULT_CUSTOM_ACCENT_HEX) {
+                it.remove(KEY_THEME_CUSTOM_ACCENT)
+            } else {
+                it[KEY_THEME_CUSTOM_ACCENT] = normalized
+            }
+            it[KEY_THEME_COLOR] = "custom"
+        }
+    }
+
+    suspend fun setThemeCustomTintedBackgrounds(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it[KEY_THEME_CUSTOM_TINTED] = true else it.remove(KEY_THEME_CUSTOM_TINTED)
         }
     }
 
@@ -418,6 +451,8 @@ class SettingsRepository(
         private val KEY_THEME = stringPreferencesKey("theme")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_THEME_COLOR = stringPreferencesKey("theme_color")
+        private val KEY_THEME_CUSTOM_ACCENT = stringPreferencesKey("theme_custom_accent")
+        private val KEY_THEME_CUSTOM_TINTED = booleanPreferencesKey("theme_custom_tinted")
 
         private fun migrateThemeModeFromLegacy(oldTheme: String?): String? {
             if (oldTheme.isNullOrBlank()) return null

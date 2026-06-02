@@ -13,6 +13,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.R
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.ui.theme.DEFAULT_CUSTOM_ACCENT_HEX
 import kotlinx.coroutines.launch
 
 @Composable
@@ -20,6 +21,12 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
     val scope = rememberCoroutineScope()
     val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = null)
     val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
+    val themeCustomAccentHex by settingsRepository.themeCustomAccentHex.collectAsStateWithLifecycle(
+        initialValue = DEFAULT_CUSTOM_ACCENT_HEX,
+    )
+    val themeCustomTintedBackgrounds by settingsRepository.themeCustomTintedBackgrounds.collectAsStateWithLifecycle(
+        initialValue = false,
+    )
     val readerTextScale by settingsRepository.readerTextScale.collectAsStateWithLifecycle(initialValue = 1.0f)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val reducedMotionMode by settingsRepository.reducedMotionMode.collectAsStateWithLifecycle(initialValue = null)
@@ -91,6 +98,7 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
                             add("lavender" to R.string.theme_lavender)
                             add("sunset" to R.string.theme_sunset)
                             add("graphite" to R.string.theme_graphite)
+                            add("custom" to R.string.theme_custom)
                         }.forEach { (value, labelRes) ->
                             FilterChip(
                                 selected = themeColor == value,
@@ -100,6 +108,18 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
                                     }
                                 },
                                 label = { Text(stringResource(labelRes)) },
+                            )
+                        }
+                        if (themeColor == "custom") {
+                            CustomThemeColorSection(
+                                accentHex = themeCustomAccentHex,
+                                tintedBackgrounds = themeCustomTintedBackgrounds,
+                                onAccentHexChange = { hex ->
+                                    scope.launch { settingsRepository.setThemeCustomAccentHex(hex) }
+                                },
+                                onTintedBackgroundsChange = { tinted ->
+                                    scope.launch { settingsRepository.setThemeCustomTintedBackgrounds(tinted) }
+                                },
                             )
                         }
                     }

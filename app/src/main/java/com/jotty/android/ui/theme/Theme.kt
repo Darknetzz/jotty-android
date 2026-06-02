@@ -336,6 +336,8 @@ private val GraphiteDarkColorScheme =
 fun JottyTheme(
     themeMode: String? = null,
     themeColor: String = "default",
+    themeCustomAccentHex: String = DEFAULT_CUSTOM_ACCENT_HEX,
+    themeCustomTintedBackgrounds: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val systemDark = isSystemInDarkTheme()
@@ -363,6 +365,10 @@ fun JottyTheme(
             "lavender" -> if (dark) LavenderDarkColorScheme else LavenderColorScheme
             "sunset" -> if (dark) SunsetDarkColorScheme else SunsetColorScheme
             "graphite" -> if (dark) GraphiteDarkColorScheme else GraphiteColorScheme
+            "custom" -> {
+                val accent = resolveCustomAccentColor(themeCustomAccentHex)
+                customColorScheme(accent, dark = dark, tintedBackgrounds = themeCustomTintedBackgrounds)
+            }
             else -> if (dark) DarkColorScheme else LightColorScheme
         }
 

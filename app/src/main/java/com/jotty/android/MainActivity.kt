@@ -16,6 +16,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.ui.JottyAppContent
 import com.jotty.android.ui.common.ProvideReducedMotion
 import com.jotty.android.ui.notes.LocalReaderTextScale
+import com.jotty.android.ui.theme.DEFAULT_CUSTOM_ACCENT_HEX
 import com.jotty.android.ui.theme.JottyTheme
 
 class MainActivity : FragmentActivity() {
@@ -34,8 +35,19 @@ class MainActivity : FragmentActivity() {
             val settingsRepository = (applicationContext as JottyApp).settingsRepository
             val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = null)
             val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
+            val themeCustomAccentHex by settingsRepository.themeCustomAccentHex.collectAsStateWithLifecycle(
+                initialValue = DEFAULT_CUSTOM_ACCENT_HEX,
+            )
+            val themeCustomTintedBackgrounds by settingsRepository.themeCustomTintedBackgrounds.collectAsStateWithLifecycle(
+                initialValue = false,
+            )
             val readerTextScale by settingsRepository.readerTextScale.collectAsStateWithLifecycle(initialValue = 1.0f)
-            JottyTheme(themeMode = themeMode, themeColor = themeColor) {
+            JottyTheme(
+                themeMode = themeMode,
+                themeColor = themeColor,
+                themeCustomAccentHex = themeCustomAccentHex,
+                themeCustomTintedBackgrounds = themeCustomTintedBackgrounds,
+            ) {
                 ProvideReducedMotion(settingsRepository = settingsRepository) {
                     CompositionLocalProvider(LocalReaderTextScale provides readerTextScale) {
                         Surface(

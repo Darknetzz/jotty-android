@@ -11,6 +11,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Smarter note editor lists** — Pressing Enter on a bullet, numbered, task, or quote line continues the same prefix; Enter on an empty list item exits the list. Toolbar list/checkbox actions toggle off when tapped again on the same line.
 - **Note editor text size** — Settings → Appearance → **Reader text size** now also scales the note editor; added **Extra small** option.
 - **Color themes** — Settings → Appearance adds **Lavender**, **Sunset**, and **Graphite** palettes (each with light and dark variants).
+- **Custom accent color** — Settings → Appearance → **Custom** lets you pick an accent from swatches or a `#RRGGBB` hex value, with **Neutral** or **Tinted** background styles.
 - **Unified search API** — Notes search (online) uses Jotty’s new `GET /api/search` when the query is at least two characters, with relevance ranking and fallback to `GET /api/notes?q=` on older servers.
 - **Checklist item reorder ([#29](https://github.com/Darknetzz/jotty-android/issues/29))** — Up/down controls on each checklist row call `PUT /api/checklists/{id}/items/reorder`; works offline with sync replay.
 - **Checklist item PATCH** — Inline item edits use `PATCH /api/checklists/{id}/items/{index}` instead of delete-and-recreate, including parent/project rows with children.

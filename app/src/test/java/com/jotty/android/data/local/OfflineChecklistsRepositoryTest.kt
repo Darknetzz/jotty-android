@@ -15,14 +15,22 @@ import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.ChecklistsResponse
 import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.CreateNoteRequest
+import com.jotty.android.data.api.CreateTaskStatusRequest
+import com.jotty.android.data.api.DEFAULT_TASK_STATUSES
 import com.jotty.android.data.api.HealthResponse
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.NotesResponse
 import com.jotty.android.data.api.SuccessResponse
 import com.jotty.android.data.api.SummaryResponse
+import com.jotty.android.data.api.TaskChecklist
+import com.jotty.android.data.api.TaskResponse
+import com.jotty.android.data.api.TaskStatus
+import com.jotty.android.data.api.TaskStatusesResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateNoteRequest
+import com.jotty.android.data.api.UpdateTaskItemStatusRequest
+import com.jotty.android.data.api.UpdateTaskStatusRequest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
@@ -1005,4 +1013,51 @@ private class FakeChecklistApi(
     override suspend fun getAdminOverview(): AdminOverviewResponse = AdminOverviewResponse()
 
     override suspend fun getSummary(): SummaryResponse = SummaryResponse()
+
+    override suspend fun getTask(taskId: String): TaskResponse =
+        TaskResponse(
+            TaskChecklist(
+                id = taskId,
+                title = "",
+                items = emptyList(),
+                createdAt = "",
+                updatedAt = "",
+            ),
+        )
+
+    override suspend fun getTaskStatuses(taskId: String): TaskStatusesResponse =
+        TaskStatusesResponse(DEFAULT_TASK_STATUSES)
+
+    override suspend fun createTaskStatus(
+        taskId: String,
+        body: CreateTaskStatusRequest,
+    ): ApiResponse<TaskStatus> =
+        ApiResponse(
+            true,
+            TaskStatus(
+                id = body.id,
+                label = body.label,
+                order = body.order ?: 0,
+                color = body.color,
+                autoComplete = body.autoComplete,
+            ),
+        )
+
+    override suspend fun updateTaskStatus(
+        taskId: String,
+        statusId: String,
+        body: UpdateTaskStatusRequest,
+    ): ApiResponse<TaskStatus> =
+        ApiResponse(true, DEFAULT_TASK_STATUSES.first { it.id == statusId })
+
+    override suspend fun deleteTaskStatus(
+        taskId: String,
+        statusId: String,
+    ): SuccessResponse = SuccessResponse(true)
+
+    override suspend fun updateTaskItemStatus(
+        taskId: String,
+        itemIndex: String,
+        body: UpdateTaskItemStatusRequest,
+    ): SuccessResponse = SuccessResponse(true)
 }

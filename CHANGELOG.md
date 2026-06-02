@@ -18,9 +18,6 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Kanban delete task** — Kanban cards include a delete action (with confirmation) using the same checklist item API as list view.
 - **Encrypted note session UI** — Decrypted notes show a **Decrypted** indicator, **Lock note** to hide content again, and stale session cache clears when server ciphertext changes.
 - **Server PATCH compatibility** — Dismissible banner on checklist detail when the server lacks item PATCH; see [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md).
-
-### Added
-
 - **Kanban status management** — Project/Kanban boards now include **Manage statuses** to add, edit, delete, recolor, and reorder columns using Jotty task status REST endpoints.
 - **Kanban move menu status dots** — “Move to …” actions on Kanban cards show a colored dot matching the target column status.
 - **Checklist type badge** — Checklist cards now show whether each item is a **Checklist** or **Project / Kanban**.

@@ -320,8 +320,6 @@
     <string name="disconnect_description">Switch to another instance (this one is saved)</string>
     <string name="about">About</string>
     <string name="about_description">Version, source code, and more</string>
-    <string name="jotty_footer">Jotty Android • Connects to self-hosted Jotty servers</string>
-
     <!-- About dialog -->
     <string name="about_jotty_android">About Jotty Android</string>
     <string name="about_tagline">Android client for Jotty — self-hosted checklists and notes.</string>

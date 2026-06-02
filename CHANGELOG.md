@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Changed
+
+- **Settings** — Removed the footer tagline below About (version and app info remain in the About dialog).
+
 ### Added
 
 - **Hide empty Kanban columns** — Settings → Behavior toggle to hide status columns with no tasks on project boards.

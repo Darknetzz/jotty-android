@@ -544,12 +544,6 @@ fun SettingsScreen(
                 }
 
                 Spacer(modifier = Modifier.height(32.dp))
-
-                Text(
-                    stringResource(R.string.jotty_footer),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
             }
             SnackbarHost(
                 hostState = snackbarHostState,

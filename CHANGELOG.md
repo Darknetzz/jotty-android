@@ -30,6 +30,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Top-bar sync status** — Notes and Checklists show only the cloud icon in the app bar (next to refresh); tap it for last sync time, duration, and errors.
 - **Top-bar sync icon colors** — Sync status cloud icon now uses fixed semantic colors: green for healthy sync state and red when offline/failed, independent of appearance theme.
 - **Checklist type badge styling** — Type badges now use distinct colors for **Checklist** vs **Project / Kanban** for faster visual scanning.
 - **Motion effects opt-in** — Cross-fade, list/detail fade-in, shimmer skeletons, and animated bottom tabs are now off by default. Settings → Appearance → **Motion effects** can turn them on, or choose **System** to follow the device accessibility setting. Bottom-tab navigation no longer uses Navigation Compose’s default cross-fade when motion is off.

@@ -36,7 +36,6 @@ import com.jotty.android.ui.common.navPopEnterTransition
 import com.jotty.android.ui.common.navPopExitTransition
 import com.jotty.android.ui.common.LocalMainTabTopBarController
 import com.jotty.android.ui.common.MainTabTopBarActions
-import com.jotty.android.ui.common.MainTabTopBarSyncSlot
 import com.jotty.android.ui.common.ProvideMainTabTopBarController
 import com.jotty.android.ui.notes.OfflineNotesScreen
 import com.jotty.android.ui.settings.AppearanceSettingsScreen
@@ -173,25 +172,7 @@ fun MainScreen(
             topBar = {
                 if (suppressMainTopBar) return@Scaffold
                 TopAppBar(
-                    title = {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(stringResource(titleRes))
-                            val barState = tabTopBarState
-                            if (barState != null && barState.showSyncStatus) {
-                                Spacer(modifier = Modifier.weight(1f))
-                                MainTabTopBarSyncSlot(
-                                    isOnline = barState.isOnline,
-                                    isSyncing = barState.isSyncing,
-                                    lastSyncAttemptEpochMs = barState.lastSyncAttemptEpochMs,
-                                    lastSyncDurationText = barState.lastSyncDurationText,
-                                    lastSyncError = barState.lastSyncError,
-                                )
-                            }
-                        }
-                    },
+                    title = { Text(stringResource(titleRes)) },
                     navigationIcon = {
                         if (
                             currentRoute == ROUTE_MANAGE_INSTANCES ||

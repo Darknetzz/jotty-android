@@ -11,7 +11,6 @@ fun ChecklistDetailItemRow(
     flat: ChecklistFlatItem,
     editingItemKey: String?,
     onEditingItemKeyChange: (String?) -> Unit,
-    depth: Int,
     isProject: Boolean,
     reorderableScope: ReorderableCollectionItemScope?,
     onCheck: () -> Unit,

@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.TaskStatus
+import com.jotty.android.data.api.effectiveColorHex
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.util.KanbanCard
@@ -86,7 +87,6 @@ private fun KanbanStatusColumn(
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
     onDeleteItem: (apiPath: String) -> Unit,
 ) {
-    val accent = parseHexColorOrNull(column.status.color) ?: MaterialTheme.colorScheme.primary
     Column(
         modifier =
             Modifier
@@ -101,7 +101,7 @@ private fun KanbanStatusColumn(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             KanbanStatusDot(
-                colorHex = column.status.color,
+                colorHex = column.status.effectiveColorHex(),
                 modifier = Modifier.padding(end = 8.dp),
             )
             Text(
@@ -258,7 +258,7 @@ private fun KanbanMoveMenuLabel(status: TaskStatus) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        KanbanStatusDot(colorHex = status.color)
+        KanbanStatusDot(colorHex = status.effectiveColorHex())
         Text(
             text = stringResource(R.string.kanban_move_to, status.label),
             maxLines = 1,
@@ -267,10 +267,11 @@ private fun KanbanMoveMenuLabel(status: TaskStatus) {
     }
 }
 
-/** Parses `#RRGGBB` or `#AARRGGBB` for status column accent dots. */
+/** Parses `#RRGGBB`, `#AARRGGBB`, or bare `RRGGBB` for status column accent dots. */
 fun parseHexColorOrNull(hex: String?): Color? {
-    if (hex.isNullOrBlank() || !hex.startsWith("#")) return null
-    val raw = hex.removePrefix("#")
+    val trimmed = hex?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    val normalized = if (trimmed.startsWith("#")) trimmed else "#$trimmed"
+    val raw = normalized.removePrefix("#")
     return runCatching {
         when (raw.length) {
             6 -> {

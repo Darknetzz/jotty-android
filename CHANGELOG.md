@@ -55,6 +55,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Kanban status colors** — Column dots and move-menu swatches show default accents when the server omits `color` on standard columns (grey / blue / green for To Do, In Progress, Completed).
 - **Manage statuses layout** — Status title fields in the Kanban dialog no longer collapse when color swatches are shown; colors sit on their own row below the title.
 - **Manage statuses colors** — Selected status color shows a larger swatch, primary ring, and checkmark.
 - **Dev update check** — Dev channel update checks read the commit SHA from `dev-latest` release notes (plain `Commit:` line or markdown table).

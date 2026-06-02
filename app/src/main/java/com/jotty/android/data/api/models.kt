@@ -134,12 +134,41 @@ data class TaskChecklist(
     val updatedAt: String,
 )
 
+/** Default accent colors when the server omits `color` (matches manage-statuses palette). */
+private val KANBAN_STATUS_COLORS_BY_ID: Map<String, String> =
+    mapOf(
+        "todo" to "#6b7280",
+        "in_progress" to "#3b82f6",
+        "completed" to "#10b981",
+        "done" to "#10b981",
+        "paused" to "#f59e0b",
+    )
+
+private val KANBAN_STATUS_COLOR_FALLBACKS: List<String> =
+    listOf(
+        "#6b7280",
+        "#3b82f6",
+        "#10b981",
+        "#f59e0b",
+        "#ef4444",
+        "#8b5cf6",
+        "#ec4899",
+    )
+
+/** Hex color for Kanban dots when [color] is null or blank (Jotty API often omits it on default columns). */
+fun TaskStatus.effectiveColorHex(): String {
+    color?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
+    KANBAN_STATUS_COLORS_BY_ID[id.lowercase()]?.let { return it }
+    val index = order.coerceAtLeast(0) % KANBAN_STATUS_COLOR_FALLBACKS.size
+    return KANBAN_STATUS_COLOR_FALLBACKS[index]
+}
+
 /** Default Kanban columns when the server does not return custom statuses. */
 val DEFAULT_TASK_STATUSES: List<TaskStatus> =
     listOf(
-        TaskStatus(id = "todo", label = "To Do", order = 0),
-        TaskStatus(id = "in_progress", label = "In Progress", order = 1),
-        TaskStatus(id = "completed", label = "Completed", order = 2),
+        TaskStatus(id = "todo", label = "To Do", order = 0, color = KANBAN_STATUS_COLORS_BY_ID["todo"]),
+        TaskStatus(id = "in_progress", label = "In Progress", order = 1, color = KANBAN_STATUS_COLORS_BY_ID["in_progress"]),
+        TaskStatus(id = "completed", label = "Completed", order = 2, color = KANBAN_STATUS_COLORS_BY_ID["completed"]),
     )
 
 // ─── Search ─────────────────────────────────────────────────────────────────

@@ -72,7 +72,7 @@ Release scripts (two steps):
 | **1. Prep** (version + changelog) | `.\release.ps1` | `./release.sh` |
 | **2. Publish** (push, PR, merge, GitHub release) | `.\scripts\publish-release.ps1` | `./scripts/publish-release.sh` |
 
-**Prep** prompts for a version (default: current patch + 1), increments `VERSION_CODE`, and promotes the top `CHANGELOG.md` `[VERSION-dev]` section to a dated stable entry, leaving a fresh `[new-version-dev]` header for [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest).
+**Prep** prompts for a version (default: current patch + 1), increments `VERSION_CODE`, and promotes the top `CHANGELOG.md` `[dev-latest]` section to a dated stable entry, leaving a fresh `[dev-latest]` header for the rolling [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release.
 
 **Publish** requires a clean `dev` branch, `gh` CLI logged in, and committed prep. It pushes `dev`, opens (or reuses) **`dev` → `main`**, merges the PR, and runs **`gh release create vX.Y.Z`** on `main` (notes from the new changelog section). That publish step triggers [release-apk.yml](.github/workflows/release-apk.yml) to attach the APK.
 

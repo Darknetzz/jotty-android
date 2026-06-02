@@ -92,7 +92,7 @@ NEXT_CODE=$((CURRENT_CODE + 1))
 if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "[DryRun] Would set VERSION_NAME=$VERSION"
   echo "[DryRun] Would increment VERSION_CODE $CURRENT_CODE -> $NEXT_CODE"
-  echo "[DryRun] Would promote changelog [${CURRENT_VERSION_NAME}-dev] to [$VERSION] ($DATE)"
+  echo "[DryRun] Would promote CHANGELOG [dev-latest] to [$VERSION] ($DATE) and reset [dev-latest]"
   exit 0
 fi
 
@@ -100,46 +100,56 @@ sed -i.bak -E "s/^VERSION_NAME=.*/VERSION_NAME=${VERSION}/" "$GRADLE_FILE"
 sed -i.bak -E "s/^VERSION_CODE=.*/VERSION_CODE=${NEXT_CODE}/" "$GRADLE_FILE"
 rm -f "${GRADLE_FILE}.bak"
 
-if grep -q "^## \[${VERSION}\]" "$CHANGELOG_FILE"; then
+if grep -q "^## \\[${VERSION}\\]" "$CHANGELOG_FILE"; then
   echo "CHANGELOG.md already contains version ${VERSION}" >&2
   exit 1
 fi
 
 DEV_LATEST_URL="https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest"
-CURRENT_DEV_SECTION="## [${CURRENT_VERSION_NAME}-dev]"
 
-if grep -qF "$CURRENT_DEV_SECTION" "$CHANGELOG_FILE"; then
-  python3 - "$CHANGELOG_FILE" "$VERSION" "$DATE" "$CURRENT_VERSION_NAME" "$DEV_LATEST_URL" <<'PY'
+python3 - "$CHANGELOG_FILE" "$VERSION" "$DATE" "$DEV_LATEST_URL" <<'PY'
 import re
 import sys
 
-path, version, date, current, dev_latest_url = sys.argv[1:6]
+path, version, date, dev_latest_url = sys.argv[1:5]
 text = open(path, "r", encoding="utf-8").read()
 
-dev_title_suffix = f" - [dev-latest]({dev_latest_url})"
-new_dev = f"## [{version}-dev]{dev_title_suffix}"
-header = f"{new_dev}\n\n---\n\n## [{version}] - {date}"
-
-current_dev = re.escape(f"## [{current}-dev]")
-dev_heading = re.compile(rf"^{current_dev}(?: - \[[^\]]+\]\([^\)]+\))?$", re.M)
-
-new_text = re.sub(
-    rf"{current_dev}\n\n---\n\n## \[[^\]]+\] - [^\n]+",
-    header,
-    text,
-    count=1,
-    flags=re.M,
+dev_heading = re.compile(
+    r"^## \[(?:dev-latest|[^\]]+-dev)\](?:\([^\)]+\))?(?: - \[[^\]]+\]\([^\)]+\))?\s*$",
+    re.M,
 )
+dev_match = dev_heading.search(text)
+if not dev_match:
+    raise SystemExit(
+        "Could not find a rolling dev changelog section (## [dev-latest] or ## [VERSION-dev])"
+    )
 
-if new_text == text:
-    new_text = dev_heading.sub(header, text, count=1)
+if re.search(rf"^## \[{re.escape(version)}\] - ", text, re.M):
+    raise SystemExit(f"CHANGELOG.md already contains version {version}")
+
+after_dev = dev_match.end()
+next_stable = re.compile(r"^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}\s*$", re.M)
+next_match = next_stable.search(text, after_dev)
+if not next_match:
+    raise SystemExit("Could not find the next dated stable section after the dev section")
+
+dev_body = text[after_dev:next_match.start()].strip()
+dev_body = re.sub(r"^\n---\n", "", dev_body)
+dev_body = re.sub(r"\n---\s*$", "", dev_body)
+
+new_dev = f"## [dev-latest]({dev_latest_url})"
+release_header = f"## [{version}] - {date}"
+promoted = f"{new_dev}\n\n---\n\n{release_header}\n\n{dev_body}\n\n---\n\n"
+
+new_text = text[: dev_match.start()] + promoted + text[next_match.start() :]
 
 link = f"[{version}]: https://github.com/Darknetzz/jotty-android/releases/tag/v{version}"
 if not re.search(rf"^\[{re.escape(version)}\]:\s+", new_text, flags=re.M):
     lines = new_text.splitlines()
     insert_at = next(
         (
-            i for i, line in enumerate(lines)
+            i
+            for i, line in enumerate(lines)
             if re.match(r"^\[\d+\.\d+(?:\.\d+)*(?:-[^\]]+)?\]:\s+", line)
         ),
         None,
@@ -148,14 +158,10 @@ if not re.search(rf"^\[{re.escape(version)}\]:\s+", new_text, flags=re.M):
         new_text = new_text.rstrip() + "\n\n" + link + "\n"
     else:
         lines.insert(insert_at, link)
-        new_text = "\n".join(lines) + ("\n" if new_text.endswith("\n") else "")
+        new_text = "\n".join(lines) + ("\n" if text.endswith("\n") else "")
 
 open(path, "w", encoding="utf-8", newline="\n").write(new_text)
 PY
-else
-  echo "Could not find '$CURRENT_DEV_SECTION' in CHANGELOG.md" >&2
-  exit 1
-fi
 
 echo "Release prep complete:"
 echo "  VERSION_NAME=$VERSION"

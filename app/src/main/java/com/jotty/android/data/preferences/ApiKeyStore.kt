@@ -1,3 +1,5 @@
+@file:Suppress("DEPRECATION") // EncryptedSharedPreferences deprecated in security-crypto 1.1.0; migrate when a stable replacement is chosen.
+
 package com.jotty.android.data.preferences
 
 import android.content.Context

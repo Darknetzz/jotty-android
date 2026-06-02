@@ -28,12 +28,19 @@ import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.checklists.OfflineChecklistsScreen
 import com.jotty.android.ui.common.LoadingState
+import com.jotty.android.ui.common.LocalReducedMotionEnabled
 import com.jotty.android.ui.common.accentColor
+import com.jotty.android.ui.common.navEnterTransition
+import com.jotty.android.ui.common.navExitTransition
+import com.jotty.android.ui.common.navPopEnterTransition
+import com.jotty.android.ui.common.navPopExitTransition
 import com.jotty.android.ui.common.LocalMainTabTopBarController
 import com.jotty.android.ui.common.MainTabTopBarActions
-import com.jotty.android.ui.common.MainTabTopBarSyncSlot
 import com.jotty.android.ui.common.ProvideMainTabTopBarController
 import com.jotty.android.ui.notes.OfflineNotesScreen
+import com.jotty.android.ui.settings.AppearanceSettingsScreen
+import com.jotty.android.ui.settings.BehaviorSettingsScreen
+import com.jotty.android.ui.settings.DashboardOverviewScreen
 import com.jotty.android.ui.settings.SettingsScreen
 import com.jotty.android.ui.setup.SetupScreen
 import com.jotty.android.util.createNoteImageLoader
@@ -41,6 +48,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
+private const val ROUTE_APPEARANCE = "appearance"
+private const val ROUTE_DASHBOARD = "dashboard"
+private const val ROUTE_BEHAVIOR = "behavior"
 
 sealed class MainRoute(val route: String, val titleRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     data object Checklists : MainRoute("checklists", R.string.nav_checklists, Icons.Default.Checklist)
@@ -93,11 +103,12 @@ fun MainScreen(
     val serverUrl by settingsRepository.serverUrl.collectAsStateWithLifecycle(initialValue = null)
     val apiKey by settingsRepository.apiKey.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val reducedMotion = LocalReducedMotionEnabled.current
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val selectedRoute =
         when (currentRoute) {
-            ROUTE_MANAGE_INSTANCES -> MainRoute.Settings.route
+            ROUTE_MANAGE_INSTANCES, ROUTE_APPEARANCE, ROUTE_DASHBOARD, ROUTE_BEHAVIOR -> MainRoute.Settings.route
             else -> currentRoute
         }
     val titleRes =
@@ -106,6 +117,9 @@ fun MainScreen(
             MainRoute.Notes.route -> MainRoute.Notes.titleRes
             MainRoute.Settings.route -> MainRoute.Settings.titleRes
             ROUTE_MANAGE_INSTANCES -> R.string.manage_instances
+            ROUTE_APPEARANCE -> R.string.appearance
+            ROUTE_DASHBOARD -> R.string.dashboard_overview
+            ROUTE_BEHAVIOR -> R.string.settings_category_behavior
             else -> R.string.app_name
         }
 
@@ -127,32 +141,45 @@ fun MainScreen(
             }
         }
 
+    val mainRoutes = listOf(MainRoute.Checklists, MainRoute.Notes, MainRoute.Settings)
+    val showBottomBar = currentRoute in mainRoutes.map { it.route }
+    fun onMainRouteClick(route: MainRoute) {
+        if (selectedRoute == route.route) {
+            when (route) {
+                MainRoute.Checklists -> checklistsTabReselectToken++
+                MainRoute.Notes -> notesTabReselectToken++
+                MainRoute.Settings -> {
+                    if (currentRoute != MainRoute.Settings.route) {
+                        navController.popBackStack(MainRoute.Settings.route, false)
+                    }
+                }
+            }
+        } else {
+            navController.navigate(route.route) {
+                popUpTo(MainRoute.Checklists.route) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+
     ProvideMainTabTopBarController {
         val topBarController = LocalMainTabTopBarController.current
         val tabTopBarState = topBarController.state
+        val suppressMainTopBar = topBarController.suppressMainTopBar
 
         Scaffold(
             topBar = {
+                if (suppressMainTopBar) return@Scaffold
                 TopAppBar(
-                    title = {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(stringResource(titleRes))
-                            val barState = tabTopBarState
-                            if (barState != null && barState.showSyncStatus) {
-                                Spacer(modifier = Modifier.weight(1f))
-                                MainTabTopBarSyncSlot(
-                                    isOnline = barState.isOnline,
-                                    isSyncing = barState.isSyncing,
-                                    lastSyncAttemptEpochMs = barState.lastSyncAttemptEpochMs,
-                                )
-                            }
-                        }
-                    },
+                    title = { Text(stringResource(titleRes)) },
                     navigationIcon = {
-                        if (currentRoute == ROUTE_MANAGE_INSTANCES) {
+                        if (
+                            currentRoute == ROUTE_MANAGE_INSTANCES ||
+                                currentRoute == ROUTE_APPEARANCE ||
+                                currentRoute == ROUTE_DASHBOARD ||
+                                currentRoute == ROUTE_BEHAVIOR
+                        ) {
                             IconButton(onClick = { navController.popBackStack() }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                             }
@@ -177,32 +204,58 @@ fun MainScreen(
                         ),
                 )
             },
-        bottomBar = {
-            NavigationBar {
-                listOf(MainRoute.Checklists, MainRoute.Notes, MainRoute.Settings).forEach { route ->
-                    NavigationBarItem(
-                        selected = selectedRoute == route.route,
-                        onClick = {
-                            if (selectedRoute == route.route) {
-                                when (route) {
-                                    MainRoute.Checklists -> checklistsTabReselectToken++
-                                    MainRoute.Notes -> notesTabReselectToken++
-                                    MainRoute.Settings -> Unit
-                                }
-                            } else {
-                                navController.navigate(route.route) {
-                                    popUpTo(MainRoute.Checklists.route) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
+            bottomBar = {
+                if (showBottomBar && reducedMotion) {
+                    Surface(
+                        modifier = Modifier.windowInsetsPadding(NavigationBarDefaults.windowInsets),
+                        tonalElevation = 3.dp,
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                        ) {
+                            mainRoutes.forEach { route ->
+                                val selected = selectedRoute == route.route
+                                val color =
+                                    if (selected) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                TextButton(
+                                    onClick = { onMainRouteClick(route) },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            route.icon,
+                                            contentDescription = stringResource(route.titleRes),
+                                            tint = color,
+                                        )
+                                        Text(
+                                            text = stringResource(route.titleRes),
+                                            color = color,
+                                            style = MaterialTheme.typography.labelSmall,
+                                        )
+                                    }
                                 }
                             }
-                        },
-                        icon = { Icon(route.icon, contentDescription = stringResource(route.titleRes)) },
-                        label = { Text(stringResource(route.titleRes)) },
-                    )
+                        }
+                    }
+                } else if (showBottomBar) {
+                    NavigationBar {
+                        mainRoutes.forEach { route ->
+                            NavigationBarItem(
+                                selected = selectedRoute == route.route,
+                                onClick = { onMainRouteClick(route) },
+                                icon = { Icon(route.icon, contentDescription = stringResource(route.titleRes)) },
+                                label = { Text(stringResource(route.titleRes)) },
+                            )
+                        }
+                    }
                 }
-            }
-        },
+            },
     ) { padding ->
         val currentApi = api
         val currentStart = startDestination
@@ -214,15 +267,23 @@ fun MainScreen(
                     navController = navController,
                     startDestination = currentStart,
                     modifier = Modifier.fillMaxSize().padding(padding),
+                    enterTransition = navEnterTransition(reducedMotion),
+                    exitTransition = navExitTransition(reducedMotion),
+                    popEnterTransition = navPopEnterTransition(reducedMotion),
+                    popExitTransition = navPopExitTransition(reducedMotion),
                 ) {
                     composable(MainRoute.Checklists.route) {
                         val instanceId = currentInstance?.id
+                        val authFingerprint =
+                            remember(serverUrl, apiKey) {
+                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
+                            }
                         if (instanceId != null) {
                             OfflineChecklistsScreen(
                                 api = currentApi,
                                 settingsRepository = settingsRepository,
                                 instanceId = instanceId,
-                                authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
+                                authFingerprint = authFingerprint,
                                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                                 tabReselectToken = checklistsTabReselectToken,
                             )
@@ -232,18 +293,23 @@ fun MainScreen(
                     }
                     composable(MainRoute.Notes.route) {
                         val instanceId = currentInstance?.id
+                        val authFingerprint =
+                            remember(serverUrl, apiKey) {
+                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
+                            }
                         if (instanceId != null) {
                             OfflineNotesScreen(
                                 api = currentApi,
                                 settingsRepository = settingsRepository,
                                 instanceId = instanceId,
-                                authFingerprint = "${serverUrl.orEmpty()}|${apiKey.orEmpty()}",
+                                authFingerprint = authFingerprint,
                                 initialNoteId = deepLinkNoteId?.value,
                                 onDeepLinkConsumed = { deepLinkNoteId?.value = null },
                                 sharedText = sharedNoteText?.value,
                                 onSharedTextConsumed = { sharedNoteText?.value = null },
                                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                                 imageLoader = imageLoader,
+                                jottyServerUrl = serverUrl,
                                 tabReselectToken = notesTabReselectToken,
                             )
                         } else {
@@ -256,6 +322,21 @@ fun MainScreen(
                             settingsRepository = settingsRepository,
                             onDisconnect = onDisconnect,
                             onManageInstances = { navController.navigate(ROUTE_MANAGE_INSTANCES) },
+                            onAppearance = { navController.navigate(ROUTE_APPEARANCE) },
+                            onDashboard = { navController.navigate(ROUTE_DASHBOARD) },
+                            onBehavior = { navController.navigate(ROUTE_BEHAVIOR) },
+                        )
+                    }
+                    composable(ROUTE_APPEARANCE) {
+                        AppearanceSettingsScreen(settingsRepository = settingsRepository)
+                    }
+                    composable(ROUTE_BEHAVIOR) {
+                        BehaviorSettingsScreen(settingsRepository = settingsRepository)
+                    }
+                    composable(ROUTE_DASHBOARD) {
+                        DashboardOverviewScreen(
+                            api = currentApi,
+                            settingsRepository = settingsRepository,
                         )
                     }
                     composable(ROUTE_MANAGE_INSTANCES) {

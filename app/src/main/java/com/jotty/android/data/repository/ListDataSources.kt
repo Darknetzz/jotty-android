@@ -4,6 +4,7 @@ import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.normalizedForClient
+import com.jotty.android.util.loadNotesWithSearch
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.local.OfflineNotesRepository
 import kotlinx.coroutines.flow.Flow
@@ -49,7 +50,7 @@ class OnlineNotesListDataSource(
     override fun getNotesFlow(): Flow<List<Note>> = error("Online mode uses ViewModel fetch; use [NotesViewModel] directly")
 
     override suspend fun searchNotes(query: String): List<Note> =
-        api.getNotes(search = query).notes.orEmpty().map { it.normalizedForClient() }
+        loadNotesWithSearch(api = api, query = query, category = null)
 
     override suspend fun getNotesByCategory(category: String): List<Note> =
         api.getNotes(category = category).notes.orEmpty().map { it.normalizedForClient() }
@@ -68,7 +69,7 @@ class OnlineNotesListDataSource(
                         category = category,
                     ),
                 )
-            response.data ?: error("Create failed")
+            response.data
         }
 
     override suspend fun deleteNote(noteId: String): Result<Unit> =
@@ -116,7 +117,7 @@ class OnlineChecklistsListDataSource(
                         category = category,
                     ),
                 )
-            response.data ?: error("Create failed")
+            response.data
         }
 
     override suspend fun deleteChecklist(checklistId: String): Result<Unit> =

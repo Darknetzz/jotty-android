@@ -11,7 +11,7 @@ import com.jotty.android.util.resolveReducedMotionEnabled
 
 val LocalReducedMotionEnabled =
     compositionLocalOf {
-        false
+        true
     }
 
 @Composable

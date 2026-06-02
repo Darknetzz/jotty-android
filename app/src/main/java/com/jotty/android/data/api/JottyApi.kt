@@ -53,6 +53,61 @@ interface JottyApi {
         @Path("itemIndex") itemIndex: String,
     ): SuccessResponse
 
+    @PATCH("api/checklists/{listId}/items/{itemIndex}")
+    suspend fun updateItem(
+        @Path("listId") listId: String,
+        @Path("itemIndex") itemIndex: String,
+        @Body body: UpdateItemRequest,
+    ): SuccessResponse
+
+    @PUT("api/checklists/{listId}/items/reorder")
+    suspend fun reorderItems(
+        @Path("listId") listId: String,
+        @Body body: ReorderItemsRequest,
+    ): SuccessResponse
+
+    @GET("api/tasks/{taskId}")
+    suspend fun getTask(
+        @Path("taskId") taskId: String,
+    ): TaskResponse
+
+    @GET("api/tasks/{taskId}/statuses")
+    suspend fun getTaskStatuses(
+        @Path("taskId") taskId: String,
+    ): TaskStatusesResponse
+
+    @POST("api/tasks/{taskId}/statuses")
+    suspend fun createTaskStatus(
+        @Path("taskId") taskId: String,
+        @Body body: CreateTaskStatusRequest,
+    ): ApiResponse<TaskStatus>
+
+    @PUT("api/tasks/{taskId}/statuses/{statusId}")
+    suspend fun updateTaskStatus(
+        @Path("taskId") taskId: String,
+        @Path("statusId") statusId: String,
+        @Body body: UpdateTaskStatusRequest,
+    ): ApiResponse<TaskStatus>
+
+    @DELETE("api/tasks/{taskId}/statuses/{statusId}")
+    suspend fun deleteTaskStatus(
+        @Path("taskId") taskId: String,
+        @Path("statusId") statusId: String,
+    ): SuccessResponse
+
+    @PUT("api/tasks/{taskId}/items/{itemIndex}/status")
+    suspend fun updateTaskItemStatus(
+        @Path("taskId") taskId: String,
+        @Path("itemIndex") itemIndex: String,
+        @Body body: UpdateTaskItemStatusRequest,
+    ): SuccessResponse
+
+    @GET("api/search")
+    suspend fun search(
+        @Query("q") query: String,
+        @Query("type") type: String? = null,
+    ): SearchResponse
+
     @GET("api/notes")
     suspend fun getNotes(
         @Query("category") category: String? = null,

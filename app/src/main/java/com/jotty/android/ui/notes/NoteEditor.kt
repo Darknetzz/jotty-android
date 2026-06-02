@@ -22,6 +22,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isUnspecified
+import androidx.compose.ui.unit.sp
 import com.jotty.android.R
 import com.jotty.android.ui.common.CategorySelector
 
@@ -44,6 +46,29 @@ internal fun NoteEditor(
         if (content != contentField.text) {
             contentField = contentField.copy(text = content, selection = TextRange(content.length))
         }
+    }
+    val textScale = LocalReaderTextScale.current.coerceIn(0.75f, 1.5f)
+    val baseStyle = MaterialTheme.typography.bodyLarge
+    val editorTextStyle =
+        remember(textScale, baseStyle) {
+            val fontSize =
+                if (baseStyle.fontSize.isUnspecified) {
+                    16.sp
+                } else {
+                    (baseStyle.fontSize.value * textScale).sp
+                }
+            val lineHeight =
+                if (baseStyle.lineHeight.isUnspecified) {
+                    fontSize * 1.5f
+                } else {
+                    (baseStyle.lineHeight.value * textScale).sp
+                }
+            baseStyle.copy(fontSize = fontSize, lineHeight = lineHeight)
+        }
+    fun updateContentField(updated: TextFieldValue) {
+        val adjusted = applyMarkdownContentChange(contentField, updated)
+        contentField = adjusted
+        onContentChange(adjusted.text)
     }
     Column(
         modifier =
@@ -70,17 +95,12 @@ internal fun NoteEditor(
         }
         MarkdownToolbar(
             value = contentField,
-            onValueChange = {
-                contentField = it
-                onContentChange(it.text)
-            },
+            onValueChange = { updateContentField(it) },
         )
         OutlinedTextField(
             value = contentField,
-            onValueChange = {
-                contentField = it
-                onContentChange(it.text)
-            },
+            onValueChange = { updateContentField(it) },
+            textStyle = editorTextStyle,
             modifier =
                 Modifier
                     .fillMaxWidth()

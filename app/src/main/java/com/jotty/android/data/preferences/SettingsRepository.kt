@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.jotty.android.ui.theme.DEFAULT_CUSTOM_ACCENT_HEX
+import com.jotty.android.ui.theme.normalizeThemeAccentHex
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
@@ -65,13 +67,26 @@ class SettingsRepository(
                 ?: migrateThemeModeFromLegacy(prefs[KEY_THEME])
         }.catch { emit(null) }
 
-    /** Theme color: "default", "amoled", "sepia", "midnight", "rose", "ocean", "forest". Default "default". */
+    /** Theme color: preset id or "custom". Default "default". */
     val themeColor: Flow<String> =
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_THEME_COLOR].takeIf { !it.isNullOrBlank() }
                 ?: migrateThemeColorFromLegacy(prefs[KEY_THEME])
                 ?: "default"
         }.catch { emit("default") }
+
+    /** Custom accent `#RRGGBB` when [themeColor] is "custom". Default [DEFAULT_CUSTOM_ACCENT_HEX]. */
+    val themeCustomAccentHex: Flow<String> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_THEME_CUSTOM_ACCENT]?.takeIf { !it.isNullOrBlank() }
+                ?: DEFAULT_CUSTOM_ACCENT_HEX
+        }.catch { emit(DEFAULT_CUSTOM_ACCENT_HEX) }
+
+    /** Tint background/surface with the custom accent (vs neutral gray bases). Default false. */
+    val themeCustomTintedBackgrounds: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_THEME_CUSTOM_TINTED] ?: false
+        }.catch { emit(false) }
 
     /** Start tab: "checklists", "notes", "settings". Default checklists. */
     val startTab: Flow<String?> =
@@ -84,6 +99,12 @@ class SettingsRepository(
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_SWIPE_TO_DELETE] ?: false
         }.catch { emit(false) }
+
+    /** Drag handle to reorder checklist items among siblings. Default true. */
+    val checklistDragReorderEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_CHECKLIST_DRAG_REORDER] ?: true
+        }.catch { emit(true) }
 
     /** Show note body preview on list cards. Default true. */
     val noteListPreviewEnabled: Flow<Boolean> =
@@ -115,13 +136,13 @@ class SettingsRepository(
             prefs[KEY_CHECKLISTS_CATEGORY_FILTER].takeIf { !it.isNullOrBlank() }
         }.catch { emit(null) }
 
-    /** Reader text scale for note content: 0.85, 1.0, 1.15, 1.3. Default 1.0. */
+    /** Reader text scale for note content and editor: 0.75, 0.85, 1.0, 1.15, 1.3. Default 1.0. */
     val readerTextScale: Flow<Float> =
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_READER_TEXT_SCALE] ?: 1.0f
         }.catch { emit(1.0f) }
 
-    /** Reduced motion: null/"system" = follow device; "on"; "off". */
+    /** Motion effects: unset/"on" = off (default); "off" = on; "system" = follow device accessibility. */
     val reducedMotionMode: Flow<String?> =
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_REDUCED_MOTION].takeIf { !it.isNullOrBlank() }
@@ -237,6 +258,24 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setThemeCustomAccentHex(hex: String) {
+        val normalized = normalizeThemeAccentHex(hex) ?: DEFAULT_CUSTOM_ACCENT_HEX
+        context.jottySettingsDataStore.edit {
+            if (normalized == DEFAULT_CUSTOM_ACCENT_HEX) {
+                it.remove(KEY_THEME_CUSTOM_ACCENT)
+            } else {
+                it[KEY_THEME_CUSTOM_ACCENT] = normalized
+            }
+            it[KEY_THEME_COLOR] = "custom"
+        }
+    }
+
+    suspend fun setThemeCustomTintedBackgrounds(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it[KEY_THEME_CUSTOM_TINTED] = true else it.remove(KEY_THEME_CUSTOM_TINTED)
+        }
+    }
+
     suspend fun setStartTab(value: String?) {
         context.jottySettingsDataStore.edit {
             if (value.isNullOrBlank()) it.remove(KEY_START_TAB) else it[KEY_START_TAB] = value
@@ -245,6 +284,12 @@ class SettingsRepository(
 
     suspend fun setSwipeToDeleteEnabled(value: Boolean) {
         context.jottySettingsDataStore.edit { it[KEY_SWIPE_TO_DELETE] = value }
+    }
+
+    suspend fun setChecklistDragReorderEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it.remove(KEY_CHECKLIST_DRAG_REORDER) else it[KEY_CHECKLIST_DRAG_REORDER] = false
+        }
     }
 
     suspend fun setNoteListPreviewEnabled(value: Boolean) {
@@ -286,10 +331,10 @@ class SettingsRepository(
     suspend fun setReducedMotionMode(value: String?) {
         context.jottySettingsDataStore.edit {
             val v = value?.lowercase()?.trim()
-            if (v.isNullOrBlank() || v == "system") {
-                it.remove(KEY_REDUCED_MOTION)
-            } else {
-                it[KEY_REDUCED_MOTION] = v
+            when {
+                v.isNullOrBlank() -> it.remove(KEY_REDUCED_MOTION)
+                v == "system" -> it[KEY_REDUCED_MOTION] = "system"
+                else -> it[KEY_REDUCED_MOTION] = v
             }
         }
     }
@@ -418,6 +463,8 @@ class SettingsRepository(
         private val KEY_THEME = stringPreferencesKey("theme")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_THEME_COLOR = stringPreferencesKey("theme_color")
+        private val KEY_THEME_CUSTOM_ACCENT = stringPreferencesKey("theme_custom_accent")
+        private val KEY_THEME_CUSTOM_TINTED = booleanPreferencesKey("theme_custom_tinted")
 
         private fun migrateThemeModeFromLegacy(oldTheme: String?): String? {
             if (oldTheme.isNullOrBlank()) return null
@@ -445,6 +492,7 @@ class SettingsRepository(
 
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
+        private val KEY_CHECKLIST_DRAG_REORDER = booleanPreferencesKey("checklist_drag_reorder_enabled")
         private val KEY_NOTE_LIST_PREVIEW = booleanPreferencesKey("note_list_preview_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
         private val KEY_LIST_SORT = stringPreferencesKey("list_sort_option")

@@ -52,6 +52,7 @@ fun NotesScreen(
     onSharedTextConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
+    jottyServerUrl: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
 ) {
@@ -92,7 +93,7 @@ fun NotesScreen(
         }
     }
     LaunchedEffect(notes, loading, initialNoteId) {
-        if (!loading && initialNoteId != null && notes.isNotEmpty() && notes.none { it.id == initialNoteId }) {
+        if (!loading && initialNoteId != null && notes.none { it.id == initialNoteId }) {
             scope.launch { snackbarHostState.showSnackbar(noteNotFoundMsg) }
             onDeepLinkConsumed()
         }
@@ -125,19 +126,22 @@ fun NotesScreen(
         }
     }
 
+    val inNoteDetail = selectedNote != null
     RegisterMainTabTopBar(
-        if (selectedNote == null) {
-            MainTabTopBarState(
-                isOnline = true,
-                isSyncing = loading,
-                lastSyncAttemptEpochMs = null,
-                onRefresh = { vm.loadNotes() },
-                onAdd = { vm.setShowCreateDialog(true) },
-                showSyncStatus = false,
-            )
-        } else {
-            null
-        },
+        state =
+            if (!inNoteDetail) {
+                MainTabTopBarState(
+                    isOnline = true,
+                    isSyncing = loading,
+                    lastSyncAttemptEpochMs = null,
+                    onRefresh = { vm.loadNotes() },
+                    onAdd = { vm.setShowCreateDialog(true) },
+                    showSyncStatus = false,
+                )
+            } else {
+                null
+            },
+        suppressMainTopBar = inNoteDetail,
     )
 
     Scaffold(
@@ -148,7 +152,8 @@ fun NotesScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = if (selectedNote != null) 4 else contentVerticalDp,
+                    topComfortDp = if (inNoteDetail) 0 else contentVerticalDp,
+                    horizontal = if (inNoteDetail) 0.dp else 16.dp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
@@ -213,7 +218,8 @@ fun NotesScreen(
 
                     ListScreenContent(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
-                        loading = loading,
+                        showSkeleton = loading && sortedNotes.isEmpty(),
+                        isRefreshing = loading && sortedNotes.isNotEmpty(),
                         error = error,
                         isEmpty = sortedNotes.isEmpty(),
                         onRetry = { vm.loadNotes() },
@@ -305,6 +311,7 @@ fun NotesScreen(
                         },
                         onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                         imageLoader = imageLoader,
+                        jottyServerUrl = jottyServerUrl,
                         biometricStore = biometricStore,
                         biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
                         biometricSaveOfferEnabled = biometricSaveOfferEnabled,

@@ -24,6 +24,8 @@ class NoteDetailViewModel(
     private val note: Note,
     private val actions: NoteDetailActions,
 ) : ViewModel() {
+    /** Ciphertext fingerprint when the user last decrypted; used to drop stale session plaintext. */
+    private var sessionSourceFingerprint: String? = null
     private val _title = MutableStateFlow(stripInvisibleFromEdges(note.title))
     val title: StateFlow<String> = _title.asStateFlow()
 
@@ -113,7 +115,32 @@ class NoteDetailViewModel(
         if (cached == null) {
             NoteDecryptionSession.remove(note.id)
             NotePassphraseSession.remove(note.id)
+            sessionSourceFingerprint = null
+        } else if (sessionSourceFingerprint == null) {
+            sessionSourceFingerprint = contentFingerprint(_content.value)
         }
+    }
+
+    fun onNoteSnapshotUpdated(updated: Note) {
+        invalidateDecryptedIfServerContentChanged(updated.content)
+        resetFromNote(updated)
+    }
+
+    fun invalidateDecryptedIfServerContentChanged(serverContent: String) {
+        if (_decryptedContent.value.isNullOrBlank()) return
+        val fp = contentFingerprint(serverContent)
+        if (sessionSourceFingerprint != null && sessionSourceFingerprint != fp) {
+            lockNote()
+        }
+    }
+
+    fun lockNote() {
+        _decryptedContent.value = null
+        _isEditing.value = false
+        _legacyEncryptionDetected.value = false
+        sessionSourceFingerprint = null
+        NoteDecryptionSession.remove(note.id)
+        NotePassphraseSession.remove(note.id)
     }
 
     fun hasSessionPassphrase(): Boolean = NotePassphraseSession.has(note.id)
@@ -191,6 +218,7 @@ class NoteDetailViewModel(
         }
         _decryptedContent.value = cleaned
         _legacyEncryptionDetected.value = usedLegacyDataOrder
+        sessionSourceFingerprint = contentFingerprint(_content.value)
         NoteDecryptionSession.put(note.id, cleaned)
         passphrase?.let { NotePassphraseSession.put(note.id, it) }
         passphrase?.clearPassphrase()
@@ -273,6 +301,7 @@ class NoteDetailViewModel(
                         _decryptedContent.value = plainToEncrypt.takeIf { it.isNotBlank() }
                         _legacyEncryptionDetected.value = false
                         if (plainToEncrypt.isNotBlank()) {
+                            sessionSourceFingerprint = contentFingerprint(fullContent)
                             NoteDecryptionSession.put(note.id, plainToEncrypt)
                         }
                         NotePassphraseSession.put(note.id, passChars)
@@ -304,6 +333,9 @@ class NoteDetailViewModel(
             )
         }
     }
+
+    internal fun contentFingerprint(content: String): String =
+        stripInvisibleFromEdges(content).hashCode().toString()
 
     class Factory(
         private val note: Note,

@@ -2,9 +2,95 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release (`[VERSION-dev]`). Dev APK `versionName` is `VERSION-dev+<short-sha>` (seven-character commit; see the release **Commit:** line).
+The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release (`[dev-latest]`). Dev APK `versionName` is `VERSION_NAME-dev+<short-sha>` (seven-character commit; see the release **Commit:** line).
 
-## [1.4.0-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+
+---
+
+## [1.5.0] - 2026-06-02
+
+### Added
+
+- **Kanban delete task** — Kanban cards include a delete action (with confirmation) using the same checklist item API as list view.
+- **Encrypted note session UI** — Decrypted notes show a **Decrypted** indicator, **Lock note** to hide content again, and stale session cache clears when server ciphertext changes.
+- **Server PATCH compatibility banner** — Dismissible notice on checklist detail when the server lacks item PATCH (see [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
+- **Kanban status management** — Project/Kanban boards now include **Manage statuses** to add, edit, delete, recolor, and reorder columns using Jotty task status REST endpoints.
+- **Kanban move menu status dots** — “Move to …” actions on Kanban cards show a colored dot matching the target column status.
+- **Checklist type badge** — Checklist cards now show whether each item is a **Checklist** or **Project / Kanban**.
+- **Smarter note editor lists** — Pressing Enter on a bullet, numbered, task, or quote line continues the same prefix; Enter on an empty list item exits the list. Toolbar list/checkbox actions toggle off when tapped again on the same line.
+- **Note editor text size** — Settings → Appearance → **Reader text size** now also scales the note editor; added **Extra small** option.
+- **Color themes** — Settings → Appearance adds **Lavender**, **Sunset**, and **Graphite** palettes (each with light and dark variants).
+- **Custom accent color** — Settings → Appearance → **Custom** lets you pick an accent from swatches or a `#RRGGBB` hex value, with **Neutral** or **Tinted** background styles.
+- **Unified search API** — Notes search (online) uses Jotty’s new `GET /api/search` when the query is at least two characters, with relevance ranking and fallback to `GET /api/notes?q=` on older servers.
+- **Checklist item reorder ([#29](https://github.com/Darknetzz/jotty-android/issues/29))** — Up/down controls on each checklist row call `PUT /api/checklists/{id}/items/reorder`; works offline with sync replay.
+- **Checklist drag-and-drop reorder** — Drag the handle on a checklist row to reorder among siblings (same rules as move up/down); To Do and Completed sections reorder separately. Disable via Settings → Behavior → **Drag to reorder checklists**.
+- **Checklist item PATCH** — Inline item edits use `PATCH /api/checklists/{id}/items/{index}` when the server supports it.
+- **Background offline sync** — Periodic WorkManager job attempts notes/checklists sync for saved instances when connectivity is available.
+- **Per-item sync indicators** — Offline notes and checklists show a `Pending sync` label at card level when local changes have not reached the server yet.
+- **Markdown toolbar actions** — Note editor toolbar now includes numbered-list and task-list insert actions.
+- **Discard pending sync** — Checklist detail ⋮ menu → **Discard pending sync** when a checklist is stuck pending. Restores the server version when online, or deletes a never-synced local-only checklist.
+
+### Changed
+
+- **Checklist list cards** — Type badge sits on the trailing edge of the title row; note list dates align to the right of the metadata row.
+- **Note detail** — Shows an **Updated** date line when the server provides `updatedAt`.
+- **Stable updates from dev builds** — About warns when checking stable on a dev APK; install failures explain dev→stable version code limits.
+- **Top-bar sync status** — Notes and Checklists show only the cloud icon in the app bar (next to refresh); tap it for last sync time, duration, and errors.
+- **Top-bar sync icon colors** — Sync status cloud icon uses fixed semantic colors: green for healthy sync state and red when offline/failed, independent of appearance theme.
+- **Checklist type badge styling** — Distinct colors for **Checklist** vs **Project / Kanban** for faster visual scanning.
+- **Motion effects opt-in** — Cross-fade, list/detail fade-in, shimmer skeletons, and animated bottom tabs are off by default. Settings → Appearance → **Motion effects** can turn them on, or choose **System** to follow the device accessibility setting.
+- **Dashboard overview layout** — Dashboard cards split into clearer sections with grouped stat tiles, section icons, and stronger visual hierarchy.
+- **Settings → Appearance** — Theme, colors, padding, reader text size, and reduced motion on a dedicated screen.
+- **Settings → Dashboard overview** — Summary stats and admin totals on a dedicated screen with pull-to-refresh.
+- **Settings → Behavior** — Start screen, swipe-to-delete, note previews, and offline sync on a dedicated screen.
+- **Checklist item row** — Shared `ChecklistItemRow` composable for online and offline checklist detail screens.
+- **Stable Jotty compatibility** — Checklist item rename tries PATCH first, then falls back to delete-and-recreate on older servers.
+- **Reduced motion behavior** — List/detail navigation uses a subtle fade-in only when reduced motion is off.
+- **Checklist inline editing** — Checklist detail allows editing only one item at a time across online and offline screens.
+- **Settings tab reselection** — Tapping the Settings bottom-nav item while on a subpage returns to the main Settings screen.
+- **Reduced motion on bottom tabs** — Low-motion tab bar when reduced motion is enabled.
+- **Bottom navigation behavior** — Bottom tabs hidden on nested Settings subpages.
+- **Setup flow guidance** — Setup prioritizes URL/API key first; optional details behind an advanced toggle.
+- **Checklist row actions** — Move/reorder/add-subtask actions grouped under an overflow menu.
+- **List/detail transitions** — Opening a note or checklist no longer uses a list/detail fade (avoids flicker during refresh/sync).
+- **Dependencies** — Updated AndroidX (Compose BOM, Lifecycle, Room, DataStore, Work, Security Crypto), Retrofit 3, Navigation Compose, Fragment KTX, KSP, and CI actions; no intended behavior change.
+- **Build toolchain** — Gradle 9.5.1, Android Gradle Plugin 9.2.1, and Kotlin 2.3.21.
+
+### Fixed
+
+- **Kanban status colors** — Column dots and move-menu swatches show default accents when the server omits `color` on standard columns (grey / blue / green for To Do, In Progress, Completed).
+- **Manage statuses layout** — Status title fields in the Kanban dialog no longer collapse when color swatches are shown; colors sit on their own row below the title.
+- **Manage statuses colors** — Selected status color shows a larger swatch, primary ring, and checkmark.
+- **Dev update check** — Dev channel update checks read the commit SHA from `dev-latest` release notes (plain `Commit:` line or markdown table).
+- **Note images** — Relative image URLs in note bodies (e.g. `/api/image/...`) resolve against the Jotty instance base URL.
+- **Checklist type badges** — Cards classify project/kanban checklists more reliably (including non-`simple`/`regular` server types).
+- **Checklist drag gesture stability** — Dragging can move across multiple rows in one gesture; one reorder sync runs on release (invalid drops revert).
+- **Note detail top gap** — No empty strip under the tab title when opening a note or checklist in list/detail mode.
+- **Custom theme in Neutral mode** — Custom accent applies to chips and containers in Neutral mode, not only Tinted backgrounds.
+- **Checklist offline repository churn** — Offline ViewModel factory stops the checklist repository from being recreated on every recomposition.
+- **Export debug logs** — **Save** writes to Downloads (or a file picker); **Share** uses a file attachment.
+- **Checklist list not opening during sync** — Background sync no longer drives pull-to-refresh “refreshing” state during sync.
+- **Checklist sync diagnostics** — Failed checklist pushes log server errors and pending op summaries to exported debug logs.
+- **Checklist pending sync while online** — Sync replay skips ops already applied on the server; DELETE 404 treated as done.
+- **Checklist sync HTTP 400 / stuck pending** — Item ops replay before metadata push; fewer stuck “Pending sync” states after partial replay.
+- **Checklist list not tappable** — Swipe-to-refresh restored; checklist cards use a single click target; separate offline repo/UI ViewModel keys.
+- **Checklist stuck after offline edits** — Item changes stay local while pending sync instead of calling the server with stale paths.
+- **Checklist refresh UI** — Pull-to-refresh and sync no longer flash a full-list loading overlay; clearer sync error messages.
+- **Checklist overview flicker during sync** — List no longer flashes “No checklists yet” while offline sync replaces the local cache.
+- **Pull-to-refresh with pending checklist changes** — A failed push for one checklist no longer aborts the whole sync.
+- **Deep-link feedback visibility** — `Note not found` feedback appears even when the note list is empty.
+- **Update download progress updates** — In-app update progress callbacks throttled during APK download.
+- **CI release parity check** — CI assembles the release variant to catch release-only build issues earlier.
+- **Bottom-tab safe area in reduced motion** — Low-motion bottom tab bar respects system navigation insets.
+- **Checklist card title taps** — Tapping a checklist title opens the checklist (long-press still opens the row menu).
+- **Export debug logs snackbar** — Fixed Compose lint failure when showing the Downloads save confirmation.
+
+### Documentation
+
+- **Jotty server compatibility** — [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md) documents PATCH fallback, Kanban APIs, and older-server behavior.
+- **Checklist reorder** — [CHECKLIST_REORDER.md](docs/CHECKLIST_REORDER.md) updated for the shipped Jotty REST API (`PUT …/items/reorder`, `PATCH …/items/{index}`, `GET /api/search`).
+- **Changelog layout** — Rolling pre-release notes use a `[dev-latest]` section (replacing `[VERSION-dev]`).
 
 ---
 
@@ -752,3 +838,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.3.6]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.6
 
 [1.4.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.4.0
+
+[1.5.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.0

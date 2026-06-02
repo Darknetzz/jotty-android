@@ -8,6 +8,9 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.isCompletedForApi
+import com.jotty.android.data.api.normalizedForLocal
+import com.jotty.android.util.reorderChecklistItems
 
 private val gson = Gson()
 
@@ -17,14 +20,21 @@ private val gson = Gson()
  * Paths may be stale if the server was modified concurrently; failing ops are skipped.
  */
 data class PendingItemOp(
-    /** CHECK, UNCHECK, ADD, DELETE */
+    /** CHECK, UNCHECK, ADD, DELETE, UPDATE, REORDER */
     val type: String,
     /** Positional path for existing-item ops */
     val path: String? = null,
-    /** ADD */
+    /** ADD / UPDATE */
     val text: String? = null,
     /** ADD with parent (project type) */
     val parentIndex: String? = null,
+    /** UPDATE */
+    val description: String? = null,
+    /** REORDER */
+    val activeItemId: String? = null,
+    val overItemId: String? = null,
+    val position: String? = null,
+    val isDropInto: Boolean? = null,
 )
 
 @Entity(tableName = "checklists", indices = [Index("instanceId")])
@@ -81,7 +91,7 @@ fun Checklist.toEntity(
         title = title,
         category = category,
         type = type,
-        itemsJson = gson.toJson(items),
+        itemsJson = gson.toJson(items.normalizedForLocal()),
         pendingOpsJson = "[]",
         createdAt = createdAt,
         updatedAt = updatedAt,
@@ -99,8 +109,12 @@ fun applyOpToItems(
     op: PendingItemOp,
 ): List<ChecklistItem> =
     when (op.type) {
-        "CHECK" -> op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = true) } } ?: items
-        "UNCHECK" -> op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = false) } } ?: items
+        "CHECK" ->
+            op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = true, status = "completed") } }
+                ?: items
+        "UNCHECK" ->
+            op.path?.let { updateAtPath(items, it) { i -> i.copy(completed = false, status = "in_progress") } }
+                ?: items
         "DELETE" -> op.path?.let { deleteAtPath(items, it) } ?: items
         "ADD" -> {
             if (op.parentIndex == null) {
@@ -113,6 +127,29 @@ fun applyOpToItems(
                 }
             }
         }
+        "UPDATE" ->
+            op.path?.let { path ->
+                updateAtPath(items, path) { item ->
+                    item.copy(
+                        text = op.text ?: item.text,
+                    )
+                }
+            } ?: items
+        "REORDER" -> {
+            val activeId = op.activeItemId
+            val overId = op.overItemId
+            if (activeId == null || overId == null) {
+                items
+            } else {
+                reorderChecklistItems(
+                    items = items,
+                    activeItemId = activeId,
+                    overItemId = overId,
+                    position = op.position ?: "before",
+                    isDropInto = op.isDropInto ?: false,
+                )
+            }
+        }
         else -> items
     }
 
@@ -121,6 +158,40 @@ fun applyOpToItems(
  * Callers treat null as a no-op (stale or malformed path).
  */
 private fun pathSegments(path: String): List<Int>? = path.split(".").map { it.toIntOrNull() ?: return null }
+
+/** Item at a positional API path (e.g. `"0"`, `"0.1"`), or null if the path is invalid or out of range. */
+fun itemAtPath(
+    items: List<ChecklistItem>,
+    path: String,
+): ChecklistItem? {
+    val segments = pathSegments(path) ?: return null
+    return itemAtSegments(items, segments)
+}
+
+private fun itemAtSegments(
+    items: List<ChecklistItem>,
+    segments: List<Int>,
+): ChecklistItem? {
+    if (segments.isEmpty()) return null
+    val idx = segments[0]
+    if (idx < 0 || idx >= items.size) return null
+    return if (segments.size == 1) {
+        items[idx]
+    } else {
+        itemAtSegments(items[idx].children.orEmpty(), segments.drop(1))
+    }
+}
+
+/** True when [op] is already reflected in [items] (e.g. CHECK and the item is already completed). */
+fun isPendingOpSatisfied(
+    items: List<ChecklistItem>,
+    op: PendingItemOp,
+): Boolean =
+    when (op.type) {
+        "CHECK" -> op.path?.let { itemAtPath(items, it)?.isCompletedForApi() == true } == true
+        "UNCHECK" -> op.path?.let { itemAtPath(items, it)?.isCompletedForApi() == false } == true
+        else -> false
+    }
 
 private fun updateAtPath(
     items: List<ChecklistItem>,

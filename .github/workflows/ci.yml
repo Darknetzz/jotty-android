@@ -24,7 +24,7 @@ jobs:
 
       - name: Upload unit test reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: unit-test-reports
           path: app/build/reports/tests/
@@ -34,7 +34,7 @@ jobs:
 
       - name: Upload lint reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lint-reports
           path: |
@@ -43,6 +43,9 @@ jobs:
 
       - name: ktlint
         run: ./gradlew ktlintCheck --no-daemon
+
+      - name: Assemble release
+        run: ./gradlew assembleRelease --no-daemon
 
   android-smoke-test:
     runs-on: ubuntu-latest
@@ -74,4 +77,4 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Dependency vulnerability review
-        uses: actions/dependency-review-action@v4
+        uses: actions/dependency-review-action@v5

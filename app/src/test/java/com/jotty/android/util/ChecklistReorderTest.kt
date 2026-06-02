@@ -1,0 +1,103 @@
+package com.jotty.android.util
+
+import com.jotty.android.data.api.ChecklistItem
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class ChecklistReorderTest {
+    private val items =
+        listOf(
+            ChecklistItem(id = "a", index = 0, text = "First"),
+            ChecklistItem(id = "b", index = 1, text = "Second"),
+            ChecklistItem(id = "c", index = 2, text = "Third"),
+        )
+
+    @Test
+    fun moveChecklistItemUpRequest_returnsBeforePosition() {
+        val request = moveChecklistItemUpRequest(items, "b")
+
+        assertEquals("b", request?.activeItemId)
+        assertEquals("a", request?.overItemId)
+        assertEquals("before", request?.position)
+    }
+
+    @Test
+    fun moveChecklistItemDownRequest_returnsAfterPosition() {
+        val request = moveChecklistItemDownRequest(items, "b")
+
+        assertEquals("b", request?.activeItemId)
+        assertEquals("c", request?.overItemId)
+        assertEquals("after", request?.position)
+    }
+
+    @Test
+    fun reorderChecklistItems_movesItemDown() {
+        val reordered =
+            reorderChecklistItems(
+                items = items,
+                activeItemId = "a",
+                overItemId = "c",
+                position = "before",
+            )
+
+        assertEquals(listOf("b", "a", "c"), reordered.map { it.id })
+    }
+
+    @Test
+    fun moveChecklistItemUpRequest_onFirstItem_returnsNull() {
+        assertNull(moveChecklistItemUpRequest(items, "a"))
+    }
+
+    @Test
+    fun areSiblingChecklistItems_sameLevel_returnsTrue() {
+        assert(areSiblingChecklistItems(items, "a", "b"))
+    }
+
+    @Test
+    fun areSiblingChecklistItems_nestedChild_returnsFalse() {
+        val nested =
+            listOf(
+                ChecklistItem(
+                    id = "parent",
+                    index = 0,
+                    text = "Parent",
+                    children =
+                        listOf(
+                            ChecklistItem(id = "child", index = 0, text = "Child"),
+                        ),
+                ),
+            )
+        assert(!areSiblingChecklistItems(nested, "parent", "child"))
+    }
+
+    @Test
+    fun reorderRequestForFlatMove_multiStepMove_returnsSingleRequest() {
+        val request =
+            reorderRequestForFlatMove(
+                treeItems = items,
+                sectionItems = items,
+                fromIndex = 0,
+                toIndex = 2,
+            )
+
+        assertEquals("a", request?.activeItemId)
+        assertEquals("c", request?.overItemId)
+        assertEquals("after", request?.position)
+    }
+
+    @Test
+    fun reorderRequestForFlatMove_downOne_returnsAfter() {
+        val request =
+            reorderRequestForFlatMove(
+                treeItems = items,
+                sectionItems = items,
+                fromIndex = 0,
+                toIndex = 1,
+            )
+
+        assertEquals("a", request?.activeItemId)
+        assertEquals("b", request?.overItemId)
+        assertEquals("after", request?.position)
+    }
+}

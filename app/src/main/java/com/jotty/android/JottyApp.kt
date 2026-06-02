@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.local.NetworkConnectivityMonitor
+import com.jotty.android.data.local.OfflineSyncWorker
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.util.AppLog
 
@@ -14,6 +15,8 @@ class JottyApp : Application() {
         super.onCreate()
         AppLog.installCrashHandler()
         NetworkConnectivityMonitor.ensureStarted(this)
+        runCatching { OfflineSyncWorker.schedule(this) }
+            .onFailure { AppLog.d("JottyApp", "Background sync scheduling skipped: ${it.message}") }
         ProcessLifecycleOwner.get().lifecycle.addObserver(
             object : androidx.lifecycle.DefaultLifecycleObserver {
                 override fun onStart(owner: androidx.lifecycle.LifecycleOwner) {

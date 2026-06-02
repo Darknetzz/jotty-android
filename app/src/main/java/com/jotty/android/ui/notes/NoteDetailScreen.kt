@@ -3,6 +3,8 @@ package com.jotty.android.ui.notes
 import android.content.Intent
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -18,6 +20,8 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Surface
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,6 +56,9 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
+import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
+import com.jotty.android.ui.common.NoteDetailDateSubtitle
+import com.jotty.android.util.formatNoteDate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -66,6 +73,7 @@ internal fun NoteDetailScreen(
     onSaveFailed: () -> Unit = {},
     modifier: Modifier = Modifier,
     imageLoader: ImageLoader? = null,
+    jottyServerUrl: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
     biometricSaveOfferEnabled: Boolean = true,
@@ -151,8 +159,14 @@ internal fun NoteDetailScreen(
         biometricUnlock.launchUnlock()
     }
 
+    val noteUpdatedLabel =
+        remember(note.updatedAt) {
+            val formatted = formatNoteDate(note.updatedAt)
+            if (formatted.isNotBlank()) formatted else null
+        }
+
     LaunchedEffect(note.id, note.content, note.updatedAt, note.encrypted) {
-        detailVm.resetFromNote(note)
+        detailVm.onNoteSnapshotUpdated(note)
     }
 
     LaunchedEffect(note.id) {
@@ -196,8 +210,10 @@ internal fun NoteDetailScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = MainNestedScaffoldContentWindowInsets,
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
                 title = {
                     Text(
                         text = title.ifBlank { stringResource(R.string.untitled) },
@@ -213,6 +229,7 @@ internal fun NoteDetailScreen(
                 actions = {
                     val ctx = LocalContext.current
                     val exportTitle = stringResource(R.string.export_note)
+                    val canEdit = !isEncrypted || isDecrypted
                     if (!isEditing && (isDecrypted || (!isEncrypted && content.isNotBlank()))) {
                         IconButton(
                             onClick = {
@@ -263,14 +280,21 @@ internal fun NoteDetailScreen(
                                 Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save))
                             }
                         }
+                    } else if (isEncrypted && isDecrypted) {
+                        IconButton(
+                            onClick = {
+                                detailVm.lockNote()
+                                hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
+                            },
+                        ) {
+                            Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_lock_note))
+                        }
                     } else if (!isEncrypted) {
                         IconButton(onClick = { detailVm.showEncryptDialog() }) {
                             Icon(Icons.Default.Lock, contentDescription = stringResource(R.string.cd_encrypt))
                         }
-                        IconButton(onClick = { detailVm.startEditing() }) {
-                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
-                        }
-                    } else if (isDecrypted) {
+                    }
+                    if (!isEditing && canEdit) {
                         IconButton(onClick = { detailVm.startEditing() }) {
                             Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
                         }
@@ -283,6 +307,29 @@ internal fun NoteDetailScreen(
                             expanded = menuExpanded,
                             onDismissRequest = { menuExpanded = false },
                         ) {
+                            if (isEncrypted && isDecrypted) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.lock_note)) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        detailVm.lockNote()
+                                        hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Lock, contentDescription = null)
+                                    },
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.encrypt)) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        detailVm.showEncryptDialog()
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.Lock, contentDescription = null)
+                                    },
+                                )
+                            }
                             DeleteDropdownMenuItem(
                                 onClick = {
                                     menuExpanded = false
@@ -335,22 +382,50 @@ internal fun NoteDetailScreen(
                             isEncrypted -> decryptedContent.orEmpty()
                             else -> displayContent.orEmpty()
                         }
-                    NoteView(
-                        content = viewContent,
-                        imageLoader = imageLoader,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                    if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
-                        Text(
-                            text = stringResource(R.string.legacy_encryption_warning),
-                            modifier =
-                                Modifier
-                                    .align(Alignment.TopCenter)
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                        )
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        if (noteUpdatedLabel != null) {
+                            NoteDetailDateSubtitle(
+                                updatedAtText = stringResource(R.string.note_updated_label, noteUpdatedLabel),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                        if (isEncrypted && isDecrypted) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                shape = MaterialTheme.shapes.small,
+                                modifier =
+                                    Modifier
+                                        .padding(horizontal = 16.dp)
+                                        .padding(bottom = 8.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.note_decrypted_session),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
+                        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                            NoteView(
+                                content = viewContent,
+                                imageLoader = imageLoader,
+                                jottyServerUrl = jottyServerUrl,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
+                                Text(
+                                    text = stringResource(R.string.legacy_encryption_warning),
+                                    modifier =
+                                        Modifier
+                                            .align(Alignment.TopCenter)
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
                     }
                 }
             }

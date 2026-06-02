@@ -331,6 +331,7 @@ private fun InstanceForm(
     val fillUrlAndKeyMsg = stringResource(R.string.fill_url_and_key)
     val openBrowserFailedMsg = stringResource(R.string.open_jotty_browser_failed)
     val connectionFailedFmt = stringResource(R.string.connection_failed)
+    var showAdvancedFields by remember(initialInstance) { mutableStateOf(initialInstance != null) }
 
     val instanceColors: List<Long?> =
         listOf(
@@ -351,18 +352,12 @@ private fun InstanceForm(
                 modifier = Modifier.padding(bottom = 12.dp),
             )
         }
-        OutlinedTextField(
-            value = name,
-            onValueChange = {
-                name = it
-                error = null
-            },
-            label = { Text(stringResource(R.string.name)) },
-            placeholder = { Text(stringResource(R.string.name_placeholder)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+        Text(
+            text = stringResource(R.string.setup_step_connection),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
             value = serverUrl,
             onValueChange = {
@@ -421,41 +416,74 @@ private fun InstanceForm(
         ) {
             Text(stringResource(R.string.open_jotty_in_browser))
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.color),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Spacer(modifier = Modifier.height(8.dp))
+        TextButton(
+            onClick = { showAdvancedFields = !showAdvancedFields },
+            contentPadding = PaddingValues(horizontal = 0.dp),
         ) {
-            instanceColors.forEach { hex ->
-                val selected = colorHex == hex
-                Surface(
-                    modifier =
-                        Modifier
-                            .size(if (hex == null) 36.dp else 32.dp)
-                            .clip(CircleShape)
-                            .then(
-                                if (hex != null) {
-                                    Modifier.background(Color(((hex and 0xFFFFFFFFL).toInt() and 0xFFFFFF) or 0xFF000000.toInt()))
-                                } else {
-                                    Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
-                                },
-                            )
-                            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier),
-                    shape = CircleShape,
-                    onClick = { colorHex = hex },
-                ) {
-                    if (hex == null) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text(
-                                stringResource(R.string.no_color),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+            Text(
+                if (showAdvancedFields) {
+                    stringResource(R.string.setup_hide_advanced)
+                } else {
+                    stringResource(R.string.setup_show_advanced)
+                },
+            )
+        }
+        if (showAdvancedFields) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.setup_step_optional),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedTextField(
+                value = name,
+                onValueChange = {
+                    name = it
+                    error = null
+                },
+                label = { Text(stringResource(R.string.name)) },
+                placeholder = { Text(stringResource(R.string.name_placeholder)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.color),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                instanceColors.forEach { hex ->
+                    val selected = colorHex == hex
+                    Surface(
+                        modifier =
+                            Modifier
+                                .size(if (hex == null) 36.dp else 32.dp)
+                                .clip(CircleShape)
+                                .then(
+                                    if (hex != null) {
+                                        Modifier.background(Color(((hex and 0xFFFFFFFFL).toInt() and 0xFFFFFF) or 0xFF000000.toInt()))
+                                    } else {
+                                        Modifier.background(MaterialTheme.colorScheme.surfaceVariant)
+                                    },
+                                )
+                                .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape) else Modifier),
+                        shape = CircleShape,
+                        onClick = { colorHex = hex },
+                    ) {
+                        if (hex == null) {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text(
+                                    stringResource(R.string.no_color),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
@@ -525,7 +553,7 @@ private fun InstanceForm(
                     }
                 },
                 modifier = Modifier.weight(1f),
-                enabled = !loading,
+                enabled = !loading && serverUrl.trim().isNotBlank() && apiKey.trim().isNotBlank(),
             ) {
                 if (loading) {
                     CircularProgressIndicator(

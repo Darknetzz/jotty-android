@@ -25,6 +25,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteEncryption
+import com.jotty.android.ui.common.NoteMetadataRow
 import com.jotty.android.util.formatNoteDate
 import com.jotty.android.util.stripInvisibleFromEdges
 
@@ -33,6 +34,7 @@ internal fun NoteCard(
     note: Note,
     onClick: () -> Unit,
     showPreview: Boolean = true,
+    syncStatusLabel: String? = null,
 ) {
     val titleText = remember(note.title) { stripInvisibleFromEdges(note.title) }
     val strippedContent = remember(note.content) { stripInvisibleFromEdges(note.content) }
@@ -92,27 +94,15 @@ internal fun NoteCard(
                     maxLines = 2,
                 )
             }
-            Row(
+            NoteMetadataRow(
                 modifier = Modifier.padding(top = 6.dp),
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp),
-            ) {
-                if (note.category.isNotBlank() && note.category != API_CATEGORY_UNCATEGORIZED) {
-                    Text(
-                        text = note.category,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (note.updatedAt.isNotBlank()) {
-                    Text(
-                        text = updatedAtText,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
+                syncStatusLabel = syncStatusLabel,
+                category =
+                    note.category.takeIf {
+                        it.isNotBlank() && it != API_CATEGORY_UNCATEGORIZED
+                    },
+                updatedAtText = note.updatedAt.takeIf { it.isNotBlank() }?.let { updatedAtText },
+            )
         }
     }
 }

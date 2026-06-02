@@ -19,6 +19,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import kotlin.math.abs
 
 /** Which GitHub release track to use for "Check for updates". */
 enum class UpdateChannel {
@@ -65,9 +66,10 @@ object UpdateChecker {
     private const val CHANGELOG_BRANCH_STABLE = "main"
     private const val CHANGELOG_BRANCH_DEV = "dev"
     private const val TAG = "UpdateChecker"
+    private const val DOWNLOAD_PROGRESS_UPDATE_STEP = 0.01f
 
     private val userAgent: String
-        get() = "Jotty-Android/${BuildConfig.VERSION_NAME ?: "0"}"
+        get() = "Jotty-Android/${BuildConfig.VERSION_NAME}"
     private const val CACHE_TTL_MS = 5 * 60 * 1000L // 5 minutes; errors are not cached
 
     private data class CacheEntry(val at: Long, val result: UpdateCheckResult)
@@ -146,7 +148,7 @@ object UpdateChecker {
             preferredApkAsset(release.assets)
                 ?: return UpdateCheckResult.Error(context.getString(R.string.no_apk_in_release))
 
-        val current = BuildConfig.VERSION_NAME?.trim() ?: "0.0.0"
+        val current = BuildConfig.VERSION_NAME.trim()
         val baseCurrent = baseVersionNameWithoutDevSuffix(current)
         return if (!isNewerVersion(latestVersion, baseCurrent)) {
             UpdateCheckResult.UpToDate
@@ -172,7 +174,7 @@ object UpdateChecker {
             commitFromDevReleaseBody(release.body)
                 ?: return UpdateCheckResult.Error(context.getString(R.string.update_check_dev_parse_error))
 
-        val current = BuildConfig.VERSION_NAME?.trim() ?: "0.0.0"
+        val current = BuildConfig.VERSION_NAME.trim()
         if (localDevBuildMatchesRemote(current, remoteCommit)) {
             return UpdateCheckResult.UpToDate
         }
@@ -241,6 +243,11 @@ object UpdateChecker {
         )
     }
 
+    /** True when this APK was built from the rolling `dev` channel (`VERSION_NAME-dev+<sha>`). */
+    fun isDevBuild(): Boolean = isDevVersionName(BuildConfig.VERSION_NAME)
+
+    internal fun isDevVersionName(versionName: String): Boolean = versionName.contains("-dev+")
+
     /** `1.3.0-dev+abcdef0` → `1.3.0` for stable-vs-dev semver checks. */
     internal fun baseVersionNameWithoutDevSuffix(versionName: String): String {
         val idx = versionName.indexOf("-dev+")
@@ -253,8 +260,17 @@ object UpdateChecker {
 
     internal fun commitFromDevReleaseBody(body: String?): String? {
         if (body.isNullOrBlank()) return null
-        val m = Regex("""(?m)^Commit:\s*([a-fA-F0-9]{7,40})\b""").find(body) ?: return null
-        return m.groupValues[1].lowercase()
+        val patterns =
+            listOf(
+                Regex("""(?m)^Commit:\s*([a-fA-F0-9]{7,40})\b"""),
+                Regex("""(?i)<!--\s*Commit:\s*([a-fA-F0-9]{7,40})\s*-->"""),
+                Regex("""(?mi)^\|\s*Commit\s*\|\s*\[\s*`?([a-fA-F0-9]{7,40})`?\s*\]"""),
+                Regex("""(?mi)^\|\s*Commit\s*\|\s*([a-fA-F0-9]{7,40})\s*\|"""),
+            )
+        for (pattern in patterns) {
+            pattern.find(body)?.groupValues?.get(1)?.let { return it.lowercase() }
+        }
+        return null
     }
 
     internal fun localDevBuildMatchesRemote(
@@ -324,13 +340,17 @@ object UpdateChecker {
                         apkFile.outputStream().use { output ->
                             val buffer = ByteArray(8192)
                             var bytesRead = 0L
+                            var lastProgressReported = -1f
                             var n: Int
                             while (input.read(buffer).also { n = it } != -1) {
                                 output.write(buffer, 0, n)
                                 bytesRead += n
                                 if (totalBytes > 0 && onProgress != null) {
                                     val p = (bytesRead.toFloat() / totalBytes).coerceIn(0f, 1f)
-                                    withContext(Dispatchers.Main) { onProgress(p) }
+                                    if (lastProgressReported < 0f || abs(p - lastProgressReported) >= DOWNLOAD_PROGRESS_UPDATE_STEP || p >= 1f) {
+                                        lastProgressReported = p
+                                        withContext(Dispatchers.Main) { onProgress(p) }
+                                    }
                                 }
                             }
                         }
@@ -355,7 +375,13 @@ object UpdateChecker {
         }
         if (!ApkInstallHelper.isVersionCodeAllowedForUpdate(context, apkFile)) {
             AppLog.w(TAG, "Update APK versionCode is lower than installed app")
-            return InstallResult.Failed(context.getString(R.string.update_version_downgrade_blocked))
+            val message =
+                if (isDevBuild()) {
+                    context.getString(R.string.update_dev_to_stable_downgrade_blocked)
+                } else {
+                    context.getString(R.string.update_version_downgrade_blocked)
+                }
+            return InstallResult.Failed(message)
         }
         return try {
             val uri: Uri =

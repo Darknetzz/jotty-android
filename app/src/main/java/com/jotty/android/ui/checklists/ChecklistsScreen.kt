@@ -3,8 +3,8 @@ package com.jotty.android.ui.checklists
 import android.app.Application
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
@@ -37,8 +36,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.DEFAULT_TASK_STATUSES
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.api.TaskStatus
 import com.jotty.android.data.api.UpdateChecklistRequest
+import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
@@ -53,11 +55,14 @@ import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
-import com.jotty.android.util.appendedPath
-import com.jotty.android.util.deleteAtPath
-import com.jotty.android.util.parentPath
+import com.jotty.android.util.ServerCapabilities
+import com.jotty.android.util.buildKanbanColumns
+import com.jotty.android.util.moveChecklistItemDownRequest
+import com.jotty.android.util.moveChecklistItemUpRequest
+import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -65,6 +70,7 @@ fun ChecklistsScreen(
     api: JottyApi,
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
+    serverCapabilitiesKey: String? = null,
     tabReselectToken: Int = 0,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
@@ -76,6 +82,7 @@ fun ChecklistsScreen(
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val checklistCategories by vm.checklistCategories.collectAsStateWithLifecycle()
+    val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
     val sortedChecklists = remember(filteredChecklists, sortOption) { filteredChecklists.sortedBy(sortOption) }
@@ -129,19 +136,22 @@ fun ChecklistsScreen(
         if (filterRestored) settingsRepository.setChecklistsCategoryFilter(selectedCategory)
     }
 
+    val inChecklistDetail = selectedList != null
     RegisterMainTabTopBar(
-        if (selectedList == null) {
-            MainTabTopBarState(
-                isOnline = true,
-                isSyncing = loading,
-                lastSyncAttemptEpochMs = null,
-                onRefresh = { vm.loadChecklists() },
-                onAdd = { vm.setShowCreateDialog(true) },
-                showSyncStatus = false,
-            )
-        } else {
-            null
-        },
+        state =
+            if (!inChecklistDetail) {
+                MainTabTopBarState(
+                    isOnline = true,
+                    isSyncing = loading,
+                    lastSyncAttemptEpochMs = null,
+                    onRefresh = { vm.loadChecklists() },
+                    onAdd = { vm.setShowCreateDialog(true) },
+                    showSyncStatus = false,
+                )
+            } else {
+                null
+            },
+        suppressMainTopBar = inChecklistDetail,
     )
 
     Scaffold(
@@ -152,7 +162,8 @@ fun ChecklistsScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = if (selectedList != null) 4 else contentVerticalDp,
+                    topComfortDp = if (inChecklistDetail) 0 else contentVerticalDp,
+                    horizontal = if (inChecklistDetail) 0.dp else 16.dp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {
@@ -166,6 +177,7 @@ fun ChecklistsScreen(
                     checklist = currentList,
                     api = api,
                     categorySuggestions = checklistCategories,
+                    dragReorderEnabled = checklistDragReorderEnabled,
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = {
                         vm.loadChecklists()
@@ -174,7 +186,11 @@ fun ChecklistsScreen(
                     onDelete = { scope.launch { deleteWithUndoForList(currentList) } },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onDeleteFailed = { scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) } },
-                    onRenameUnsupported = { scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) } },
+                    onRenameUnsupported = {
+                        serverCapabilitiesKey?.let { ServerCapabilities.markItemPatchLimited(it) }
+                        scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) }
+                    },
+                    serverCapabilitiesKey = serverCapabilitiesKey,
                 )
                 } else {
                     Column(Modifier.fillMaxSize()) {
@@ -230,7 +246,8 @@ fun ChecklistsScreen(
                 }
                 ListScreenContent(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
-                    loading = loading,
+                    showSkeleton = loading && sortedChecklists.isEmpty(),
+                    isRefreshing = loading && sortedChecklists.isNotEmpty(),
                     error = error,
                     isEmpty = sortedChecklists.isEmpty(),
                     onRetry = { vm.loadChecklists() },
@@ -307,10 +324,6 @@ private fun ChecklistCard(
     val total = checklist.items.size
     val progress = if (total > 0) completed.toFloat() / total else 0f
 
-    val isProject =
-        checklist.type.equals("project", ignoreCase = true) ||
-            checklist.type.equals("task", ignoreCase = true)
-
     if (showDeleteConfirm) {
         ConfirmDeleteDialog(
             message = stringResource(R.string.delete_checklist_confirm, displayTitle),
@@ -323,42 +336,22 @@ private fun ChecklistCard(
     }
 
     Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { menuExpanded = true },
+                ),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = checklist.title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier =
-                            Modifier
-                                .weight(1f, fill = false)
-                                .pointerInput(Unit) {
-                                    detectTapGestures(onLongPress = { menuExpanded = true })
-                                },
-                    )
-                    if (isProject) {
-                        Text(
-                            stringResource(R.string.project_label),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.more_options),
-                        )
-                    }
-                }
+                ChecklistCardTitleRow(
+                    title = displayTitle,
+                    checklistType = checklist.type,
+                    onMenuClick = { menuExpanded = true },
+                )
                 if (checklist.items.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
@@ -400,22 +393,29 @@ private fun ChecklistDetailScreen(
     checklist: Checklist,
     api: JottyApi,
     categorySuggestions: List<String> = emptyList(),
+    dragReorderEnabled: Boolean = true,
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
     onDelete: () -> Unit,
     onSaveFailed: () -> Unit = {},
     onDeleteFailed: () -> Unit = {},
     onRenameUnsupported: () -> Unit = {},
+    serverCapabilitiesKey: String? = null,
 ) {
     var items by remember { mutableStateOf(checklist.items) }
     var displayTitle by remember { mutableStateOf(checklist.title) }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showManageStatusesDialog by remember { mutableStateOf(false) }
     var newItemText by remember { mutableStateOf("") }
+    var editingItemKey by remember(checklist.id) { mutableStateOf<String?>(null) }
+    var taskStatuses by remember(checklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
+    var canUseKanbanBoard by remember(checklist.id) { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(checklist.id, checklist.title, checklist.items) {
         displayTitle = checklist.title
         items = checklist.items
+        editingItemKey = null
     }
 
     fun refresh() {
@@ -430,6 +430,31 @@ private fun ChecklistDetailScreen(
                 onSaveFailed()
             }
         }
+    }
+
+    val isProject = isProjectChecklistType(checklist.type)
+
+    fun refreshTaskStatuses() {
+        if (!isProject) return
+        scope.launch {
+            try {
+                val statuses = api.getTaskStatuses(checklist.id).statuses.sortedBy { it.order }
+                taskStatuses = if (statuses.isNotEmpty()) statuses else DEFAULT_TASK_STATUSES
+                canUseKanbanBoard = true
+            } catch (e: Exception) {
+                if (e is HttpException && e.code() in setOf(404, 405)) {
+                    canUseKanbanBoard = false
+                    return@launch
+                }
+                canUseKanbanBoard = false
+            }
+        }
+    }
+
+    LaunchedEffect(checklist.id, isProject) {
+        taskStatuses = DEFAULT_TASK_STATUSES
+        canUseKanbanBoard = true
+        if (isProject) refreshTaskStatuses()
     }
 
     if (showRenameDialog) {
@@ -460,6 +485,29 @@ private fun ChecklistDetailScreen(
             },
         )
     }
+    if (showManageStatusesDialog) {
+        ManageTaskStatusesDialog(
+            statuses = taskStatuses,
+            onDismiss = { showManageStatusesDialog = false },
+            onSave = { updated ->
+                showManageStatusesDialog = false
+                scope.launch {
+                    try {
+                        saveTaskStatuses(
+                            api = api,
+                            taskId = checklist.id,
+                            previous = taskStatuses,
+                            updated = updated,
+                        )
+                        refreshTaskStatuses()
+                        refresh()
+                    } catch (_: Exception) {
+                        onSaveFailed()
+                    }
+                }
+            },
+        )
+    }
 
     Column(Modifier.fillMaxSize()) {
         ChecklistDetailHeader(
@@ -469,7 +517,12 @@ private fun ChecklistDetailScreen(
             onDelete = onDelete,
         )
 
-        ChecklistReorderInfoBanner()
+        serverCapabilitiesKey?.let { key ->
+            ChecklistPatchCapabilityBanner(
+                capabilitiesKey = key,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -505,39 +558,122 @@ private fun ChecklistDetailScreen(
             }
         }
 
-        val isProject =
-            checklist.type.equals("project", ignoreCase = true) ||
-                checklist.type.equals("task", ignoreCase = true)
         val flatItems =
             remember(items, isProject) {
-                if (isProject) flattenWithDepth(items) else items.mapIndexed { index, item -> FlatItem(item, 0, "$index") }
+                if (isProject) {
+                    flattenChecklistItems(items)
+                } else {
+                    items.mapIndexed { index, item -> ChecklistFlatItem(item, 0, "$index") }
+                }
             }
         val toDo = flatItems.filter { !it.item.completed }
         val completed = flatItems.filter { it.item.completed }
         val total = flatItems.size
         val doneCount = completed.size
 
-        if (total > 0) {
-            Text(
-                text = stringResource(R.string.done_progress, doneCount, total),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
+        fun reorderItem(itemId: String?, up: Boolean) {
+            val id = itemId ?: return
+            val request =
+                if (up) {
+                    moveChecklistItemUpRequest(items, id)
+                } else {
+                    moveChecklistItemDownRequest(items, id)
+                } ?: return
+            scope.launch {
+                try {
+                    api.reorderItems(checklist.id, request)
+                    refresh()
+                } catch (_: Exception) {
+                    onSaveFailed()
+                }
+            }
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            item(key = "header-todo") {
-                SectionHeader(title = stringResource(R.string.section_to_do, toDo.size))
+        fun applyDragReorder(request: com.jotty.android.data.api.ReorderItemsRequest) {
+            scope.launch {
+                try {
+                    api.reorderItems(checklist.id, request)
+                    refresh()
+                } catch (_: Exception) {
+                    onSaveFailed()
+                }
             }
-            items(toDo, key = { "todo-${it.apiPath}-${it.item.text}" }) { flat ->
-                ChecklistItemRow(
-                    item = flat.item,
-                    depth = flat.depth,
-                    isProject = isProject,
+        }
+
+        if (isProject && canUseKanbanBoard) {
+            val columns = remember(items, taskStatuses) { buildKanbanColumns(items = items, statuses = taskStatuses) }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.kanban_board),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = { showManageStatusesDialog = true }) {
+                    Text(stringResource(R.string.kanban_manage_statuses))
+                }
+            }
+            TaskKanbanBoard(
+                columns = columns,
+                allStatuses = taskStatuses,
+                moveEnabled = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                onMoveItem = { apiPath, newStatusId ->
+                    scope.launch {
+                        try {
+                            api.updateTaskItemStatus(
+                                taskId = checklist.id,
+                                itemIndex = apiPath,
+                                body = UpdateTaskItemStatusRequest(status = newStatusId),
+                            )
+                            refresh()
+                        } catch (e: Exception) {
+                            if (e is HttpException && e.code() in setOf(404, 405)) {
+                                canUseKanbanBoard = false
+                            }
+                            onSaveFailed()
+                        }
+                    }
+                },
+                onDeleteItem = { apiPath ->
+                    scope.launch {
+                        try {
+                            api.deleteItem(checklist.id, apiPath)
+                            refresh()
+                        } catch (_: Exception) {
+                            onDeleteFailed()
+                        }
+                    }
+                },
+            )
+        } else {
+            if (isProject && !canUseKanbanBoard) {
+                Text(
+                    text = stringResource(R.string.kanban_not_supported_fallback),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+            ChecklistDetailItemsList(
+                treeItems = items,
+                toDo = toDo,
+                completed = completed,
+                doneCount = doneCount,
+                total = total,
+                dragReorderEnabled = dragReorderEnabled,
+                onReorder = ::applyDragReorder,
+        ) { flat, reorderableScope, _, onDragStarted, onDragStopped ->
+            ChecklistDetailItemRow(
+                flat = flat,
+                editingItemKey = editingItemKey,
+                onEditingItemKeyChange = { editingItemKey = it },
+                isProject = isProject,
+                reorderableScope = reorderableScope,
+                onDragStarted = onDragStarted,
+                onDragStopped = onDragStopped,
                     onCheck = {
                         scope.launch {
                             try {
@@ -568,35 +704,35 @@ private fun ChecklistDetailScreen(
                             }
                         }
                     },
-                    onUpdate = {
+                    onUpdate = { text ->
                         scope.launch {
                             try {
-                                if (flat.item.children.orEmpty().isNotEmpty()) {
-                                    onRenameUnsupported()
-                                    return@launch
-                                }
-                                val parentIndex = parentPath(flat.apiPath)
-                                // Server-side append semantics can shift indexes; delete first to avoid deleting the wrong item.
-                                val deletedItems = deleteAtPath(items, flat.apiPath)
-                                val newPath = appendedPath(deletedItems, parentIndex)
-                                api.deleteItem(checklist.id, flat.apiPath)
-                                api.addChecklistItem(
-                                    checklist.id,
-                                    com.jotty.android.data.api.AddItemRequest(
-                                        text = it,
-                                        status = flat.item.status,
-                                        parentIndex = parentIndex,
-                                    ),
+                                updateChecklistItemText(
+                                    api = api,
+                                    listId = checklist.id,
+                                    path = flat.apiPath,
+                                    text = text,
+                                    items = items,
+                                    onPatchUnavailable = {
+                                        serverCapabilitiesKey?.let { ServerCapabilities.markItemPatchLimited(it) }
+                                    },
                                 )
-                                if (flat.item.completed) api.checkItem(checklist.id, newPath)
                                 refresh()
+                            } catch (e: UnsupportedOperationException) {
+                                onRenameUnsupported()
                             } catch (_: Exception) {
                                 onSaveFailed()
                             }
                         }
                     },
-                    canRename = flat.item.children.orEmpty().isEmpty(),
-                    onRenameUnsupported = onRenameUnsupported,
+                    onMoveUp =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
+                        },
+                    onMoveDown =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
+                        },
                     onAddSubItem =
                         if (isProject && flat.depth == 0) {
                             {
@@ -620,217 +756,6 @@ private fun ChecklistDetailScreen(
                         },
                 )
             }
-            item(key = "header-completed") {
-                SectionHeader(title = stringResource(R.string.section_completed, completed.size))
-            }
-            items(completed, key = { "done-${it.apiPath}-${it.item.text}" }) { flat ->
-                ChecklistItemRow(
-                    item = flat.item,
-                    depth = flat.depth,
-                    isProject = isProject,
-                    onCheck = {
-                        scope.launch {
-                            try {
-                                api.checkItem(checklist.id, flat.apiPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
-                        }
-                    },
-                    onUncheck = {
-                        scope.launch {
-                            try {
-                                api.uncheckItem(checklist.id, flat.apiPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
-                        }
-                    },
-                    onDelete = {
-                        scope.launch {
-                            try {
-                                api.deleteItem(checklist.id, flat.apiPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onDeleteFailed()
-                            }
-                        }
-                    },
-                    onUpdate = {
-                        scope.launch {
-                            try {
-                                if (flat.item.children.orEmpty().isNotEmpty()) {
-                                    onRenameUnsupported()
-                                    return@launch
-                                }
-                                val parentIndex = parentPath(flat.apiPath)
-                                // Server-side append semantics can shift indexes; delete first to avoid deleting the wrong item.
-                                val deletedItems = deleteAtPath(items, flat.apiPath)
-                                val newPath = appendedPath(deletedItems, parentIndex)
-                                api.deleteItem(checklist.id, flat.apiPath)
-                                api.addChecklistItem(
-                                    checklist.id,
-                                    com.jotty.android.data.api.AddItemRequest(
-                                        text = it,
-                                        status = flat.item.status,
-                                        parentIndex = parentIndex,
-                                    ),
-                                )
-                                if (flat.item.completed) api.checkItem(checklist.id, newPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
-                        }
-                    },
-                    canRename = flat.item.children.orEmpty().isEmpty(),
-                    onRenameUnsupported = onRenameUnsupported,
-                    onAddSubItem = null,
-                )
-            }
-        }
-    }
-}
-
-/** Item with display depth and API path (e.g. "0" or "0.0" for nested). */
-private data class FlatItem(val item: ChecklistItem, val depth: Int, val apiPath: String)
-
-/** Flatten checklist items with depth and API path for project/task type. */
-private fun flattenWithDepth(
-    items: List<ChecklistItem>,
-    depth: Int = 0,
-    parentPath: String = "",
-): List<FlatItem> {
-    return items.flatMapIndexed { index, item ->
-        val path = if (parentPath.isEmpty()) "$index" else "$parentPath.$index"
-        listOf(FlatItem(item, depth, path)) + flattenWithDepth(item.children.orEmpty(), depth + 1, path)
-    }
-}
-
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-    )
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun ChecklistItemRow(
-    item: ChecklistItem,
-    depth: Int = 0,
-    isProject: Boolean = false,
-    onCheck: () -> Unit,
-    onUncheck: () -> Unit,
-    onDelete: () -> Unit,
-    onUpdate: (String) -> Unit,
-    canRename: Boolean = true,
-    onRenameUnsupported: () -> Unit = {},
-    onAddSubItem: (() -> Unit)? = null,
-) {
-    val indent = (depth * 20).dp
-    var showDeleteConfirm by remember { mutableStateOf(false) }
-    val taskLabel = item.text.ifBlank { stringResource(R.string.item_placeholder) }
-    var isEditing by remember { mutableStateOf(false) }
-    var editText by remember(item.text) { mutableStateOf(item.text) }
-    val focusRequester = remember { FocusRequester() }
-    val focusManager = LocalFocusManager.current
-
-    LaunchedEffect(isEditing) {
-        if (isEditing) focusRequester.requestFocus()
-    }
-
-    if (showDeleteConfirm) {
-        ConfirmDeleteDialog(
-            message = stringResource(R.string.delete_task_named_confirm, taskLabel),
-            onDismiss = { showDeleteConfirm = false },
-            onConfirm = {
-                showDeleteConfirm = false
-                onDelete()
-            },
-        )
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Spacer(modifier = Modifier.width(indent))
-        Checkbox(
-            checked = item.completed,
-            onCheckedChange = { if (it) onCheck() else onUncheck() },
-        )
-        if (isEditing) {
-            OutlinedTextField(
-                value = editText,
-                onValueChange = { editText = it },
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .focusRequester(focusRequester),
-                singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions =
-                    KeyboardActions(
-                        onDone = {
-                            focusManager.clearFocus()
-                            val trimmed = editText.trim()
-                            if (trimmed.isNotBlank()) onUpdate(trimmed)
-                            isEditing = false
-                        },
-                    ),
-            )
-        } else {
-            Text(
-                text = item.text.ifBlank { stringResource(R.string.item_placeholder) },
-                style = MaterialTheme.typography.bodyLarge,
-                textDecoration = if (item.completed) TextDecoration.LineThrough else null,
-                color =
-                    if (item.completed) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .clickable(role = Role.Button) {
-                            if (!canRename) {
-                                onRenameUnsupported()
-                                return@clickable
-                            }
-                            isEditing = true
-                            editText = item.text
-                        },
-            )
-        }
-        if (isProject && depth == 0 && onAddSubItem != null) {
-            IconButton(
-                onClick = onAddSubItem,
-                modifier = Modifier.size(48.dp),
-            ) {
-                Icon(
-                    Icons.Default.Add,
-                    contentDescription = stringResource(R.string.add_sub_task),
-                    modifier = Modifier.size(22.dp),
-                )
-            }
-        }
-        IconButton(
-            onClick = { showDeleteConfirm = true },
-            modifier = Modifier.size(48.dp),
-        ) {
-            Icon(
-                Icons.Default.Delete,
-                contentDescription = stringResource(R.string.delete_task),
-                tint = MaterialTheme.colorScheme.error,
-            )
         }
     }
 }

@@ -11,7 +11,7 @@ class BundledChangelog private constructor(
 ) {
     fun section(key: String): String? = sections[key]
 
-    /** First `[x.y.z-dev]` section in file order (rolling dev-latest notes). */
+    /** First rolling dev section in file order (`dev-latest` or legacy `[x.y.z-dev]`). */
     fun firstDevSectionBody(): String? = devSectionKeys.firstOrNull()?.let { sections[it] }
 
     companion object {
@@ -38,19 +38,23 @@ class BundledChangelog private constructor(
                 if (body.isNotEmpty()) {
                     sections[key] = body
                 }
-                if (key.endsWith("-dev", ignoreCase = false)) {
+                if (key.equals(DEV_SECTION_KEY, ignoreCase = true) ||
+                    key.endsWith("-dev", ignoreCase = false)
+                ) {
                     devKeys.add(key)
                 }
             }
             return BundledChangelog(sections, devKeys)
         }
 
-        /** Section key for the installed build (e.g. `1.3.6-dev` or `1.3.6`). */
+        const val DEV_SECTION_KEY = "dev-latest"
+
+        /** Section key for the installed build (`dev-latest`, legacy `x.y.z-dev`, or stable semver). */
         fun sectionKeyForInstalled(versionName: String): String {
             val trimmed = versionName.trim()
             val devPlus = trimmed.indexOf("-dev+")
             if (devPlus > 0) {
-                return trimmed.substring(0, devPlus) + "-dev"
+                return DEV_SECTION_KEY
             }
             return UpdateChecker.baseVersionNameWithoutDevSuffix(trimmed)
         }

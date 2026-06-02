@@ -9,8 +9,7 @@ import androidx.compose.ui.Modifier
  * Switches between list (null) and detail (non-null) without composing both at once.
  *
  * Avoids [AnimatedContent], which keeps enter and exit children alive during transitions and can
- * crash when both sides use scrollables (infinite height constraints). Detail is shown with a
- * simple keyed swap only.
+ * crash when both sides use scrollables (infinite height constraints).
  */
 @Composable
 fun <T> ListDetailContainer(

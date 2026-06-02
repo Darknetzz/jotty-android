@@ -12,17 +12,20 @@ fun Context.isSystemReducedMotionEnabled(): Boolean =
     }
 
 /**
- * Resolves app reduced-motion preference: null / `"system"` follows [systemReducedMotion];
- * `"on"` / `"off"` override.
+ * Resolves whether decorative transitions should be skipped.
+ *
+ * - Unset / `"on"`: reduced motion (default; motion effects opt-in only).
+ * - `"off"`: motion effects enabled.
+ * - `"system"`: follows [systemReducedMotion].
  */
 fun resolveReducedMotionEnabled(
     mode: String?,
     systemReducedMotion: Boolean,
 ): Boolean =
     when (mode?.lowercase()) {
-        "on" -> true
         "off" -> false
-        else -> systemReducedMotion
+        "system" -> systemReducedMotion
+        else -> true
     }
 
 fun resolveReducedMotionEnabled(

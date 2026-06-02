@@ -21,6 +21,9 @@ interface ChecklistDao {
     @Query("SELECT * FROM checklists WHERE instanceId = :instanceId AND (isDirty = 1 OR isDeleted = 1)")
     suspend fun getDirty(instanceId: String): List<ChecklistEntity>
 
+    @Query("SELECT id FROM checklists WHERE instanceId = :instanceId AND (isDirty = 1 OR isDeleted = 1)")
+    fun getDirtyChecklistIdsFlow(instanceId: String): Flow<List<String>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: ChecklistEntity)
 

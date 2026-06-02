@@ -10,10 +10,12 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -22,14 +24,17 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
+import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
 
@@ -38,6 +43,8 @@ class MainTabTopBarState(
     val isOnline: Boolean,
     val isSyncing: Boolean,
     val lastSyncAttemptEpochMs: Long?,
+    val lastSyncDurationText: String? = null,
+    val lastSyncError: String? = null,
     val onRefresh: () -> Unit,
     val onAdd: () -> Unit,
     val showSyncStatus: Boolean = true,
@@ -45,6 +52,9 @@ class MainTabTopBarState(
 
 class MainTabTopBarController {
     var state by mutableStateOf<MainTabTopBarState?>(null)
+
+    /** When true, [com.jotty.android.ui.main.MainScreen] hides its tab TopAppBar (list/detail pane). */
+    var suppressMainTopBar by mutableStateOf(false)
 }
 
 val LocalMainTabTopBarController =
@@ -62,14 +72,60 @@ fun ProvideMainTabTopBarController(content: @Composable () -> Unit) {
 
 /** Publishes list-tab actions into [MainScreen]'s shared TopAppBar; clears on dispose. */
 @Composable
-fun RegisterMainTabTopBar(state: MainTabTopBarState?) {
+fun RegisterMainTabTopBar(
+    state: MainTabTopBarState?,
+    suppressMainTopBar: Boolean = false,
+) {
     val controller = LocalMainTabTopBarController.current
     SideEffect {
         controller.state = state
+        controller.suppressMainTopBar = suppressMainTopBar
     }
     DisposableEffect(Unit) {
         onDispose {
             controller.state = null
+            controller.suppressMainTopBar = false
+        }
+    }
+}
+
+@Composable
+private fun rememberSyncDetailText(
+    lastSyncAttemptEpochMs: Long?,
+    lastSyncDurationText: String?,
+    lastSyncError: String?,
+): String? {
+    val lastSyncText =
+        remember(lastSyncAttemptEpochMs) {
+            lastSyncAttemptEpochMs?.let {
+                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
+            }
+        }
+    val syncDurationLabel = stringResource(R.string.sync_duration)
+    val syncLastErrorLabel = stringResource(R.string.sync_last_error)
+    val lastSyncAttemptTemplate = stringResource(R.string.last_sync_attempt_at)
+    return remember(
+        lastSyncText,
+        lastSyncDurationText,
+        lastSyncError,
+        syncDurationLabel,
+        syncLastErrorLabel,
+        lastSyncAttemptTemplate,
+    ) {
+        when {
+            lastSyncText != null || lastSyncDurationText != null || lastSyncError != null ->
+                buildString {
+                    lastSyncText?.let { append(lastSyncAttemptTemplate.format(it)) }
+                    if (lastSyncDurationText != null) {
+                        if (isNotEmpty()) append(" • ")
+                        append("$syncDurationLabel: $lastSyncDurationText")
+                    }
+                    if (lastSyncError != null) {
+                        if (isNotEmpty()) append(" • ")
+                        append("$syncLastErrorLabel: $lastSyncError")
+                    }
+                }
+            else -> null
         }
     }
 }
@@ -79,57 +135,156 @@ fun OfflineSyncStatusIndicator(
     isOnline: Boolean,
     isSyncing: Boolean,
     lastSyncAttemptEpochMs: Long?,
+    lastSyncDurationText: String? = null,
+    lastSyncError: String? = null,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
 ) {
+    var showDetailsDialog by remember { mutableStateOf(false) }
     val statusText =
         when {
             isSyncing -> stringResource(R.string.syncing)
             isOnline -> stringResource(R.string.online)
             else -> stringResource(R.string.server_unreachable)
         }
-    val lastSyncText =
-        remember(lastSyncAttemptEpochMs) {
-            lastSyncAttemptEpochMs?.let {
-                DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it))
-            }
-        }
+    val syncDetailText =
+        rememberSyncDetailText(
+            lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+            lastSyncDurationText = lastSyncDurationText,
+            lastSyncError = lastSyncError,
+        )
     val offline = !isOnline && !isSyncing
     val iconSize = if (compact) 18.dp else 20.dp
+    val nowMs by
+        produceState(initialValue = System.currentTimeMillis(), key1 = lastSyncAttemptEpochMs) {
+            if (lastSyncAttemptEpochMs == null) return@produceState
+            while (true) {
+                value = System.currentTimeMillis()
+                delay(60_000)
+            }
+        }
+    val relativeLastSyncText = lastSyncAttemptEpochMs?.let { formatRelativeTime(it, nowMs) }
+    val hasSyncFailure = !lastSyncError.isNullOrBlank()
+    val offlineHint = stringResource(R.string.connectivity_status_offline_hint)
+    val relativeLastSyncLine =
+        relativeLastSyncText?.let { stringResource(R.string.last_sync_attempt_at, it) }
+    val syncDialogBody =
+        remember(
+            statusText,
+            relativeLastSyncLine,
+            syncDetailText,
+            isSyncing,
+            offline,
+            offlineHint,
+        ) {
+            buildString {
+                when {
+                    isSyncing -> append(statusText)
+                    offline -> {
+                        append(statusText)
+                        append("\n")
+                        append(offlineHint)
+                    }
+                    relativeLastSyncLine != null -> append(relativeLastSyncLine)
+                    else -> append(statusText)
+                }
+                if (!isSyncing && !offline && syncDetailText != null) {
+                    if (isNotEmpty()) append("\n\n")
+                    append(syncDetailText)
+                }
+            }
+        }
+
+    if (compact) {
+        IconButton(
+            onClick = { showDetailsDialog = true },
+            modifier = modifier.size(40.dp),
+        ) {
+            val iconTint =
+                if (offline || hasSyncFailure) {
+                    Color(0xFFC62828)
+                } else {
+                    Color(0xFF2E7D32)
+                }
+            when {
+                isSyncing ->
+                    Icon(
+                        Icons.Default.CloudQueue,
+                        contentDescription = stringResource(R.string.sync_details),
+                        tint = iconTint,
+                        modifier = Modifier.size(22.dp),
+                    )
+                isOnline ->
+                    Icon(
+                        Icons.Default.CloudDone,
+                        contentDescription = stringResource(R.string.sync_details),
+                        tint = iconTint,
+                        modifier = Modifier.size(22.dp),
+                    )
+                else ->
+                    Icon(
+                        Icons.Default.CloudOff,
+                        contentDescription = stringResource(R.string.sync_details),
+                        tint = iconTint,
+                        modifier = Modifier.size(22.dp),
+                    )
+            }
+        }
+        if (showDetailsDialog) {
+            AlertDialog(
+                onDismissRequest = { showDetailsDialog = false },
+                confirmButton = {
+                    TextButton(onClick = { showDetailsDialog = false }) {
+                        Text(stringResource(R.string.close))
+                    }
+                },
+                title = { Text(stringResource(R.string.sync_details)) },
+                text = { Text(syncDialogBody) },
+            )
+        }
+        return
+    }
 
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        val iconTint =
+            if (offline || hasSyncFailure) {
+                Color(0xFFC62828)
+            } else {
+                Color(0xFF2E7D32)
+            }
+        val iconModifier = Modifier.size(if (offline) 22.dp else iconSize)
         when {
             isSyncing ->
                 Icon(
                     Icons.Default.CloudQueue,
                     contentDescription = statusText,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(iconSize),
+                    tint = iconTint,
+                    modifier = iconModifier,
                 )
             isOnline ->
                 Icon(
                     Icons.Default.CloudDone,
                     contentDescription = statusText,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(iconSize),
+                    tint = iconTint,
+                    modifier = iconModifier,
                 )
             else ->
                 Icon(
                     Icons.Default.CloudOff,
                     contentDescription = statusText,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(if (compact) 18.dp else 22.dp),
+                    tint = iconTint,
+                    modifier = iconModifier,
                 )
         }
         Column {
             Text(
                 text = statusText,
                 style =
-                    if (offline && !compact) {
+                    if (offline) {
                         MaterialTheme.typography.titleSmall
                     } else {
                         MaterialTheme.typography.labelMedium
@@ -145,15 +300,16 @@ fun OfflineSyncStatusIndicator(
             )
             if (offline) {
                 Text(
-                    text = stringResource(R.string.connectivity_status_offline_hint),
+                    text = offlineHint,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            } else if (lastSyncText != null) {
+            }
+            if (syncDetailText != null) {
                 Text(
-                    text = stringResource(R.string.last_sync_attempt_at, lastSyncText),
+                    text = syncDetailText,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -165,16 +321,34 @@ fun OfflineSyncStatusIndicator(
 }
 
 @Composable
+private fun formatRelativeTime(
+    thenEpochMs: Long,
+    nowEpochMs: Long,
+): String {
+    val diffSeconds = ((nowEpochMs - thenEpochMs).coerceAtLeast(0L)) / 1000L
+    return when {
+        diffSeconds < 60L -> stringResource(R.string.relative_time_just_now)
+        diffSeconds < 3600L -> stringResource(R.string.relative_time_minutes_ago, diffSeconds / 60L)
+        diffSeconds < 86_400L -> stringResource(R.string.relative_time_hours_ago, diffSeconds / 3600L)
+        else -> stringResource(R.string.relative_time_days_ago, diffSeconds / 86_400L)
+    }
+}
+
+@Composable
 fun MainTabTopBarSyncSlot(
     isOnline: Boolean,
     isSyncing: Boolean,
     lastSyncAttemptEpochMs: Long?,
+    lastSyncDurationText: String? = null,
+    lastSyncError: String? = null,
     modifier: Modifier = Modifier,
 ) {
     OfflineSyncStatusIndicator(
         isOnline = isOnline,
         isSyncing = isSyncing,
         lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+        lastSyncDurationText = lastSyncDurationText,
+        lastSyncError = lastSyncError,
         modifier = modifier,
         compact = true,
     )
@@ -182,6 +356,15 @@ fun MainTabTopBarSyncSlot(
 
 @Composable
 fun MainTabTopBarActions(state: MainTabTopBarState) {
+    if (state.showSyncStatus) {
+        MainTabTopBarSyncSlot(
+            isOnline = state.isOnline,
+            isSyncing = state.isSyncing,
+            lastSyncAttemptEpochMs = state.lastSyncAttemptEpochMs,
+            lastSyncDurationText = state.lastSyncDurationText,
+            lastSyncError = state.lastSyncError,
+        )
+    }
     val refreshEnabled =
         if (state.showSyncStatus) {
             state.isOnline && !state.isSyncing

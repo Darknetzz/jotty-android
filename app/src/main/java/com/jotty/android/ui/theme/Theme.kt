@@ -226,6 +226,105 @@ private val MidnightLightColorScheme =
         onSurface = Color(0xFF13243A),
     )
 
+// Lavender — soft purple light theme
+private val LavenderPrimary = Color(0xFF7C3AED)
+private val LavenderBg = Color(0xFFF5F3FF)
+private val LavenderSurface = Color(0xFFEDE9FE)
+private val LavenderOnBg = Color(0xFF3B0764)
+private val LavenderOnSurface = Color(0xFF2E1065)
+
+private val LavenderColorScheme =
+    lightColorScheme(
+        primary = LavenderPrimary,
+        onPrimary = Color.White,
+        secondary = LavenderPrimary,
+        onSecondary = Color.White,
+        background = LavenderBg,
+        surface = LavenderSurface,
+        onBackground = LavenderOnBg,
+        onSurface = LavenderOnSurface,
+    )
+
+private val LavenderDarkBg = Color(0xFF1E1033)
+private val LavenderDarkSurface = Color(0xFF2E1065)
+private val LavenderDarkColorScheme =
+    darkColorScheme(
+        primary = Color(0xFFA78BFA),
+        onPrimary = Color(0xFF1E1033),
+        secondary = LavenderPrimary,
+        onSecondary = Color.White,
+        background = LavenderDarkBg,
+        surface = LavenderDarkSurface,
+        onBackground = Color.White,
+        onSurface = Color.White,
+    )
+
+// Sunset — warm amber/orange light theme
+private val SunsetPrimary = Color(0xFFEA580C)
+private val SunsetBg = Color(0xFFFFF7ED)
+private val SunsetSurface = Color(0xFFFFEDD5)
+private val SunsetOnBg = Color(0xFF431407)
+private val SunsetOnSurface = Color(0xFF2A1205)
+
+private val SunsetColorScheme =
+    lightColorScheme(
+        primary = SunsetPrimary,
+        onPrimary = Color.White,
+        secondary = SunsetPrimary,
+        onSecondary = Color.White,
+        background = SunsetBg,
+        surface = SunsetSurface,
+        onBackground = SunsetOnBg,
+        onSurface = SunsetOnSurface,
+    )
+
+private val SunsetDarkBg = Color(0xFF1C0F07)
+private val SunsetDarkSurface = Color(0xFF431407)
+private val SunsetDarkColorScheme =
+    darkColorScheme(
+        primary = Color(0xFFFB923C),
+        onPrimary = Color(0xFF1C0F07),
+        secondary = SunsetPrimary,
+        onSecondary = Color.White,
+        background = SunsetDarkBg,
+        surface = SunsetDarkSurface,
+        onBackground = Color.White,
+        onSurface = Color.White,
+    )
+
+// Graphite — neutral monochrome theme
+private val GraphitePrimary = Color(0xFF52525B)
+private val GraphiteBg = Color(0xFFFAFAFA)
+private val GraphiteSurface = Color(0xFFF4F4F5)
+private val GraphiteOnBg = Color(0xFF18181B)
+private val GraphiteOnSurface = Color(0xFF27272A)
+
+private val GraphiteColorScheme =
+    lightColorScheme(
+        primary = GraphitePrimary,
+        onPrimary = Color.White,
+        secondary = GraphitePrimary,
+        onSecondary = Color.White,
+        background = GraphiteBg,
+        surface = GraphiteSurface,
+        onBackground = GraphiteOnBg,
+        onSurface = GraphiteOnSurface,
+    )
+
+private val GraphiteDarkBg = Color(0xFF09090B)
+private val GraphiteDarkSurface = Color(0xFF18181B)
+private val GraphiteDarkColorScheme =
+    darkColorScheme(
+        primary = Color(0xFFA1A1AA),
+        onPrimary = Color(0xFF09090B),
+        secondary = GraphitePrimary,
+        onSecondary = Color.White,
+        background = GraphiteDarkBg,
+        surface = GraphiteDarkSurface,
+        onBackground = Color.White,
+        onSurface = Color.White,
+    )
+
 /** True-black AMOLED light fallback: AMOLED is a dark concept, so light mode uses the neutral light scheme. */
 
 /**
@@ -237,6 +336,8 @@ private val MidnightLightColorScheme =
 fun JottyTheme(
     themeMode: String? = null,
     themeColor: String = "default",
+    themeCustomAccentHex: String = DEFAULT_CUSTOM_ACCENT_HEX,
+    themeCustomTintedBackgrounds: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val systemDark = isSystemInDarkTheme()
@@ -261,6 +362,13 @@ fun JottyTheme(
             "rose" -> if (dark) RoseDarkColorScheme else RoseColorScheme
             "ocean" -> if (dark) OceanDarkColorScheme else OceanColorScheme
             "forest" -> if (dark) ForestDarkColorScheme else ForestColorScheme
+            "lavender" -> if (dark) LavenderDarkColorScheme else LavenderColorScheme
+            "sunset" -> if (dark) SunsetDarkColorScheme else SunsetColorScheme
+            "graphite" -> if (dark) GraphiteDarkColorScheme else GraphiteColorScheme
+            "custom" -> {
+                val accent = resolveCustomAccentColor(themeCustomAccentHex)
+                customColorScheme(accent, dark = dark, tintedBackgrounds = themeCustomTintedBackgrounds)
+            }
             else -> if (dark) DarkColorScheme else LightColorScheme
         }
 

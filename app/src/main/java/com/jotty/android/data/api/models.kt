@@ -41,6 +41,27 @@ data class ChecklistItem(
     val children: List<ChecklistItem>? = null,
 )
 
+/** Jotty may mark completion via [status] (`completed`) or [completed]; treat either as done. */
+fun ChecklistItem.isCompletedForApi(): Boolean =
+    completed || status.equals("completed", ignoreCase = true)
+
+/** Align local storage with API completion fields so offline sync can detect already-applied ops. */
+fun ChecklistItem.normalizedForLocal(): ChecklistItem {
+    val done = isCompletedForApi()
+    val normalizedChildren = children?.map { it.normalizedForLocal() }
+    return copy(
+        completed = done,
+        status =
+            when {
+                done -> status?.takeIf { it.isNotBlank() } ?: "completed"
+                else -> status?.takeIf { it.isNotBlank() } ?: "in_progress"
+            },
+        children = normalizedChildren,
+    )
+}
+
+fun List<ChecklistItem>.normalizedForLocal(): List<ChecklistItem> = map { it.normalizedForLocal() }
+
 data class CreateChecklistRequest(
     val title: String,
     val category: String? = API_CATEGORY_UNCATEGORIZED,
@@ -56,6 +77,115 @@ data class AddItemRequest(
     val text: String,
     val status: String? = null,
     val parentIndex: String? = null,
+)
+
+data class UpdateItemRequest(
+    val text: String? = null,
+    val description: String? = null,
+)
+
+data class ReorderItemsRequest(
+    val activeItemId: String,
+    val overItemId: String,
+    val position: String? = null,
+    val isDropInto: Boolean? = null,
+)
+
+// ─── Task checklists (Kanban) ───────────────────────────────────────────────
+
+/** Kanban column definition for a task checklist. */
+data class TaskStatus(
+    val id: String,
+    val label: String,
+    val order: Int = 0,
+    val color: String? = null,
+    val autoComplete: Boolean? = null,
+)
+
+data class TaskStatusesResponse(val statuses: List<TaskStatus> = emptyList())
+
+data class CreateTaskStatusRequest(
+    val id: String,
+    val label: String,
+    val color: String? = null,
+    val order: Int? = null,
+    val autoComplete: Boolean? = null,
+)
+
+data class UpdateTaskStatusRequest(
+    val label: String? = null,
+    val color: String? = null,
+    val order: Int? = null,
+    val autoComplete: Boolean? = null,
+)
+
+data class UpdateTaskItemStatusRequest(val status: String)
+
+data class TaskResponse(val task: TaskChecklist)
+
+/** Task checklist as returned by `/api/tasks` (includes column definitions). */
+data class TaskChecklist(
+    val id: String,
+    val title: String,
+    val category: String = API_CATEGORY_UNCATEGORIZED,
+    val statuses: List<TaskStatus> = emptyList(),
+    val items: List<ChecklistItem> = emptyList(),
+    val createdAt: String,
+    val updatedAt: String,
+)
+
+/** Default accent colors when the server omits `color` (matches manage-statuses palette). */
+private val KANBAN_STATUS_COLORS_BY_ID: Map<String, String> =
+    mapOf(
+        "todo" to "#6b7280",
+        "in_progress" to "#3b82f6",
+        "completed" to "#10b981",
+        "done" to "#10b981",
+        "paused" to "#f59e0b",
+    )
+
+private val KANBAN_STATUS_COLOR_FALLBACKS: List<String> =
+    listOf(
+        "#6b7280",
+        "#3b82f6",
+        "#10b981",
+        "#f59e0b",
+        "#ef4444",
+        "#8b5cf6",
+        "#ec4899",
+    )
+
+/** Hex color for Kanban dots when [color] is null or blank (Jotty API often omits it on default columns). */
+fun TaskStatus.effectiveColorHex(): String {
+    color?.trim()?.takeIf { it.isNotBlank() }?.let { return it }
+    KANBAN_STATUS_COLORS_BY_ID[id.lowercase()]?.let { return it }
+    val index = order.coerceAtLeast(0) % KANBAN_STATUS_COLOR_FALLBACKS.size
+    return KANBAN_STATUS_COLOR_FALLBACKS[index]
+}
+
+/** Default Kanban columns when the server does not return custom statuses. */
+val DEFAULT_TASK_STATUSES: List<TaskStatus> =
+    listOf(
+        TaskStatus(id = "todo", label = "To Do", order = 0, color = KANBAN_STATUS_COLORS_BY_ID["todo"]),
+        TaskStatus(id = "in_progress", label = "In Progress", order = 1, color = KANBAN_STATUS_COLORS_BY_ID["in_progress"]),
+        TaskStatus(id = "completed", label = "Completed", order = 2, color = KANBAN_STATUS_COLORS_BY_ID["completed"]),
+    )
+
+// ─── Search ─────────────────────────────────────────────────────────────────
+
+data class SearchResponse(
+    val query: String? = null,
+    val total: Int? = null,
+    val results: List<SearchResult> = emptyList(),
+)
+
+data class SearchResult(
+    val id: String,
+    val uuid: String? = null,
+    val type: String,
+    val title: String,
+    val category: String = API_CATEGORY_UNCATEGORIZED,
+    val excerpt: String? = null,
 )
 
 // ─── Notes ──────────────────────────────────────────────────────────────────

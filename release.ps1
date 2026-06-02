@@ -6,6 +6,9 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$DevLatestSectionKey = "dev-latest"
+$DevLatestUrl = "https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest"
+
 function Get-RepoRoot {
     if ($PSScriptRoot) {
         return $PSScriptRoot
@@ -68,41 +71,45 @@ function Get-DefaultBumpedVersion {
     return ($parts -join '.')
 }
 
+function Get-DevSectionHeadingLine {
+  return "## [$DevLatestSectionKey]($DevLatestUrl)"
+}
+
 function Update-Changelog {
     param(
         [string]$FilePath,
         [string]$VersionName,
-        [string]$ReleaseDate,
-        [string]$CurrentVersionName
+        [string]$ReleaseDate
     )
 
-    $devLatestUrl = 'https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest'
     $content = Get-Content -Raw -LiteralPath $FilePath
     $lineEnding = if ($content.Contains("`r`n")) { "`r`n" } else { "`n" }
 
-    $currentDevHeading = "## [$CurrentVersionName-dev]"
-    if ($content -notmatch [regex]::Escape($currentDevHeading)) {
-        throw "Could not find '$currentDevHeading' in CHANGELOG.md"
+    $devHeadingPattern = '(?m)^## \[(?:dev-latest|[^\]]+-dev)\](?:\([^\)]+\))?(?: - \[[^\]]+\]\([^\)]+\))?\s*$'
+    $devMatch = [regex]::Match($content, $devHeadingPattern)
+    if (-not $devMatch.Success) {
+        throw "Could not find a rolling dev changelog section (## [dev-latest] or ## [VERSION-dev]) in CHANGELOG.md"
     }
-    if ($content -match "## \[$([regex]::Escape($VersionName))\]") {
+    if ($content -match "(?m)^## \[$([regex]::Escape($VersionName))\] - ") {
         throw "CHANGELOG.md already contains version $VersionName"
     }
 
-    $releaseHeader = "## [$VersionName] - $ReleaseDate"
-    $newDevHeading = "## [$VersionName-dev] - [dev-latest]($devLatestUrl)"
-    $replacement = "$newDevHeading$lineEnding$lineEnding---$lineEnding$lineEnding$releaseHeader"
-    $escapedCurrentDev = [regex]::Escape($currentDevHeading)
-    $devTitleSuffix = '(?: - \[[^\]]+\]\([^\)]+\))?'
-    $updated = [regex]::Replace(
-        $content,
-        "${escapedCurrentDev}${devTitleSuffix}\r?\n\r?\n---\r?\n\r?\n## \[[^\]]+\] - [^\r\n]+",
-        $replacement,
-        1
-    )
-
-    if ($updated -eq $content) {
-        $updated = [regex]::Replace($content, "${escapedCurrentDev}${devTitleSuffix}", $replacement, 1)
+    $afterDevHeading = $devMatch.Index + $devMatch.Length
+    $nextStablePattern = '(?m)^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}\s*$'
+    $nextMatch = [regex]::Match($content.Substring($afterDevHeading), $nextStablePattern)
+    if (-not $nextMatch.Success) {
+        throw "Could not find the next dated stable section after the dev section in CHANGELOG.md"
     }
+
+    $devBody = $content.Substring($afterDevHeading, $nextMatch.Index).Trim()
+    $devBody = $devBody -replace '^\r?\n---\r?\n', ''
+    $devBody = $devBody -replace '\r?\n---\s*$', ''
+
+    $newDevHeading = Get-DevSectionHeadingLine
+    $releaseHeader = "## [$VersionName] - $ReleaseDate"
+    $promoted = "$newDevHeading$lineEnding$lineEnding---$lineEnding$lineEnding$releaseHeader$lineEnding$lineEnding$devBody$lineEnding$lineEnding---$lineEnding$lineEnding"
+
+    $updated = $content.Substring(0, $devMatch.Index) + $promoted + $content.Substring($afterDevHeading + $nextMatch.Index)
 
     $releaseUrl = "https://github.com/Darknetzz/jotty-android/releases/tag/v$VersionName"
     $linkLine = "[$VersionName]: $releaseUrl"
@@ -137,12 +144,12 @@ if (-not $Version) {
 }
 
 $gradleResult = Update-GradleProperties -FilePath $gradlePath -VersionName $Version
-$updatedChangelog = Update-Changelog -FilePath $changelogPath -VersionName $Version -ReleaseDate $Date -CurrentVersionName $currentVersion
+$updatedChangelog = Update-Changelog -FilePath $changelogPath -VersionName $Version -ReleaseDate $Date
 
 if ($DryRun) {
     Write-Host "[DryRun] Would set VERSION_NAME=$Version"
     Write-Host "[DryRun] Would increment VERSION_CODE $($gradleResult.PreviousCode) -> $($gradleResult.NextCode)"
-    Write-Host "[DryRun] Would promote changelog [$currentVersion-dev] to [$Version] ($Date)"
+    Write-Host "[DryRun] Would promote CHANGELOG [dev-latest] to [$Version] ($Date) and reset [dev-latest]"
     exit 0
 }
 

@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Stable
@@ -131,13 +132,53 @@ fun ErrorState(
 }
 
 /**
+ * Keeps the last non-empty [current] list visible while [refreshing] so Room sync replace
+ * (delete-all + insert) does not flash an empty state between the old and new snapshots.
+ * Clears the stale cache when [refreshing] ends and [current] is still empty.
+ */
+@Composable
+fun <T> rememberStaleListWhileRefresh(
+    current: List<T>,
+    refreshing: Boolean,
+): StaleListDisplay<T> {
+    var stale by remember { mutableStateOf(emptyList<T>()) }
+    if (current.isNotEmpty()) {
+        stale = current
+    }
+    // Room may emit an empty list for a frame after sync ends but before the replace is visible.
+    // Wait until refresh finishes and the cache stays empty before dropping the stale snapshot.
+    LaunchedEffect(refreshing, current) {
+        if (!refreshing && current.isEmpty() && stale.isNotEmpty()) {
+            delay(150)
+            if (!refreshing && current.isEmpty()) {
+                stale = emptyList()
+            }
+        }
+    }
+    val display = if (current.isNotEmpty()) current else stale
+    val showEmpty = display.isEmpty() && !refreshing
+    return StaleListDisplay(displayItems = display, showEmpty = showEmpty)
+}
+
+@Stable
+data class StaleListDisplay<T>(
+    val displayItems: List<T>,
+    val showEmpty: Boolean,
+)
+
+/**
  * Shared list-screen layout: shows [LoadingState], [ErrorState], [EmptyState], or [PullToRefreshBox] with [content].
  * Use when you have a list that can be loading, in error, empty, or showing items with pull-to-refresh.
+ *
+ * [showSkeleton] — full-list shimmer (initial load). [isRefreshing] — pull-to-refresh indicator only
+ * (user-initiated refresh). Do not bind background sync to [isRefreshing]; [PullToRefreshBox] blocks touches
+ * while refreshing.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ListScreenContent(
-    loading: Boolean,
+    showSkeleton: Boolean,
+    isRefreshing: Boolean,
     error: String?,
     isEmpty: Boolean,
     onRetry: () -> Unit,
@@ -150,17 +191,15 @@ fun ListScreenContent(
 ) {
     val pullRefreshState = rememberPullToRefreshState()
     when {
-        loading && isEmpty -> ListLoadingSkeleton(modifier = modifier)
+        showSkeleton -> ListLoadingSkeleton(modifier = modifier)
         else ->
             PullToRefreshBox(
                 modifier = modifier,
-                isRefreshing = loading,
+                isRefreshing = isRefreshing,
                 onRefresh = onRefresh,
                 state = pullRefreshState,
             ) {
                 when {
-                    // Make empty/error states pull-to-refreshable: a scrollable wrapper lets the
-                    // overscroll gesture reach PullToRefreshBox even when the content fits the screen.
                     error != null && isEmpty ->
                         ScrollableFullSize {
                             ErrorState(message = error, onRetry = onRetry)

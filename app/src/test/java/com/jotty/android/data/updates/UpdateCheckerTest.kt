@@ -70,6 +70,31 @@ class UpdateCheckerTest {
     }
 
     @Test
+    fun `commitFromDevReleaseBody parses HTML comment`() {
+        val body =
+            """
+            Rolling pre-release build from `dev`.
+            <!-- Commit: abcdef0123456789abcdef0123456789abcdef01 -->
+            """.trimIndent()
+        assertEquals(
+            "abcdef0123456789abcdef0123456789abcdef01",
+            UpdateChecker.commitFromDevReleaseBody(body),
+        )
+    }
+
+    @Test
+    fun `commitFromDevReleaseBody parses Commit row in markdown table`() {
+        val body =
+            """
+            | Item | Link |
+            | --- | --- |
+            | Commit | [`abcdef0123456`](https://github.com/example/commit/abcdef0123456) |
+            | Run | [GitHub Actions run](https://github.com/example/actions/runs/1) |
+            """.trimIndent()
+        assertEquals("abcdef0123456", UpdateChecker.commitFromDevReleaseBody(body))
+    }
+
+    @Test
     fun `commitFromDevReleaseBody returns null for missing or malformed body`() {
         assertNull(UpdateChecker.commitFromDevReleaseBody(null))
         assertNull(UpdateChecker.commitFromDevReleaseBody(""))
@@ -143,6 +168,12 @@ class UpdateCheckerTest {
     fun `preferredApkAsset falls back to debug when only debug attached`() {
         val assets = listOf(GitHubAsset("jotty-android-debug.apk", "https://example.com/debug"))
         assertEquals("jotty-android-debug.apk", UpdateChecker.preferredApkAsset(assets)?.name)
+    }
+
+    @Test
+    fun `isDevVersionName detects dev suffix`() {
+        assertTrue(UpdateChecker.isDevVersionName("1.4.0-dev+b395ded"))
+        assertFalse(UpdateChecker.isDevVersionName("1.4.0"))
     }
 
     @Test

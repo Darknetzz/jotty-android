@@ -1,7 +1,8 @@
 package com.jotty.android.ui.settings
 
-import android.os.Build
 import android.os.SystemClock
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -15,6 +16,9 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -30,9 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.BuildConfig
 import com.jotty.android.R
-import com.jotty.android.data.api.AdminOverviewResponse
 import com.jotty.android.data.api.JottyApi
-import com.jotty.android.data.api.SummaryData
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.data.updates.BundledChangelog
@@ -49,7 +51,7 @@ import com.jotty.android.util.DebugLogExporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import retrofit2.HttpException
+import java.io.File
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -64,6 +66,9 @@ fun SettingsScreen(
     settingsRepository: SettingsRepository,
     onDisconnect: () -> Unit,
     onManageInstances: () -> Unit = {},
+    onAppearance: () -> Unit = {},
+    onDashboard: () -> Unit = {},
+    onBehavior: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -74,27 +79,38 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val biometricClearedMsg = stringResource(R.string.biometric_passphrase_forgotten)
     val currentInstance by settingsRepository.currentInstance.collectAsStateWithLifecycle(initialValue = null)
-    val themeMode by settingsRepository.themeMode.collectAsStateWithLifecycle(initialValue = null)
-    val themeColor by settingsRepository.themeColor.collectAsStateWithLifecycle(initialValue = "default")
-    val readerTextScale by settingsRepository.readerTextScale.collectAsStateWithLifecycle(initialValue = 1.0f)
-    val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
-    val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
-    val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
-    val reducedMotionMode by settingsRepository.reducedMotionMode.collectAsStateWithLifecycle(initialValue = null)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
-    val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
     val updateChannelPref by settingsRepository.updateChannel.collectAsStateWithLifecycle(initialValue = "stable")
     var isExportingLogs by remember { mutableStateOf(false) }
-    var adminOverview by remember { mutableStateOf<AdminOverviewResponse?>(null) }
-    var summary by remember { mutableStateOf<SummaryData?>(null) }
+    var pendingLogFile by remember { mutableStateOf<File?>(null) }
+    val logSavedPickerMsg = stringResource(R.string.export_debug_logs_saved_picker)
+    val logSavedDownloadsFormat = stringResource(R.string.export_debug_logs_saved_downloads)
+    val logSaveFailedMsg = stringResource(R.string.export_debug_logs_save_failed)
+    val saveLogLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("text/plain"),
+        ) { uri ->
+            val file = pendingLogFile
+            pendingLogFile = null
+            if (uri == null || file == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                val ok =
+                    withContext(Dispatchers.IO) {
+                        DebugLogExporter.copyToUri(context, file, uri)
+                    }
+                snackbarHostState.showSnackbar(
+                    if (ok) logSavedPickerMsg else logSaveFailedMsg,
+                )
+            }
+        }
     var healthOk by remember { mutableStateOf<Boolean?>(null) }
     var serverVersion by remember { mutableStateOf<String?>(null) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
 
-    fun refreshOverview(showRefreshingIndicator: Boolean) {
+    fun refreshConnection(showRefreshingIndicator: Boolean) {
         scope.launch {
             if (showRefreshingIndicator) isRefreshing = true
             try {
@@ -107,18 +123,6 @@ fun SettingsScreen(
                         healthOk = false
                         serverVersion = null
                     }
-                    try {
-                        summary = a.getSummary().summary
-                    } catch (_: Exception) {
-                        summary = null
-                    }
-                    try {
-                        adminOverview = a.getAdminOverview()
-                    } catch (e: HttpException) {
-                        if (e.code() != 403) adminOverview = null
-                    } catch (_: Exception) {
-                        adminOverview = null
-                    }
                 }
             } finally {
                 if (showRefreshingIndicator) isRefreshing = false
@@ -127,13 +131,13 @@ fun SettingsScreen(
     }
 
     LaunchedEffect(api) {
-        refreshOverview(showRefreshingIndicator = false)
+        refreshConnection(showRefreshingIndicator = false)
     }
 
     val pullRefreshState = rememberPullToRefreshState()
     PullToRefreshBox(
         isRefreshing = isRefreshing,
-        onRefresh = { refreshOverview(showRefreshingIndicator = true) },
+        onRefresh = { refreshConnection(showRefreshingIndicator = true) },
         state = pullRefreshState,
     ) {
         Box(Modifier.fillMaxSize()) {
@@ -196,278 +200,74 @@ fun SettingsScreen(
                             },
                             modifier = Modifier.clickable(onClick = onManageInstances),
                         )
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.dashboard_overview)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.dashboard_overview_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.Dashboard,
+                                    contentDescription = stringResource(R.string.dashboard_overview),
+                                )
+                            },
+                            modifier = Modifier.clickable(onClick = onDashboard),
+                        )
                     }
-                }
-
-                if (summary != null || adminOverview != null) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    SettingsSectionSubtitle(stringResource(R.string.dashboard_overview))
-                    summary?.let { DashboardSummaryCard(it) }
-                    if (summary != null && adminOverview != null) Spacer(modifier = Modifier.height(8.dp))
-                    adminOverview?.let { AdminOverviewCard(it) }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ─── Appearance ───────────────────────────────────────────────────────
                 SettingsSectionTitle(stringResource(R.string.appearance))
-                Card(
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    onClick = onAppearance,
                 ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.theme_mode_label)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                listOf(
-                                    null to R.string.theme_system,
-                                    "light" to R.string.theme_light,
-                                    "dark" to R.string.theme_dark,
-                                ).forEach { (value, labelRes) ->
-                                    val isSelected =
-                                        when (value) {
-                                            null -> themeMode.isNullOrBlank()
-                                            else -> themeMode == value
-                                        }
-                                    FilterChip(
-                                        selected = isSelected,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setThemeMode(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.theme_color_label)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                buildList {
-                                    add("default" to R.string.theme_color_default)
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                        add("dynamic" to R.string.theme_dynamic)
-                                    }
-                                    add("amoled" to R.string.theme_amoled)
-                                    add("sepia" to R.string.theme_sepia)
-                                    add("midnight" to R.string.theme_midnight)
-                                    add("rose" to R.string.theme_rose)
-                                    add("ocean" to R.string.theme_ocean)
-                                    add("forest" to R.string.theme_forest)
-                                }.forEach { (value, labelRes) ->
-                                    FilterChip(
-                                        selected = themeColor == value,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setThemeColor(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.content_padding)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                listOf(
-                                    "comfortable" to R.string.content_padding_comfortable,
-                                    "compact" to R.string.content_padding_compact,
-                                ).forEach { (value, labelRes) ->
-                                    FilterChip(
-                                        selected = contentPaddingMode == value,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setContentPaddingMode(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.reader_text_size)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                listOf(
-                                    0.85f to R.string.text_size_small,
-                                    1.0f to R.string.text_size_medium,
-                                    1.15f to R.string.text_size_large,
-                                    1.3f to R.string.text_size_xlarge,
-                                ).forEach { (value, labelRes) ->
-                                    FilterChip(
-                                        selected = readerTextScale == value,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setReaderTextScale(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.reduced_motion_label)) },
-                        supportingContent = {
-                            Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                                Text(
-                                    stringResource(R.string.reduced_motion_description),
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                                FlowRow(
-                                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    listOf(
-                                        null to R.string.reduced_motion_system,
-                                        "on" to R.string.reduced_motion_on,
-                                        "off" to R.string.reduced_motion_off,
-                                    ).forEach { (value, labelRes) ->
-                                        val isSelected =
-                                            when (value) {
-                                                null -> reducedMotionMode.isNullOrBlank()
-                                                else -> reducedMotionMode == value
-                                            }
-                                        FilterChip(
-                                            selected = isSelected,
-                                            onClick = {
-                                                scope.launch {
-                                                    settingsRepository.setReducedMotionMode(value)
-                                                }
-                                            },
-                                            label = { Text(stringResource(labelRes)) },
-                                        )
-                                    }
-                                }
-                            }
-                        },
-                    )
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(Icons.Default.Palette, contentDescription = stringResource(R.string.appearance))
+                        Column {
+                            Text(stringResource(R.string.appearance), style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                stringResource(R.string.appearance_description),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ─── Behavior ───────────────────────────────────────────────────────────
                 SettingsSectionTitle(stringResource(R.string.settings_category_behavior))
-                Card(
+                OutlinedCard(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    onClick = onBehavior,
                 ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.start_screen)) },
-                        supportingContent = {
-                            FlowRow(
-                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                listOf(
-                                    "checklists" to R.string.nav_checklists,
-                                    "notes" to R.string.nav_notes,
-                                    "settings" to R.string.nav_settings,
-                                ).forEach { (value, labelRes) ->
-                                    FilterChip(
-                                        selected = (startTab ?: "checklists") == value,
-                                        onClick = {
-                                            scope.launch {
-                                                settingsRepository.setStartTab(value)
-                                            }
-                                        },
-                                        label = { Text(stringResource(labelRes)) },
-                                    )
-                                }
-                            }
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
-                        supportingContent = {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Icon(Icons.Default.Tune, contentDescription = stringResource(R.string.settings_category_behavior))
+                        Column {
+                            Text(stringResource(R.string.settings_category_behavior), style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                stringResource(R.string.swipe_to_delete_description),
+                                stringResource(R.string.behavior_description),
                                 style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = swipeToDeleteEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setSwipeToDeleteEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.note_list_preview)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.note_list_preview_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = noteListPreviewEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setNoteListPreviewEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
-                    HorizontalDivider()
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.offline_mode)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.offline_mode_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = offlineModeEnabled,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        settingsRepository.setOfflineModeEnabled(it)
-                                    }
-                                },
-                            )
-                        },
-                    )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -496,30 +296,82 @@ fun SettingsScreen(
                             if (isExportingLogs) {
                                 CircularProgressIndicator(modifier = Modifier.size(24.dp))
                             } else {
-                                TextButton(
-                                    onClick = {
-                                        scope.launch {
-                                            isExportingLogs = true
-                                            val instance = currentInstance
-                                            val writeResult =
-                                                withContext(Dispatchers.IO) {
-                                                    DebugLogExporter.writeReport(context, instance)
-                                                }
-                                            isExportingLogs = false
-                                            when (writeResult) {
-                                                is DebugLogExporter.WriteResult.Failed ->
-                                                    snackbarHostState.showSnackbar(writeResult.message)
-                                                is DebugLogExporter.WriteResult.Ok ->
-                                                    when (val shareResult = DebugLogExporter.shareReport(context, writeResult.file)) {
-                                                        is DebugLogExporter.ShareResult.Failed ->
-                                                            snackbarHostState.showSnackbar(shareResult.message)
-                                                        is DebugLogExporter.ShareResult.Started -> Unit
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                isExportingLogs = true
+                                                val instance = currentInstance
+                                                val writeResult =
+                                                    withContext(Dispatchers.IO) {
+                                                        DebugLogExporter.writeReport(context, instance)
                                                     }
+                                                isExportingLogs = false
+                                                when (writeResult) {
+                                                    is DebugLogExporter.WriteResult.Failed ->
+                                                        snackbarHostState.showSnackbar(writeResult.message)
+                                                    is DebugLogExporter.WriteResult.Ok ->
+                                                        when (
+                                                            val saveResult =
+                                                                withContext(Dispatchers.IO) {
+                                                                    DebugLogExporter.saveToDownloads(
+                                                                        context,
+                                                                        writeResult.file,
+                                                                    )
+                                                                }
+                                                        ) {
+                                                            is DebugLogExporter.SaveResult.Saved ->
+                                                                snackbarHostState.showSnackbar(
+                                                                    String.format(
+                                                                        Locale.getDefault(),
+                                                                        logSavedDownloadsFormat,
+                                                                        saveResult.displayName,
+                                                                    ),
+                                                                )
+                                                            is DebugLogExporter.SaveResult.NeedsPicker -> {
+                                                                pendingLogFile = saveResult.file
+                                                                saveLogLauncher.launch(saveResult.suggestedName)
+                                                            }
+                                                            is DebugLogExporter.SaveResult.Failed ->
+                                                                snackbarHostState.showSnackbar(saveResult.message)
+                                                        }
+                                                }
                                             }
-                                        }
-                                    },
-                                ) {
-                                    Text(stringResource(R.string.export_debug_logs_action))
+                                        },
+                                    ) {
+                                        Text(stringResource(R.string.export_debug_logs_save))
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                isExportingLogs = true
+                                                val instance = currentInstance
+                                                val writeResult =
+                                                    withContext(Dispatchers.IO) {
+                                                        DebugLogExporter.writeReport(context, instance)
+                                                    }
+                                                isExportingLogs = false
+                                                when (writeResult) {
+                                                    is DebugLogExporter.WriteResult.Failed ->
+                                                        snackbarHostState.showSnackbar(writeResult.message)
+                                                    is DebugLogExporter.WriteResult.Ok ->
+                                                        when (
+                                                            val shareResult =
+                                                                DebugLogExporter.shareReport(
+                                                                    context,
+                                                                    writeResult.file,
+                                                                )
+                                                        ) {
+                                                            is DebugLogExporter.ShareResult.Failed ->
+                                                                snackbarHostState.showSnackbar(shareResult.message)
+                                                            is DebugLogExporter.ShareResult.Started -> Unit
+                                                        }
+                                                }
+                                            }
+                                        },
+                                    ) {
+                                        Text(stringResource(R.string.export_debug_logs_action))
+                                    }
                                 }
                             }
                         },
@@ -709,7 +561,7 @@ fun SettingsScreen(
     if (showAboutDialog) {
         AboutDialog(
             onDismiss = { showAboutDialog = false },
-            versionName = BuildConfig.VERSION_NAME ?: "\u2014",
+            versionName = BuildConfig.VERSION_NAME,
             versionCode = BuildConfig.VERSION_CODE,
             currentBuildDateUtc = BuildConfig.BUILD_DATE_UTC,
             serverVersion = serverVersion,
@@ -738,144 +590,6 @@ private sealed class UpdateUiState {
         val releaseNotes: String? = null,
         val changelogMarkdown: String? = null,
     ) : UpdateUiState()
-}
-
-@Composable
-private fun DashboardSummaryCard(summary: SummaryData) {
-    val notesTotal = summary.notes?.total ?: 0
-    val listsTotal = summary.checklists?.total ?: 0
-    val items = summary.items
-    val tasks = summary.tasks
-    val hasAny =
-        notesTotal > 0 || listsTotal > 0 || items != null || tasks != null
-
-    if (!hasAny) return
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            summary.username?.let { u ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        stringResource(R.string.user_label),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                    Text(u, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                if (notesTotal > 0 || summary.notes != null) StatChip(stringResource(R.string.stat_notes), notesTotal)
-                if (listsTotal > 0 || summary.checklists != null) StatChip(stringResource(R.string.stat_checklists), listsTotal)
-            }
-
-            items?.let { i ->
-                DashboardBreakdown(
-                    title = stringResource(R.string.dashboard_items_title),
-                    completionRate = i.completionRate,
-                    chips =
-                        buildList {
-                            i.total?.let { add(stringResource(R.string.stat_total) to it) }
-                            i.completed?.let { add(stringResource(R.string.stat_completed) to it) }
-                            i.pending?.let { add(stringResource(R.string.stat_pending) to it) }
-                        },
-                )
-            }
-
-            tasks?.let { t ->
-                DashboardBreakdown(
-                    title = stringResource(R.string.dashboard_tasks_title),
-                    completionRate = t.completionRate,
-                    chips =
-                        buildList {
-                            t.total?.let { add(stringResource(R.string.stat_total) to it) }
-                            t.completed?.let { add(stringResource(R.string.stat_completed) to it) }
-                            t.inProgress?.let { add(stringResource(R.string.stat_in_progress) to it) }
-                            t.todo?.let { add(stringResource(R.string.stat_todo) to it) }
-                        },
-                )
-            }
-        }
-    }
-}
-
-/** A titled stat breakdown with optional completion progress bar; used by the dashboard card. */
-@Composable
-private fun DashboardBreakdown(
-    title: String,
-    completionRate: Int?,
-    chips: List<Pair<String, Int>>,
-) {
-    if (chips.isEmpty() && completionRate == null) return
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            title,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer,
-        )
-        if (chips.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                chips.forEach { (label, value) -> StatChip(label, value) }
-            }
-        }
-        completionRate?.let { rate ->
-            LinearProgressIndicator(
-                progress = { (rate.coerceIn(0, 100)) / 100f },
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.2f),
-            )
-            Text(
-                stringResource(R.string.dashboard_completion_format, rate),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
-    }
-}
-
-@Composable
-private fun AdminOverviewCard(overview: AdminOverviewResponse) {
-    val hasAny = overview.users != null || overview.checklists != null || overview.notes != null
-    if (!hasAny) return
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                overview.users?.let { StatChip(stringResource(R.string.stat_users), it) }
-                overview.checklists?.let { StatChip(stringResource(R.string.stat_checklists), it) }
-                overview.notes?.let { StatChip(stringResource(R.string.stat_notes), it) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatChip(
-    label: String,
-    value: Int,
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("$value", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
-    }
 }
 
 @Composable
@@ -916,6 +630,7 @@ private fun AboutDialog(
 ) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
+    val resources = context.resources
     val scope = rememberCoroutineScope()
     val parsedChannel = parseUpdateChannel(updateChannelPref)
     val releasePageUrl = if (parsedChannel == UpdateChannel.Dev) GITHUB_DEV_RELEASE_URL else GITHUB_RELEASES_URL
@@ -946,7 +661,7 @@ private fun AboutDialog(
                 fallbackMarkdown = null,
             )
         if (markdown != null) {
-            changelogDialog = context.getString(R.string.changelog_title_installed, key) to markdown
+            changelogDialog = resources.getString(R.string.changelog_title_installed, key) to markdown
         } else {
             showChangelogUnavailable = true
         }
@@ -968,7 +683,7 @@ private fun AboutDialog(
                 )
         if (markdown != null) {
             changelogDialog =
-                context.getString(R.string.changelog_title_update, remoteVersionLabel) to markdown
+                resources.getString(R.string.changelog_title_update, remoteVersionLabel) to markdown
         } else {
             showChangelogUnavailable = true
         }
@@ -1069,6 +784,14 @@ private fun AboutDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 2.dp),
+                    )
+                }
+                if (UpdateChecker.isDevBuild() && parsedChannel == UpdateChannel.Stable) {
+                    Text(
+                        text = stringResource(R.string.update_dev_on_stable_channel_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
                     )
                 }
                 when (val state = updateState) {

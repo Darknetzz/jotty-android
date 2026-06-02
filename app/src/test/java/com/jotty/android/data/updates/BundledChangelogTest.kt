@@ -10,7 +10,7 @@ class BundledChangelogTest {
       """
       # Changelog
 
-      ## [1.3.6-dev] - dev-latest
+      ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
       ### Changed
 
@@ -36,7 +36,7 @@ class BundledChangelogTest {
     @Test
     fun `parse extracts section bodies by header key`() {
         val changelog = BundledChangelog.parse(sample)
-        assertTrue(changelog.section("1.3.6-dev")!!.contains("Dev item"))
+        assertTrue(changelog.section("dev-latest")!!.contains("Dev item"))
         assertTrue(changelog.section("1.3.6")!!.contains("Stable item"))
         assertTrue(changelog.section("1.3.5")!!.contains("Older item"))
     }
@@ -44,12 +44,12 @@ class BundledChangelogTest {
     @Test
     fun `firstDevSectionBody returns first dev section`() {
         val changelog = BundledChangelog.parse(sample)
-        assertEquals(changelog.section("1.3.6-dev"), changelog.firstDevSectionBody())
+        assertEquals(changelog.section("dev-latest"), changelog.firstDevSectionBody())
     }
 
     @Test
     fun `sectionKeyForInstalled maps dev and stable version names`() {
-        assertEquals("1.3.6-dev", BundledChangelog.sectionKeyForInstalled("1.3.6-dev+8ad551b"))
+        assertEquals("dev-latest", BundledChangelog.sectionKeyForInstalled("1.3.6-dev+8ad551b"))
         assertEquals("1.3.6", BundledChangelog.sectionKeyForInstalled("1.3.6"))
     }
 

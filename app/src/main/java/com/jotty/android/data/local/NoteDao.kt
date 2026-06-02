@@ -37,6 +37,9 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE instanceId = :instanceId AND (isDirty = 1 OR isDeleted = 1)")
     suspend fun getDirtyNotes(instanceId: String): List<NoteEntity>
 
+    @Query("SELECT id FROM notes WHERE instanceId = :instanceId AND (isDirty = 1 OR isDeleted = 1)")
+    fun getDirtyNoteIdsFlow(instanceId: String): Flow<List<String>>
+
     /**
      * Insert or update a note.
      */

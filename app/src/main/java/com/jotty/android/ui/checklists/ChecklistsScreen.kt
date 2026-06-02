@@ -128,19 +128,22 @@ fun ChecklistsScreen(
         if (filterRestored) settingsRepository.setChecklistsCategoryFilter(selectedCategory)
     }
 
+    val inChecklistDetail = selectedList != null
     RegisterMainTabTopBar(
-        if (selectedList == null) {
-            MainTabTopBarState(
-                isOnline = true,
-                isSyncing = loading,
-                lastSyncAttemptEpochMs = null,
-                onRefresh = { vm.loadChecklists() },
-                onAdd = { vm.setShowCreateDialog(true) },
-                showSyncStatus = false,
-            )
-        } else {
-            null
-        },
+        state =
+            if (!inChecklistDetail) {
+                MainTabTopBarState(
+                    isOnline = true,
+                    isSyncing = loading,
+                    lastSyncAttemptEpochMs = null,
+                    onRefresh = { vm.loadChecklists() },
+                    onAdd = { vm.setShowCreateDialog(true) },
+                    showSyncStatus = false,
+                )
+            } else {
+                null
+            },
+        suppressMainTopBar = inChecklistDetail,
     )
 
     Scaffold(
@@ -151,7 +154,8 @@ fun ChecklistsScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = if (selectedList != null) 4 else contentVerticalDp,
+                    topComfortDp = if (inChecklistDetail) 0 else contentVerticalDp,
+                    horizontal = if (inChecklistDetail) 0.dp else 16.dp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {

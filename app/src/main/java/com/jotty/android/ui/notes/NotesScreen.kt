@@ -125,19 +125,22 @@ fun NotesScreen(
         }
     }
 
+    val inNoteDetail = selectedNote != null
     RegisterMainTabTopBar(
-        if (selectedNote == null) {
-            MainTabTopBarState(
-                isOnline = true,
-                isSyncing = loading,
-                lastSyncAttemptEpochMs = null,
-                onRefresh = { vm.loadNotes() },
-                onAdd = { vm.setShowCreateDialog(true) },
-                showSyncStatus = false,
-            )
-        } else {
-            null
-        },
+        state =
+            if (!inNoteDetail) {
+                MainTabTopBarState(
+                    isOnline = true,
+                    isSyncing = loading,
+                    lastSyncAttemptEpochMs = null,
+                    onRefresh = { vm.loadNotes() },
+                    onAdd = { vm.setShowCreateDialog(true) },
+                    showSyncStatus = false,
+                )
+            } else {
+                null
+            },
+        suppressMainTopBar = inNoteDetail,
     )
 
     Scaffold(
@@ -148,7 +151,8 @@ fun NotesScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = if (selectedNote != null) 4 else contentVerticalDp,
+                    topComfortDp = if (inNoteDetail) 0 else contentVerticalDp,
+                    horizontal = if (inNoteDetail) 0.dp else 16.dp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {

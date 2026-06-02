@@ -26,6 +26,17 @@ class CustomColorSchemeTest {
     }
 
     @Test
+    fun customColorScheme_neutralModeUsesAccentForContainers() {
+        val accent = parseThemeAccentHex("#B91C3C")!!
+        val defaultPrimaryContainer = customColorScheme(accent, dark = true, tintedBackgrounds = false).primaryContainer
+        val otherAccent = parseThemeAccentHex("#0E7490")!!
+        val otherPrimaryContainer = customColorScheme(otherAccent, dark = true, tintedBackgrounds = false).primaryContainer
+        assert(defaultPrimaryContainer != otherPrimaryContainer) {
+            "Neutral custom theme should derive container colors from the accent"
+        }
+    }
+
+    @Test
     fun customColorScheme_buildsForLightAndDark() {
         val accent = parseThemeAccentHex("#EA580C")!!
         assertNotNull(customColorScheme(accent, dark = false, tintedBackgrounds = false))

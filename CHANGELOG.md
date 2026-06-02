@@ -25,6 +25,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Note detail top gap** — Opening a note no longer leaves an empty strip under the tab title: the main tab app bar hides in list/detail mode, detail scaffolds skip duplicate window insets, and side padding is removed for the detail pane.
+- **Custom theme in Neutral mode** — Selected chips, cards, and other container surfaces now use the custom accent; previously only **Tinted** backgrounds reflected the chosen color because Material 3 defaults were left on `primaryContainer` / `surfaceVariant`.
 - **Checklist offline repository churn** — Remembering the offline ViewModel factory stops the checklist repository from being created and destroyed on every recomposition (which blocked taps and spammed connectivity logs).
 - **Export debug logs** — **Save** writes the log to Downloads (or a file picker on older Android). **Share** uses a file attachment so system “Save” targets no longer show “Can't save text”.
 - **Checklist list not opening during sync** — Background checklist/note sync no longer drives pull-to-refresh “refreshing” state, so list cards stay tappable while sync runs (sync status still shows in the top bar).

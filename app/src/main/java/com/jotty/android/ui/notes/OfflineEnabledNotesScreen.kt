@@ -207,20 +207,23 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
+    val inNoteDetail = selectedNote != null
     RegisterMainTabTopBar(
-        if (selectedNote == null) {
-            MainTabTopBarState(
-                isOnline = isOnline,
-                isSyncing = isSyncing,
-                lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
-                lastSyncDurationText = lastSyncDurationText,
-                lastSyncError = lastSyncError,
-                onRefresh = { requestSync(showLoading = false) },
-                onAdd = { vm.setShowCreateDialog(true) },
-            )
-        } else {
-            null
-        },
+        state =
+            if (!inNoteDetail) {
+                MainTabTopBarState(
+                    isOnline = isOnline,
+                    isSyncing = isSyncing,
+                    lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
+                    lastSyncDurationText = lastSyncDurationText,
+                    lastSyncError = lastSyncError,
+                    onRefresh = { requestSync(showLoading = false) },
+                    onAdd = { vm.setShowCreateDialog(true) },
+                )
+            } else {
+                null
+            },
+        suppressMainTopBar = inNoteDetail,
     )
 
     Scaffold(
@@ -231,7 +234,8 @@ fun OfflineEnabledNotesScreen(
             Modifier
                 .fillMaxSize()
                 .mainScreenTabContentPadding(
-                    topComfortDp = if (selectedNote != null) 4 else contentVerticalDp,
+                    topComfortDp = if (inNoteDetail) 0 else contentVerticalDp,
+                    horizontal = if (inNoteDetail) 0.dp else 16.dp,
                     scaffoldInnerPadding = innerPadding,
                 ),
         ) {

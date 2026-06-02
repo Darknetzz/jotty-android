@@ -167,9 +167,11 @@ fun MainScreen(
     ProvideMainTabTopBarController {
         val topBarController = LocalMainTabTopBarController.current
         val tabTopBarState = topBarController.state
+        val suppressMainTopBar = topBarController.suppressMainTopBar
 
         Scaffold(
             topBar = {
+                if (suppressMainTopBar) return@Scaffold
                 TopAppBar(
                     title = {
                         Row(

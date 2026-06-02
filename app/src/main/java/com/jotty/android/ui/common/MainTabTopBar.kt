@@ -51,6 +51,9 @@ class MainTabTopBarState(
 
 class MainTabTopBarController {
     var state by mutableStateOf<MainTabTopBarState?>(null)
+
+    /** When true, [com.jotty.android.ui.main.MainScreen] hides its tab TopAppBar (list/detail pane). */
+    var suppressMainTopBar by mutableStateOf(false)
 }
 
 val LocalMainTabTopBarController =
@@ -68,14 +71,19 @@ fun ProvideMainTabTopBarController(content: @Composable () -> Unit) {
 
 /** Publishes list-tab actions into [MainScreen]'s shared TopAppBar; clears on dispose. */
 @Composable
-fun RegisterMainTabTopBar(state: MainTabTopBarState?) {
+fun RegisterMainTabTopBar(
+    state: MainTabTopBarState?,
+    suppressMainTopBar: Boolean = false,
+) {
     val controller = LocalMainTabTopBarController.current
     SideEffect {
         controller.state = state
+        controller.suppressMainTopBar = suppressMainTopBar
     }
     DisposableEffect(Unit) {
         onDispose {
             controller.state = null
+            controller.suppressMainTopBar = false
         }
     }
 }

@@ -3,6 +3,7 @@ package com.jotty.android.ui.notes
 import android.content.Intent
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -52,6 +53,7 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
+import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -196,8 +198,10 @@ internal fun NoteDetailScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        contentWindowInsets = MainNestedScaffoldContentWindowInsets,
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
                 title = {
                     Text(
                         text = title.ifBlank { stringResource(R.string.untitled) },

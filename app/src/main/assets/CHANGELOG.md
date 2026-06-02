@@ -8,7 +8,6 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
-- **Task Kanban board (server-supported)** — Task/project checklists now show Kanban columns in detail view when the Jotty server provides task statuses, and items can be moved between columns in-app.
 - **Smarter note editor lists** — Pressing Enter on a bullet, numbered, task, or quote line continues the same prefix; Enter on an empty list item exits the list. Toolbar list/checkbox actions toggle off when tapped again on the same line.
 - **Note editor text size** — Settings → Appearance → **Reader text size** now also scales the note editor; added **Extra small** option.
 - **Color themes** — Settings → Appearance adds **Lavender**, **Sunset**, and **Graphite** palettes (each with light and dark variants).

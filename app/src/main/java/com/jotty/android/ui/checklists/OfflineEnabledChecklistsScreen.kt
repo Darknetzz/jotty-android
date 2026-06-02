@@ -30,7 +30,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.DEFAULT_TASK_STATUSES
 import com.jotty.android.data.api.JottyApi
+import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.preferences.SettingsRepository
@@ -55,8 +57,10 @@ import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.buildKanbanColumns
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -266,6 +270,7 @@ fun OfflineEnabledChecklistsScreen(
                 if (currentList != null) {
                 OfflineChecklistDetailContent(
                     checklist = currentList,
+                    api = api,
                     offlineRepository = offlineRepository,
                     categorySuggestions = checklistCategories,
                     dragReorderEnabled = checklistDragReorderEnabled,
@@ -561,6 +566,7 @@ private fun OfflineChecklistCard(
 @Composable
 private fun OfflineChecklistDetailContent(
     checklist: Checklist,
+    api: JottyApi,
     offlineRepository: OfflineChecklistsRepository,
     categorySuggestions: List<String> = emptyList(),
     dragReorderEnabled: Boolean = true,
@@ -586,6 +592,8 @@ private fun OfflineChecklistDetailContent(
     var showDiscardPendingSyncDialog by remember { mutableStateOf(false) }
     var discardConfirmIsLocalOnly by remember { mutableStateOf(false) }
     var editingItemKey by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
+    var taskStatuses by remember(liveChecklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
+    var canUseKanbanBoard by remember(liveChecklist.id) { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
     val discardConfirmMessage =
         if (discardConfirmIsLocalOnly) {
@@ -614,6 +622,29 @@ private fun OfflineChecklistDetailContent(
         }.onFailure {
             if (!isOnline) onSavedLocally() else onSaveFailed()
         }
+    }
+
+    fun refreshTaskStatuses() {
+        if (!isProject || !isOnline) return
+        scope.launch {
+            try {
+                val statuses = api.getTaskStatuses(liveChecklist.id).statuses.sortedBy { it.order }
+                taskStatuses = if (statuses.isNotEmpty()) statuses else DEFAULT_TASK_STATUSES
+                canUseKanbanBoard = true
+            } catch (e: Exception) {
+                if (e is HttpException && e.code() in setOf(404, 405)) {
+                    canUseKanbanBoard = false
+                    return@launch
+                }
+                canUseKanbanBoard = false
+            }
+        }
+    }
+
+    LaunchedEffect(liveChecklist.id, isProject, isOnline) {
+        taskStatuses = DEFAULT_TASK_STATUSES
+        canUseKanbanBoard = true
+        if (isProject) refreshTaskStatuses()
     }
 
     if (showDiscardPendingSyncDialog) {
@@ -731,68 +762,119 @@ private fun OfflineChecklistDetailContent(
             }
         }
 
-        ChecklistDetailItemsList(
-            treeItems = items,
-            toDo = toDo,
-            completed = done,
-            doneCount = done.size,
-            total = flatItems.size,
-            dragReorderEnabled = dragReorderEnabled,
-            onReorder = { request ->
-                scope.launch {
-                    handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
-                }
-            },
-        ) { flat, reorderableScope, _ ->
-            ChecklistDetailItemRow(
-                flat = flat,
-                editingItemKey = editingItemKey,
-                onEditingItemKeyChange = { editingItemKey = it },
-                isProject = isProject,
-                reorderableScope = reorderableScope,
-                onCheck = {
-                    scope.launch {
-                        handleResult(offlineRepository.checkItem(liveChecklist.id, flat.apiPath))
-                    }
-                },
-                onUncheck = {
-                    scope.launch {
-                        handleResult(offlineRepository.uncheckItem(liveChecklist.id, flat.apiPath))
-                    }
-                },
-                onDelete = {
-                    scope.launch {
-                        handleResult(offlineRepository.deleteItem(liveChecklist.id, flat.apiPath))
-                    }
-                },
-                onUpdate = { text ->
-                    scope.launch {
-                        handleResult(offlineRepository.updateItemText(liveChecklist.id, flat.apiPath, text))
-                    }
-                },
-                onMoveUp =
-                    flat.item.id?.let { itemId ->
-                        moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
-                    },
-                onMoveDown =
-                    flat.item.id?.let { itemId ->
-                        moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
-                    },
-                onAddSubItem =
-                    if (isProject && flat.depth == 0) {
-                        {
-                            scope.launch {
-                                handleResult(
-                                    offlineRepository.addItem(liveChecklist.id, "", parentIndex = flat.apiPath),
-                                )
-                            }
-                        }
-                    } else {
-                        null
-                    },
-                actionIconSize = 32.dp,
-                actionGlyphSize = 18.dp,
+        if (isProject && canUseKanbanBoard) {
+            val columns = remember(items, taskStatuses) { buildKanbanColumns(items = items, statuses = taskStatuses) }
+            Text(
+                text = stringResource(R.string.kanban_board),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
+            if (!isOnline) {
+                Text(
+                    text = stringResource(R.string.kanban_move_online_only),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                )
+            }
+            TaskKanbanBoard(
+                columns = columns,
+                allStatuses = taskStatuses,
+                moveEnabled = isOnline,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                onMoveItem = { apiPath, newStatusId ->
+                    if (!isOnline) return@TaskKanbanBoard
+                    scope.launch {
+                        runCatching {
+                            api.updateTaskItemStatus(
+                                taskId = liveChecklist.id,
+                                itemIndex = apiPath,
+                                body = UpdateTaskItemStatusRequest(status = newStatusId),
+                            )
+                        }.onSuccess {
+                            val syncResult = offlineRepository.syncChecklists(force = true)
+                            if (syncResult.isFailure) onSaveFailed()
+                        }.onFailure { error ->
+                            if (error is HttpException && error.code() in setOf(404, 405)) {
+                                canUseKanbanBoard = false
+                            }
+                            onSaveFailed()
+                        }
+                    }
+                },
+            )
+        } else {
+            if (isProject && !canUseKanbanBoard) {
+                Text(
+                    text = stringResource(R.string.kanban_not_supported_fallback),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+            ChecklistDetailItemsList(
+                treeItems = items,
+                toDo = toDo,
+                completed = done,
+                doneCount = done.size,
+                total = flatItems.size,
+                dragReorderEnabled = dragReorderEnabled,
+                onReorder = { request ->
+                    scope.launch {
+                        handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
+                    }
+                },
+            ) { flat, reorderableScope, _ ->
+                ChecklistDetailItemRow(
+                    flat = flat,
+                    editingItemKey = editingItemKey,
+                    onEditingItemKeyChange = { editingItemKey = it },
+                    isProject = isProject,
+                    reorderableScope = reorderableScope,
+                    onCheck = {
+                        scope.launch {
+                            handleResult(offlineRepository.checkItem(liveChecklist.id, flat.apiPath))
+                        }
+                    },
+                    onUncheck = {
+                        scope.launch {
+                            handleResult(offlineRepository.uncheckItem(liveChecklist.id, flat.apiPath))
+                        }
+                    },
+                    onDelete = {
+                        scope.launch {
+                            handleResult(offlineRepository.deleteItem(liveChecklist.id, flat.apiPath))
+                        }
+                    },
+                    onUpdate = { text ->
+                        scope.launch {
+                            handleResult(offlineRepository.updateItemText(liveChecklist.id, flat.apiPath, text))
+                        }
+                    },
+                    onMoveUp =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
+                        },
+                    onMoveDown =
+                        flat.item.id?.let { itemId ->
+                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
+                        },
+                    onAddSubItem =
+                        if (isProject && flat.depth == 0) {
+                            {
+                                scope.launch {
+                                    handleResult(
+                                        offlineRepository.addItem(liveChecklist.id, "", parentIndex = flat.apiPath),
+                                    )
+                                }
+                            }
+                        } else {
+                            null
+                        },
+                    actionIconSize = 32.dp,
+                    actionGlyphSize = 18.dp,
+                )
+            }
         }
     }
 }

@@ -112,6 +112,7 @@ jobs:
             Rolling pre-release build from `dev`.
             Commit: ${{ github.sha }}
             Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Changelog: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/dev/app/src/main/assets/CHANGELOG.md)
           prerelease: true
           makeLatest: false
           artifacts: ${{ steps.asset.outputs.path }}

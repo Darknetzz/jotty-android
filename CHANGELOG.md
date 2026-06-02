@@ -23,6 +23,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Checklist type badge styling** — Type badges now use distinct colors for **Checklist** vs **Project / Kanban** for faster visual scanning.
 - **Motion effects opt-in** — Cross-fade, list/detail fade-in, shimmer skeletons, and animated bottom tabs are now off by default. Settings → Appearance → **Motion effects** can turn them on, or choose **System** to follow the device accessibility setting. Bottom-tab navigation no longer uses Navigation Compose’s default cross-fade when motion is off.
 - **Dashboard overview layout** — Dashboard cards are now split into clearer sections with grouped stat tiles, section icons, and stronger visual hierarchy for notes/checklists, checklist items, tasks, and admin totals on small screens.
 

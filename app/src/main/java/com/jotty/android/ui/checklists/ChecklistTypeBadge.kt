@@ -22,16 +22,29 @@ fun isProjectChecklistType(type: String?): Boolean {
 
 @Composable
 fun ChecklistTypeBadge(type: String?) {
+    val isProjectType = isProjectChecklistType(type)
     val labelRes =
-        if (isProjectChecklistType(type)) {
+        if (isProjectType) {
             R.string.checklist_type_project_kanban
         } else {
             R.string.checklist_type_normal
         }
+    val containerColor =
+        if (isProjectType) {
+            MaterialTheme.colorScheme.tertiaryContainer
+        } else {
+            MaterialTheme.colorScheme.secondaryContainer
+        }
+    val contentColor =
+        if (isProjectType) {
+            MaterialTheme.colorScheme.onTertiaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        }
 
     Surface(
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        color = containerColor,
+        contentColor = contentColor,
         shape = MaterialTheme.shapes.small,
     ) {
         Text(

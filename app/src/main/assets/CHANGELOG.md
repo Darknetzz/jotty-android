@@ -23,11 +23,13 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Checklist type badge styling** — Type badges now use distinct colors for **Checklist** vs **Project / Kanban** for faster visual scanning.
 - **Motion effects opt-in** — Cross-fade, list/detail fade-in, shimmer skeletons, and animated bottom tabs are now off by default. Settings → Appearance → **Motion effects** can turn them on, or choose **System** to follow the device accessibility setting. Bottom-tab navigation no longer uses Navigation Compose’s default cross-fade when motion is off.
 - **Dashboard overview layout** — Dashboard cards are now split into clearer sections with grouped stat tiles, section icons, and stronger visual hierarchy for notes/checklists, checklist items, tasks, and admin totals on small screens.
 
 ### Fixed
 
+- **Checklist type badges** — Cards now classify project/kanban checklists more reliably (including non-`simple`/`regular` server types) instead of showing all as `Checklist`.
 - **Checklist drag gesture stability** — Dragging can move across multiple rows in one gesture; the list updates visually on every step, and a single reorder sync runs when you release (invalid drops revert).
 - **Note detail top gap** — Opening a note no longer leaves an empty strip under the tab title: the main tab app bar hides in list/detail mode, detail scaffolds skip duplicate window insets, and side padding is removed for the detail pane.
 - **Custom theme in Neutral mode** — Selected chips, cards, and other container surfaces now use the custom accent; previously only **Tinted** backgrounds reflected the chosen color because Material 3 defaults were left on `primaryContainer` / `surfaceVariant`.

@@ -75,6 +75,7 @@ fun ChecklistsScreen(
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val checklistCategories by vm.checklistCategories.collectAsStateWithLifecycle()
+    val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
     val sortedChecklists = remember(filteredChecklists, sortOption) { filteredChecklists.sortedBy(sortOption) }
@@ -169,6 +170,7 @@ fun ChecklistsScreen(
                     checklist = currentList,
                     api = api,
                     categorySuggestions = checklistCategories,
+                    dragReorderEnabled = checklistDragReorderEnabled,
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = {
                         vm.loadChecklists()
@@ -404,6 +406,7 @@ private fun ChecklistDetailScreen(
     checklist: Checklist,
     api: JottyApi,
     categorySuggestions: List<String> = emptyList(),
+    dragReorderEnabled: Boolean = true,
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
     onDelete: () -> Unit,
@@ -560,6 +563,7 @@ private fun ChecklistDetailScreen(
             completed = completed,
             doneCount = doneCount,
             total = total,
+            dragReorderEnabled = dragReorderEnabled,
             onReorder = ::applyDragReorder,
         ) { flat, reorderableScope, _ ->
             ChecklistDetailItemRow(

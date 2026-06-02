@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +40,7 @@ fun ChecklistDetailItemsList(
     doneCount: Int,
     total: Int,
     modifier: Modifier = Modifier,
+    dragReorderEnabled: Boolean = true,
     onReorder: (ReorderItemsRequest) -> Unit,
     itemRow: @Composable (
         flat: ChecklistFlatItem,
@@ -55,6 +57,49 @@ fun ChecklistDetailItemsList(
         )
     }
 
+    if (dragReorderEnabled) {
+        ChecklistDetailItemsListReorderable(
+            treeItems = treeItems,
+            toDo = toDo,
+            completed = completed,
+            modifier = modifier,
+            onReorder = onReorder,
+            itemRow = itemRow,
+        )
+    } else {
+        ChecklistDetailItemsListStatic(
+            toDo = toDo,
+            completed = completed,
+            modifier = modifier,
+            itemRow = itemRow,
+        )
+    }
+}
+
+@Composable
+private fun ChecklistDetailItemsListStatic(
+    toDo: List<ChecklistFlatItem>,
+    completed: List<ChecklistFlatItem>,
+    modifier: Modifier,
+    itemRow: @Composable (ChecklistFlatItem, ReorderableCollectionItemScope?, Boolean) -> Unit,
+) {
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        checklistDetailItemRows(toDo, completed, dragReorderEnabled = false, itemRow = itemRow)
+    }
+}
+
+@Composable
+private fun ChecklistDetailItemsListReorderable(
+    treeItems: List<ChecklistItem>,
+    toDo: List<ChecklistFlatItem>,
+    completed: List<ChecklistFlatItem>,
+    modifier: Modifier,
+    onReorder: (ReorderItemsRequest) -> Unit,
+    itemRow: @Composable (ChecklistFlatItem, ReorderableCollectionItemScope?, Boolean) -> Unit,
+) {
     var localToDo by remember { mutableStateOf(toDo) }
     var localCompleted by remember { mutableStateOf(completed) }
     LaunchedEffect(toDo) { localToDo = toDo }
@@ -117,10 +162,28 @@ fun ChecklistDetailItemsList(
         state = lazyListState,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        item(key = "header-todo") {
-            ChecklistSectionHeader(title = stringResource(R.string.section_to_do, localToDo.size))
-        }
-        items(localToDo, key = { "todo-${it.apiPath}-${it.item.id ?: it.item.text}" }) { flat ->
+        checklistDetailItemRows(
+            toDo = localToDo,
+            completed = localCompleted,
+            dragReorderEnabled = true,
+            reorderableState = reorderableState,
+            itemRow = itemRow,
+        )
+    }
+}
+
+private fun LazyListScope.checklistDetailItemRows(
+    toDo: List<ChecklistFlatItem>,
+    completed: List<ChecklistFlatItem>,
+    dragReorderEnabled: Boolean,
+    reorderableState: sh.calvin.reorderable.ReorderableLazyListState? = null,
+    itemRow: @Composable (ChecklistFlatItem, ReorderableCollectionItemScope?, Boolean) -> Unit,
+) {
+    item(key = "header-todo") {
+        ChecklistSectionHeader(title = stringResource(R.string.section_to_do, toDo.size))
+    }
+    items(toDo, key = { "todo-${it.apiPath}-${it.item.id ?: it.item.text}" }) { flat ->
+        if (dragReorderEnabled && reorderableState != null) {
             ReorderableItem(
                 state = reorderableState,
                 key = "todo-${flat.apiPath}-${flat.item.id ?: flat.item.text}",
@@ -131,11 +194,15 @@ fun ChecklistDetailItemsList(
                     itemRow(flat, this, isDragging)
                 }
             }
+        } else {
+            itemRow(flat, null, false)
         }
-        item(key = "header-completed") {
-            ChecklistSectionHeader(title = stringResource(R.string.section_completed, localCompleted.size))
-        }
-        items(localCompleted, key = { "done-${it.apiPath}-${it.item.id ?: it.item.text}" }) { flat ->
+    }
+    item(key = "header-completed") {
+        ChecklistSectionHeader(title = stringResource(R.string.section_completed, completed.size))
+    }
+    items(completed, key = { "done-${it.apiPath}-${it.item.id ?: it.item.text}" }) { flat ->
+        if (dragReorderEnabled && reorderableState != null) {
             ReorderableItem(
                 state = reorderableState,
                 key = "done-${flat.apiPath}-${flat.item.id ?: flat.item.text}",
@@ -146,6 +213,8 @@ fun ChecklistDetailItemsList(
                     itemRow(flat, this, isDragging)
                 }
             }
+        } else {
+            itemRow(flat, null, false)
         }
     }
 }

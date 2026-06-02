@@ -69,6 +69,7 @@ fun OfflineEnabledChecklistsScreen(
     tabReselectToken: Int = 0,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
+    val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
     val vm: OfflineEnabledChecklistsViewModel =
@@ -267,6 +268,7 @@ fun OfflineEnabledChecklistsScreen(
                     checklist = currentList,
                     offlineRepository = offlineRepository,
                     categorySuggestions = checklistCategories,
+                    dragReorderEnabled = checklistDragReorderEnabled,
                     isOnline = isOnline,
                     hasPendingSync = currentList.id in dirtyChecklistIds,
                     onRetrySync = { requestSync(showLoading = true) },
@@ -561,6 +563,7 @@ private fun OfflineChecklistDetailContent(
     checklist: Checklist,
     offlineRepository: OfflineChecklistsRepository,
     categorySuggestions: List<String> = emptyList(),
+    dragReorderEnabled: Boolean = true,
     isOnline: Boolean,
     hasPendingSync: Boolean = false,
     onRetrySync: () -> Unit,
@@ -734,6 +737,7 @@ private fun OfflineChecklistDetailContent(
             completed = done,
             doneCount = done.size,
             total = flatItems.size,
+            dragReorderEnabled = dragReorderEnabled,
             onReorder = { request ->
                 scope.launch {
                     handleResult(offlineRepository.reorderItems(liveChecklist.id, request))

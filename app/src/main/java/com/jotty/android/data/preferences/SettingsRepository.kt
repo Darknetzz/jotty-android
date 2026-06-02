@@ -100,6 +100,12 @@ class SettingsRepository(
             prefs[KEY_SWIPE_TO_DELETE] ?: false
         }.catch { emit(false) }
 
+    /** Drag handle to reorder checklist items among siblings. Default true. */
+    val checklistDragReorderEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_CHECKLIST_DRAG_REORDER] ?: true
+        }.catch { emit(true) }
+
     /** Show note body preview on list cards. Default true. */
     val noteListPreviewEnabled: Flow<Boolean> =
         context.jottySettingsDataStore.data.map { prefs ->
@@ -278,6 +284,12 @@ class SettingsRepository(
 
     suspend fun setSwipeToDeleteEnabled(value: Boolean) {
         context.jottySettingsDataStore.edit { it[KEY_SWIPE_TO_DELETE] = value }
+    }
+
+    suspend fun setChecklistDragReorderEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it.remove(KEY_CHECKLIST_DRAG_REORDER) else it[KEY_CHECKLIST_DRAG_REORDER] = false
+        }
     }
 
     suspend fun setNoteListPreviewEnabled(value: Boolean) {
@@ -480,6 +492,7 @@ class SettingsRepository(
 
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
+        private val KEY_CHECKLIST_DRAG_REORDER = booleanPreferencesKey("checklist_drag_reorder_enabled")
         private val KEY_NOTE_LIST_PREVIEW = booleanPreferencesKey("note_list_preview_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
         private val KEY_LIST_SORT = stringPreferencesKey("list_sort_option")

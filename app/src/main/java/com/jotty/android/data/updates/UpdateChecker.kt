@@ -243,7 +243,7 @@ object UpdateChecker {
         )
     }
 
-    /** True when this APK was built from the rolling `dev` channel (`VERSION-dev+<sha>`). */
+    /** True when this APK was built from the rolling `dev` channel (`VERSION_NAME-dev+<sha>`). */
     fun isDevBuild(): Boolean = isDevVersionName(BuildConfig.VERSION_NAME)
 
     internal fun isDevVersionName(versionName: String): Boolean = versionName.contains("-dev+")

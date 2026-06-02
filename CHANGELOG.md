@@ -2,9 +2,13 @@
 
 All notable changes to Jotty Android are documented here. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release (`[VERSION-dev]`). Dev APK `versionName` is `VERSION-dev+<short-sha>` (seven-character commit; see the release **Commit:** line).
+The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release (`[dev-latest]`). Dev APK `versionName` is `VERSION_NAME-dev+<short-sha>` (seven-character commit; see the release **Commit:** line).
 
-## [1.4.0-dev] - [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
+
+---
+
+## [1.5.0] - 2026-06-02
 
 ### Added
 
@@ -85,6 +89,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Jotty server compatibility** — [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md) documents PATCH fallback, Kanban APIs, and older-server behavior.
 - **Checklist reorder** — [CHECKLIST_REORDER.md](docs/CHECKLIST_REORDER.md) updated for the shipped Jotty REST API (`PUT …/items/reorder`, `PATCH …/items/{index}`, `GET /api/search`).
+- **Changelog layout** — Rolling pre-release notes use a `[dev-latest]` section (replacing `[VERSION-dev]`).
 
 ---
 
@@ -832,3 +837,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.3.6]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.6
 
 [1.4.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.4.0
+
+[1.5.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.0

@@ -463,10 +463,6 @@ private fun OfflineChecklistCard(
     val completed = checklist.items.count { it.completed }
     val total = checklist.items.size
     val progress = if (total > 0) completed.toFloat() / total else 0f
-    val isProject =
-        checklist.type.equals("project", ignoreCase = true) ||
-            checklist.type.equals("task", ignoreCase = true)
-
     if (showDeleteConfirm) {
         ConfirmDeleteDialog(
             message = stringResource(R.string.delete_checklist_confirm, displayTitle),
@@ -500,14 +496,7 @@ private fun OfflineChecklistCard(
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    if (isProject) {
-                        Text(
-                            stringResource(R.string.project_label),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
+                    ChecklistTypeBadge(type = checklist.type)
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(
                             Icons.Default.MoreVert,

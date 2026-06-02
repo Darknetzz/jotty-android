@@ -64,6 +64,8 @@
     <string name="add_sub_task">Add sub-task</string>
     <string name="delete_task">Delete task</string>
     <string name="project_label">Project</string>
+    <string name="checklist_type_normal">Checklist</string>
+    <string name="checklist_type_project_kanban">Project / Kanban</string>
     <string name="kanban_board">Kanban board</string>
     <string name="kanban_no_tasks">No tasks in this column</string>
     <string name="kanban_move_to">Move to %1$s</string>

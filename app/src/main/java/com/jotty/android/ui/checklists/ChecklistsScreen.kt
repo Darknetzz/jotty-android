@@ -318,10 +318,6 @@ private fun ChecklistCard(
     val total = checklist.items.size
     val progress = if (total > 0) completed.toFloat() / total else 0f
 
-    val isProject =
-        checklist.type.equals("project", ignoreCase = true) ||
-            checklist.type.equals("task", ignoreCase = true)
-
     if (showDeleteConfirm) {
         ConfirmDeleteDialog(
             message = stringResource(R.string.delete_checklist_confirm, displayTitle),
@@ -350,19 +346,12 @@ private fun ChecklistCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = checklist.title,
+                        text = displayTitle,
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    if (isProject) {
-                        Text(
-                            stringResource(R.string.project_label),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(start = 8.dp),
-                        )
-                    }
+                    ChecklistTypeBadge(type = checklist.type)
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(
                             Icons.Default.MoreVert,

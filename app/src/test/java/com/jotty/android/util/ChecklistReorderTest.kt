@@ -48,4 +48,41 @@ class ChecklistReorderTest {
     fun moveChecklistItemUpRequest_onFirstItem_returnsNull() {
         assertNull(moveChecklistItemUpRequest(items, "a"))
     }
+
+    @Test
+    fun areSiblingChecklistItems_sameLevel_returnsTrue() {
+        assert(areSiblingChecklistItems(items, "a", "b"))
+    }
+
+    @Test
+    fun areSiblingChecklistItems_nestedChild_returnsFalse() {
+        val nested =
+            listOf(
+                ChecklistItem(
+                    id = "parent",
+                    index = 0,
+                    text = "Parent",
+                    children =
+                        listOf(
+                            ChecklistItem(id = "child", index = 0, text = "Child"),
+                        ),
+                ),
+            )
+        assert(!areSiblingChecklistItems(nested, "parent", "child"))
+    }
+
+    @Test
+    fun reorderRequestForFlatMove_downOne_returnsAfter() {
+        val request =
+            reorderRequestForFlatMove(
+                treeItems = items,
+                sectionItems = items,
+                fromIndex = 0,
+                toIndex = 1,
+            )
+
+        assertEquals("a", request?.activeItemId)
+        assertEquals("b", request?.overItemId)
+        assertEquals("after", request?.position)
+    }
 }

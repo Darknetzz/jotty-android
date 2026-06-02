@@ -596,7 +596,11 @@ private fun OfflineChecklistDetailContent(
             liveChecklist.type.equals("task", ignoreCase = true)
     val flatItems =
         remember(items, isProject) {
-            if (isProject) flattenItems(items) else items.mapIndexed { i, item -> FlatChecklistItem(item, 0, "$i") }
+            if (isProject) {
+                flattenChecklistItems(items)
+            } else {
+                items.mapIndexed { i, item -> ChecklistFlatItem(item, 0, "$i") }
+            }
         }
     val toDo = flatItems.filter { !it.item.completed }
     val done = flatItems.filter { it.item.completed }
@@ -711,15 +715,6 @@ private fun OfflineChecklistDetailContent(
             }
         }
 
-        if (flatItems.isNotEmpty()) {
-            Text(
-                text = stringResource(R.string.done_progress, done.size, flatItems.size),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-        }
-
         fun reorderItem(itemId: String?, up: Boolean) {
             val id = itemId ?: return
             val request =
@@ -733,134 +728,70 @@ private fun OfflineChecklistDetailContent(
             }
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            item(key = "header-todo") {
-                SectionLabel(stringResource(R.string.section_to_do, toDo.size))
-            }
-            items(toDo, key = { "todo-${it.apiPath}-${it.item.text}" }) { flat ->
-                ChecklistItemRow(
-                    item = flat.item,
-                    itemKey = flat.apiPath,
-                    editingItemKey = editingItemKey,
-                    onEditingItemKeyChange = { editingItemKey = it },
-                    depth = flat.depth,
-                    isProject = isProject,
-                    onCheck = {
-                        scope.launch {
-                            handleResult(offlineRepository.checkItem(liveChecklist.id, flat.apiPath))
-                        }
+        ChecklistDetailItemsList(
+            treeItems = items,
+            toDo = toDo,
+            completed = done,
+            doneCount = done.size,
+            total = flatItems.size,
+            onReorder = { request ->
+                scope.launch {
+                    handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
+                }
+            },
+        ) { flat, reorderableScope, _ ->
+            ChecklistDetailItemRow(
+                flat = flat,
+                editingItemKey = editingItemKey,
+                onEditingItemKeyChange = { editingItemKey = it },
+                isProject = isProject,
+                reorderableScope = reorderableScope,
+                onCheck = {
+                    scope.launch {
+                        handleResult(offlineRepository.checkItem(liveChecklist.id, flat.apiPath))
+                    }
+                },
+                onUncheck = {
+                    scope.launch {
+                        handleResult(offlineRepository.uncheckItem(liveChecklist.id, flat.apiPath))
+                    }
+                },
+                onDelete = {
+                    scope.launch {
+                        handleResult(offlineRepository.deleteItem(liveChecklist.id, flat.apiPath))
+                    }
+                },
+                onUpdate = { text ->
+                    scope.launch {
+                        handleResult(offlineRepository.updateItemText(liveChecklist.id, flat.apiPath, text))
+                    }
+                },
+                onMoveUp =
+                    flat.item.id?.let { itemId ->
+                        moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
                     },
-                    onUncheck = {
-                        scope.launch {
-                            handleResult(offlineRepository.uncheckItem(liveChecklist.id, flat.apiPath))
-                        }
+                onMoveDown =
+                    flat.item.id?.let { itemId ->
+                        moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
                     },
-                    onDelete = {
-                        scope.launch {
-                            handleResult(offlineRepository.deleteItem(liveChecklist.id, flat.apiPath))
-                        }
-                    },
-                    onUpdate = { text ->
-                        scope.launch {
-                            handleResult(offlineRepository.updateItemText(liveChecklist.id, flat.apiPath, text))
-                        }
-                    },
-                    onMoveUp =
-                        flat.item.id?.let { itemId ->
-                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
-                        },
-                    onMoveDown =
-                        flat.item.id?.let { itemId ->
-                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
-                        },
-                    onAddSubItem =
-                        if (isProject && flat.depth == 0) {
-                            {
-                                scope.launch {
-                                    handleResult(
-                                        offlineRepository.addItem(liveChecklist.id, "", parentIndex = flat.apiPath),
-                                    )
-                                }
+                onAddSubItem =
+                    if (isProject && flat.depth == 0) {
+                        {
+                            scope.launch {
+                                handleResult(
+                                    offlineRepository.addItem(liveChecklist.id, "", parentIndex = flat.apiPath),
+                                )
                             }
-                        } else {
-                            null
-                        },
-                    actionIconSize = 32.dp,
-                    actionGlyphSize = 18.dp,
-                )
-            }
-            item(key = "header-done") {
-                SectionLabel(stringResource(R.string.section_completed, done.size))
-            }
-            items(done, key = { "done-${it.apiPath}-${it.item.text}" }) { flat ->
-                ChecklistItemRow(
-                    item = flat.item,
-                    itemKey = flat.apiPath,
-                    editingItemKey = editingItemKey,
-                    onEditingItemKeyChange = { editingItemKey = it },
-                    depth = flat.depth,
-                    isProject = isProject,
-                    onCheck = {
-                        scope.launch {
-                            handleResult(offlineRepository.checkItem(liveChecklist.id, flat.apiPath))
                         }
+                    } else {
+                        null
                     },
-                    onUncheck = {
-                        scope.launch {
-                            handleResult(offlineRepository.uncheckItem(liveChecklist.id, flat.apiPath))
-                        }
-                    },
-                    onDelete = {
-                        scope.launch {
-                            handleResult(offlineRepository.deleteItem(liveChecklist.id, flat.apiPath))
-                        }
-                    },
-                    onUpdate = { text ->
-                        scope.launch {
-                            handleResult(offlineRepository.updateItemText(liveChecklist.id, flat.apiPath, text))
-                        }
-                    },
-                    onMoveUp =
-                        flat.item.id?.let { itemId ->
-                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
-                        },
-                    onMoveDown =
-                        flat.item.id?.let { itemId ->
-                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
-                        },
-                    onAddSubItem = null,
-                    actionIconSize = 32.dp,
-                    actionGlyphSize = 18.dp,
-                )
-            }
+                actionIconSize = 32.dp,
+                actionGlyphSize = 18.dp,
+            )
         }
     }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────────────
 
-@Composable
-private fun SectionLabel(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-    )
-}
-
-private data class FlatChecklistItem(val item: ChecklistItem, val depth: Int, val apiPath: String)
-
-private fun flattenItems(
-    items: List<ChecklistItem>,
-    depth: Int = 0,
-    parentPath: String = "",
-): List<FlatChecklistItem> =
-    items.flatMapIndexed { index, item ->
-        val path = if (parentPath.isEmpty()) "$index" else "$parentPath.$index"
-        listOf(FlatChecklistItem(item, depth, path)) +
-            flattenItems(item.children.orEmpty(), depth + 1, path)
-    }

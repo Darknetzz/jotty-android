@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,8 +57,8 @@ fun ChecklistDetailItemsList(
 
     var localToDo by remember { mutableStateOf(toDo) }
     var localCompleted by remember { mutableStateOf(completed) }
-    androidx.compose.runtime.LaunchedEffect(toDo) { localToDo = toDo }
-    androidx.compose.runtime.LaunchedEffect(completed) { localCompleted = completed }
+    LaunchedEffect(toDo) { localToDo = toDo }
+    LaunchedEffect(completed) { localCompleted = completed }
 
     val lazyListState = rememberLazyListState()
     val haptic = LocalHapticFeedback.current

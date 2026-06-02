@@ -14,6 +14,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Custom accent color** — Settings → Appearance → **Custom** lets you pick an accent from swatches or a `#RRGGBB` hex value, with **Neutral** or **Tinted** background styles.
 - **Unified search API** — Notes search (online) uses Jotty’s new `GET /api/search` when the query is at least two characters, with relevance ranking and fallback to `GET /api/notes?q=` on older servers.
 - **Checklist item reorder ([#29](https://github.com/Darknetzz/jotty-android/issues/29))** — Up/down controls on each checklist row call `PUT /api/checklists/{id}/items/reorder`; works offline with sync replay.
+- **Checklist drag-and-drop reorder** — Drag the handle on a checklist row to reorder among siblings (same rules as move up/down); To Do and Completed sections reorder separately.
 - **Checklist item PATCH** — Inline item edits use `PATCH /api/checklists/{id}/items/{index}` instead of delete-and-recreate, including parent/project rows with children.
 - **Background offline sync** — Added a periodic WorkManager job that attempts notes/checklists sync for saved instances when connectivity is available, improving eventual consistency when the app is not foregrounded.
 - **Per-item sync indicators** — Offline notes and checklists now show a `Pending sync` label at card level when local changes have not reached the server yet.

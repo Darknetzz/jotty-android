@@ -514,7 +514,11 @@ private fun ChecklistDetailScreen(
                 checklist.type.equals("task", ignoreCase = true)
         val flatItems =
             remember(items, isProject) {
-                if (isProject) flattenWithDepth(items) else items.mapIndexed { index, item -> FlatItem(item, 0, "$index") }
+                if (isProject) {
+                    flattenChecklistItems(items)
+                } else {
+                    items.mapIndexed { index, item -> ChecklistFlatItem(item, 0, "$index") }
+                }
             }
         val toDo = flatItems.filter { !it.item.completed }
         val completed = flatItems.filter { it.item.completed }
@@ -539,204 +543,109 @@ private fun ChecklistDetailScreen(
             }
         }
 
-        if (total > 0) {
-            Text(
-                text = stringResource(R.string.done_progress, doneCount, total),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
+        fun applyDragReorder(request: com.jotty.android.data.api.ReorderItemsRequest) {
+            scope.launch {
+                try {
+                    api.reorderItems(checklist.id, request)
+                    refresh()
+                } catch (_: Exception) {
+                    onSaveFailed()
+                }
+            }
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            item(key = "header-todo") {
-                SectionHeader(title = stringResource(R.string.section_to_do, toDo.size))
-            }
-            items(toDo, key = { "todo-${it.apiPath}-${it.item.text}" }) { flat ->
-                ChecklistItemRow(
-                    item = flat.item,
-                    itemKey = flat.apiPath,
-                    editingItemKey = editingItemKey,
-                    onEditingItemKeyChange = { editingItemKey = it },
-                    depth = flat.depth,
-                    isProject = isProject,
-                    onCheck = {
-                        scope.launch {
-                            try {
-                                api.checkItem(checklist.id, flat.apiPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
+        ChecklistDetailItemsList(
+            treeItems = items,
+            toDo = toDo,
+            completed = completed,
+            doneCount = doneCount,
+            total = total,
+            onReorder = ::applyDragReorder,
+        ) { flat, reorderableScope, _ ->
+            ChecklistDetailItemRow(
+                flat = flat,
+                editingItemKey = editingItemKey,
+                onEditingItemKeyChange = { editingItemKey = it },
+                isProject = isProject,
+                reorderableScope = reorderableScope,
+                onCheck = {
+                    scope.launch {
+                        try {
+                            api.checkItem(checklist.id, flat.apiPath)
+                            refresh()
+                        } catch (_: Exception) {
+                            onSaveFailed()
                         }
-                    },
-                    onUncheck = {
-                        scope.launch {
-                            try {
-                                api.uncheckItem(checklist.id, flat.apiPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
+                    }
+                },
+                onUncheck = {
+                    scope.launch {
+                        try {
+                            api.uncheckItem(checklist.id, flat.apiPath)
+                            refresh()
+                        } catch (_: Exception) {
+                            onSaveFailed()
                         }
-                    },
-                    onDelete = {
-                        scope.launch {
-                            try {
-                                api.deleteItem(checklist.id, flat.apiPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onDeleteFailed()
-                            }
+                    }
+                },
+                onDelete = {
+                    scope.launch {
+                        try {
+                            api.deleteItem(checklist.id, flat.apiPath)
+                            refresh()
+                        } catch (_: Exception) {
+                            onDeleteFailed()
                         }
-                    },
-                    onUpdate = { text ->
-                        scope.launch {
-                            try {
-                                updateChecklistItemText(
-                                    api = api,
-                                    listId = checklist.id,
-                                    path = flat.apiPath,
-                                    text = text,
-                                    items = items,
-                                )
-                                refresh()
-                            } catch (e: UnsupportedOperationException) {
-                                onRenameUnsupported()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
+                    }
+                },
+                onUpdate = { text ->
+                    scope.launch {
+                        try {
+                            updateChecklistItemText(
+                                api = api,
+                                listId = checklist.id,
+                                path = flat.apiPath,
+                                text = text,
+                                items = items,
+                            )
+                            refresh()
+                        } catch (e: UnsupportedOperationException) {
+                            onRenameUnsupported()
+                        } catch (_: Exception) {
+                            onSaveFailed()
                         }
+                    }
+                },
+                onMoveUp =
+                    flat.item.id?.let { itemId ->
+                        moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
                     },
-                    onMoveUp =
-                        flat.item.id?.let { itemId ->
-                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
-                        },
-                    onMoveDown =
-                        flat.item.id?.let { itemId ->
-                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
-                        },
-                    onAddSubItem =
-                        if (isProject && flat.depth == 0) {
-                            {
-                                scope.launch {
-                                    try {
-                                        api.addChecklistItem(
-                                            checklist.id,
-                                            com.jotty.android.data.api.AddItemRequest(
-                                                text = "",
-                                                parentIndex = flat.apiPath,
-                                            ),
-                                        )
-                                        refresh()
-                                    } catch (_: Exception) {
-                                        onSaveFailed()
-                                    }
+                onMoveDown =
+                    flat.item.id?.let { itemId ->
+                        moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
+                    },
+                onAddSubItem =
+                    if (isProject && flat.depth == 0) {
+                        {
+                            scope.launch {
+                                try {
+                                    api.addChecklistItem(
+                                        checklist.id,
+                                        com.jotty.android.data.api.AddItemRequest(
+                                            text = "",
+                                            parentIndex = flat.apiPath,
+                                        ),
+                                    )
+                                    refresh()
+                                } catch (_: Exception) {
+                                    onSaveFailed()
                                 }
                             }
-                        } else {
-                            null
-                        },
-                )
-            }
-            item(key = "header-completed") {
-                SectionHeader(title = stringResource(R.string.section_completed, completed.size))
-            }
-            items(completed, key = { "done-${it.apiPath}-${it.item.text}" }) { flat ->
-                ChecklistItemRow(
-                    item = flat.item,
-                    itemKey = flat.apiPath,
-                    editingItemKey = editingItemKey,
-                    onEditingItemKeyChange = { editingItemKey = it },
-                    depth = flat.depth,
-                    isProject = isProject,
-                    onCheck = {
-                        scope.launch {
-                            try {
-                                api.checkItem(checklist.id, flat.apiPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
                         }
+                    } else {
+                        null
                     },
-                    onUncheck = {
-                        scope.launch {
-                            try {
-                                api.uncheckItem(checklist.id, flat.apiPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
-                        }
-                    },
-                    onDelete = {
-                        scope.launch {
-                            try {
-                                api.deleteItem(checklist.id, flat.apiPath)
-                                refresh()
-                            } catch (_: Exception) {
-                                onDeleteFailed()
-                            }
-                        }
-                    },
-                    onUpdate = { text ->
-                        scope.launch {
-                            try {
-                                updateChecklistItemText(
-                                    api = api,
-                                    listId = checklist.id,
-                                    path = flat.apiPath,
-                                    text = text,
-                                    items = items,
-                                )
-                                refresh()
-                            } catch (e: UnsupportedOperationException) {
-                                onRenameUnsupported()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
-                        }
-                    },
-                    onMoveUp =
-                        flat.item.id?.let { itemId ->
-                            moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }
-                        },
-                    onMoveDown =
-                        flat.item.id?.let { itemId ->
-                            moveChecklistItemDownRequest(items, itemId)?.let { { reorderItem(itemId, up = false) } }
-                        },
-                    onAddSubItem = null,
-                )
-            }
+            )
         }
     }
-}
-
-/** Item with display depth and API path (e.g. "0" or "0.0" for nested). */
-private data class FlatItem(val item: ChecklistItem, val depth: Int, val apiPath: String)
-
-/** Flatten checklist items with depth and API path for project/task type. */
-private fun flattenWithDepth(
-    items: List<ChecklistItem>,
-    depth: Int = 0,
-    parentPath: String = "",
-): List<FlatItem> {
-    return items.flatMapIndexed { index, item ->
-        val path = if (parentPath.isEmpty()) "$index" else "$parentPath.$index"
-        listOf(FlatItem(item, depth, path)) + flattenWithDepth(item.children.orEmpty(), depth + 1, path)
-    }
-}
-
-@Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-    )
 }

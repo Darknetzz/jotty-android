@@ -496,6 +496,7 @@ private fun OfflineChecklistCard(
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.weight(1f, fill = false),
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     ChecklistTypeBadge(type = checklist.type)
                     IconButton(onClick = { menuExpanded = true }) {
                         Icon(

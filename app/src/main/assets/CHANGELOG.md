@@ -26,6 +26,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Checklist drag gesture stability** — Dragging can move across multiple rows in one gesture; the list updates visually on every step, and a single reorder sync runs when you release (invalid drops revert).
 - **Note detail top gap** — Opening a note no longer leaves an empty strip under the tab title: the main tab app bar hides in list/detail mode, detail scaffolds skip duplicate window insets, and side padding is removed for the detail pane.
 - **Custom theme in Neutral mode** — Selected chips, cards, and other container surfaces now use the custom accent; previously only **Tinted** backgrounds reflected the chosen color because Material 3 defaults were left on `primaryContainer` / `surfaceVariant`.
 - **Checklist offline repository churn** — Remembering the offline ViewModel factory stops the checklist repository from being created and destroyed on every recomposition (which blocked taps and spammed connectivity logs).

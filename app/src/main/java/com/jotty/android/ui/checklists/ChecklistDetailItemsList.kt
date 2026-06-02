@@ -141,8 +141,8 @@ private fun ChecklistDetailItemsListReorderable(
                 itemId = itemId,
                 startItems =
                     when (section) {
-                        ChecklistSection.ToDo -> localToDo
-                        ChecklistSection.Completed -> localCompleted
+                        ChecklistSection.ToDo -> localToDo.toList()
+                        ChecklistSection.Completed -> localCompleted.toList()
                     },
             )
     }
@@ -265,8 +265,8 @@ private fun LazyListScope.checklistDetailItemRows(
                         flat,
                         this,
                         isDragging,
-                        onDragStarted = { onItemDragStarted?.invoke(ChecklistSection.ToDo, flat) },
-                        onDragStopped = { onItemDragStopped?.invoke() },
+                        { onItemDragStarted?.invoke(ChecklistSection.ToDo, flat) },
+                        { onItemDragStopped?.invoke() },
                     )
                 }
             }
@@ -292,8 +292,8 @@ private fun LazyListScope.checklistDetailItemRows(
                         flat,
                         this,
                         isDragging,
-                        onDragStarted = { onItemDragStarted?.invoke(ChecklistSection.Completed, flat) },
-                        onDragStopped = { onItemDragStopped?.invoke() },
+                        { onItemDragStarted?.invoke(ChecklistSection.Completed, flat) },
+                        { onItemDragStopped?.invoke() },
                     )
                 }
             }

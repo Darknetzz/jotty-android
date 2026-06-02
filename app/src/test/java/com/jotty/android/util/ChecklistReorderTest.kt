@@ -72,6 +72,21 @@ class ChecklistReorderTest {
     }
 
     @Test
+    fun reorderRequestForFlatMove_multiStepMove_returnsSingleRequest() {
+        val request =
+            reorderRequestForFlatMove(
+                treeItems = items,
+                sectionItems = items,
+                fromIndex = 0,
+                toIndex = 2,
+            )
+
+        assertEquals("a", request?.activeItemId)
+        assertEquals("c", request?.overItemId)
+        assertEquals("after", request?.position)
+    }
+
+    @Test
     fun reorderRequestForFlatMove_downOne_returnsAfter() {
         val request =
             reorderRequestForFlatMove(

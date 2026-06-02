@@ -16,6 +16,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Note encryption** — On low-RAM devices, encrypting a note retries Argon2 with 32 MiB when 64 MiB fails; encrypted JSON always includes `t`/`m`/`p` so decrypt uses matching KDF params (Jotty web still decrypts 64 MiB notes; notes encrypted with the 32 MiB fallback decrypt in the app but not yet in the web app, which always uses libsodium INTERACTIVE). Encrypt dialog validates trimmed passphrase length (avoids whitespace-only passphrases).
 - **Note images** — Jotty media URLs resolve with RFC 3986 rules (fixes root-relative paths when the instance URL includes a subpath), rewrite HTML `<img src>` before conversion, remap absolute `/api/image/` URLs to the configured instance host (e.g. LAN IP vs hostname), and always attach the API key on Jotty media paths. Export debug logs record HTTP failures for media loads. **Note:** standard Jotty servers still require `SERVE_PUBLIC_IMAGES=yes` or upstream API-key support on `/api/image/` for private uploads (see [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 
 ---

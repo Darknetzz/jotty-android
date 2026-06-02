@@ -1,5 +1,6 @@
 package com.jotty.android.data.encryption
 
+import com.jotty.android.util.AppLog
 import org.bouncycastle.crypto.generators.Argon2BytesGenerator
 import org.bouncycastle.crypto.modes.ChaCha20Poly1305
 import org.bouncycastle.crypto.params.Argon2Parameters
@@ -17,13 +18,22 @@ private fun encodeHex(bytes: ByteArray): String {
 
 /**
  * Encrypts plaintext with XChaCha20-Poly1305 for Jotty.
- * Output format: JSON with "alg","salt","nonce","data" (hex). Same params as XChaCha20Decryptor.
+ * Output format: JSON with "alg", Argon2 "t"/"m"/"p", "salt", "nonce", "data" (hex).
+ * [t]/[m]/[p] are always written so decryptors (app and Jotty web) use the same Argon2 cost as this build.
  * Uses AEAD combined format (ciphertext then tag) used by Jotty web's libsodium implementation.
  */
 object XChaCha20Encryptor {
-    private const val ARGON2_ITERATIONS = 2
-    private const val ARGON2_MEMORY_KB = 65536
-    private const val ARGON2_PARALLELISM = 1
+    internal data class Argon2Dims(
+        val iterations: Int,
+        val memoryKb: Int,
+        val parallelism: Int,
+    )
+
+    /** Match libsodium INTERACTIVE-style default when 64 MiB is available. */
+    internal val ARGON_PRIMARY = Argon2Dims(iterations = 2, memoryKb = 65536, parallelism = 1)
+
+    /** Fallback when 64 MiB Argon2 cannot run (low RAM devices); still in [XChaCha20Decryptor] preset list. */
+    internal val ARGON_FALLBACK = Argon2Dims(iterations = 2, memoryKb = 32768, parallelism = 1)
     private const val KEY_BYTES = 32
     private const val SALT_BYTES = 16
     private const val NONCE_BYTES = 24
@@ -41,15 +51,24 @@ object XChaCha20Encryptor {
     ): String? {
         val trimmed = passphrase.copyTrimmedOrNull() ?: return null
         return try {
-            val salt = ByteArray(SALT_BYTES).apply { random.nextBytes(this) }
-            val nonce24 = ByteArray(NONCE_BYTES).apply { random.nextBytes(this) }
-            val key = deriveKey(trimmed, salt) ?: return null
-            val ciphertextAndTag =
-                encryptXChaCha20Poly1305(key, nonce24, plaintext.toByteArray(Charsets.UTF_8)) ?: return null
-            val saltHex = encodeHex(salt)
-            val nonceHex = encodeHex(nonce24)
-            val dataHex = encodeHex(ciphertextAndTag)
-            """{"alg":"xchacha20","salt":"$saltHex","nonce":"$nonceHex","data":"$dataHex"}"""
+            val primary = encryptAttempt(plaintext, trimmed, ARGON_PRIMARY)
+            if (primary != null) {
+                primary
+            } else {
+                AppLog.d("encryption", "Encrypt: retrying with Argon2 memoryKb=${ARGON_FALLBACK.memoryKb}")
+                val fallback = encryptAttempt(plaintext, trimmed, ARGON_FALLBACK)
+                if (fallback == null) {
+                    AppLog.d("encryption", "Encrypt: failed with primary (64 MiB) and fallback (32 MiB) Argon2 presets")
+                }
+                fallback
+            }
+        } catch (_: OutOfMemoryError) {
+            AppLog.d("encryption", "Encrypt: OutOfMemoryError — retrying with Argon2 memoryKb=${ARGON_FALLBACK.memoryKb}")
+            encryptAttempt(plaintext, trimmed, ARGON_FALLBACK)
+                ?: run {
+                    AppLog.d("encryption", "Encrypt: failed after OutOfMemoryError and fallback (32 MiB) Argon2")
+                    null
+                }
         } finally {
             trimmed.clearPassphrase()
         }
@@ -88,17 +107,59 @@ object XChaCha20Encryptor {
             """.trimMargin()
     }
 
+    /**
+     * Encrypts with explicit Argon2 cost (for tests and diagnostics).
+     * Production callers should use [encrypt].
+     */
+    internal fun encryptWithArgonDims(
+        plaintext: String,
+        passphrase: CharArray,
+        dims: Argon2Dims,
+    ): String? {
+        val trimmed = passphrase.copyTrimmedOrNull() ?: return null
+        return try {
+            encryptAttempt(plaintext, trimmed, dims)
+        } finally {
+            trimmed.clearPassphrase()
+        }
+    }
+
+    internal fun encryptAttempt(
+        plaintext: String,
+        passphrase: CharArray,
+        dims: Argon2Dims,
+    ): String? {
+        return try {
+            val salt = ByteArray(SALT_BYTES).apply { random.nextBytes(this) }
+            val nonce24 = ByteArray(NONCE_BYTES).apply { random.nextBytes(this) }
+            val key = deriveKey(passphrase, salt, dims) ?: return null
+            try {
+                val ciphertextAndTag =
+                    encryptXChaCha20Poly1305(key, nonce24, plaintext.toByteArray(Charsets.UTF_8)) ?: return null
+                val saltHex = encodeHex(salt)
+                val nonceHex = encodeHex(nonce24)
+                val dataHex = encodeHex(ciphertextAndTag)
+                """{"alg":"xchacha20","t":${dims.iterations},"m":${dims.memoryKb},"p":${dims.parallelism},"salt":"$saltHex","nonce":"$nonceHex","data":"$dataHex"}"""
+            } finally {
+                key.fill(0)
+            }
+        } catch (_: OutOfMemoryError) {
+            null
+        }
+    }
+
     private fun deriveKey(
         passphrase: CharArray,
         salt: ByteArray,
+        dims: Argon2Dims,
     ): ByteArray? {
         return try {
             val params =
                 Argon2Parameters.Builder(Argon2Parameters.ARGON2_id)
                     .withVersion(Argon2Parameters.ARGON2_VERSION_13)
-                    .withIterations(ARGON2_ITERATIONS)
-                    .withMemoryAsKB(ARGON2_MEMORY_KB)
-                    .withParallelism(ARGON2_PARALLELISM)
+                    .withIterations(dims.iterations)
+                    .withMemoryAsKB(dims.memoryKb)
+                    .withParallelism(dims.parallelism)
                     .withSalt(salt)
                     .build()
             val generator = Argon2BytesGenerator()
@@ -111,7 +172,11 @@ object XChaCha20Encryptor {
                 pwBytes.fill(0)
             }
             key
-        } catch (_: Exception) {
+        } catch (e: OutOfMemoryError) {
+            AppLog.d("encryption", "Encrypt: Argon2 key derivation OOM (memoryKb=${dims.memoryKb})")
+            throw e
+        } catch (e: Exception) {
+            AppLog.d("encryption", "Encrypt: Argon2 key derivation failed (memoryKb=${dims.memoryKb}): ${e.message}")
             null
         }
     }

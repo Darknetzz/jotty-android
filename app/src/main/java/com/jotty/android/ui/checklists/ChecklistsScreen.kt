@@ -55,6 +55,7 @@ import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
 import com.jotty.android.util.moveChecklistItemDownRequest
 import com.jotty.android.util.moveChecklistItemUpRequest
@@ -69,6 +70,7 @@ fun ChecklistsScreen(
     api: JottyApi,
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
+    serverCapabilitiesKey: String? = null,
     tabReselectToken: Int = 0,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
@@ -184,7 +186,11 @@ fun ChecklistsScreen(
                     onDelete = { scope.launch { deleteWithUndoForList(currentList) } },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onDeleteFailed = { scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) } },
-                    onRenameUnsupported = { scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) } },
+                    onRenameUnsupported = {
+                        serverCapabilitiesKey?.let { ServerCapabilities.markItemPatchLimited(it) }
+                        scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) }
+                    },
+                    serverCapabilitiesKey = serverCapabilitiesKey,
                 )
                 } else {
                     Column(Modifier.fillMaxSize()) {
@@ -341,25 +347,11 @@ private fun ChecklistCard(
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = displayTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    ChecklistTypeBadge(type = checklist.type)
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.more_options),
-                        )
-                    }
-                }
+                ChecklistCardTitleRow(
+                    title = displayTitle,
+                    checklistType = checklist.type,
+                    onMenuClick = { menuExpanded = true },
+                )
                 if (checklist.items.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
@@ -408,6 +400,7 @@ private fun ChecklistDetailScreen(
     onSaveFailed: () -> Unit = {},
     onDeleteFailed: () -> Unit = {},
     onRenameUnsupported: () -> Unit = {},
+    serverCapabilitiesKey: String? = null,
 ) {
     var items by remember { mutableStateOf(checklist.items) }
     var displayTitle by remember { mutableStateOf(checklist.title) }
@@ -524,6 +517,13 @@ private fun ChecklistDetailScreen(
             onDelete = onDelete,
         )
 
+        serverCapabilitiesKey?.let { key ->
+            ChecklistPatchCapabilityBanner(
+                capabilitiesKey = key,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
@@ -637,6 +637,16 @@ private fun ChecklistDetailScreen(
                         }
                     }
                 },
+                onDeleteItem = { apiPath ->
+                    scope.launch {
+                        try {
+                            api.deleteItem(checklist.id, apiPath)
+                            refresh()
+                        } catch (_: Exception) {
+                            onDeleteFailed()
+                        }
+                    }
+                },
             )
         } else {
             if (isProject && !canUseKanbanBoard) {
@@ -703,6 +713,9 @@ private fun ChecklistDetailScreen(
                                     path = flat.apiPath,
                                     text = text,
                                     items = items,
+                                    onPatchUnavailable = {
+                                        serverCapabilitiesKey?.let { ServerCapabilities.markItemPatchLimited(it) }
+                                    },
                                 )
                                 refresh()
                             } catch (e: UnsupportedOperationException) {

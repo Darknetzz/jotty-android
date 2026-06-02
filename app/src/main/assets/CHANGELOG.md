@@ -8,7 +8,16 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
-- **Dev update check** — Dev channel update checks again read the commit SHA from `dev-latest` release notes (plain `Commit:` line and markdown table format).
+- **Manage statuses layout** — Status title fields in the Kanban dialog no longer collapse when color swatches are shown; colors sit on their own row below the title.
+- **Manage statuses colors** — Selected status color shows a larger swatch, primary ring, and checkmark so the current choice is easier to see.
+- **Dev update check** — Dev channel update checks again read the commit SHA from `dev-latest` release notes (plain `Commit:` line or markdown table).
+- **Note images** — Relative image URLs in note bodies (e.g. `/api/image/...`) resolve against the Jotty instance base URL so authenticated images load in view mode.
+
+### Added
+
+- **Kanban delete task** — Kanban cards include a delete action (with confirmation) using the same checklist item API as list view.
+- **Encrypted note session UI** — Decrypted notes show a **Decrypted** indicator, **Lock note** to hide content again, and stale session cache clears when server ciphertext changes.
+- **Server PATCH compatibility** — Dismissible banner on checklist detail when the server lacks item PATCH; see [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md).
 
 ### Added
 
@@ -29,6 +38,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Checklist list cards** — Type badge sits on the trailing edge of the title row; note list dates align to the right of the metadata row.
+- **Note detail** — Shows an **Updated** date line when the server provides `updatedAt`.
+- **Stable updates from dev builds** — About warns when checking stable on a dev APK; install failures explain dev→stable version code limits.
+- **Top-bar sync status** — Notes and Checklists show only the cloud icon in the app bar (next to refresh); tap it for last sync time, duration, and errors.
 - **Top-bar sync icon colors** — Sync status cloud icon now uses fixed semantic colors: green for healthy sync state and red when offline/failed, independent of appearance theme.
 - **Checklist type badge styling** — Type badges now use distinct colors for **Checklist** vs **Project / Kanban** for faster visual scanning.
 - **Motion effects opt-in** — Cross-fade, list/detail fade-in, shimmer skeletons, and animated bottom tabs are now off by default. Settings → Appearance → **Motion effects** can turn them on, or choose **System** to follow the device accessibility setting. Bottom-tab navigation no longer uses Navigation Compose’s default cross-fade when motion is off.

@@ -41,6 +41,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.TaskStatus
+import com.jotty.android.ui.common.ConfirmDeleteDialog
+import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.util.KanbanCard
 import com.jotty.android.util.KanbanColumn
 
@@ -53,6 +55,7 @@ fun TaskKanbanBoard(
     allStatuses: List<TaskStatus>,
     moveEnabled: Boolean,
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
+    onDeleteItem: (apiPath: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -69,6 +72,7 @@ fun TaskKanbanBoard(
                 allStatuses = allStatuses,
                 moveEnabled = moveEnabled,
                 onMoveItem = onMoveItem,
+                onDeleteItem = onDeleteItem,
             )
         }
     }
@@ -80,6 +84,7 @@ private fun KanbanStatusColumn(
     allStatuses: List<TaskStatus>,
     moveEnabled: Boolean,
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
+    onDeleteItem: (apiPath: String) -> Unit,
 ) {
     val accent = parseHexColorOrNull(column.status.color) ?: MaterialTheme.colorScheme.primary
     Column(
@@ -136,6 +141,7 @@ private fun KanbanStatusColumn(
                         allStatuses = allStatuses,
                         moveEnabled = moveEnabled,
                         onMoveItem = onMoveItem,
+                        onDeleteItem = onDeleteItem,
                     )
                 }
             }
@@ -150,10 +156,25 @@ private fun KanbanTaskCard(
     allStatuses: List<TaskStatus>,
     moveEnabled: Boolean,
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
+    onDeleteItem: (apiPath: String) -> Unit,
 ) {
     var menuExpanded by remember(card.index) { mutableStateOf(false) }
+    var showDeleteConfirm by remember(card.index) { mutableStateOf(false) }
     val apiPath = "${card.index}"
+    val taskLabel = card.item.text.ifBlank { stringResource(R.string.untitled) }
     val subtaskCount = card.item.children.orEmpty().size
+    val moveTargets = allStatuses.filterNot { it.id.equals(currentStatusId, ignoreCase = true) }
+
+    if (showDeleteConfirm) {
+        ConfirmDeleteDialog(
+            message = stringResource(R.string.delete_task_named_confirm, taskLabel),
+            onDismiss = { showDeleteConfirm = false },
+            onConfirm = {
+                showDeleteConfirm = false
+                onDeleteItem(apiPath)
+            },
+        )
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -179,9 +200,8 @@ private fun KanbanTaskCard(
                     )
                 }
             }
-            if (moveEnabled && allStatuses.size > 1) {
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
                         Icon(
                             Icons.Default.MoreVert,
                             contentDescription = stringResource(R.string.more_options),
@@ -191,9 +211,8 @@ private fun KanbanTaskCard(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
-                        allStatuses
-                            .filterNot { it.id.equals(currentStatusId, ignoreCase = true) }
-                            .forEach { target ->
+                        if (moveEnabled) {
+                            moveTargets.forEach { target ->
                                 DropdownMenuItem(
                                     text = {
                                         KanbanMoveMenuLabel(status = target)
@@ -204,8 +223,14 @@ private fun KanbanTaskCard(
                                     },
                                 )
                             }
+                        }
+                        DeleteDropdownMenuItem(
+                            onClick = {
+                                menuExpanded = false
+                                showDeleteConfirm = true
+                            },
+                        )
                     }
-                }
             }
         }
     }

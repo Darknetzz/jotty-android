@@ -89,7 +89,7 @@
     <string name="delete_task_confirm">Delete this task? This cannot be undone.</string>
     <string name="delete_task_named_confirm">Delete \"%1$s\"? This cannot be undone.</string>
     <string name="delete_note_confirm">Delete \"%1$s\"? This cannot be undone.</string>
-    <string name="rename_leaf_only">Only leaf items can be renamed in the app.</string>
+    <string name="rename_leaf_only">Renaming items with subtasks requires a newer Jotty server with PATCH support.</string>
     <string name="checklist_rename_leaf_only_hint">Rename is available for leaf items only. Parent/project items cannot be renamed in-app, and renamed items may move to the end.</string>
 
     <!-- Notes -->
@@ -101,6 +101,10 @@
     <string name="note_deleted">Note deleted</string>
     <string name="checklist_deleted">Checklist deleted</string>
     <string name="encrypted">Encrypted</string>
+    <string name="note_decrypted_session">Decrypted</string>
+    <string name="lock_note">Lock note</string>
+    <string name="cd_lock_note">Lock note and hide decrypted content</string>
+    <string name="note_updated_label">Updated %1$s</string>
     <string name="no_content">No content</string>
     <string name="export_share">Export / Share</string>
     <string name="export_note">Export note</string>
@@ -340,6 +344,9 @@
     <string name="update_signing_mismatch_hint">If the installer says “App not installed”, the APK may be signed differently than your installed app (e.g. Android Studio debug vs GitHub release). Uninstall Jotty once, then install from the release page. Your Jotty server data is not affected.</string>
     <string name="update_signing_mismatch_blocked">This update is signed with a different key than your installed app. Uninstall Jotty once, then install from the release page.</string>
     <string name="update_version_downgrade_blocked">This build has an older version code than your installed app. Uninstall once, then install from the release page.</string>
+    <string name="update_dev_on_stable_channel_hint">You are on a dev build. Stable updates may show as available but cannot install over dev until you uninstall and install the stable APK from GitHub releases.</string>
+    <string name="update_dev_to_stable_downgrade_blocked">This stable release cannot replace your dev build (version code). Uninstall the dev app once, then install the stable APK from GitHub releases.</string>
+    <string name="server_patch_limited_banner">This Jotty server does not support checklist item PATCH. Leaf edits use a slower sync; renaming items with subtasks needs a newer Jotty server.</string>
     <string name="update_dev_channel_hint">Dev builds are bleeding edge and may contain bugs.</string>
     <string name="open_release_page">Open release page</string>
     <string name="whats_new">What\'s new</string>

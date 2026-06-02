@@ -171,6 +171,12 @@ class UpdateCheckerTest {
     }
 
     @Test
+    fun `isDevVersionName detects dev suffix`() {
+        assertTrue(UpdateChecker.isDevVersionName("1.4.0-dev+b395ded"))
+        assertFalse(UpdateChecker.isDevVersionName("1.4.0"))
+    }
+
+    @Test
     fun `devCiVersionCode increments within base version band`() {
         assertEquals(270001, ApkInstallHelper.devCiVersionCode(27, 1))
         assertEquals(279999, ApkInstallHelper.devCiVersionCode(27, 9999))

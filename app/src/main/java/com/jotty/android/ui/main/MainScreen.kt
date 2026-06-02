@@ -309,6 +309,7 @@ fun MainScreen(
                                 onSharedTextConsumed = { sharedNoteText?.value = null },
                                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                                 imageLoader = imageLoader,
+                                jottyServerUrl = serverUrl,
                                 tabReselectToken = notesTabReselectToken,
                             )
                         } else {

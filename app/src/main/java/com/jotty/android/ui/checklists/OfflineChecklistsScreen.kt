@@ -42,6 +42,7 @@ fun OfflineChecklistsScreen(
                 offlineRepository = offlineRepository,
                 api = api,
                 vmKey = "checklists_ui|$instanceId|$authFingerprint",
+                serverCapabilitiesKey = instanceId,
                 settingsRepository = settingsRepository,
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                 tabReselectToken = tabReselectToken,
@@ -52,6 +53,7 @@ fun OfflineChecklistsScreen(
                 api = api,
                 settingsRepository = settingsRepository,
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
+                serverCapabilitiesKey = instanceId,
                 tabReselectToken = tabReselectToken,
             )
         },

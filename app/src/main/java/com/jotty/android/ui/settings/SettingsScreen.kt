@@ -784,6 +784,14 @@ private fun AboutDialog(
                         modifier = Modifier.padding(top = 2.dp),
                     )
                 }
+                if (UpdateChecker.isDevBuild() && parsedChannel == UpdateChannel.Stable) {
+                    Text(
+                        text = stringResource(R.string.update_dev_on_stable_channel_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                }
                 when (val state = updateState) {
                     UpdateUiState.Idle -> {
                         TextButton(

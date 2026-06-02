@@ -57,6 +57,7 @@ import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -68,6 +69,7 @@ fun OfflineEnabledChecklistsScreen(
     offlineRepository: OfflineChecklistsRepository,
     api: JottyApi,
     vmKey: String,
+    serverCapabilitiesKey: String,
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
     tabReselectToken: Int = 0,
@@ -292,7 +294,11 @@ fun OfflineEnabledChecklistsScreen(
                     },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
-                    onRenameUnsupported = { scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) } },
+                    onRenameUnsupported = {
+                        ServerCapabilities.markItemPatchLimited(serverCapabilitiesKey)
+                        scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) }
+                    },
+                    serverCapabilitiesKey = serverCapabilitiesKey,
                     onDiscardPendingSyncFailed = {
                         scope.launch {
                             snackbarHostState.showSnackbar(
@@ -486,25 +492,11 @@ private fun OfflineChecklistCard(
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = displayTitle,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    ChecklistTypeBadge(type = checklist.type)
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(
-                            Icons.Default.MoreVert,
-                            contentDescription = stringResource(R.string.more_options),
-                        )
-                    }
-                }
+                ChecklistCardTitleRow(
+                    title = displayTitle,
+                    checklistType = checklist.type,
+                    onMenuClick = { menuExpanded = true },
+                )
                 if (checklist.items.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     LinearProgressIndicator(
@@ -571,6 +563,7 @@ private fun OfflineChecklistDetailContent(
     onRenameUnsupported: () -> Unit,
     onDiscardPendingSyncFailed: (Throwable) -> Unit = {},
     onDiscardPendingSyncDone: () -> Unit = {},
+    serverCapabilitiesKey: String? = null,
 ) {
     // Drive item list from the repository flow so offline mutations are reflected immediately.
     val allChecklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -730,6 +723,13 @@ private fun OfflineChecklistDetailContent(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
 
+        serverCapabilitiesKey?.let { key ->
+            ChecklistPatchCapabilityBanner(
+                capabilitiesKey = key,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
         Row(
@@ -832,6 +832,11 @@ private fun OfflineChecklistDetailContent(
                             }
                             onSaveFailed()
                         }
+                    }
+                },
+                onDeleteItem = { apiPath ->
+                    scope.launch {
+                        handleResult(offlineRepository.deleteItem(liveChecklist.id, apiPath))
                     }
                 },
             )

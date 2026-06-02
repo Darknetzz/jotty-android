@@ -16,11 +16,13 @@ suspend fun updateChecklistItemText(
     path: String,
     text: String,
     items: List<ChecklistItem>,
+    onPatchUnavailable: (() -> Unit)? = null,
 ) {
     runCatching {
         api.updateItem(listId, path, UpdateItemRequest(text = text))
     }.getOrElse { error ->
         if (error is HttpException && error.code() in UNSUPPORTED_PATCH_CODES) {
+            onPatchUnavailable?.invoke()
             legacyRenameLeafItem(api, listId, path, text, items)
         } else {
             throw error

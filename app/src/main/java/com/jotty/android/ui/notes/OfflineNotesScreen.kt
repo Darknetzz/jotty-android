@@ -31,6 +31,7 @@ fun OfflineNotesScreen(
     onSharedTextConsumed: () -> Unit = {},
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
+    jottyServerUrl: String? = null,
     tabReselectToken: Int = 0,
 ) {
     val context = LocalContext.current
@@ -61,6 +62,7 @@ fun OfflineNotesScreen(
                 onSharedTextConsumed = onSharedTextConsumed,
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                 imageLoader = imageLoader,
+                jottyServerUrl = jottyServerUrl,
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,
             )
@@ -75,6 +77,7 @@ fun OfflineNotesScreen(
                 onSharedTextConsumed = onSharedTextConsumed,
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                 imageLoader = imageLoader,
+                jottyServerUrl = jottyServerUrl,
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,
             )

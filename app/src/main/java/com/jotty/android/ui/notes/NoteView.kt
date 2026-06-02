@@ -24,6 +24,7 @@ import com.jotty.android.util.convertHtmlColorSpans
 import com.jotty.android.util.convertHtmlFontFamilySpans
 import com.jotty.android.util.convertHtmlImagesToMarkdown
 import com.jotty.android.util.convertHtmlTablesToGfm
+import com.jotty.android.util.resolveNoteImageUrlsInMarkdown
 import com.jotty.android.util.stripInvisibleUnicode
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
@@ -34,6 +35,7 @@ val LocalReaderTextScale = compositionLocalOf { 1.0f }
 internal fun NoteView(
     content: String,
     imageLoader: ImageLoader? = null,
+    jottyServerUrl: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -62,15 +64,18 @@ internal fun NoteView(
             )
         }
     val displayMarkdown =
-        remember(content) {
-            convertHtmlTablesToGfm(
+        remember(content, jottyServerUrl) {
+            val htmlAsMarkdown =
                 convertHtmlImagesToMarkdown(
                     convertHtmlColorSpans(
                         convertHtmlFontFamilySpans(
                             stripInvisibleUnicode(content),
                         ),
                     ),
-                ),
+                )
+            resolveNoteImageUrlsInMarkdown(
+                convertHtmlTablesToGfm(htmlAsMarkdown),
+                jottyServerUrl,
             )
         }
     Column(

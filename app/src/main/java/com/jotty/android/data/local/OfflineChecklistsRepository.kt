@@ -16,6 +16,7 @@ import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
+import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.CancellationException
 import retrofit2.HttpException
@@ -376,6 +377,7 @@ class OfflineChecklistsRepository(
                             path = path,
                             text = itemText,
                             items = checklist.items,
+                            onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
                         )
                         return@withItemMutation refreshFromServer(checklistId)
                     } else {
@@ -650,6 +652,7 @@ class OfflineChecklistsRepository(
                             path = op.path!!,
                             text = op.text ?: "",
                             items = entity.items(),
+                            onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
                         )
                     } else {
                         throw error

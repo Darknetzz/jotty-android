@@ -243,6 +243,11 @@ object UpdateChecker {
         )
     }
 
+    /** True when this APK was built from the rolling `dev` channel (`VERSION-dev+<sha>`). */
+    fun isDevBuild(): Boolean = isDevVersionName(BuildConfig.VERSION_NAME)
+
+    internal fun isDevVersionName(versionName: String): Boolean = versionName.contains("-dev+")
+
     /** `1.3.0-dev+abcdef0` → `1.3.0` for stable-vs-dev semver checks. */
     internal fun baseVersionNameWithoutDevSuffix(versionName: String): String {
         val idx = versionName.indexOf("-dev+")
@@ -370,7 +375,13 @@ object UpdateChecker {
         }
         if (!ApkInstallHelper.isVersionCodeAllowedForUpdate(context, apkFile)) {
             AppLog.w(TAG, "Update APK versionCode is lower than installed app")
-            return InstallResult.Failed(context.getString(R.string.update_version_downgrade_blocked))
+            val message =
+                if (isDevBuild()) {
+                    context.getString(R.string.update_dev_to_stable_downgrade_blocked)
+                } else {
+                    context.getString(R.string.update_version_downgrade_blocked)
+                }
+            return InstallResult.Failed(message)
         }
         return try {
             val uri: Uri =

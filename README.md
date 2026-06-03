@@ -26,73 +26,102 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 
 ## Screenshots
 
-Captured on v1.5.0 with demo content. Where both themes exist, **dark** is on the left and **light** on the right. Additional captures are in [`images/`](images/) (`readme-*.png`).
+Demo content from v1.5.0. **Dark** is left, **light** is right when both exist. More files in [`images/`](images/) (`readme-*.png`).
 
-<p align="center">
-  <img src="images/readme-connect-light.png" alt="Connect to Jotty with server URL, API key, and optional name and accent color" width="230" /><br />
-  <sub>Connect to your instance with URL and API key (light only).</sub>
-</p>
-
-| **Dark** | **Light** |
-|:---:|:---:|
-| <div align="center"><img src="images/readme-settings-dark.png" alt="Settings overview in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-settings-light.png" alt="Settings overview in light theme" width="210" /></div> |
-
-<p align="center"><sub>Settings — instance, appearance, behavior, and troubleshooting.</sub></p>
-
-<p align="center">
-  <img src="images/readme-notes-list-light.png" alt="Notes list with search and encrypted note badge" width="230" /><br />
-  <sub>Notes list with search and encryption indicators (light only).</sub>
-</p>
-
-| **Dark** | **Light** |
-|:---:|:---:|
-| <div align="center"><img src="images/readme-note-view-dark.png" alt="Note detail in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-note-view-light.png" alt="Note detail in light theme" width="210" /></div> |
-
-<p align="center"><sub>Note detail — Markdown headings, task lists, quotes, and bullets.</sub></p>
-
-<p align="center">
-  <img src="images/readme-note-editor-light.png" alt="Note editor with Markdown toolbar in light theme" width="230" /><br />
-  <sub>Note editor with formatting toolbar (light only).</sub>
-</p>
-
-<p align="center">
-  <img src="images/readme-checklists-list-dark.png" alt="Checklists list in dark theme" width="230" /><br />
-  <sub>Checklists and Kanban projects with progress (dark only).</sub>
-</p>
-
-| **Dark** | **Light** |
-|:---:|:---:|
-| <div align="center"><img src="images/readme-checklist-detail-dark.png" alt="Checklist detail in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-checklist-detail-light.png" alt="Checklist detail in light theme" width="210" /></div> |
-
-<p align="center"><sub>Checklist detail — items, reorder handles, and progress.</sub></p>
-
-| **Dark** | **Light** |
-|:---:|:---:|
-| <div align="center"><img src="images/readme-kanban-dark.png" alt="Kanban board in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-kanban-light.png" alt="Kanban board in light theme" width="210" /></div> |
-
-<p align="center"><sub>Kanban board — columns, tasks, and manage statuses.</sub></p>
-
-| **Dark** | **Light** |
-|:---:|:---:|
-| <div align="center"><img src="images/readme-encrypt-locked-dark.png" alt="Encrypted note locked in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-encrypt-locked-light.png" alt="Encrypted note locked in light theme" width="210" /></div> |
-
-<p align="center"><sub>Encrypted note — locked until you enter your passphrase.</sub></p>
-
-| **Dark** | **Light** |
-|:---:|:---:|
-| <div align="center"><img src="images/readme-encrypt-decrypted-dark.png" alt="Decrypted note in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-encrypt-decrypted-light.png" alt="Decrypted note in light theme" width="210" /></div> |
-
-<p align="center"><sub>Encrypted note — decrypted view with session indicator.</sub></p>
-
-<p align="center">
-  <img src="images/readme-encrypt-dialog-dark.png" alt="Encrypt note dialog in dark theme" width="230" /><br />
-  <sub>Encrypt note — choose and confirm a passphrase (dark only).</sub>
-</p>
-
-<p align="center">
-  <img src="images/readme-dashboard-dark.png" alt="Dashboard overview in dark theme" width="230" /><br />
-  <sub>Dashboard — notes, checklists, and task stats from your server (dark only).</sub>
-</p>
+<table>
+  <thead>
+    <tr>
+      <th align="center" width="50%">Dark</th>
+      <th align="center" width="50%">Light</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center">—</td>
+      <td align="center"><img src="images/readme-connect-light.png" alt="Connect to Jotty" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Connect</b> — server URL, API key, and accent color</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-settings-dark.png" alt="Settings dark" width="200" /></td>
+      <td align="center"><img src="images/readme-settings-light.png" alt="Settings light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Settings</b> — instance, appearance, behavior, troubleshooting</sub></td>
+    </tr>
+    <tr>
+      <td align="center">—</td>
+      <td align="center"><img src="images/readme-notes-list-light.png" alt="Notes list light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Notes list</b> — search and encrypted note badge</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-note-view-dark.png" alt="Note detail dark" width="200" /></td>
+      <td align="center"><img src="images/readme-note-view-light.png" alt="Note detail light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Note detail</b> — Markdown, lists, quotes, checkboxes</sub></td>
+    </tr>
+    <tr>
+      <td align="center">—</td>
+      <td align="center"><img src="images/readme-note-editor-light.png" alt="Note editor light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Note editor</b> — formatting toolbar</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-checklists-list-dark.png" alt="Checklists list dark" width="200" /></td>
+      <td align="center">—</td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Checklists</b> — lists and Kanban projects with progress</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-checklist-detail-dark.png" alt="Checklist detail dark" width="200" /></td>
+      <td align="center"><img src="images/readme-checklist-detail-light.png" alt="Checklist detail light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Checklist detail</b> — items, reorder, progress</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-kanban-dark.png" alt="Kanban dark" width="200" /></td>
+      <td align="center"><img src="images/readme-kanban-light.png" alt="Kanban light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Kanban</b> — columns, tasks, manage statuses</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-encrypt-locked-dark.png" alt="Encrypted locked dark" width="200" /></td>
+      <td align="center"><img src="images/readme-encrypt-locked-light.png" alt="Encrypted locked light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Encrypted note</b> — locked until you decrypt</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-encrypt-decrypted-dark.png" alt="Encrypted decrypted dark" width="200" /></td>
+      <td align="center"><img src="images/readme-encrypt-decrypted-light.png" alt="Encrypted decrypted light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Encrypted note</b> — decrypted with session badge</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-encrypt-dialog-dark.png" alt="Encrypt dialog dark" width="200" /></td>
+      <td align="center">—</td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Encrypt</b> — passphrase dialog</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-dashboard-dark.png" alt="Dashboard dark" width="200" /></td>
+      <td align="center">—</td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Dashboard</b> — server stats overview</sub></td>
+    </tr>
+  </tbody>
+</table>
 
 ## Releases / Download
 

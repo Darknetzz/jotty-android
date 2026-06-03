@@ -26,16 +26,14 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 
 ## Screenshots
 
+Captured on v1.5.0 with demo content (light and dark). More shots live in [`images/`](images/) (`readme-*.png`).
+
 | | |
 |:---:|:---:|
-| <div align="center"><img src="images/Screenshot_20260507_135939_Jotty.png" alt="Connect to Jotty setup form with name, server URL, API key, and color picker" width="230" /><br />Connect by entering instance details and an accent color.</div> | <div align="center"><img src="images/Screenshot_20260505_111515_Jotty.png" alt="Manage instances list with saved servers and actions for default, edit, delete, and add new instance" width="230" /><br />Manage saved servers, set default, edit, or remove instances.</div> |
-| <div align="center"><img src="images/Screenshot_20260505_111502_Jotty.png" alt="Manage instances form for adding or editing a Jotty server with URL, API key, and accent color" width="230" /><br />Add or edit an instance with name, URL, API key, and color.</div> | <div align="center"><img src="images/Screenshot_20260505_111356_Jotty.png" alt="Settings appearance screen with theme mode, color theme, and content padding options" width="230" /><br />Tune theme mode, color palette, reader size, and layout density.</div> |
-| <div align="center"><img src="images/f9647f9e-6846-472f-b12c-02f573450608.png" alt="Notes tab with search, category filters, and a list of note cards" width="230" /><br />Browse notes with search, categories, and encrypted note indicators.</div> | <div align="center"><img src="images/5a5fb2e8-9c47-420b-96e9-8d0fd6b3cb38.png" alt="Checklists tab with progress bars and completion counts for each checklist" width="230" /><br />Track checklist and project progress with completion bars.</div> |
-
-<p align="center">
-  <img src="images/Screenshot_20260505_111800_Jotty.png" alt="Settings screen showing connected instance, default-instance option, and navigation to appearance and behavior" width="230" /><br />
-  <sub>Connected instance overview, default instance, and quick links into settings sections.</sub>
-</p>
+| <div align="center"><img src="images/readme-connect-light.png" alt="Connect to Jotty with server URL, API key, and optional name and accent color" width="230" /><br />Connect to your instance with URL and API key.</div> | <div align="center"><img src="images/readme-notes-list-light.png" alt="Notes list with search and encrypted note badge" width="230" /><br />Notes list with search and encryption indicators.</div> |
+| <div align="center"><img src="images/readme-checklists-list-dark.png" alt="Checklists list showing checklist and Project Kanban badges with progress" width="230" /><br />Checklists and Kanban projects with progress.</div> | <div align="center"><img src="images/readme-kanban-dark.png" alt="Kanban board with To Do and In Progress columns" width="230" /><br />Kanban board with status columns.</div> |
+| <div align="center"><img src="images/readme-note-view-dark.png" alt="Note detail with Markdown headings, checklist, quote, and lists" width="230" /><br />Markdown notes with lists, quotes, and checkboxes.</div> | <div align="center"><img src="images/readme-encrypt-locked-dark.png" alt="Encrypted note locked screen with Decrypt note button" width="230" /><br />Encrypted notes unlock with your passphrase.</div> |
+| <div align="center"><img src="images/readme-settings-dark.png" alt="Settings overview with instance, appearance, behavior, and troubleshooting" width="230" /><br />Settings hub for instance, appearance, and sync.</div> | <div align="center"><img src="images/readme-dashboard-dark.png" alt="Dashboard overview with notes, checklists, and task stats" width="230" /><br />Dashboard summary from your server.</div> |
 
 ## Releases / Download
 

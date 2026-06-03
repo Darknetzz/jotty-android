@@ -14,7 +14,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Documentation
 
 - **README** — Expanded feature list, centered screenshot gallery (no empty table cell), checklist offline notes, and build requirements (min SDK, Gradle version).
-- **README screenshots** — Added [docs/README_SCREENSHOTS.md](docs/README_SCREENSHOTS.md) with per-capture review and generic placeholder content for notes, lists, and Kanban before re-capture.
+- **README screenshots** — Replaced gallery with v1.5.0 demo captures in `images/readme-*.png`; added [docs/README_SCREENSHOTS.md](docs/README_SCREENSHOTS.md) for capture notes.
 
 ### Added
 

@@ -10,6 +10,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Settings** — Removed the footer tagline below About (version and app info remain in the About dialog).
 
+### Documentation
+
+- **README** — Expanded feature list, centered screenshot gallery (no empty table cell), checklist offline notes, and build requirements (min SDK, Gradle version).
+
 ### Added
 
 - **Hide empty Kanban columns** — Settings → Behavior toggle to hide status columns with no tasks on project boards.

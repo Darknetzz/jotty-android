@@ -26,12 +26,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **New project / Kanban** — Project boards show the Kanban layout immediately after creation instead of a plain checklist until you leave and reopen.
 - **First note save** — Saving a newly created note no longer fails after the note syncs to the server (stale local note id in the editor).
 - **Encrypt new note** — Encrypting a note right after creation no longer fails with “Couldn’t save” when the note has already synced under a server id.
-
+- **Note encryption** — On low-RAM devices, encrypting a note retries Argon2 with 32 MiB when 64 MiB fails; encrypted JSON always includes `t`/`m`/`p` so decrypt uses matching KDF params (Jotty web still decrypts 64 MiB notes; notes encrypted with the 32 MiB fallback decrypt in the app but not yet in the web app, which always uses libsodium INTERACTIVE). Encrypt dialog validates trimmed passphrase length (avoids whitespace-only passphrases). Thanks [@Emilien-Etadam](https://github.com/Emilien-Etadam) ([#22](https://github.com/Darknetzz/jotty-android/pull/22)).
 - **Connection errors** — TLS/SSL failures (including hostname mismatch) no longer show raw OpenSSL/BoringSSL diagnostics; users see short guidance instead.
-
 - **Manage instances** — Removing the last saved Jotty instance no longer leaves an infinite “Loading…” screen; instance management and setup work without a connected server, and the app returns to the connect flow when no instance is active.
 - **Manage instances** — Settings no longer shows a second back arrow and duplicate title; the main app bar handles navigation and the screen shows only the default-instance hint.
-
 - **Note images** — Jotty media URLs resolve with RFC 3986 rules (fixes root-relative paths when the instance URL includes a subpath), rewrite HTML `<img src>` before conversion, remap absolute `/api/image/` URLs to the configured instance host (e.g. LAN IP vs hostname), and always attach the API key on Jotty media paths. Export debug logs record HTTP failures for media loads. **Note:** standard Jotty servers still require `SERVE_PUBLIC_IMAGES=yes` or upstream API-key support on `/api/image/` for private uploads (see [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 
 ---

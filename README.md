@@ -26,7 +26,7 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 
 ## Screenshots
 
-Demo content from v1.5.0. **Dark** is left, **light** is right when both exist. More files in [`images/`](images/) (`readme-*.png`).
+Demo content from v1.5.0. **Dark** is left, **light** is right. All captures in [`images/`](images/) (`readme-*.png`).
 
 <table>
   <thead>
@@ -37,8 +37,8 @@ Demo content from v1.5.0. **Dark** is left, **light** is right when both exist. 
   </thead>
   <tbody>
     <tr>
-      <td align="center">—</td>
-      <td align="center"><img src="images/readme-connect-light.png" alt="Connect to Jotty" width="200" /></td>
+      <td align="center"><img src="images/readme-connect-dark.png" alt="Connect to Jotty dark" width="200" /></td>
+      <td align="center"><img src="images/readme-connect-light.png" alt="Connect to Jotty light" width="200" /></td>
     </tr>
     <tr>
       <td colspan="2" align="center"><sub><b>Connect</b> — server URL, API key, and accent color</sub></td>
@@ -51,7 +51,7 @@ Demo content from v1.5.0. **Dark** is left, **light** is right when both exist. 
       <td colspan="2" align="center"><sub><b>Settings</b> — instance, appearance, behavior, troubleshooting</sub></td>
     </tr>
     <tr>
-      <td align="center">—</td>
+      <td align="center"><img src="images/readme-notes-list-dark.png" alt="Notes list dark" width="200" /></td>
       <td align="center"><img src="images/readme-notes-list-light.png" alt="Notes list light" width="200" /></td>
     </tr>
     <tr>
@@ -65,7 +65,7 @@ Demo content from v1.5.0. **Dark** is left, **light** is right when both exist. 
       <td colspan="2" align="center"><sub><b>Note detail</b> — Markdown, lists, quotes, checkboxes</sub></td>
     </tr>
     <tr>
-      <td align="center">—</td>
+      <td align="center"><img src="images/readme-note-editor-dark.png" alt="Note editor dark" width="200" /></td>
       <td align="center"><img src="images/readme-note-editor-light.png" alt="Note editor light" width="200" /></td>
     </tr>
     <tr>
@@ -73,7 +73,7 @@ Demo content from v1.5.0. **Dark** is left, **light** is right when both exist. 
     </tr>
     <tr>
       <td align="center"><img src="images/readme-checklists-list-dark.png" alt="Checklists list dark" width="200" /></td>
-      <td align="center">—</td>
+      <td align="center"><img src="images/readme-checklists-list-light.png" alt="Checklists list light" width="200" /></td>
     </tr>
     <tr>
       <td colspan="2" align="center"><sub><b>Checklists</b> — lists and Kanban projects with progress</sub></td>
@@ -108,14 +108,14 @@ Demo content from v1.5.0. **Dark** is left, **light** is right when both exist. 
     </tr>
     <tr>
       <td align="center"><img src="images/readme-encrypt-dialog-dark.png" alt="Encrypt dialog dark" width="200" /></td>
-      <td align="center">—</td>
+      <td align="center"><img src="images/readme-encrypt-dialog-light.png" alt="Encrypt dialog light" width="200" /></td>
     </tr>
     <tr>
       <td colspan="2" align="center"><sub><b>Encrypt</b> — passphrase dialog</sub></td>
     </tr>
     <tr>
       <td align="center"><img src="images/readme-dashboard-dark.png" alt="Dashboard dark" width="200" /></td>
-      <td align="center">—</td>
+      <td align="center"><img src="images/readme-dashboard-light.png" alt="Dashboard light" width="200" /></td>
     </tr>
     <tr>
       <td colspan="2" align="center"><sub><b>Dashboard</b> — server stats overview</sub></td>

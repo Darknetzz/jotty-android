@@ -14,19 +14,114 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 
 ## Features
 
-- **Checklists** — Create, view, and manage checklists. Add items, check/uncheck tasks, and track progress.
-- **Notes** — Create and edit notes with Markdown support. View and save your content.
-- **Offline support** — Work on notes and checklists without an internet connection. Changes sync automatically when you're back online.
-- **Connect to your server** — Works with any self-hosted Jotty instance. Configure server URL and API key once.
+- **Checklists** — Task lists with progress, inline edit, and reorder (buttons or optional drag). **Project / Kanban** boards support column status management and task moves.
+- **Notes** — Markdown notes with search, category filters, GFM tables, and server-hosted images. Editor toolbar and smart list continuation on Enter.
+- **Offline** — Notes and checklists work without a connection; changes sync on reconnect, with optional background sync and per-item pending indicators.
+- **Multi-instance** — Save several Jotty servers, set a default, and assign an accent color per instance.
+- **Encryption** — XChaCha20-Poly1305 encrypt and decrypt in-app; optional biometric unlock for remembered passphrases (PGP-encrypted notes require the [Jotty web app](https://jotty.page/)).
+- **Appearance** — System/light/dark theme, color palettes, custom accent hex, reader text size, and content padding.
+- **Settings & dashboard** — Health check, behavior toggles, server summary overview, security controls, and exportable debug logs.
+- **Deep links** — `jotty-android://open/note/{id}` opens a note directly in the app.
+- **Connect** — Works with any self-hosted Jotty instance via server URL and API key.
 
 ## Screenshots
 
-|  |  |
-|---|---|
-| <img src="images/Screenshot_20260507_135939_Jotty.png" alt="Connect to Jotty setup form with name, server URL, API key, and color picker" width="230" /><br />Connect to Jotty by entering instance details and selecting an accent color. | <img src="images/Screenshot_20260505_111356_Jotty.png" alt="Settings screen with instance overview, theme mode, color theme, and content padding options" width="230" /><br />Adjust app preferences like theme mode, color palette, and layout density. |
-| <img src="images/Screenshot_20260505_111502_Jotty.png" alt="Manage instances form for adding or editing a Jotty server with URL, API key, and accent color" width="230" /><br />Add or edit a server instance by entering name, URL, API key, and color. | <img src="images/Screenshot_20260505_111515_Jotty.png" alt="Manage instances list with saved servers and actions for default, edit, delete, and add new instance" width="230" /><br />Manage saved instances, choose default, edit details, or remove entries. |
-| <img src="images/Screenshot_20260505_111800_Jotty.png" alt="Settings screen showing connected instance, default-instance option, and appearance settings" width="230" /><br />Review connected instance details and set defaults and appearance options. | <img src="images/f9647f9e-6846-472f-b12c-02f573450608.png" alt="Notes tab with search, category filters, and a list of note cards" width="230" /><br />Browse notes with search and category filters, including protected notes. |
-| <img src="images/5a5fb2e8-9c47-420b-96e9-8d0fd6b3cb38.png" alt="Checklists tab with progress bars and completion counts for each checklist" width="230" /><br />Track checklist progress at a glance with per-list completion bars and counts. |  |
+Demo content from v1.5.0. **Dark** is left, **light** is right when both exist. More files in [`images/`](images/) (`readme-*.png`).
+
+<table>
+  <thead>
+    <tr>
+      <th align="center" width="50%">Dark</th>
+      <th align="center" width="50%">Light</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center">—</td>
+      <td align="center"><img src="images/readme-connect-light.png" alt="Connect to Jotty" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Connect</b> — server URL, API key, and accent color</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-settings-dark.png" alt="Settings dark" width="200" /></td>
+      <td align="center"><img src="images/readme-settings-light.png" alt="Settings light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Settings</b> — instance, appearance, behavior, troubleshooting</sub></td>
+    </tr>
+    <tr>
+      <td align="center">—</td>
+      <td align="center"><img src="images/readme-notes-list-light.png" alt="Notes list light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Notes list</b> — search and encrypted note badge</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-note-view-dark.png" alt="Note detail dark" width="200" /></td>
+      <td align="center"><img src="images/readme-note-view-light.png" alt="Note detail light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Note detail</b> — Markdown, lists, quotes, checkboxes</sub></td>
+    </tr>
+    <tr>
+      <td align="center">—</td>
+      <td align="center"><img src="images/readme-note-editor-light.png" alt="Note editor light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Note editor</b> — formatting toolbar</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-checklists-list-dark.png" alt="Checklists list dark" width="200" /></td>
+      <td align="center">—</td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Checklists</b> — lists and Kanban projects with progress</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-checklist-detail-dark.png" alt="Checklist detail dark" width="200" /></td>
+      <td align="center"><img src="images/readme-checklist-detail-light.png" alt="Checklist detail light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Checklist detail</b> — items, reorder, progress</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-kanban-dark.png" alt="Kanban dark" width="200" /></td>
+      <td align="center"><img src="images/readme-kanban-light.png" alt="Kanban light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Kanban</b> — columns, tasks, manage statuses</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-encrypt-locked-dark.png" alt="Encrypted locked dark" width="200" /></td>
+      <td align="center"><img src="images/readme-encrypt-locked-light.png" alt="Encrypted locked light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Encrypted note</b> — locked until you decrypt</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-encrypt-decrypted-dark.png" alt="Encrypted decrypted dark" width="200" /></td>
+      <td align="center"><img src="images/readme-encrypt-decrypted-light.png" alt="Encrypted decrypted light" width="200" /></td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Encrypted note</b> — decrypted with session badge</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-encrypt-dialog-dark.png" alt="Encrypt dialog dark" width="200" /></td>
+      <td align="center">—</td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Encrypt</b> — passphrase dialog</sub></td>
+    </tr>
+    <tr>
+      <td align="center"><img src="images/readme-dashboard-dark.png" alt="Dashboard dark" width="200" /></td>
+      <td align="center">—</td>
+    </tr>
+    <tr>
+      <td colspan="2" align="center"><sub><b>Dashboard</b> — server stats overview</sub></td>
+    </tr>
+  </tbody>
+</table>
 
 ## Releases / Download
 
@@ -122,9 +217,10 @@ Or, after setup: `git pull --tags origin dev`. To refresh only the tag: `.\scrip
 
 ### Requirements
 
-- Android Studio Hedgehog (2023.1.1) or newer, or
+- Android Studio Ladybug (2024.2.1) or newer, or
 - JDK 17+
 - Android SDK 36
+- Min SDK 26 (Android 8.0)
 
 ### Gradle Wrapper
 
@@ -134,7 +230,7 @@ If the wrapper is missing (e.g. `gradle-wrapper.jar`), create it:
 
 ```bash
 # With Gradle installed:
-gradle wrapper --gradle-version 9.1.0
+gradle wrapper --gradle-version 9.5.1
 ```
 
 ### Build commands
@@ -180,13 +276,13 @@ The server is decoding encrypted content with **hex** while the Android app (and
 
 ## Offline Support
 
-Jotty Android supports working offline. When enabled (default), notes are stored locally and automatically synced when you have an internet connection. See [docs/OFFLINE_NOTES.md](docs/OFFLINE_NOTES.md) for details.
+Jotty Android supports working offline. When enabled (default), **notes and checklists** are stored locally and synced when you have a connection. A background WorkManager job can retry sync for saved instances. See [docs/OFFLINE_NOTES.md](docs/OFFLINE_NOTES.md) for note sync details.
 
 Key features:
-- Create, edit, and delete notes without internet
-- Automatic sync when connectivity is restored
-- Visual sync status indicators
-- Last-write-wins conflict resolution
+- Create, edit, and delete notes and checklist items without internet
+- Automatic sync when connectivity is restored (checklist sync aborts the pull if a local push fails, keeping local data)
+- Visual sync status indicators and per-item **Pending sync** labels
+- Last-write-wins conflict resolution for notes
 
 ## Encryption
 
@@ -207,7 +303,7 @@ Contributions are welcome.
 
 ## Documentation
 
-Additional guides live in [`docs/`](docs/README.md) (offline sync, conflicts, UI notes, checklist reorder limitations, todos).
+Additional guides live in [`docs/`](docs/README.md) (offline sync, server compatibility, Kanban, checklist reorder, conflicts, and more).
 
 ## License
 

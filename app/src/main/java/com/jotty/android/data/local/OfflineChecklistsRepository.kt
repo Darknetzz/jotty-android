@@ -33,6 +33,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -61,6 +62,8 @@ class OfflineChecklistsRepository(
     private val checklistDao = database.checklistDao()
     private val itemMutationDepth = AtomicInteger(0)
     private val pendingSyncAfterMutations = AtomicBoolean(false)
+    /** Local UUID → server id after [syncChecklist] pushes a local-only checklist. */
+    private val localToServerIdRemap = ConcurrentHashMap<String, String>()
 
     @Volatile private var lastSyncCompletedAtMs: Long? = null
     private val syncMutex = Mutex()
@@ -122,8 +125,11 @@ class OfflineChecklistsRepository(
 
     suspend fun isLocalOnlyChecklist(checklistId: String): Boolean =
         withContext(Dispatchers.IO) {
-            checklistDao.getById(checklistId)?.isLocalOnly == true
+            checklistDao.getById(resolveChecklistId(checklistId))?.isLocalOnly == true
         }
+
+    /** Server id for a checklist that was created offline and has since synced, if known. */
+    fun remappedChecklistId(localId: String): String? = localToServerIdRemap[localId]
 
     /**
      * Abandons unsynced local changes. Local-only checklists are deleted. Server-backed checklists
@@ -265,8 +271,16 @@ class OfflineChecklistsRepository(
 
     /** True when item changes must stay local until [syncChecklist] clears pending ops. */
     private suspend fun needsLocalItemMutations(checklistId: String): Boolean {
-        val entity = checklistDao.getById(checklistId) ?: return false
+        val entity =
+            checklistDao.getById(resolveChecklistId(checklistId))
+                ?: return true
         return entity.isDirty || entity.pendingOps().isNotEmpty()
+    }
+
+    private suspend fun resolveChecklistId(checklistId: String): String {
+        if (checklistDao.getById(checklistId) != null) return checklistId
+        val remapped = localToServerIdRemap[checklistId] ?: return checklistId
+        return if (checklistDao.getById(remapped) != null) remapped else checklistId
     }
 
     suspend fun addItem(
@@ -276,23 +290,24 @@ class OfflineChecklistsRepository(
     ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
+                val resolvedId = resolveChecklistId(checklistId)
                 withItemMutation {
-                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
+                    if (isOnline.value && !needsLocalItemMutations(resolvedId)) {
                         val response =
                             api.addChecklistItem(
-                                checklistId,
+                                resolvedId,
                                 AddItemRequest(text = text, parentIndex = parentIndex),
                             )
                         // Refresh local cache from server
-                        val fresh = api.getChecklists().checklists.find { it.id == checklistId }
+                        val fresh = api.getChecklists().checklists.find { it.id == resolvedId }
                         if (fresh != null) checklistDao.insert(fresh.toEntity(instanceId))
                         response.let {
-                            checklistDao.getById(checklistId)?.toChecklist()
+                            checklistDao.getById(resolvedId)?.toChecklist()
                                 ?: throw Exception("Checklist not found")
                         }
                     } else {
                         val op = PendingItemOp(type = "ADD", text = text, parentIndex = parentIndex)
-                        applyOpLocally(checklistId, op)
+                        applyOpLocally(resolvedId, op)
                     }
                 }
             }
@@ -304,12 +319,13 @@ class OfflineChecklistsRepository(
     ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
+                val resolvedId = resolveChecklistId(checklistId)
                 withItemMutation {
-                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
-                        api.checkItem(checklistId, path)
-                        refreshFromServer(checklistId)
+                    if (isOnline.value && !needsLocalItemMutations(resolvedId)) {
+                        api.checkItem(resolvedId, path)
+                        refreshFromServer(resolvedId)
                     } else {
-                        applyOpLocally(checklistId, PendingItemOp(type = "CHECK", path = path))
+                        applyOpLocally(resolvedId, PendingItemOp(type = "CHECK", path = path))
                     }
                 }
             }
@@ -321,12 +337,13 @@ class OfflineChecklistsRepository(
     ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
+                val resolvedId = resolveChecklistId(checklistId)
                 withItemMutation {
-                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
-                        api.uncheckItem(checklistId, path)
-                        refreshFromServer(checklistId)
+                    if (isOnline.value && !needsLocalItemMutations(resolvedId)) {
+                        api.uncheckItem(resolvedId, path)
+                        refreshFromServer(resolvedId)
                     } else {
-                        applyOpLocally(checklistId, PendingItemOp(type = "UNCHECK", path = path))
+                        applyOpLocally(resolvedId, PendingItemOp(type = "UNCHECK", path = path))
                     }
                 }
             }
@@ -338,12 +355,13 @@ class OfflineChecklistsRepository(
     ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
+                val resolvedId = resolveChecklistId(checklistId)
                 withItemMutation {
-                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
-                        api.deleteItem(checklistId, path)
-                        refreshFromServer(checklistId)
+                    if (isOnline.value && !needsLocalItemMutations(resolvedId)) {
+                        api.deleteItem(resolvedId, path)
+                        refreshFromServer(resolvedId)
                     } else {
-                        applyOpLocally(checklistId, PendingItemOp(type = "DELETE", path = path))
+                        applyOpLocally(resolvedId, PendingItemOp(type = "DELETE", path = path))
                     }
                 }
             }
@@ -362,27 +380,28 @@ class OfflineChecklistsRepository(
     ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
+                val resolvedId = resolveChecklistId(checklistId)
                 withItemMutation {
                     val itemText = text.trim()
                     if (itemText.isEmpty()) {
                         throw IllegalArgumentException("Item text cannot be empty")
                     }
                     val checklist =
-                        checklistDao.getById(checklistId)?.toChecklist()
+                        checklistDao.getById(resolvedId)?.toChecklist()
                             ?: throw Exception("Checklist not found: $checklistId")
-                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
+                    if (isOnline.value && !needsLocalItemMutations(resolvedId)) {
                         updateChecklistItemText(
                             api = api,
-                            listId = checklistId,
+                            listId = resolvedId,
                             path = path,
                             text = itemText,
                             items = checklist.items,
                             onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
                         )
-                        return@withItemMutation refreshFromServer(checklistId)
+                        return@withItemMutation refreshFromServer(resolvedId)
                     } else {
                         return@withItemMutation applyOpLocally(
-                            checklistId,
+                            resolvedId,
                             PendingItemOp(type = "UPDATE", path = path, text = itemText),
                         )
                     }
@@ -396,13 +415,14 @@ class OfflineChecklistsRepository(
     ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
+                val resolvedId = resolveChecklistId(checklistId)
                 withItemMutation {
-                    if (isOnline.value && !needsLocalItemMutations(checklistId)) {
-                        api.reorderItems(checklistId, request)
-                        return@withItemMutation refreshFromServer(checklistId)
+                    if (isOnline.value && !needsLocalItemMutations(resolvedId)) {
+                        api.reorderItems(resolvedId, request)
+                        return@withItemMutation refreshFromServer(resolvedId)
                     } else {
                         return@withItemMutation applyOpLocally(
-                            checklistId,
+                            resolvedId,
                             PendingItemOp(
                                 type = "REORDER",
                                 activeItemId = request.activeItemId,
@@ -548,6 +568,7 @@ class OfflineChecklistsRepository(
 
     private suspend fun syncChecklist(entity: ChecklistEntity) {
         if (entity.isLocalOnly) {
+            val localId = entity.id
             val response =
                 api.createChecklist(
                     CreateChecklistRequest(
@@ -557,6 +578,7 @@ class OfflineChecklistsRepository(
                     ),
                 )
             val created = response.data
+            localToServerIdRemap[localId] = created.id
             replayItemsToServer(created.id, entity.items(), null)
             checklistDao.delete(entity.id)
             val fresh =

@@ -11,6 +11,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -20,12 +21,7 @@ import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.unit.sp
 import coil.ImageLoader
 import com.jotty.android.R
-import com.jotty.android.util.convertHtmlColorSpans
-import com.jotty.android.util.convertHtmlFontFamilySpans
-import com.jotty.android.util.convertHtmlImagesToMarkdown
-import com.jotty.android.util.convertHtmlTablesToGfm
-import com.jotty.android.util.resolveNoteImageUrlsInMarkdown
-import com.jotty.android.util.stripInvisibleUnicode
+import com.jotty.android.util.prepareNoteContentForDisplay
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
 /** Reader text scale (font multiplier) for note content; provided from app-level settings. */
@@ -65,19 +61,9 @@ internal fun NoteView(
         }
     val displayMarkdown =
         remember(content, jottyServerUrl) {
-            val htmlAsMarkdown =
-                convertHtmlImagesToMarkdown(
-                    convertHtmlColorSpans(
-                        convertHtmlFontFamilySpans(
-                            stripInvisibleUnicode(content),
-                        ),
-                    ),
-                )
-            resolveNoteImageUrlsInMarkdown(
-                convertHtmlTablesToGfm(htmlAsMarkdown),
-                jottyServerUrl,
-            )
+            prepareNoteContentForDisplay(content, jottyServerUrl)
         }
+    val markdownImageLoaderKey = imageLoader.hashCode()
     Column(
         modifier =
             modifier
@@ -86,15 +72,17 @@ internal fun NoteView(
                 .padding(horizontal = 16.dp, vertical = 4.dp),
     ) {
         if (content.isNotBlank()) {
-            MarkdownText(
-                markdown = displayMarkdown,
-                modifier = Modifier.fillMaxWidth(),
-                style = bodyStyle,
-                syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
-                syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                imageLoader = imageLoader,
-                onLinkClicked = { url -> uriHandler.openUri(url) },
-            )
+            key(markdownImageLoaderKey) {
+                MarkdownText(
+                    markdown = displayMarkdown,
+                    modifier = Modifier.fillMaxWidth(),
+                    style = bodyStyle,
+                    syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
+                    syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    imageLoader = imageLoader,
+                    onLinkClicked = { url -> uriHandler.openUri(url) },
+                )
+            }
         } else {
             Text(
                 text = stringResource(R.string.no_content),

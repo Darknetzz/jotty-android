@@ -535,6 +535,39 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
+    fun addItem_afterLocalOnlyChecklistSynced_usesServerIdWithStaleSelectionId() =
+        runTest {
+            val addListIds = mutableListOf<String>()
+            val api =
+                FakeChecklistApi(
+                    onAddChecklistItem = { listId, _ ->
+                        addListIds.add(listId)
+                        SuccessResponse(true)
+                    },
+                )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            val localId = repo.createChecklist("Groceries").getOrThrow().id
+            assertTrue(repo.addItem(localId, "Milk").isSuccess)
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            val serverId = repo.remappedChecklistId(localId)
+            assertEquals("server-1", serverId)
+            assertNull(database.checklistDao().getById(localId))
+
+            assertTrue(repo.addItem(localId, "Eggs").isSuccess)
+            assertEquals(listOf("server-1", "server-1"), addListIds)
+        }
+
+    @Test
     fun discardPendingSync_whenLocalOnly_deletesChecklist() =
         runTest {
             database.checklistDao().insert(
@@ -907,6 +940,9 @@ class OfflineChecklistsRepositoryTest {
 private class FakeChecklistApi(
     private val remoteChecklists: MutableList<Checklist> = mutableListOf(),
     private val beforeGetChecklists: suspend () -> Unit = {},
+    private val onAddChecklistItem: suspend (String, AddItemRequest) -> SuccessResponse = { _, _ ->
+        SuccessResponse(true)
+    },
     private val onDeleteItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
     private val onCheckItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
     private val onUpdateItem: suspend (String, String, com.jotty.android.data.api.UpdateItemRequest) -> SuccessResponse =
@@ -961,7 +997,7 @@ private class FakeChecklistApi(
     override suspend fun addChecklistItem(
         listId: String,
         body: AddItemRequest,
-    ): SuccessResponse = SuccessResponse(true)
+    ): SuccessResponse = onAddChecklistItem(listId, body)
 
     override suspend fun checkItem(
         listId: String,

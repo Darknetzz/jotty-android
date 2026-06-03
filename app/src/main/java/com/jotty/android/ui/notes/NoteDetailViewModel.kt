@@ -24,6 +24,9 @@ class NoteDetailViewModel(
     private val note: Note,
     private val actions: NoteDetailActions,
 ) : ViewModel() {
+    /** Tracks server id after a local-only note syncs; [note.id] may still be the temporary UUID. */
+    private var activeNoteId = note.id
+
     /** Ciphertext fingerprint when the user last decrypted; used to drop stale session plaintext. */
     private var sessionSourceFingerprint: String? = null
     private val _title = MutableStateFlow(stripInvisibleFromEdges(note.title))
@@ -97,6 +100,7 @@ class NoteDetailViewModel(
         }
 
     fun resetFromNote(updated: Note) {
+        adoptNoteId(updated.id)
         _title.value = stripInvisibleFromEdges(updated.title)
         _content.value = stripInvisibleFromEdges(updated.content)
         _category.value = updated.category
@@ -108,13 +112,13 @@ class NoteDetailViewModel(
 
     fun loadSessionDecryptedContent() {
         val cached =
-            NoteDecryptionSession.get(note.id)
+            NoteDecryptionSession.get(activeNoteId)
                 ?.let { stripInvisibleUnicode(stripInvisibleFromEdges(it)) }
                 ?.takeIf { it.isNotBlank() }
         _decryptedContent.value = cached
         if (cached == null) {
-            NoteDecryptionSession.remove(note.id)
-            NotePassphraseSession.remove(note.id)
+            NoteDecryptionSession.remove(activeNoteId)
+            NotePassphraseSession.remove(activeNoteId)
             sessionSourceFingerprint = null
         } else if (sessionSourceFingerprint == null) {
             sessionSourceFingerprint = contentFingerprint(_content.value)
@@ -139,18 +143,18 @@ class NoteDetailViewModel(
         _isEditing.value = false
         _legacyEncryptionDetected.value = false
         sessionSourceFingerprint = null
-        NoteDecryptionSession.remove(note.id)
-        NotePassphraseSession.remove(note.id)
+        NoteDecryptionSession.remove(activeNoteId)
+        NotePassphraseSession.remove(activeNoteId)
     }
 
-    fun hasSessionPassphrase(): Boolean = NotePassphraseSession.has(note.id)
+    fun hasSessionPassphrase(): Boolean = NotePassphraseSession.has(activeNoteId)
 
     fun encryptWithSessionPassphrase(
         encryptFailedMsg: String,
         onSuccess: (Note) -> Unit,
         onFailure: () -> Unit,
     ) {
-        val passChars = NotePassphraseSession.get(note.id)
+        val passChars = NotePassphraseSession.get(activeNoteId)
         if (passChars == null) {
             showEncryptDialog()
             return
@@ -210,8 +214,8 @@ class NoteDetailViewModel(
         val cleaned = stripInvisibleUnicode(stripInvisibleFromEdges(plain))
         if (cleaned.isBlank()) {
             _decryptedContent.value = null
-            NoteDecryptionSession.remove(note.id)
-            NotePassphraseSession.remove(note.id)
+            NoteDecryptionSession.remove(activeNoteId)
+            NotePassphraseSession.remove(activeNoteId)
             passphrase?.clearPassphrase()
             dismissDecryptDialog()
             return
@@ -219,8 +223,8 @@ class NoteDetailViewModel(
         _decryptedContent.value = cleaned
         _legacyEncryptionDetected.value = usedLegacyDataOrder
         sessionSourceFingerprint = contentFingerprint(_content.value)
-        NoteDecryptionSession.put(note.id, cleaned)
-        passphrase?.let { NotePassphraseSession.put(note.id, it) }
+        NoteDecryptionSession.put(activeNoteId, cleaned)
+        passphrase?.let { NotePassphraseSession.put(activeNoteId, it) }
         passphrase?.clearPassphrase()
         dismissDecryptDialog()
     }
@@ -242,7 +246,7 @@ class NoteDetailViewModel(
             _saveFailed.value = false
             val result =
                 actions.updateNote(
-                    noteId = note.id,
+                    noteId = activeNoteId,
                     title = _title.value,
                     content = _content.value,
                     category = _category.value,
@@ -250,7 +254,7 @@ class NoteDetailViewModel(
                 )
             if (result.isSuccess) {
                 persistedCategory = _category.value
-                onSuccess(result.getOrThrow())
+                completePersist(result.getOrThrow(), onSuccess)
                 _isEditing.value = false
             } else {
                 _saveFailed.value = true
@@ -281,14 +285,14 @@ class NoteDetailViewModel(
                 if (body != null) {
                     val fullContent =
                         XChaCha20Encryptor.wrapWithFrontmatter(
-                            note.id,
+                            activeNoteId,
                             _title.value,
                             _category.value,
                             body,
                         )
                     val result =
                         actions.updateNote(
-                            noteId = note.id,
+                            noteId = activeNoteId,
                             title = _title.value,
                             content = fullContent,
                             category = _category.value,
@@ -296,17 +300,18 @@ class NoteDetailViewModel(
                         )
                     if (result.isSuccess) {
                         persistedCategory = _category.value
+                        val saved = result.getOrThrow()
                         // Keep the freshly-encrypted plaintext available so the note stays
                         // readable (and editable) without re-decrypting after save.
                         _decryptedContent.value = plainToEncrypt.takeIf { it.isNotBlank() }
                         _legacyEncryptionDetected.value = false
                         if (plainToEncrypt.isNotBlank()) {
                             sessionSourceFingerprint = contentFingerprint(fullContent)
-                            NoteDecryptionSession.put(note.id, plainToEncrypt)
+                            NoteDecryptionSession.put(activeNoteId, plainToEncrypt)
                         }
-                        NotePassphraseSession.put(note.id, passChars)
+                        NotePassphraseSession.put(activeNoteId, passChars)
                         _isEditing.value = false
-                        onSuccess(result.getOrThrow())
+                        completePersist(saved, onSuccess)
                         dismissEncryptDialog()
                     } else {
                         _saveFailed.value = true
@@ -320,6 +325,30 @@ class NoteDetailViewModel(
                 _isEncrypting.value = false
             }
         }
+    }
+
+    private fun adoptNoteId(newId: String) {
+        if (newId == activeNoteId) return
+        NoteDecryptionSession.get(activeNoteId)?.let { plain ->
+            NoteDecryptionSession.remove(activeNoteId)
+            NoteDecryptionSession.put(newId, plain)
+        }
+        if (NotePassphraseSession.has(activeNoteId)) {
+            NotePassphraseSession.get(activeNoteId)?.let { pass ->
+                NotePassphraseSession.remove(activeNoteId)
+                NotePassphraseSession.put(newId, pass)
+            }
+        }
+        activeNoteId = newId
+    }
+
+    private fun completePersist(
+        saved: Note,
+        onSuccess: (Note) -> Unit,
+    ) {
+        adoptNoteId(saved.id)
+        _content.value = stripInvisibleFromEdges(saved.content)
+        onSuccess(saved)
     }
 
     fun logEncryptionState() {

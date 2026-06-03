@@ -32,13 +32,37 @@ object ApiErrorHelper {
         return context.getString(errorMessageResId(t))
     }
 
-    /** Repository/sync code may attach a short message; ignore Retrofit status lines and HTML. */
+    /** Repository/sync code may attach a short message; ignore Retrofit status lines, HTML, and low-level TLS/stack text. */
     private fun preformattedUserMessage(message: String?): String? {
         val trimmed = message?.trim().orEmpty()
         if (trimmed.isEmpty()) return null
         if (trimmed.startsWith("HTTP ", ignoreCase = true)) return null
         if (isHtmlErrorBody(trimmed)) return null
+        if (isTechnicalTransportMessage(trimmed)) return null
         return trimmed.take(SERVER_MESSAGE_MAX_LEN)
+    }
+
+    /** OkHttp/BoringSSL and similar layers expose long diagnostic strings unsuitable for UI. */
+    internal fun isTechnicalTransportMessage(message: String): Boolean {
+        val lower = message.lowercase()
+        return lower.contains("ssl=") ||
+            lower.contains("openssl") ||
+            lower.contains("boringssl") ||
+            lower.contains("tlsv1_") ||
+            lower.contains("failure in ssl library") ||
+            lower.contains("ssl routines:")
+    }
+
+    internal fun sslErrorMessageResId(messages: String): Int? {
+        val lower = messages.lowercase()
+        return when {
+            lower.contains("tlsv1_alert_unrecognized_name") ||
+                lower.contains("unrecognized_name") -> R.string.error_ssl_hostname_mismatch
+            lower.contains("ssl") ||
+                lower.contains("certificate") ||
+                lower.contains("handshake") -> R.string.error_ssl_or_certificate
+            else -> null
+        }
     }
 
     /** Best-effort parse of JSON or plain-text API error body; ignores HTML/proxy pages. */
@@ -96,6 +120,7 @@ object ApiErrorHelper {
 
     private fun ioExceptionMessageResId(t: IOException): Int {
         val combined = throwableMessages(t).joinToString(" ")
+        sslErrorMessageResId(combined)?.let { return it }
         return when {
             combined.contains("cleartext", ignoreCase = true) -> R.string.error_cleartext_http_not_allowed
             combined.contains("connection refused", ignoreCase = true) ||
@@ -106,6 +131,7 @@ object ApiErrorHelper {
 
     private fun unknownThrowableMessageResId(t: Throwable): Int {
         val combined = throwableMessages(t).joinToString(" ")
+        sslErrorMessageResId(combined)?.let { return it }
         if (combined.contains("cleartext", ignoreCase = true)) {
             return R.string.error_cleartext_http_not_allowed
         }

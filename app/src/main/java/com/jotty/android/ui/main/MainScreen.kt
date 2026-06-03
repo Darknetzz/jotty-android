@@ -52,6 +52,10 @@ private const val ROUTE_APPEARANCE = "appearance"
 private const val ROUTE_DASHBOARD = "dashboard"
 private const val ROUTE_BEHAVIOR = "behavior"
 
+/** Routes that only use [SettingsRepository], not a live [JottyApi] / current instance. */
+private val ROUTES_WITHOUT_API =
+    setOf(ROUTE_MANAGE_INSTANCES, ROUTE_APPEARANCE, ROUTE_BEHAVIOR)
+
 sealed class MainRoute(val route: String, val titleRes: Int, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     data object Checklists : MainRoute("checklists", R.string.nav_checklists, Icons.Default.Checklist)
 
@@ -259,9 +263,11 @@ fun MainScreen(
     ) { padding ->
         val currentApi = api
         val currentStart = startDestination
+        val navHostWithoutApi = currentRoute in ROUTES_WITHOUT_API
         when {
-            currentApi == null -> LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
             currentStart == null -> LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
+            currentApi == null && !navHostWithoutApi ->
+                LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
             else ->
                 NavHost(
                     navController = navController,
@@ -278,9 +284,10 @@ fun MainScreen(
                             remember(serverUrl, apiKey) {
                                 "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
                             }
-                        if (instanceId != null) {
+                        val checklistsApi = currentApi
+                        if (instanceId != null && checklistsApi != null) {
                             OfflineChecklistsScreen(
-                                api = currentApi,
+                                api = checklistsApi,
                                 settingsRepository = settingsRepository,
                                 instanceId = instanceId,
                                 authFingerprint = authFingerprint,
@@ -297,9 +304,10 @@ fun MainScreen(
                             remember(serverUrl, apiKey) {
                                 "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
                             }
-                        if (instanceId != null) {
+                        val notesApi = currentApi
+                        if (instanceId != null && notesApi != null) {
                             OfflineNotesScreen(
-                                api = currentApi,
+                                api = notesApi,
                                 settingsRepository = settingsRepository,
                                 instanceId = instanceId,
                                 authFingerprint = authFingerprint,
@@ -334,17 +342,21 @@ fun MainScreen(
                         BehaviorSettingsScreen(settingsRepository = settingsRepository)
                     }
                     composable(ROUTE_DASHBOARD) {
-                        DashboardOverviewScreen(
-                            api = currentApi,
-                            settingsRepository = settingsRepository,
-                        )
+                        val dashboardApi = currentApi
+                        if (dashboardApi != null) {
+                            DashboardOverviewScreen(
+                                api = dashboardApi,
+                                settingsRepository = settingsRepository,
+                            )
+                        } else {
+                            LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
+                        }
                     }
                     composable(ROUTE_MANAGE_INSTANCES) {
                         SetupScreen(
                             settingsRepository = settingsRepository,
                             onConfigured = { /* no-op; we stay in manage mode */ },
                             standaloneMode = true,
-                            showStandaloneHeader = true,
                             onBack = { navController.popBackStack() },
                         )
                     }

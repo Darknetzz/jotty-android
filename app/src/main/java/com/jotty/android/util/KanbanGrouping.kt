@@ -50,3 +50,7 @@ fun buildKanbanColumns(
         KanbanColumn(status = status, cards = cards)
     }
 }
+
+/** When [hideEmpty] is true, drops columns with no cards. */
+fun List<KanbanColumn>.visibleKanbanColumns(hideEmpty: Boolean): List<KanbanColumn> =
+    if (hideEmpty) filter { it.cards.isNotEmpty() } else this

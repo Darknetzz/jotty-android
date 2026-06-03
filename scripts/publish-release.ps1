@@ -191,8 +191,12 @@ if (-not $SkipMerge -and $prNumber) {
 if (-not $SkipRelease) {
     Set-Content -LiteralPath $releaseNotesPath -Value $releaseNotes -NoNewline
     try {
-        $existingRelease = gh release view $tag 2>$null
-        if ($LASTEXITCODE -eq 0) {
+        $prevEap = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        gh release view $tag 2>&1 | Out-Null
+        $releaseExists = $LASTEXITCODE -eq 0
+        $ErrorActionPreference = $prevEap
+        if ($releaseExists) {
             Write-Host "Release $tag already exists; updating notes only."
             gh release edit $tag --notes-file $releaseNotesPath
         } else {

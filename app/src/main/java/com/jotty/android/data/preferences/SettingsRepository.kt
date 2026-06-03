@@ -106,6 +106,12 @@ class SettingsRepository(
             prefs[KEY_CHECKLIST_DRAG_REORDER] ?: true
         }.catch { emit(true) }
 
+    /** Hide Kanban columns with no tasks on project boards. Default false. */
+    val kanbanHideEmptyColumns: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_KANBAN_HIDE_EMPTY_COLUMNS] ?: false
+        }.catch { emit(false) }
+
     /** Show note body preview on list cards. Default true. */
     val noteListPreviewEnabled: Flow<Boolean> =
         context.jottySettingsDataStore.data.map { prefs ->
@@ -289,6 +295,12 @@ class SettingsRepository(
     suspend fun setChecklistDragReorderEnabled(value: Boolean) {
         context.jottySettingsDataStore.edit {
             if (value) it.remove(KEY_CHECKLIST_DRAG_REORDER) else it[KEY_CHECKLIST_DRAG_REORDER] = false
+        }
+    }
+
+    suspend fun setKanbanHideEmptyColumns(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it[KEY_KANBAN_HIDE_EMPTY_COLUMNS] = true else it.remove(KEY_KANBAN_HIDE_EMPTY_COLUMNS)
         }
     }
 
@@ -493,6 +505,7 @@ class SettingsRepository(
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
         private val KEY_CHECKLIST_DRAG_REORDER = booleanPreferencesKey("checklist_drag_reorder_enabled")
+        private val KEY_KANBAN_HIDE_EMPTY_COLUMNS = booleanPreferencesKey("kanban_hide_empty_columns")
         private val KEY_NOTE_LIST_PREVIEW = booleanPreferencesKey("note_list_preview_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
         private val KEY_LIST_SORT = stringPreferencesKey("list_sort_option")

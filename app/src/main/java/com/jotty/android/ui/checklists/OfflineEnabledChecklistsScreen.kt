@@ -59,6 +59,7 @@ import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
+import com.jotty.android.util.visibleKanbanColumns
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -76,6 +77,7 @@ fun OfflineEnabledChecklistsScreen(
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
     val vm: OfflineEnabledChecklistsViewModel =
@@ -276,6 +278,7 @@ fun OfflineEnabledChecklistsScreen(
                     offlineRepository = offlineRepository,
                     categorySuggestions = checklistCategories,
                     dragReorderEnabled = checklistDragReorderEnabled,
+                    kanbanHideEmptyColumns = kanbanHideEmptyColumns,
                     isOnline = isOnline,
                     hasPendingSync = currentList.id in dirtyChecklistIds,
                     onRetrySync = { requestSync(showLoading = true) },
@@ -552,6 +555,7 @@ private fun OfflineChecklistDetailContent(
     offlineRepository: OfflineChecklistsRepository,
     categorySuggestions: List<String> = emptyList(),
     dragReorderEnabled: Boolean = true,
+    kanbanHideEmptyColumns: Boolean = false,
     isOnline: Boolean,
     hasPendingSync: Boolean = false,
     onRetrySync: () -> Unit,
@@ -567,7 +571,12 @@ private fun OfflineChecklistDetailContent(
 ) {
     // Drive item list from the repository flow so offline mutations are reflected immediately.
     val allChecklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
-    val liveChecklist = allChecklists.find { it.id == checklist.id } ?: checklist
+    val liveChecklist =
+        allChecklists.find { it.id == checklist.id }
+            ?: offlineRepository.remappedChecklistId(checklist.id)?.let { serverId ->
+                allChecklists.find { it.id == serverId }
+            }
+            ?: checklist
     val items = liveChecklist.items
 
     var newItemText by remember { mutableStateOf("") }
@@ -609,8 +618,14 @@ private fun OfflineChecklistDetailContent(
     fun refreshTaskStatuses() {
         if (!isProject || !isOnline) return
         scope.launch {
+            if (offlineRepository.isLocalOnlyChecklist(liveChecklist.id)) {
+                taskStatuses = DEFAULT_TASK_STATUSES
+                canUseKanbanBoard = true
+                return@launch
+            }
+            val taskId = offlineRepository.remappedChecklistId(liveChecklist.id) ?: liveChecklist.id
             try {
-                val statuses = api.getTaskStatuses(liveChecklist.id).statuses.sortedBy { it.order }
+                val statuses = api.getTaskStatuses(taskId).statuses.sortedBy { it.order }
                 taskStatuses = if (statuses.isNotEmpty()) statuses else DEFAULT_TASK_STATUSES
                 canUseKanbanBoard = true
             } catch (e: Exception) {
@@ -784,7 +799,11 @@ private fun OfflineChecklistDetailContent(
         }
 
         if (isProject && canUseKanbanBoard) {
-            val columns = remember(items, taskStatuses) { buildKanbanColumns(items = items, statuses = taskStatuses) }
+            val columns =
+                remember(items, taskStatuses, kanbanHideEmptyColumns) {
+                    buildKanbanColumns(items = items, statuses = taskStatuses)
+                        .visibleKanbanColumns(kanbanHideEmptyColumns)
+                }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,

@@ -43,6 +43,7 @@
     <string name="error_invalid_api_key">Invalid or expired API key</string>
     <string name="error_access_denied">Access denied</string>
     <string name="error_ssl_or_certificate">Secure connection failed. Check HTTPS URL and certificate.</string>
+    <string name="error_ssl_hostname_mismatch">The server did not recognize this hostname. Use the exact URL shown in your browser (including https:// and any path).</string>
     <string name="save_failed">Couldn\'t save. Please try again.</string>
     <string name="delete_failed">Couldn\'t delete. Please try again.</string>
     <string name="install_failed_fallback">Install failed</string>
@@ -251,6 +252,8 @@
     <string name="swipe_to_delete_description">Swipe list or note rows left to delete (checklists and notes)</string>
     <string name="checklist_drag_reorder">Drag to reorder checklists</string>
     <string name="checklist_drag_reorder_description">Show a drag handle on checklist items to reorder by dragging (move up/down in the menu still works when off)</string>
+    <string name="kanban_hide_empty_columns">Hide empty Kanban columns</string>
+    <string name="kanban_hide_empty_columns_description">On project boards, hide status columns that have no tasks</string>
     <string name="note_list_preview">Note preview in list</string>
     <string name="note_list_preview_description">Show a short excerpt of each note under the title in the notes list</string>
     <string name="content_padding">Content padding</string>
@@ -318,8 +321,6 @@
     <string name="disconnect_description">Switch to another instance (this one is saved)</string>
     <string name="about">About</string>
     <string name="about_description">Version, source code, and more</string>
-    <string name="jotty_footer">Jotty Android • Connects to self-hosted Jotty servers</string>
-
     <!-- About dialog -->
     <string name="about_jotty_android">About Jotty Android</string>
     <string name="about_tagline">Android client for Jotty — self-hosted checklists and notes.</string>

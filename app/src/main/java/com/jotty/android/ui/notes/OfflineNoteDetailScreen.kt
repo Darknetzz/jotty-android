@@ -5,8 +5,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
@@ -38,6 +40,13 @@ fun OfflineNoteDetailScreen(
     categorySuggestions: List<String> = emptyList(),
 ) {
     val scope = rememberCoroutineScope()
+    val allNotes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
+    val liveNote =
+        allNotes.find { it.id == note.id }
+            ?: offlineRepository.remappedNoteId(note.id)?.let { serverId ->
+                allNotes.find { it.id == serverId }
+            }
+            ?: note
     val actions =
         remember(offlineRepository, isOnline) {
             OfflineNoteDetailActions(
@@ -54,14 +63,14 @@ fun OfflineNoteDetailScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         NoteDetailScreen(
-            note = note,
+            note = liveNote,
             actions = actions,
             modifier = Modifier.weight(1f, fill = true).fillMaxWidth(),
             onBack = onBack,
             onUpdate = onUpdate,
             onDelete = {
                 scope.launch {
-                    actions.deleteNote(note.id)
+                    actions.deleteNote(liveNote.id)
                     onDelete()
                 }
             },

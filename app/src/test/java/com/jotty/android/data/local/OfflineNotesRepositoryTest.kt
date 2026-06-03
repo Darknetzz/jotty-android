@@ -217,6 +217,7 @@ class OfflineNotesRepositoryTest {
             val result = repo.createNote(title = "Offline note", content = "body")
 
             assertTrue(result.isSuccess)
+            assertEquals("server-id", result.getOrThrow().id)
             assertTrue("createNote should have been called", createCalled)
             assertFalse("updateNote must not be called for a local-only note", updateCalled)
             // The temporary local ID must have been replaced by the server-assigned ID.
@@ -224,6 +225,70 @@ class OfflineNotesRepositoryTest {
             assertEquals(1, stored.size)
             assertEquals("server-id", stored.single().id)
             assertFalse("isLocalOnly must be cleared after successful server sync", stored.single().isLocalOnly)
+        }
+
+    @Test
+    fun updateNote_afterLocalOnlyNoteSynced_usesServerIdWithStaleSelectionId() =
+        runTest {
+            val localId = "local-note-1"
+            database.noteDao().insertNote(
+                NoteEntity(
+                    id = localId,
+                    title = "My notes",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "draft",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = null,
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = true,
+                ),
+            )
+            val remoteNotes = mutableListOf<Note>()
+            val api =
+                FakeJottyApi(
+                    notesFromGet = remoteNotes,
+                    createNoteResponse = { req ->
+                        val created =
+                            Note(
+                                "server-id",
+                                req.title,
+                                req.category ?: API_CATEGORY_UNCATEGORIZED,
+                                req.content.orEmpty(),
+                                "c",
+                                "u",
+                            )
+                        remoteNotes.add(created)
+                        ApiResponse(true, created)
+                    },
+                )
+            val repo =
+                OfflineNotesRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+            assertTrue(repo.syncNotes().isSuccess)
+            assertEquals("server-id", repo.remappedNoteId(localId))
+
+            val updateResult =
+                repo.updateNote(
+                    localId,
+                    "My notes",
+                    "# My notes\n\nedited",
+                    API_CATEGORY_UNCATEGORIZED,
+                )
+            assertTrue(updateResult.isSuccess)
+            assertEquals("server-id", updateResult.getOrThrow().id)
+            assertEquals(
+                "# My notes\n\nedited",
+                database.noteDao().getNoteById("server-id")?.content,
+            )
         }
 
     @Test

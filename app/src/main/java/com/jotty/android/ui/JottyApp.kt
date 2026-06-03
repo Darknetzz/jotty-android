@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.LocalReducedMotionEnabled
 import com.jotty.android.ui.common.LoadingState
@@ -29,6 +30,7 @@ fun JottyAppContent(
     sharedNoteText: MutableState<String?>? = null,
 ) {
     var rootPhase by rememberSaveable { mutableStateOf("loading") }
+    val isConfigured by settingsRepository.isConfigured.collectAsStateWithLifecycle(initialValue = false)
 
     LaunchedEffect(Unit) {
         if (rootPhase == "loading") {
@@ -41,6 +43,12 @@ fun JottyAppContent(
                 settingsRepository.setCurrentInstanceId(defaultId)
             }
             rootPhase = if (settingsRepository.isConfigured.first()) "main" else "setup"
+        }
+    }
+
+    LaunchedEffect(isConfigured) {
+        if (!isConfigured && rootPhase == "main") {
+            rootPhase = "setup"
         }
     }
 

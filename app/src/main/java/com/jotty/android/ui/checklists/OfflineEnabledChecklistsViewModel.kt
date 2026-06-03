@@ -82,4 +82,20 @@ class OfflineEnabledChecklistsViewModel(
         ) { lists, query, category ->
             filterChecklists(lists, query, category)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        // After a local-only checklist syncs, Room uses the server id; keep detail selection in sync.
+        viewModelScope.launch {
+            offlineRepository.getChecklistsFlow().collect { lists ->
+                val selected = _selectedList.value ?: return@collect
+                lists.find { it.id == selected.id }?.let { current ->
+                    if (current != selected) _selectedList.value = current
+                    return@collect
+                }
+                offlineRepository.remappedChecklistId(selected.id)?.let { serverId ->
+                    lists.find { it.id == serverId }?.let { _selectedList.value = it }
+                }
+            }
+        }
+    }
 }

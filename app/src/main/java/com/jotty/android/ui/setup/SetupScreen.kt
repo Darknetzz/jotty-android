@@ -9,7 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
@@ -35,6 +34,8 @@ import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.InlineAlert
+import com.jotty.android.ui.common.InlineAlertVariant
 import com.jotty.android.ui.common.accentColor
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
@@ -46,7 +47,6 @@ fun SetupScreen(
     settingsRepository: SettingsRepository,
     onConfigured: () -> Unit,
     standaloneMode: Boolean = false,
-    showStandaloneHeader: Boolean = true,
     onBack: (() -> Unit)? = null,
 ) {
     val instances by settingsRepository.instances.collectAsStateWithLifecycle(initialValue = emptyList())
@@ -58,7 +58,10 @@ fun SetupScreen(
     val appContext = LocalContext.current.applicationContext
 
     LaunchedEffect(instances) {
-        if (instances.isNotEmpty() && showAddForm) showAddForm = false
+        when {
+            instances.isEmpty() -> showAddForm = true
+            showAddForm -> showAddForm = false
+        }
     }
 
     Column(
@@ -76,28 +79,12 @@ fun SetupScreen(
                     },
                 ),
     ) {
-        if (standaloneMode && showStandaloneHeader && onBack != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.manage_instances),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onBackground,
-                    )
-                    Text(
-                        text = stringResource(R.string.manage_instances_default_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
-            }
+        if (standaloneMode) {
+            Text(
+                text = stringResource(R.string.manage_instances_default_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         } else {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
@@ -368,7 +355,7 @@ private fun InstanceForm(
             placeholder = { Text(stringResource(R.string.server_url_placeholder)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            isError = error != null,
+            isError = error == fillUrlAndKeyMsg,
         )
         Text(
             text = stringResource(R.string.server_url_hint),
@@ -393,7 +380,7 @@ private fun InstanceForm(
                     Text(if (apiKeyVisible) stringResource(R.string.hide) else stringResource(R.string.show))
                 }
             },
-            isError = error != null,
+            isError = error == fillUrlAndKeyMsg,
         )
         Text(
             text = stringResource(R.string.api_key_setup_hint),
@@ -491,11 +478,10 @@ private fun InstanceForm(
         }
 
         error?.let { msg ->
-            Text(
-                text = msg,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 8.dp),
+            InlineAlert(
+                message = msg,
+                variant = InlineAlertVariant.Danger,
+                modifier = Modifier.padding(top = 12.dp),
             )
         }
 

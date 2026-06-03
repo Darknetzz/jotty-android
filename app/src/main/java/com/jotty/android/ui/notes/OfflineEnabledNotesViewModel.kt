@@ -102,6 +102,22 @@ class OfflineEnabledNotesViewModel(
         }
     }
 
+    init {
+        // After a local-only note syncs, Room uses the server id; keep detail selection in sync.
+        viewModelScope.launch {
+            offlineRepository.getNotesFlow().collect { notes ->
+                val selected = _selectedNote.value ?: return@collect
+                notes.find { it.id == selected.id }?.let { current ->
+                    if (current != selected) _selectedNote.value = current
+                    return@collect
+                }
+                offlineRepository.remappedNoteId(selected.id)?.let { serverId ->
+                    notes.find { it.id == serverId }?.let { _selectedNote.value = it }
+                }
+            }
+        }
+    }
+
     private companion object {
         private const val SEARCH_DEBOUNCE_MS = 400L
     }

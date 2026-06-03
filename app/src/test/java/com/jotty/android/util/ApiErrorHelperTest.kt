@@ -38,6 +38,29 @@ class ApiErrorHelperTest {
     }
 
     @Test
+    fun errorMessageResId_ioException_ssl_stack_returns_ssl_message() {
+        assertEquals(
+            R.string.error_ssl_hostname_mismatch,
+            ApiErrorHelper.errorMessageResId(
+                IOException(
+                    "Read error: ssl=0x7a0a408209d8: Failure in SSL library, usually a protocol error " +
+                        "error:10000458:SSL routines:OPENSSL_internal:TLSV1_ALERT_UNRECOGNIZED_NAME",
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun isTechnicalTransportMessage_detects_boringssl_diagnostic() {
+        assertEquals(
+            true,
+            ApiErrorHelper.isTechnicalTransportMessage(
+                "Read error: ssl=0x7: Failure in SSL library (external/boringssl/src/ssl/tls_record.cc:486)",
+            ),
+        )
+    }
+
+    @Test
     fun errorMessageResId_ioException_cleartext_returns_dedicated_message() {
         assertEquals(
             R.string.error_cleartext_http_not_allowed,

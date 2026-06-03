@@ -514,6 +514,9 @@ private fun InstanceForm(
 
                             val api = ApiClient.create(url, key)
                             api.health()
+                            // health() is unauthenticated; verify the API key with an
+                            // authenticated endpoint so a wrong key fails here instead of later.
+                            api.getSummary()
 
                             val instance =
                                 JottyInstance(

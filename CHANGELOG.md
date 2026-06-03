@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Connect / setup** — A wrong API key is now caught when connecting an instance (shown as “Invalid API key”) instead of appearing to connect and only failing with an “Unauthorized” error on the Checklists/Notes screens afterwards.
+
 ---
 
 ## [1.5.1] - 2026-06-03

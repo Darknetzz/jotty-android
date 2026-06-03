@@ -26,14 +26,73 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 
 ## Screenshots
 
-Captured on v1.5.0 with demo content (light and dark). More shots live in [`images/`](images/) (`readme-*.png`).
+Captured on v1.5.0 with demo content. Where both themes exist, **dark** is on the left and **light** on the right. Additional captures are in [`images/`](images/) (`readme-*.png`).
 
-| | |
+<p align="center">
+  <img src="images/readme-connect-light.png" alt="Connect to Jotty with server URL, API key, and optional name and accent color" width="230" /><br />
+  <sub>Connect to your instance with URL and API key (light only).</sub>
+</p>
+
+| **Dark** | **Light** |
 |:---:|:---:|
-| <div align="center"><img src="images/readme-connect-light.png" alt="Connect to Jotty with server URL, API key, and optional name and accent color" width="230" /><br />Connect to your instance with URL and API key.</div> | <div align="center"><img src="images/readme-notes-list-light.png" alt="Notes list with search and encrypted note badge" width="230" /><br />Notes list with search and encryption indicators.</div> |
-| <div align="center"><img src="images/readme-checklists-list-dark.png" alt="Checklists list showing checklist and Project Kanban badges with progress" width="230" /><br />Checklists and Kanban projects with progress.</div> | <div align="center"><img src="images/readme-kanban-dark.png" alt="Kanban board with To Do and In Progress columns" width="230" /><br />Kanban board with status columns.</div> |
-| <div align="center"><img src="images/readme-note-view-dark.png" alt="Note detail with Markdown headings, checklist, quote, and lists" width="230" /><br />Markdown notes with lists, quotes, and checkboxes.</div> | <div align="center"><img src="images/readme-encrypt-locked-dark.png" alt="Encrypted note locked screen with Decrypt note button" width="230" /><br />Encrypted notes unlock with your passphrase.</div> |
-| <div align="center"><img src="images/readme-settings-dark.png" alt="Settings overview with instance, appearance, behavior, and troubleshooting" width="230" /><br />Settings hub for instance, appearance, and sync.</div> | <div align="center"><img src="images/readme-dashboard-dark.png" alt="Dashboard overview with notes, checklists, and task stats" width="230" /><br />Dashboard summary from your server.</div> |
+| <div align="center"><img src="images/readme-settings-dark.png" alt="Settings overview in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-settings-light.png" alt="Settings overview in light theme" width="210" /></div> |
+
+<p align="center"><sub>Settings — instance, appearance, behavior, and troubleshooting.</sub></p>
+
+<p align="center">
+  <img src="images/readme-notes-list-light.png" alt="Notes list with search and encrypted note badge" width="230" /><br />
+  <sub>Notes list with search and encryption indicators (light only).</sub>
+</p>
+
+| **Dark** | **Light** |
+|:---:|:---:|
+| <div align="center"><img src="images/readme-note-view-dark.png" alt="Note detail in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-note-view-light.png" alt="Note detail in light theme" width="210" /></div> |
+
+<p align="center"><sub>Note detail — Markdown headings, task lists, quotes, and bullets.</sub></p>
+
+<p align="center">
+  <img src="images/readme-note-editor-light.png" alt="Note editor with Markdown toolbar in light theme" width="230" /><br />
+  <sub>Note editor with formatting toolbar (light only).</sub>
+</p>
+
+<p align="center">
+  <img src="images/readme-checklists-list-dark.png" alt="Checklists list in dark theme" width="230" /><br />
+  <sub>Checklists and Kanban projects with progress (dark only).</sub>
+</p>
+
+| **Dark** | **Light** |
+|:---:|:---:|
+| <div align="center"><img src="images/readme-checklist-detail-dark.png" alt="Checklist detail in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-checklist-detail-light.png" alt="Checklist detail in light theme" width="210" /></div> |
+
+<p align="center"><sub>Checklist detail — items, reorder handles, and progress.</sub></p>
+
+| **Dark** | **Light** |
+|:---:|:---:|
+| <div align="center"><img src="images/readme-kanban-dark.png" alt="Kanban board in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-kanban-light.png" alt="Kanban board in light theme" width="210" /></div> |
+
+<p align="center"><sub>Kanban board — columns, tasks, and manage statuses.</sub></p>
+
+| **Dark** | **Light** |
+|:---:|:---:|
+| <div align="center"><img src="images/readme-encrypt-locked-dark.png" alt="Encrypted note locked in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-encrypt-locked-light.png" alt="Encrypted note locked in light theme" width="210" /></div> |
+
+<p align="center"><sub>Encrypted note — locked until you enter your passphrase.</sub></p>
+
+| **Dark** | **Light** |
+|:---:|:---:|
+| <div align="center"><img src="images/readme-encrypt-decrypted-dark.png" alt="Decrypted note in dark theme" width="210" /></div> | <div align="center"><img src="images/readme-encrypt-decrypted-light.png" alt="Decrypted note in light theme" width="210" /></div> |
+
+<p align="center"><sub>Encrypted note — decrypted view with session indicator.</sub></p>
+
+<p align="center">
+  <img src="images/readme-encrypt-dialog-dark.png" alt="Encrypt note dialog in dark theme" width="230" /><br />
+  <sub>Encrypt note — choose and confirm a passphrase (dark only).</sub>
+</p>
+
+<p align="center">
+  <img src="images/readme-dashboard-dark.png" alt="Dashboard overview in dark theme" width="230" /><br />
+  <sub>Dashboard — notes, checklists, and task stats from your server (dark only).</sub>
+</p>
 
 ## Releases / Download
 

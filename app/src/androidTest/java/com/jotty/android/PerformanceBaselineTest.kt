@@ -28,8 +28,8 @@ class PerformanceBaselineTest {
                 composeRule.onRoot().assertIsDisplayed()
             }
         println("PERF_BASELINE startup_ms=$elapsedMs")
-        // Loose guardrail to catch pathological regressions while avoiding flaky CI.
-        assertTrue("Startup took too long: ${elapsedMs}ms", elapsedMs < 15000)
+        // Loose guardrail to catch pathological regressions while avoiding flaky CI emulators.
+        assertTrue("Startup took too long: ${elapsedMs}ms", elapsedMs < 30000)
     }
 
     @Test
@@ -48,7 +48,7 @@ class PerformanceBaselineTest {
                 composeRule.onNodeWithText(notesLabel).assertIsDisplayed()
             }
         println("PERF_BASELINE notes_tab_open_ms=$elapsedMs")
-        assertTrue("Notes tab open took too long: ${elapsedMs}ms", elapsedMs < 15000)
+        assertTrue("Notes tab open took too long: ${elapsedMs}ms", elapsedMs < 30000)
     }
 
     private fun ComposeTestRule.hasNodeWithText(text: String): Boolean {

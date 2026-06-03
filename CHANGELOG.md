@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+---
+
+## [1.5.1] - 2026-06-03
+
 ### Changed
 
 - **Connect / setup** — Connection and validation errors show in a bordered danger alert (tinted background and warning icon) instead of plain red text; URL and API key fields highlight red only for missing required values, not failed connections.
@@ -31,6 +35,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Manage instances** — Removing the last saved Jotty instance no longer leaves an infinite “Loading…” screen; instance management and setup work without a connected server, and the app returns to the connect flow when no instance is active.
 - **Manage instances** — Settings no longer shows a second back arrow and duplicate title; the main app bar handles navigation and the screen shows only the default-instance hint.
 - **Note images** — Jotty media URLs resolve with RFC 3986 rules (fixes root-relative paths when the instance URL includes a subpath), rewrite HTML `<img src>` before conversion, remap absolute `/api/image/` URLs to the configured instance host (e.g. LAN IP vs hostname), and always attach the API key on Jotty media paths. Export debug logs record HTTP failures for media loads. **Note:** standard Jotty servers still require `SERVE_PUBLIC_IMAGES=yes` or upstream API-key support on `/api/image/` for private uploads (see [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
+
 
 ---
 
@@ -866,3 +871,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.4.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.4.0
 
 [1.5.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.0
+
+[1.5.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.1

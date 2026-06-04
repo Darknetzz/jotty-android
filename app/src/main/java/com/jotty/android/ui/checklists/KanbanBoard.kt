@@ -253,7 +253,7 @@ private fun KanbanTaskCard(
 }
 
 @Composable
-private fun KanbanStatusDot(
+internal fun KanbanStatusDot(
     colorHex: String?,
     modifier: Modifier = Modifier,
 ) {

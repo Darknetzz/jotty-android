@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -39,6 +40,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.jotty.android.R
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.TaskStatus
+import com.jotty.android.data.api.effectiveColorHex
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import androidx.compose.material3.DropdownMenu
@@ -240,7 +242,15 @@ fun KanbanItemDetailScreen(
                                 runAction { actions.moveToStatus(status.id) }
                             },
                             enabled = statusMoveEnabled && !saving,
-                            label = { Text(status.label) },
+                            label = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    KanbanStatusDot(colorHex = status.effectiveColorHex())
+                                    Text(status.label)
+                                }
+                            },
                         )
                     }
                 }

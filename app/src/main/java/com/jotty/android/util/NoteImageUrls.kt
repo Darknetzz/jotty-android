@@ -105,6 +105,14 @@ internal fun resolveNoteImageUrlsInMarkdown(
     }
 }
 
+/** True when [content] references Jotty-hosted media (e.g. `/api/image/...`). */
+internal fun noteContainsJottyMediaUrls(content: String): Boolean {
+    if (content.isBlank()) return false
+    return content.contains("/api/image/", ignoreCase = true) ||
+        content.contains("/api/file/", ignoreCase = true) ||
+        content.contains("/api/video/", ignoreCase = true)
+}
+
 /** Prepares note body markdown/HTML for [NoteView] / Markwon rendering. */
 internal fun prepareNoteContentForDisplay(
     content: String,

@@ -1,6 +1,7 @@
 package com.jotty.android.ui.checklists
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,6 +58,7 @@ fun TaskKanbanBoard(
     moveEnabled: Boolean,
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
     onDeleteItem: (apiPath: String) -> Unit,
+    onOpenItem: (KanbanCard) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -74,6 +76,7 @@ fun TaskKanbanBoard(
                 moveEnabled = moveEnabled,
                 onMoveItem = onMoveItem,
                 onDeleteItem = onDeleteItem,
+                onOpenItem = onOpenItem,
             )
         }
     }
@@ -86,6 +89,7 @@ private fun KanbanStatusColumn(
     moveEnabled: Boolean,
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
     onDeleteItem: (apiPath: String) -> Unit,
+    onOpenItem: (KanbanCard) -> Unit,
 ) {
     Column(
         modifier =
@@ -142,6 +146,7 @@ private fun KanbanStatusColumn(
                         moveEnabled = moveEnabled,
                         onMoveItem = onMoveItem,
                         onDeleteItem = onDeleteItem,
+                        onOpenItem = onOpenItem,
                     )
                 }
             }
@@ -157,6 +162,7 @@ private fun KanbanTaskCard(
     moveEnabled: Boolean,
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
     onDeleteItem: (apiPath: String) -> Unit,
+    onOpenItem: (KanbanCard) -> Unit,
 ) {
     var menuExpanded by remember(card.index) { mutableStateOf(false) }
     var showDeleteConfirm by remember(card.index) { mutableStateOf(false) }
@@ -177,7 +183,10 @@ private fun KanbanTaskCard(
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable { onOpenItem(card) },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(
@@ -211,6 +220,13 @@ private fun KanbanTaskCard(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.edit)) },
+                            onClick = {
+                                menuExpanded = false
+                                onOpenItem(card)
+                            },
+                        )
                         if (moveEnabled) {
                             moveTargets.forEach { target ->
                                 DropdownMenuItem(

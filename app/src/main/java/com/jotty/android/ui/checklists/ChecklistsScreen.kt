@@ -41,6 +41,7 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.TaskStatus
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
+import com.jotty.android.data.local.itemAtPath
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
@@ -414,6 +415,7 @@ private fun ChecklistDetailScreen(
     var editingItemKey by remember(checklist.id) { mutableStateOf<String?>(null) }
     var taskStatuses by remember(checklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
     var canUseKanbanBoard by remember(checklist.id) { mutableStateOf(true) }
+    var selectedKanbanPath by remember(checklist.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(checklist.id, checklist.title, checklist.items) {
@@ -422,14 +424,18 @@ private fun ChecklistDetailScreen(
         editingItemKey = null
     }
 
+    suspend fun refreshItemsFromServer() {
+        val updated = api.getChecklists().checklists.find { it.id == checklist.id }
+        if (updated != null) {
+            items = updated.items
+            onUpdate(updated)
+        }
+    }
+
     fun refresh() {
         scope.launch {
             try {
-                val updated = api.getChecklists().checklists.find { it.id == checklist.id }
-                if (updated != null) {
-                    items = updated.items
-                    onUpdate(updated)
-                }
+                refreshItemsFromServer()
             } catch (_: Exception) {
                 onSaveFailed()
             }
@@ -655,7 +661,45 @@ private fun ChecklistDetailScreen(
                         }
                     }
                 },
+                onOpenItem = { card -> selectedKanbanPath = "${card.index}" },
             )
+            selectedKanbanPath?.let { path ->
+                val detailItem = itemAtPath(items, path)
+                if (detailItem != null) {
+                    KanbanItemDetailScreen(
+                        item = detailItem,
+                        itemPath = path,
+                        taskStatuses = taskStatuses,
+                        statusMoveEnabled = true,
+                        actions =
+                            apiKanbanItemActions(
+                                api = api,
+                                checklistId = checklist.id,
+                                itemPath = path,
+                                items = { items },
+                                onRefresh = {
+                                    refreshItemsFromServer()
+                                },
+                                serverCapabilitiesKey = serverCapabilitiesKey,
+                                performMoveToStatus = { statusId ->
+                                    runCatching {
+                                        api.updateTaskItemStatus(
+                                            checklist.id,
+                                            path,
+                                            UpdateTaskItemStatusRequest(status = statusId),
+                                        )
+                                        refreshItemsFromServer()
+                                    }
+                                },
+                            ),
+                        onDismiss = { selectedKanbanPath = null },
+                        onDeleted = { selectedKanbanPath = null },
+                        onError = onSaveFailed,
+                    )
+                } else {
+                    LaunchedEffect(path) { selectedKanbanPath = null }
+                }
+            }
         } else {
             if (isProject && !canUseKanbanBoard) {
                 Text(

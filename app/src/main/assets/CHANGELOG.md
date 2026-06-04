@@ -6,6 +6,23 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Kanban item detail** — Tap a project board card to edit the task title, description (save to server), status, and subtasks (add, rename, check, delete). Priority, score, target date, estimated time, and item metadata show as placeholders until the Jotty REST API exposes them ([#52](https://github.com/Darknetzz/jotty-android/issues/52)).
+- **Note image auth banner** — When a note contains Jotty-hosted images and the server returns HTTP 401/403 (private media without `SERVE_PUBLIC_IMAGES=yes`), note detail shows a dismissible banner explaining the server setting; the banner clears after images load successfully.
+
+### Documentation
+
+- **Kanban item API proposal** — [docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md](docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md) and compatibility notes for upstream Jotty server fields.
+
+### Fixed
+
+- **Connect / setup** — A wrong API key is now caught when connecting an instance (shown as “Invalid API key”) instead of appearing to connect and only failing with an “Unauthorized” error on the Checklists/Notes screens afterwards.
+
+---
+
+## [1.5.1] - 2026-06-03
+
 ### Changed
 
 - **Connect / setup** — Connection and validation errors show in a bordered danger alert (tinted background and warning icon) instead of plain red text; URL and API key fields highlight red only for missing required values, not failed connections.
@@ -14,7 +31,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Documentation
 
 - **README** — Expanded feature list, centered screenshot gallery (no empty table cell), checklist offline notes, and build requirements (min SDK, Gradle version).
-- **README screenshots** — Added [docs/README_SCREENSHOTS.md](docs/README_SCREENSHOTS.md) with per-capture review and generic placeholder content for notes, lists, and Kanban before re-capture.
+- **README screenshots** — Replaced gallery with v1.5.0 demo captures in `images/readme-*.png`; single HTML table for reliable dark/light layout on GitHub; full dark/light pairs for all screens; added [docs/README_SCREENSHOTS.md](docs/README_SCREENSHOTS.md) for capture notes.
 
 ### Added
 
@@ -31,6 +48,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Manage instances** — Removing the last saved Jotty instance no longer leaves an infinite “Loading…” screen; instance management and setup work without a connected server, and the app returns to the connect flow when no instance is active.
 - **Manage instances** — Settings no longer shows a second back arrow and duplicate title; the main app bar handles navigation and the screen shows only the default-instance hint.
 - **Note images** — Jotty media URLs resolve with RFC 3986 rules (fixes root-relative paths when the instance URL includes a subpath), rewrite HTML `<img src>` before conversion, remap absolute `/api/image/` URLs to the configured instance host (e.g. LAN IP vs hostname), and always attach the API key on Jotty media paths. Export debug logs record HTTP failures for media loads. **Note:** standard Jotty servers still require `SERVE_PUBLIC_IMAGES=yes` or upstream API-key support on `/api/image/` for private uploads (see [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
+
 
 ---
 
@@ -866,3 +884,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.4.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.4.0
 
 [1.5.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.0
+
+[1.5.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.1

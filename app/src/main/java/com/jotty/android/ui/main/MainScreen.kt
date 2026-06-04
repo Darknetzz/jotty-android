@@ -128,10 +128,10 @@ fun MainScreen(
         }
 
     val imageLoader =
-        remember(context, serverUrl, apiKey) {
+        remember(context, serverUrl, apiKey, currentInstance?.id) {
             val url = serverUrl
             val key = apiKey
-            createNoteImageLoader(context, url, key)
+            createNoteImageLoader(context, url, key, currentInstance?.id)
         }
 
     val api =

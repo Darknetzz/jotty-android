@@ -17,6 +17,7 @@ import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import com.jotty.android.util.ServerCapabilities
+import com.jotty.android.util.updateChecklistItemDescription
 import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.CancellationException
 import retrofit2.HttpException
@@ -409,6 +410,33 @@ class OfflineChecklistsRepository(
             }
         }
 
+    suspend fun updateItemDescription(
+        checklistId: String,
+        path: String,
+        description: String,
+    ): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val resolvedId = resolveChecklistId(checklistId)
+                withItemMutation {
+                    if (isOnline.value && !needsLocalItemMutations(resolvedId)) {
+                        updateChecklistItemDescription(
+                            api = api,
+                            listId = resolvedId,
+                            path = path,
+                            description = description,
+                        )
+                        return@withItemMutation refreshFromServer(resolvedId)
+                    } else {
+                        return@withItemMutation applyOpLocally(
+                            resolvedId,
+                            PendingItemOp(type = "UPDATE", path = path, description = description),
+                        )
+                    }
+                }
+            }
+        }
+
     suspend fun reorderItems(
         checklistId: String,
         request: ReorderItemsRequest,
@@ -664,7 +692,7 @@ class OfflineChecklistsRepository(
                     api.updateItem(
                         entity.id,
                         op.path!!,
-                        UpdateItemRequest(text = op.text),
+                        UpdateItemRequest(text = op.text, description = op.description),
                     )
                 }.getOrElse { error ->
                     if (error is retrofit2.HttpException && error.code() in setOf(404, 405)) {

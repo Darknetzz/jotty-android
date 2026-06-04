@@ -63,6 +63,7 @@ fun OfflineNotesScreen(
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                 imageLoader = imageLoader,
                 jottyServerUrl = jottyServerUrl,
+                serverCapabilitiesKey = instanceId,
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,
             )
@@ -78,6 +79,7 @@ fun OfflineNotesScreen(
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                 imageLoader = imageLoader,
                 jottyServerUrl = jottyServerUrl,
+                serverCapabilitiesKey = instanceId,
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,
             )

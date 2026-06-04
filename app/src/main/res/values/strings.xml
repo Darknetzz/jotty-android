@@ -77,6 +77,23 @@
     <string name="kanban_status_auto_complete">Auto complete</string>
     <string name="kanban_move_online_only">Connect to your server to move tasks between Kanban columns.</string>
     <string name="kanban_not_supported_fallback">Kanban columns are not available on this server yet. Showing checklist view instead.</string>
+    <string name="kanban_item_detail_title">Edit task</string>
+    <string name="kanban_item_description">Description</string>
+    <string name="kanban_item_description_placeholder">No description</string>
+    <string name="kanban_item_description_server_limit">Descriptions saved on the server may not appear here until your Jotty server exposes them in the API.</string>
+    <string name="kanban_item_description_saved_local">Description saved; it may not reload from the server yet.</string>
+    <string name="kanban_item_save_description">Save description</string>
+    <string name="kanban_item_status">Status</string>
+    <string name="kanban_item_subtasks">Subtasks</string>
+    <string name="kanban_item_subtasks_empty">No subtasks yet. Add one below to get started.</string>
+    <string name="kanban_item_add_subtask_hint">Add a subtask…</string>
+    <string name="kanban_item_priority">Priority</string>
+    <string name="kanban_item_score">Score</string>
+    <string name="kanban_item_target_date">Target date</string>
+    <string name="kanban_item_estimated_time">Estimated time (hours)</string>
+    <string name="kanban_item_metadata">Metadata</string>
+    <string name="kanban_item_field_requires_server">Requires a newer Jotty server with Kanban item fields in the REST API.</string>
+    <string name="kanban_item_field_unavailable">Not available on this server</string>
     <string name="done_progress">%1$d / %2$d done</string>
     <string name="progress_fraction">%1$d / %2$d</string>
     <string name="section_to_do">• To Do (%1$d)</string>
@@ -150,6 +167,7 @@
     <string name="use_web_app_to_decrypt">Use the Jotty web app to decrypt this note.</string>
     <string name="pgp_not_supported_short">PGP decryption is not supported in the app. Use the Jotty web app.</string>
     <string name="legacy_encryption_warning">This note uses a legacy encryption payload format. Re-encrypt and save it to restore web compatibility.</string>
+    <string name="note_images_auth_blocked_banner">Images from your Jotty server could not be loaded in the app. On the server, set SERVE_PUBLIC_IMAGES=yes (see Jotty Docker docs). The web app may still show them using your browser session.</string>
 
     <!-- Setup -->
     <string name="connect_to_jotty">Connect to Jotty</string>

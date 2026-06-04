@@ -38,6 +38,8 @@ data class ChecklistItem(
     val completed: Boolean = false,
     val status: String? = null,
     val time: Any? = null,
+    /** Item body; may be absent on GET until upstream REST returns it. */
+    val description: String? = null,
     val children: List<ChecklistItem>? = null,
 )
 

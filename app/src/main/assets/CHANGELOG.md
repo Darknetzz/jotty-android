@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Checklists** — Server PATCH compatibility banner lays out message and Close side by side instead of overlapping.
 - **Manage instances** — The default-instance star hint is shown only on the instance list, not while adding or editing an instance.
 - **Manage instances** — Removed a clipped “Default” chip that appeared beside the instance name when setting the default instance (the filled star already indicates default).
 - **Connect / setup** — A wrong API key is now caught when connecting an instance (shown as “Invalid API key”) instead of appearing to connect and only failing with an “Unauthorized” error on the Checklists/Notes screens afterwards.

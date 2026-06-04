@@ -1,19 +1,20 @@
 package com.jotty.android.ui.common
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -56,43 +57,6 @@ fun ServerUrlInputField(
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
-    Row(
-        modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-    ) {
-        ExposedDropdownMenuBox(
-            expanded = schemeExpanded,
-            onExpandedChange = { schemeExpanded = it },
-            modifier = Modifier.width(118.dp),
-        ) {
-            OutlinedTextField(
-                value = scheme.prefix,
-                onValueChange = {},
-                readOnly = true,
-                singleLine = true,
-                isError = isError,
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = schemeExpanded) },
-                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                modifier =
-                    Modifier
-                        .menuAnchor()
-                        .fillMaxWidth(),
-            )
-            ExposedDropdownMenu(
-                expanded = schemeExpanded,
-                onDismissRequest = { schemeExpanded = false },
-            ) {
-                ServerUrlScheme.entries.forEach { option ->
-                    DropdownMenuItem(
-                        text = { Text(option.prefix) },
-                        onClick = {
-                            emitChange(newScheme = option)
-                            schemeExpanded = false
-                        },
-                        contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
-                    )
-                }
-            }
-        }
         OutlinedTextField(
             value = host,
             onValueChange = { input ->
@@ -106,9 +70,46 @@ fun ServerUrlInputField(
             placeholder = { Text(stringResource(R.string.server_url_placeholder)) },
             singleLine = true,
             isError = isError,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.fillMaxWidth(),
+            prefix = {
+                ExposedDropdownMenuBox(
+                    expanded = schemeExpanded,
+                    onExpandedChange = { schemeExpanded = it },
+                ) {
+                    TextButton(
+                        onClick = { schemeExpanded = true },
+                        modifier = Modifier.menuAnchor(),
+                        contentPadding = PaddingValues(end = 0.dp),
+                    ) {
+                        Text(
+                            text = scheme.prefix,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = stringResource(R.string.cd_choose_server_scheme),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    ExposedDropdownMenu(
+                        expanded = schemeExpanded,
+                        onDismissRequest = { schemeExpanded = false },
+                    ) {
+                        ServerUrlScheme.entries.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option.prefix) },
+                                onClick = {
+                                    emitChange(newScheme = option)
+                                    schemeExpanded = false
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding,
+                            )
+                        }
+                    }
+                }
+            },
         )
-    }
         Text(
             text = stringResource(R.string.server_url_hint),
             style = MaterialTheme.typography.bodySmall,

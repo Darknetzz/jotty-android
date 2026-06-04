@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **New note** — Create dialog asks for title and category only; body is edited after opening the note (shared text into the app still becomes note content).
 - **Connect / setup** — Server URL uses an http/https dropdown beside the host field; pasting a full URL into the host field moves the scheme into the dropdown automatically.
 
 ### Added

@@ -137,7 +137,6 @@
     <string name="category">Category</string>
     <string name="cd_choose_category">Choose category</string>
     <string name="change_category">Change category</string>
-    <string name="note_content_optional">Content (optional)</string>
     <string name="cd_sort">Sort</string>
     <string name="sort_updated">Last updated</string>
     <string name="sort_created">Date created</string>
@@ -177,6 +176,7 @@
     <string name="name">Name</string>
     <string name="name_placeholder">e.g. Work, Personal</string>
     <string name="server_url">Server URL</string>
+    <string name="cd_choose_server_scheme">Choose http or https</string>
     <string name="server_url_placeholder">jotty.example.com</string>
     <string name="server_url_hint">Choose http or https, then enter the host (and port if needed, e.g. 192.168.1.10:8080 for a local server). HTTPS is recommended on untrusted networks. You can also paste a full URL into the host field.</string>
     <string name="api_key">API Key</string>

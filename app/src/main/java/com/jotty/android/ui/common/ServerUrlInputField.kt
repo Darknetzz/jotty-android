@@ -2,8 +2,10 @@ package com.jotty.android.ui.common
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.DropdownMenuItem
@@ -81,24 +83,23 @@ fun ServerUrlInputField(
                         modifier = Modifier.menuAnchor(),
                         contentPadding = PaddingValues(end = 0.dp),
                     ) {
-                        Text(
-                            text = scheme.prefix,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = stringResource(R.string.cd_choose_server_scheme),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                        Row {
+                            ServerSchemeLabel(scheme.prefix)
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = stringResource(R.string.cd_choose_server_scheme),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                     ExposedDropdownMenu(
                         expanded = schemeExpanded,
                         onDismissRequest = { schemeExpanded = false },
+                        modifier = Modifier.widthIn(min = 120.dp),
                     ) {
                         ServerUrlScheme.entries.forEach { option ->
                             DropdownMenuItem(
-                                text = { Text(option.prefix) },
+                                text = { ServerSchemeLabel(option.prefix) },
                                 onClick = {
                                     emitChange(newScheme = option)
                                     schemeExpanded = false
@@ -117,4 +118,15 @@ fun ServerUrlInputField(
             modifier = Modifier.padding(top = 8.dp),
         )
     }
+}
+
+@Composable
+private fun ServerSchemeLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 1,
+        softWrap = false,
+    )
 }

@@ -1,6 +1,5 @@
 package com.jotty.android.ui.checklists
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,6 +9,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -132,6 +135,19 @@ private fun KanbanSubtaskRow(
         )
     }
 
+    fun saveEdit() {
+        val trimmed = editText.trim()
+        if (trimmed.isNotEmpty()) {
+            onUpdateText(subPath, trimmed)
+        }
+        isEditing = false
+    }
+
+    fun cancelEdit() {
+        editText = item.text
+        isEditing = false
+    }
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -151,15 +167,15 @@ private fun KanbanSubtaskRow(
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions =
                     KeyboardActions(
-                        onDone = {
-                            val trimmed = editText.trim()
-                            if (trimmed.isNotEmpty()) {
-                                onUpdateText(subPath, trimmed)
-                            }
-                            isEditing = false
-                        },
+                        onDone = { saveEdit() },
                     ),
             )
+            IconButton(onClick = { saveEdit() }) {
+                Icon(Icons.Default.Check, contentDescription = stringResource(R.string.save))
+            }
+            IconButton(onClick = { cancelEdit() }) {
+                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.cancel))
+            }
         } else {
             Text(
                 text = label,
@@ -171,27 +187,21 @@ private fun KanbanSubtaskRow(
             )
         }
         if (!isEditing) {
-            Text(
-                text = stringResource(R.string.edit),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier =
-                    Modifier
-                        .padding(horizontal = 8.dp)
-                        .clickable {
-                            isEditing = true
-                            editText = item.text
-                        },
-            )
+            IconButton(
+                onClick = {
+                    isEditing = true
+                    editText = item.text
+                },
+            ) {
+                Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
+            }
+            IconButton(onClick = { showDeleteConfirm = true }) {
+                Icon(
+                    Icons.Default.Delete,
+                    contentDescription = stringResource(R.string.delete),
+                    tint = MaterialTheme.colorScheme.error,
+                )
+            }
         }
-        Text(
-            text = stringResource(R.string.delete),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.error,
-            modifier =
-                Modifier
-                    .padding(end = 4.dp)
-                    .clickable { showDeleteConfirm = true },
-        )
     }
 }

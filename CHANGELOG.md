@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Changed
+
+- **Connect / setup** — Server URL uses an http/https dropdown beside the host field; pasting a full URL into the host field moves the scheme into the dropdown automatically.
+
 ### Added
 
 - **Kanban item detail** — Tap a project board card to edit the task title, description (save to server), status, and subtasks (add, rename, check, delete). Priority, score, target date, estimated time, and item metadata show as placeholders until the Jotty REST API exposes them ([#52](https://github.com/Darknetzz/jotty-android/issues/52)).

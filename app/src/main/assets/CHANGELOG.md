@@ -6,9 +6,14 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Changed
+
+- **Connect / setup** — Server URL uses an http/https dropdown beside the host field; pasting a full URL into the host field moves the scheme into the dropdown automatically.
+
 ### Added
 
 - **Kanban item detail** — Tap a project board card to edit the task title, description (save to server), status, and subtasks (add, rename, check, delete). Priority, score, target date, estimated time, and item metadata show as placeholders until the Jotty REST API exposes them ([#52](https://github.com/Darknetzz/jotty-android/issues/52)).
+- **Kanban status chips** — Status options in task detail show the same colored dots as the board columns.
 - **Note image auth banner** — When a note contains Jotty-hosted images and the server returns HTTP 401/403 (private media without `SERVE_PUBLIC_IMAGES=yes`), note detail shows a dismissible banner explaining the server setting; the banner clears after images load successfully.
 
 ### Documentation

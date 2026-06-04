@@ -334,7 +334,6 @@
     <string name="manage_instances">Manage instances</string>
     <string name="manage_instances_description">Add, edit, or remove saved Jotty servers</string>
     <string name="manage_instances_default_hint">Tap the star to choose which instance opens when you launch the app.</string>
-    <string name="instance_default_chip">Default</string>
     <string name="disconnect">Disconnect</string>
     <string name="disconnect_description">Switch to another instance (this one is saved)</string>
     <string name="about">About</string>

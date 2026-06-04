@@ -6,6 +6,12 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Manage instances** — The default-instance star hint is shown only on the instance list, not while adding or editing an instance.
+- **Manage instances** — Removed a clipped “Default” chip that appeared beside the instance name when setting the default instance (the filled star already indicates default).
+- **Connect / setup** — A wrong API key is now caught when connecting an instance (shown as “Invalid API key”) instead of appearing to connect and only failing with an “Unauthorized” error on the Checklists/Notes screens afterwards.
+
 ### Changed
 
 - **New note** — Create dialog asks for title and category only; body is edited after opening the note (shared text into the app still becomes note content).
@@ -20,10 +26,6 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Documentation
 
 - **Kanban item API proposal** — [docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md](docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md) and compatibility notes for upstream Jotty server fields.
-
-### Fixed
-
-- **Connect / setup** — A wrong API key is now caught when connecting an instance (shown as “Invalid API key”) instead of appearing to connect and only failing with an “Unauthorized” error on the Checklists/Notes screens afterwards.
 
 ---
 

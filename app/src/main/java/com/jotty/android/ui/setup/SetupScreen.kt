@@ -66,6 +66,9 @@ fun SetupScreen(
         }
     }
 
+    var instanceToEdit by remember { mutableStateOf<JottyInstance?>(null) }
+    val showingInstanceList = standaloneMode && instanceToEdit == null && !showAddForm
+
     Column(
         modifier =
             Modifier
@@ -81,13 +84,13 @@ fun SetupScreen(
                     },
                 ),
     ) {
-        if (standaloneMode) {
+        if (showingInstanceList) {
             Text(
                 text = stringResource(R.string.manage_instances_default_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        } else {
+        } else if (!standaloneMode) {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = stringResource(R.string.connect_to_jotty),
@@ -104,7 +107,6 @@ fun SetupScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        var instanceToEdit by remember { mutableStateOf<JottyInstance?>(null) }
         if (instanceToEdit != null) {
             InstanceForm(
                 initialInstance = instanceToEdit,
@@ -235,24 +237,11 @@ private fun InstanceCard(
             }
             Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link))
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = instance.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    if (isDefault) {
-                        AssistChip(
-                            onClick = {},
-                            label = { Text(stringResource(R.string.instance_default_chip)) },
-                            enabled = false,
-                            modifier = Modifier.height(24.dp),
-                        )
-                    }
-                }
+                Text(
+                    text = instance.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
                 Text(
                     text = instance.serverUrl,
                     style = MaterialTheme.typography.bodySmall,

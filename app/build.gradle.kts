@@ -141,7 +141,7 @@ dependencies {
 
     // Markdown rendering for notes (images via Coil)
     implementation("com.github.jeziellago:compose-markdown:0.5.8")
-    implementation("io.coil-kt:coil:2.6.0")
+    implementation("io.coil-kt:coil:2.7.0")
 
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
     implementation("org.bouncycastle:bcprov-jdk18on:1.79")

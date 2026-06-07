@@ -6,6 +6,24 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Kanban board / list toggle** — Project boards switch between the Kanban board and the tree/list view (inline edit, reorder) without losing Kanban when the status API is available.
+- **Kanban per-column add** — Each board column has an add field to create a task in that status.
+- **Kanban column reorder** — Card menu includes move up/down within the same column.
+
+### Changed
+
+- **New project tasks** — Top-level add-item and per-column add pass the column status to the server so new cards land in the intended column.
+
+### Fixed
+
+- **Dev → stable updates** — About now blocks in-app install when a dev build cannot be replaced by stable (version code), shows the full explanation in a scrollable dialog, and offers “Open release page” instead of a failing download.
+
+---
+
+## [1.5.2] - 2026-06-08
+
 ### Fixed
 
 - **Checklists** — Server PATCH compatibility banner lays out message and Close side by side instead of overlapping.
@@ -16,7 +34,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Changed
 
 - **New note** — Create dialog asks for title and category only; body is edited after opening the note (shared text into the app still becomes note content).
-- **Connect / setup** — Server URL uses an http/https dropdown beside the host field; pasting a full URL into the host field moves the scheme into the dropdown automatically.
+- **Connect / setup** — Server URL uses an http/https dropdown beside the host field; pasting a full URL into the host field moves the scheme into the dropdown automatically; the scheme menu no longer wraps `https://` across two lines.
 
 ### Added
 
@@ -27,6 +45,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Documentation
 
 - **Kanban item API proposal** — [docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md](docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md) and compatibility notes for upstream Jotty server fields.
+
 
 ---
 
@@ -895,3 +914,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.5.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.0
 
 [1.5.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.1
+
+[1.5.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.2

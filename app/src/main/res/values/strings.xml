@@ -361,12 +361,14 @@
     <string name="update_check_dev_parse_error">Could not read dev build info from the release</string>
     <string name="update_version_dev_format">Dev %1$s</string>
     <string name="downloading">Downloading…</string>
-    <string name="install_failed">%1$s. You can install from the release page.</string>
+    <string name="install_failed">%1$s</string>
+    <string name="install_failed_open_release_hint">You can also install from the release page below.</string>
     <string name="update_signing_mismatch_hint">If the installer says “App not installed”, the APK may be signed differently than your installed app (e.g. Android Studio debug vs GitHub release). Uninstall Jotty once, then install from the release page. Your Jotty server data is not affected.</string>
     <string name="update_signing_mismatch_blocked">This update is signed with a different key than your installed app. Uninstall Jotty once, then install from the release page.</string>
     <string name="update_version_downgrade_blocked">This build has an older version code than your installed app. Uninstall once, then install from the release page.</string>
-    <string name="update_dev_on_stable_channel_hint">You are on a dev build. Stable updates may show as available but cannot install over dev until you uninstall and install the stable APK from GitHub releases.</string>
-    <string name="update_dev_to_stable_downgrade_blocked">This stable release cannot replace your dev build (version code). Uninstall the dev app once, then install the stable APK from GitHub releases.</string>
+    <string name="update_dev_on_stable_channel_hint">You are on a dev build. Stable updates require a fresh install — use “Open release page” after checking for updates.</string>
+    <string name="update_dev_to_stable_fresh_install_required">Fresh install required: your dev build uses version code %1$d, which is higher than stable %2$s. Android cannot install stable on top. Uninstall Jotty once (your Jotty server data is not affected), then install the stable APK from GitHub releases.</string>
+    <string name="update_dev_to_stable_downgrade_blocked">In-app install blocked: your dev build (version code %1$d) is newer than this stable APK. Uninstall Jotty once, then install from GitHub releases.</string>
     <string name="server_patch_limited_banner">This server does not support checklist item PATCH. Leaf edits still sync, but more slowly. Renaming items that have subtasks needs a newer Jotty server.</string>
     <string name="update_dev_channel_hint">Dev builds are bleeding edge and may contain bugs.</string>
     <string name="open_release_page">Open release page</string>

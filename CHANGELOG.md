@@ -16,6 +16,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **New project tasks** — Top-level add-item and per-column add pass the column status to the server so new cards land in the intended column.
 
+### Fixed
+
+- **Dev → stable updates** — About now blocks in-app install when a dev build cannot be replaced by stable (version code), shows the full explanation in a scrollable dialog, and offers “Open release page” instead of a failing download.
+
 ---
 
 ## [1.5.2] - 2026-06-08

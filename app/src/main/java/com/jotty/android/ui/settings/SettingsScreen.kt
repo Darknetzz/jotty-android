@@ -690,7 +690,14 @@ private fun AboutDialog(
         },
         title = { Text(stringResource(R.string.about_jotty_android)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 480.dp)
+                        .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(
                     stringResource(R.string.about_tagline),
                     style = MaterialTheme.typography.bodyMedium,
@@ -781,11 +788,10 @@ private fun AboutDialog(
                     )
                 }
                 if (UpdateChecker.isDevBuild() && parsedChannel == UpdateChannel.Stable) {
-                    Text(
-                        text = stringResource(R.string.update_dev_on_stable_channel_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 6.dp),
+                    UpdateStatusAlert(
+                        message = stringResource(R.string.update_dev_on_stable_channel_hint),
+                        variant = UpdateStatusAlertVariant.Info,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
                 when (val state = updateState) {
@@ -844,6 +850,8 @@ private fun AboutDialog(
                                     downloadUrl = r.downloadUrl,
                                     releaseNotes = r.releaseNotes,
                                     installFailedMessage = null,
+                                    inAppInstallBlocked = r.inAppInstallBlocked,
+                                    inAppInstallBlockedMessage = r.inAppInstallBlockedMessage,
                                     showSigningHints = parsedChannel == UpdateChannel.Dev,
                                     onViewChangelog = {
                                         openUpdateChangelog(
@@ -919,6 +927,8 @@ private fun AboutDialog(
                             downloadUrl = state.downloadUrl,
                             releaseNotes = state.releaseNotes,
                             installFailedMessage = state.userMessage,
+                            inAppInstallBlocked = UpdateChecker.stableUpdateRequiresFreshInstall(),
+                            inAppInstallBlockedMessage = null,
                             showSigningHints = true,
                             onViewChangelog = {
                                 openUpdateChangelog(
@@ -1066,12 +1076,15 @@ private fun UpdateAvailableContent(
     downloadUrl: String,
     releaseNotes: String?,
     installFailedMessage: String?,
+    inAppInstallBlocked: Boolean,
+    inAppInstallBlockedMessage: String?,
     showSigningHints: Boolean = false,
     onViewChangelog: () -> Unit,
     onDownloadAndInstall: () -> Unit,
     onOpenReleasePage: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    val showReleasePageAction = inAppInstallBlocked || installFailedMessage != null
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         UpdateStatusAlert(
             message = stringResource(R.string.update_available, versionName),
             variant = UpdateStatusAlertVariant.Info,
@@ -1094,30 +1107,45 @@ private fun UpdateAvailableContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        inAppInstallBlockedMessage?.let { msg ->
+            UpdateStatusAlert(
+                message = msg,
+                variant = UpdateStatusAlertVariant.Danger,
+            )
+        }
         installFailedMessage?.let { msg ->
             UpdateStatusAlert(
                 message = stringResource(R.string.install_failed, msg),
                 variant = UpdateStatusAlertVariant.Danger,
             )
+            if (!inAppInstallBlocked) {
+                Text(
+                    text = stringResource(R.string.install_failed_open_release_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(
-                onClick = onDownloadAndInstall,
-                contentPadding = PaddingValues(0.dp),
-            ) {
-                Icon(
-                    Icons.Default.Download,
-                    contentDescription = stringResource(R.string.cd_download),
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.download_and_install))
+            if (!inAppInstallBlocked) {
+                TextButton(
+                    onClick = onDownloadAndInstall,
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Download,
+                        contentDescription = stringResource(R.string.cd_download),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.download_and_install))
+                }
             }
-            if (installFailedMessage != null) {
+            if (showReleasePageAction) {
                 TextButton(
                     onClick = onOpenReleasePage,
                     contentPadding = PaddingValues(0.dp),

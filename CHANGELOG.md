@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+---
+
+## [1.5.2] - 2026-06-08
+
 ### Fixed
 
 - **Checklists** — Server PATCH compatibility banner lays out message and Close side by side instead of overlapping.
@@ -27,6 +31,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Documentation
 
 - **Kanban item API proposal** — [docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md](docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md) and compatibility notes for upstream Jotty server fields.
+
 
 ---
 
@@ -895,3 +900,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.5.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.0
 
 [1.5.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.1
+
+[1.5.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.2

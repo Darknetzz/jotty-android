@@ -28,6 +28,8 @@ data class PendingItemOp(
     val text: String? = null,
     /** ADD with parent (project type) */
     val parentIndex: String? = null,
+    /** ADD — Kanban column status */
+    val status: String? = null,
     /** UPDATE */
     val description: String? = null,
     /** REORDER */
@@ -117,13 +119,21 @@ fun applyOpToItems(
                 ?: items
         "DELETE" -> op.path?.let { deleteAtPath(items, it) } ?: items
         "ADD" -> {
+            val newItem =
+                ChecklistItem(
+                    index = 0,
+                    text = op.text ?: "",
+                    status = op.status,
+                )
             if (op.parentIndex == null) {
-                items + ChecklistItem(index = items.size, text = op.text ?: "")
+                items + newItem.copy(index = items.size)
             } else {
                 // Child index must be relative to the parent's children, not the root list.
                 updateAtPath(items, op.parentIndex) { parent ->
                     val children = parent.children ?: emptyList()
-                    parent.copy(children = children + ChecklistItem(index = children.size, text = op.text ?: ""))
+                    parent.copy(
+                        children = children + newItem.copy(index = children.size),
+                    )
                 }
             }
         }

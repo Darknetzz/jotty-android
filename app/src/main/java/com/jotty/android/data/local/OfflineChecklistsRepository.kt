@@ -288,6 +288,7 @@ class OfflineChecklistsRepository(
         checklistId: String,
         text: String,
         parentIndex: String? = null,
+        status: String? = null,
     ): Result<Checklist> =
         withContext(Dispatchers.IO) {
             runCatching {
@@ -297,7 +298,7 @@ class OfflineChecklistsRepository(
                         val response =
                             api.addChecklistItem(
                                 resolvedId,
-                                AddItemRequest(text = text, parentIndex = parentIndex),
+                                AddItemRequest(text = text, parentIndex = parentIndex, status = status),
                             )
                         // Refresh local cache from server
                         val fresh = api.getChecklists().checklists.find { it.id == resolvedId }
@@ -307,7 +308,13 @@ class OfflineChecklistsRepository(
                                 ?: throw Exception("Checklist not found")
                         }
                     } else {
-                        val op = PendingItemOp(type = "ADD", text = text, parentIndex = parentIndex)
+                        val op =
+                            PendingItemOp(
+                                type = "ADD",
+                                text = text,
+                                parentIndex = parentIndex,
+                                status = status,
+                            )
                         applyOpLocally(resolvedId, op)
                     }
                 }
@@ -684,7 +691,11 @@ class OfflineChecklistsRepository(
             "ADD" ->
                 api.addChecklistItem(
                     entity.id,
-                    AddItemRequest(text = op.text ?: "", parentIndex = op.parentIndex),
+                    AddItemRequest(
+                        text = op.text ?: "",
+                        parentIndex = op.parentIndex,
+                        status = op.status,
+                    ),
                 )
             "DELETE" -> api.deleteItem(entity.id, op.path!!)
             "UPDATE" ->

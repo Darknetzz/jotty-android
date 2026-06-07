@@ -15,10 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,6 +30,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -59,6 +63,9 @@ fun TaskKanbanBoard(
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
     onDeleteItem: (apiPath: String) -> Unit,
     onOpenItem: (KanbanCard) -> Unit,
+    onAddToColumn: (statusId: String, text: String) -> Unit,
+    onMoveCardInColumn: (columnCards: List<KanbanCard>, cardIndex: Int, up: Boolean) -> Unit,
+    reorderInColumnEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -77,6 +84,9 @@ fun TaskKanbanBoard(
                 onMoveItem = onMoveItem,
                 onDeleteItem = onDeleteItem,
                 onOpenItem = onOpenItem,
+                onAddToColumn = onAddToColumn,
+                onMoveCardInColumn = onMoveCardInColumn,
+                reorderInColumnEnabled = reorderInColumnEnabled,
             )
         }
     }
@@ -90,7 +100,11 @@ private fun KanbanStatusColumn(
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
     onDeleteItem: (apiPath: String) -> Unit,
     onOpenItem: (KanbanCard) -> Unit,
+    onAddToColumn: (statusId: String, text: String) -> Unit,
+    onMoveCardInColumn: (columnCards: List<KanbanCard>, cardIndex: Int, up: Boolean) -> Unit,
+    reorderInColumnEnabled: Boolean,
 ) {
+    var newTaskText by remember(column.status.id) { mutableStateOf("") }
     Column(
         modifier =
             Modifier
@@ -134,21 +148,48 @@ private fun KanbanStatusColumn(
             }
         } else {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(bottom = 8.dp),
             ) {
-                items(column.cards, key = { "${column.status.id}-${it.index}" }) { card ->
+                itemsIndexed(column.cards, key = { _, card -> "${column.status.id}-${card.index}" }) { cardIndex, card ->
                     KanbanTaskCard(
                         card = card,
+                        cardIndex = cardIndex,
+                        columnCards = column.cards,
                         currentStatusId = column.status.id,
                         allStatuses = allStatuses,
                         moveEnabled = moveEnabled,
+                        reorderInColumnEnabled = reorderInColumnEnabled,
                         onMoveItem = onMoveItem,
                         onDeleteItem = onDeleteItem,
                         onOpenItem = onOpenItem,
+                        onMoveCardInColumn = onMoveCardInColumn,
                     )
                 }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedTextField(
+                value = newTaskText,
+                onValueChange = { newTaskText = it },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.kanban_add_task_hint)) },
+            )
+            IconButton(
+                onClick = {
+                    val trimmed = newTaskText.trim()
+                    if (trimmed.isNotEmpty()) {
+                        onAddToColumn(column.status.id, trimmed)
+                        newTaskText = ""
+                    }
+                },
+            ) {
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
             }
         }
     }
@@ -157,12 +198,16 @@ private fun KanbanStatusColumn(
 @Composable
 private fun KanbanTaskCard(
     card: KanbanCard,
+    cardIndex: Int,
+    columnCards: List<KanbanCard>,
     currentStatusId: String,
     allStatuses: List<TaskStatus>,
     moveEnabled: Boolean,
+    reorderInColumnEnabled: Boolean,
     onMoveItem: (apiPath: String, newStatusId: String) -> Unit,
     onDeleteItem: (apiPath: String) -> Unit,
     onOpenItem: (KanbanCard) -> Unit,
+    onMoveCardInColumn: (columnCards: List<KanbanCard>, cardIndex: Int, up: Boolean) -> Unit,
 ) {
     var menuExpanded by remember(card.index) { mutableStateOf(false) }
     var showDeleteConfirm by remember(card.index) { mutableStateOf(false) }
@@ -227,6 +272,30 @@ private fun KanbanTaskCard(
                                 onOpenItem(card)
                             },
                         )
+                        if (reorderInColumnEnabled && cardIndex > 0) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.cd_move_item_up)) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.ArrowUpward, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onMoveCardInColumn(columnCards, cardIndex, true)
+                                },
+                            )
+                        }
+                        if (reorderInColumnEnabled && cardIndex < columnCards.lastIndex) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.cd_move_item_down)) },
+                                leadingIcon = {
+                                    Icon(Icons.Default.ArrowDownward, contentDescription = null)
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onMoveCardInColumn(columnCards, cardIndex, false)
+                                },
+                            )
+                        }
                         if (moveEnabled) {
                             moveTargets.forEach { target ->
                                 DropdownMenuItem(

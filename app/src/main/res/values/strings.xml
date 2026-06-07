@@ -272,6 +272,9 @@
     <string name="checklist_drag_reorder_description">Show a drag handle on checklist items to reorder by dragging (move up/down in the menu still works when off)</string>
     <string name="kanban_hide_empty_columns">Hide empty Kanban columns</string>
     <string name="kanban_hide_empty_columns_description">On project boards, hide status columns that have no tasks</string>
+    <string name="kanban_view_board">Board</string>
+    <string name="kanban_view_list">List</string>
+    <string name="kanban_add_task_hint">Add task…</string>
     <string name="note_list_preview">Note preview in list</string>
     <string name="note_list_preview_description">Show a short excerpt of each note under the title in the notes list</string>
     <string name="content_padding">Content padding</string>

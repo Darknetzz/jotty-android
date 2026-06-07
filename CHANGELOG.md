@@ -6,6 +6,16 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Kanban board / list toggle** — Project boards switch between the Kanban board and the tree/list view (inline edit, reorder) without losing Kanban when the status API is available.
+- **Kanban per-column add** — Each board column has an add field to create a task in that status.
+- **Kanban column reorder** — Card menu includes move up/down within the same column.
+
+### Changed
+
+- **New project tasks** — Top-level add-item and per-column add pass the column status to the server so new cards land in the intended column.
+
 ---
 
 ## [1.5.2] - 2026-06-08

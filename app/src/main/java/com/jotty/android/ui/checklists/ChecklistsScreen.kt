@@ -58,9 +58,11 @@ import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
-import com.jotty.android.util.visibleKanbanColumns
+import com.jotty.android.util.defaultKanbanItemStatus
+import com.jotty.android.util.moveKanbanCardInColumnRequest
 import com.jotty.android.util.moveChecklistItemDownRequest
 import com.jotty.android.util.moveChecklistItemUpRequest
+import com.jotty.android.util.visibleKanbanColumns
 import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -415,6 +417,7 @@ private fun ChecklistDetailScreen(
     var editingItemKey by remember(checklist.id) { mutableStateOf<String?>(null) }
     var taskStatuses by remember(checklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
     var canUseKanbanBoard by remember(checklist.id) { mutableStateOf(true) }
+    var projectView by remember(checklist.id) { mutableStateOf(KanbanProjectView.Board) }
     var selectedKanbanPath by remember(checklist.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
@@ -551,9 +554,18 @@ private fun ChecklistDetailScreen(
                     if (newItemText.isNotBlank()) {
                         scope.launch {
                             try {
+                                val defaultStatus =
+                                    if (isProject && canUseKanbanBoard) {
+                                        defaultKanbanItemStatus(taskStatuses)
+                                    } else {
+                                        null
+                                    }
                                 api.addChecklistItem(
                                     checklist.id,
-                                    com.jotty.android.data.api.AddItemRequest(text = newItemText),
+                                    com.jotty.android.data.api.AddItemRequest(
+                                        text = newItemText,
+                                        status = defaultStatus,
+                                    ),
                                 )
                                 newItemText = ""
                                 refresh()
@@ -611,24 +623,28 @@ private fun ChecklistDetailScreen(
         }
 
         if (isProject && canUseKanbanBoard) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                KanbanProjectViewToggle(
+                    view = projectView,
+                    onViewChange = { projectView = it },
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { showManageStatusesDialog = true }) {
+                    Text(stringResource(R.string.kanban_manage_statuses))
+                }
+            }
+        }
+
+        if (isProject && canUseKanbanBoard && projectView == KanbanProjectView.Board) {
             val columns =
                 remember(items, taskStatuses, kanbanHideEmptyColumns) {
                     buildKanbanColumns(items = items, statuses = taskStatuses)
                         .visibleKanbanColumns(kanbanHideEmptyColumns)
                 }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.kanban_board),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = { showManageStatusesDialog = true }) {
-                    Text(stringResource(R.string.kanban_manage_statuses))
-                }
-            }
             TaskKanbanBoard(
                 columns = columns,
                 allStatuses = taskStatuses,
@@ -662,6 +678,23 @@ private fun ChecklistDetailScreen(
                     }
                 },
                 onOpenItem = { card -> selectedKanbanPath = "${card.index}" },
+                onAddToColumn = { statusId, text ->
+                    scope.launch {
+                        try {
+                            api.addChecklistItem(
+                                checklist.id,
+                                com.jotty.android.data.api.AddItemRequest(text = text, status = statusId),
+                            )
+                            refresh()
+                        } catch (_: Exception) {
+                            onSaveFailed()
+                        }
+                    }
+                },
+                onMoveCardInColumn = { columnCards, cardIndex, up ->
+                    val request = moveKanbanCardInColumnRequest(columnCards, cardIndex, up) ?: return@TaskKanbanBoard
+                    applyDragReorder(request)
+                },
             )
             selectedKanbanPath?.let { path ->
                 val detailItem = itemAtPath(items, path)
@@ -700,7 +733,9 @@ private fun ChecklistDetailScreen(
                     LaunchedEffect(path) { selectedKanbanPath = null }
                 }
             }
-        } else {
+        }
+
+        if (!isProject || !canUseKanbanBoard || projectView == KanbanProjectView.List) {
             if (isProject && !canUseKanbanBoard) {
                 Text(
                     text = stringResource(R.string.kanban_not_supported_fallback),

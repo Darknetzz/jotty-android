@@ -60,6 +60,8 @@ import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
+import com.jotty.android.util.defaultKanbanItemStatus
+import com.jotty.android.util.moveKanbanCardInColumnRequest
 import com.jotty.android.util.visibleKanbanColumns
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -588,6 +590,7 @@ private fun OfflineChecklistDetailContent(
     var editingItemKey by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
     var taskStatuses by remember(liveChecklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
     var canUseKanbanBoard by remember(liveChecklist.id) { mutableStateOf(true) }
+    var projectView by remember(liveChecklist.id) { mutableStateOf(KanbanProjectView.Board) }
     var selectedKanbanPath by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val discardConfirmMessage =
@@ -765,8 +768,20 @@ private fun OfflineChecklistDetailContent(
                             if (newItemText.isNotBlank()) {
                                 val text = newItemText
                                 newItemText = ""
+                                val defaultStatus =
+                                    if (isProject && canUseKanbanBoard) {
+                                        defaultKanbanItemStatus(taskStatuses)
+                                    } else {
+                                        null
+                                    }
                                 scope.launch {
-                                    handleResult(offlineRepository.addItem(liveChecklist.id, text))
+                                    handleResult(
+                                        offlineRepository.addItem(
+                                            liveChecklist.id,
+                                            text,
+                                            status = defaultStatus,
+                                        ),
+                                    )
                                 }
                             }
                         },
@@ -777,8 +792,20 @@ private fun OfflineChecklistDetailContent(
                     if (newItemText.isNotBlank()) {
                         val text = newItemText
                         newItemText = ""
+                        val defaultStatus =
+                            if (isProject && canUseKanbanBoard) {
+                                defaultKanbanItemStatus(taskStatuses)
+                            } else {
+                                null
+                            }
                         scope.launch {
-                            handleResult(offlineRepository.addItem(liveChecklist.id, text))
+                            handleResult(
+                                offlineRepository.addItem(
+                                    liveChecklist.id,
+                                    text,
+                                    status = defaultStatus,
+                                ),
+                            )
                         }
                     }
                 },
@@ -801,20 +828,16 @@ private fun OfflineChecklistDetailContent(
         }
 
         if (isProject && canUseKanbanBoard) {
-            val columns =
-                remember(items, taskStatuses, kanbanHideEmptyColumns) {
-                    buildKanbanColumns(items = items, statuses = taskStatuses)
-                        .visibleKanbanColumns(kanbanHideEmptyColumns)
-                }
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    text = stringResource(R.string.kanban_board),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
+                KanbanProjectViewToggle(
+                    view = projectView,
+                    onViewChange = { projectView = it },
                 )
+                Spacer(modifier = Modifier.weight(1f))
                 TextButton(
                     onClick = { showManageStatusesDialog = true },
                     enabled = isOnline,
@@ -822,6 +845,14 @@ private fun OfflineChecklistDetailContent(
                     Text(stringResource(R.string.kanban_manage_statuses))
                 }
             }
+        }
+
+        if (isProject && canUseKanbanBoard && projectView == KanbanProjectView.Board) {
+            val columns =
+                remember(items, taskStatuses, kanbanHideEmptyColumns) {
+                    buildKanbanColumns(items = items, statuses = taskStatuses)
+                        .visibleKanbanColumns(kanbanHideEmptyColumns)
+                }
             if (!isOnline) {
                 Text(
                     text = stringResource(R.string.kanban_move_online_only),
@@ -861,6 +892,23 @@ private fun OfflineChecklistDetailContent(
                     }
                 },
                 onOpenItem = { card -> selectedKanbanPath = "${card.index}" },
+                onAddToColumn = { statusId, text ->
+                    scope.launch {
+                        handleResult(
+                            offlineRepository.addItem(
+                                liveChecklist.id,
+                                text,
+                                status = statusId,
+                            ),
+                        )
+                    }
+                },
+                onMoveCardInColumn = { columnCards, cardIndex, up ->
+                    val request = moveKanbanCardInColumnRequest(columnCards, cardIndex, up) ?: return@TaskKanbanBoard
+                    scope.launch {
+                        handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
+                    }
+                },
             )
             selectedKanbanPath?.let { path ->
                 val detailItem = itemAtPath(items, path)
@@ -901,7 +949,9 @@ private fun OfflineChecklistDetailContent(
                     LaunchedEffect(path) { selectedKanbanPath = null }
                 }
             }
-        } else {
+        }
+
+        if (!isProject || !canUseKanbanBoard || projectView == KanbanProjectView.List) {
             if (isProject && !canUseKanbanBoard) {
                 Text(
                     text = stringResource(R.string.kanban_not_supported_fallback),

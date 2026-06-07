@@ -20,12 +20,26 @@ Older stable Jotty installs without PATCH still work for leaf renames; parent re
 | Status API 404/405 | Kanban board hidden; checklist detail uses **list/tree** UI (`kanban_not_supported_fallback`). |
 | `PUT /api/tasks/{taskId}/items/{index}/status` | Move card between columns (online; offline shows move hint). |
 | `DELETE /api/checklists/{id}/items/{index}` | Delete task from kanban card menu or list rows. |
+| Tap Kanban card | Opens **item detail** (title, description, subtasks, status); see Kanban item fields below. |
+
+## Kanban item fields
+
+| Field | REST GET | REST PATCH | Android behavior |
+|-------|----------|------------|------------------|
+| Title (`text`) | Yes | Yes | Editable in item detail |
+| Description | **No** (write-only PATCH) | Yes | Editable; banner when server does not return saved text |
+| Subtasks (`children`) | Yes | Via item CRUD + check/uncheck | Full CRUD in item detail |
+| Status (column) | Yes | `PUT /api/tasks/…/items/…/status` | Status picker in detail (online) |
+| Priority, score, target date, estimated time | **No** | **No** | Disabled placeholders until upstream ships ([proposal](upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md)) |
+| Item metadata (created/modified, status history) | **No** | **No** | Disabled placeholder until upstream ships |
+
+See [upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md](upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md) for the requested Jotty server expansion.
 
 ## Notes
 
 - Encrypted notes (XChaCha20) match the Jotty web format; PGP notes are view-only in-app.
 - Note images: relative URLs such as `/api/image/...` are resolved against the instance base URL (RFC 3986) before Markdown render; HTML `<img src>` attributes are rewritten too. Absolute Jotty media URLs that use a different host than the configured instance (e.g. LAN IP vs hostname) are rewritten to the instance origin.
-- **Image authentication:** Jotty’s `/api/image/` and `/api/file/` routes authenticate via **browser session cookies**, not `x-api-key`. The Android app sends `x-api-key` on same-origin media requests, but **standard Jotty server versions return HTTP 401** for private images unless `SERVE_PUBLIC_IMAGES=yes` is set on the server. Notes/checklists API calls are unaffected. Upstream Jotty would need API-key support on media routes for private images to load in-app without that env var.
+- **Image authentication:** Jotty’s `/api/image/` and `/api/file/` routes authenticate via **browser session cookies**, not `x-api-key`. The Android app sends `x-api-key` on same-origin media requests, but **standard Jotty server versions return HTTP 401** for private images unless `SERVE_PUBLIC_IMAGES=yes` is set on the server. Notes/checklists API calls are unaffected. Upstream Jotty would need API-key support on media routes for private images to load in-app without that env var. When image auth fails, note detail shows a dismissible banner (same condition as above).
 
 ## In-app signals
 

@@ -8,6 +8,33 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ---
 
+## [1.5.2] - 2026-06-08
+
+### Fixed
+
+- **Checklists** — Server PATCH compatibility banner lays out message and Close side by side instead of overlapping.
+- **Manage instances** — The default-instance star hint is shown only on the instance list, not while adding or editing an instance.
+- **Manage instances** — Removed a clipped “Default” chip that appeared beside the instance name when setting the default instance (the filled star already indicates default).
+- **Connect / setup** — A wrong API key is now caught when connecting an instance (shown as “Invalid API key”) instead of appearing to connect and only failing with an “Unauthorized” error on the Checklists/Notes screens afterwards.
+
+### Changed
+
+- **New note** — Create dialog asks for title and category only; body is edited after opening the note (shared text into the app still becomes note content).
+- **Connect / setup** — Server URL uses an http/https dropdown beside the host field; pasting a full URL into the host field moves the scheme into the dropdown automatically; the scheme menu no longer wraps `https://` across two lines.
+
+### Added
+
+- **Kanban item detail** — Tap a project board card to edit the task title, description (save to server), status, and subtasks (add, rename, check, delete). Subtask edit/delete use icon buttons; cancel or save while renaming. Priority, score, target date, estimated time, and item metadata show as placeholders until the Jotty REST API exposes them ([#52](https://github.com/Darknetzz/jotty-android/issues/52)).
+- **Kanban status chips** — Status options in task detail show the same colored dots as the board columns.
+- **Note image auth banner** — When a note contains Jotty-hosted images and the server returns HTTP 401/403 (private media without `SERVE_PUBLIC_IMAGES=yes`), note detail shows a dismissible banner explaining the server setting; the banner clears after images load successfully.
+
+### Documentation
+
+- **Kanban item API proposal** — [docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md](docs/upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md) and compatibility notes for upstream Jotty server fields.
+
+
+---
+
 ## [1.5.1] - 2026-06-03
 
 ### Changed
@@ -18,7 +45,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Documentation
 
 - **README** — Expanded feature list, centered screenshot gallery (no empty table cell), checklist offline notes, and build requirements (min SDK, Gradle version).
-- **README screenshots** — Replaced gallery with v1.5.0 demo captures in `images/readme-*.png`; single HTML table for reliable dark/light layout on GitHub; added [docs/README_SCREENSHOTS.md](docs/README_SCREENSHOTS.md) for capture notes.
+- **README screenshots** — Replaced gallery with v1.5.0 demo captures in `images/readme-*.png`; single HTML table for reliable dark/light layout on GitHub; full dark/light pairs for all screens; added [docs/README_SCREENSHOTS.md](docs/README_SCREENSHOTS.md) for capture notes.
 
 ### Added
 
@@ -873,3 +900,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.5.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.0
 
 [1.5.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.1
+
+[1.5.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.2

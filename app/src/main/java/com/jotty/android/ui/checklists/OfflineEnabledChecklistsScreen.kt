@@ -35,6 +35,7 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineChecklistsRepository
+import com.jotty.android.data.local.itemAtPath
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.ConfirmDiscardPendingSyncDialog
@@ -587,6 +588,7 @@ private fun OfflineChecklistDetailContent(
     var editingItemKey by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
     var taskStatuses by remember(liveChecklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
     var canUseKanbanBoard by remember(liveChecklist.id) { mutableStateOf(true) }
+    var selectedKanbanPath by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val discardConfirmMessage =
         if (discardConfirmIsLocalOnly) {
@@ -858,7 +860,47 @@ private fun OfflineChecklistDetailContent(
                         handleResult(offlineRepository.deleteItem(liveChecklist.id, apiPath))
                     }
                 },
+                onOpenItem = { card -> selectedKanbanPath = "${card.index}" },
             )
+            selectedKanbanPath?.let { path ->
+                val detailItem = itemAtPath(items, path)
+                if (detailItem != null) {
+                    KanbanItemDetailScreen(
+                        item = detailItem,
+                        itemPath = path,
+                        taskStatuses = taskStatuses,
+                        statusMoveEnabled = isOnline,
+                        actions =
+                            OfflineKanbanItemActions(
+                                offlineRepository = offlineRepository,
+                                checklistId = liveChecklist.id,
+                                itemPath = path,
+                                items = { items },
+                                onChecklistUpdated = { updated -> onUpdate(updated) },
+                                moveToStatusOnline =
+                                    if (isOnline) {
+                                        { statusId ->
+                                            runCatching {
+                                                api.updateTaskItemStatus(
+                                                    liveChecklist.id,
+                                                    path,
+                                                    UpdateTaskItemStatusRequest(status = statusId),
+                                                )
+                                                offlineRepository.syncChecklists(force = true).getOrThrow()
+                                            }
+                                        }
+                                    } else {
+                                        null
+                                    },
+                            ),
+                        onDismiss = { selectedKanbanPath = null },
+                        onDeleted = { selectedKanbanPath = null },
+                        onError = onSaveFailed,
+                    )
+                } else {
+                    LaunchedEffect(path) { selectedKanbanPath = null }
+                }
+            }
         } else {
             if (isProject && !canUseKanbanBoard) {
                 Text(

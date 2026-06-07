@@ -77,6 +77,23 @@
     <string name="kanban_status_auto_complete">Auto complete</string>
     <string name="kanban_move_online_only">Connect to your server to move tasks between Kanban columns.</string>
     <string name="kanban_not_supported_fallback">Kanban columns are not available on this server yet. Showing checklist view instead.</string>
+    <string name="kanban_item_detail_title">Edit task</string>
+    <string name="kanban_item_description">Description</string>
+    <string name="kanban_item_description_placeholder">No description</string>
+    <string name="kanban_item_description_server_limit">Descriptions saved on the server may not appear here until your Jotty server exposes them in the API.</string>
+    <string name="kanban_item_description_saved_local">Description saved; it may not reload from the server yet.</string>
+    <string name="kanban_item_save_description">Save description</string>
+    <string name="kanban_item_status">Status</string>
+    <string name="kanban_item_subtasks">Subtasks</string>
+    <string name="kanban_item_subtasks_empty">No subtasks yet. Add one below to get started.</string>
+    <string name="kanban_item_add_subtask_hint">Add a subtask…</string>
+    <string name="kanban_item_priority">Priority</string>
+    <string name="kanban_item_score">Score</string>
+    <string name="kanban_item_target_date">Target date</string>
+    <string name="kanban_item_estimated_time">Estimated time (hours)</string>
+    <string name="kanban_item_metadata">Metadata</string>
+    <string name="kanban_item_field_requires_server">Requires a newer Jotty server with Kanban item fields in the REST API.</string>
+    <string name="kanban_item_field_unavailable">Not available on this server</string>
     <string name="done_progress">%1$d / %2$d done</string>
     <string name="progress_fraction">%1$d / %2$d</string>
     <string name="section_to_do">• To Do (%1$d)</string>
@@ -120,7 +137,6 @@
     <string name="category">Category</string>
     <string name="cd_choose_category">Choose category</string>
     <string name="change_category">Change category</string>
-    <string name="note_content_optional">Content (optional)</string>
     <string name="cd_sort">Sort</string>
     <string name="sort_updated">Last updated</string>
     <string name="sort_created">Date created</string>
@@ -150,6 +166,7 @@
     <string name="use_web_app_to_decrypt">Use the Jotty web app to decrypt this note.</string>
     <string name="pgp_not_supported_short">PGP decryption is not supported in the app. Use the Jotty web app.</string>
     <string name="legacy_encryption_warning">This note uses a legacy encryption payload format. Re-encrypt and save it to restore web compatibility.</string>
+    <string name="note_images_auth_blocked_banner">Images from your Jotty server could not be loaded in the app. On the server, set SERVE_PUBLIC_IMAGES=yes (see Jotty Docker docs). The web app may still show them using your browser session.</string>
 
     <!-- Setup -->
     <string name="connect_to_jotty">Connect to Jotty</string>
@@ -159,8 +176,9 @@
     <string name="name">Name</string>
     <string name="name_placeholder">e.g. Work, Personal</string>
     <string name="server_url">Server URL</string>
-    <string name="server_url_placeholder">https://jotty.example.com</string>
-    <string name="server_url_hint">Include http:// or https:// (e.g. http://192.168.1.10:8080 for a local server). HTTPS is recommended on untrusted networks.</string>
+    <string name="cd_choose_server_scheme">Choose http or https</string>
+    <string name="server_url_placeholder">jotty.example.com</string>
+    <string name="server_url_hint">Choose http or https, then enter the host (and port if needed, e.g. 192.168.1.10:8080 for a local server). HTTPS is recommended on untrusted networks. You can also paste a full URL into the host field.</string>
     <string name="api_key">API Key</string>
     <string name="api_key_placeholder">ck_…</string>
     <string name="api_key_setup_hint">Jotty Android uses an API key instead of your account password. Log in to Jotty in a browser, open Profile &gt; Settings, generate an API key, then paste it here.</string>
@@ -316,7 +334,6 @@
     <string name="manage_instances">Manage instances</string>
     <string name="manage_instances_description">Add, edit, or remove saved Jotty servers</string>
     <string name="manage_instances_default_hint">Tap the star to choose which instance opens when you launch the app.</string>
-    <string name="instance_default_chip">Default</string>
     <string name="disconnect">Disconnect</string>
     <string name="disconnect_description">Switch to another instance (this one is saved)</string>
     <string name="about">About</string>
@@ -347,7 +364,7 @@
     <string name="update_version_downgrade_blocked">This build has an older version code than your installed app. Uninstall once, then install from the release page.</string>
     <string name="update_dev_on_stable_channel_hint">You are on a dev build. Stable updates may show as available but cannot install over dev until you uninstall and install the stable APK from GitHub releases.</string>
     <string name="update_dev_to_stable_downgrade_blocked">This stable release cannot replace your dev build (version code). Uninstall the dev app once, then install the stable APK from GitHub releases.</string>
-    <string name="server_patch_limited_banner">This Jotty server does not support checklist item PATCH. Leaf edits use a slower sync; renaming items with subtasks needs a newer Jotty server.</string>
+    <string name="server_patch_limited_banner">This server does not support checklist item PATCH. Leaf edits still sync, but more slowly. Renaming items that have subtasks needs a newer Jotty server.</string>
     <string name="update_dev_channel_hint">Dev builds are bleeding edge and may contain bugs.</string>
     <string name="open_release_page">Open release page</string>
     <string name="whats_new">What\'s new</string>

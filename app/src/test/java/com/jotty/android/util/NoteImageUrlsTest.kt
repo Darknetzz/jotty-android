@@ -1,6 +1,8 @@
 package com.jotty.android.util
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NoteImageUrlsTest {
@@ -94,5 +96,14 @@ class NoteImageUrlsTest {
         val html = """<img src="/api/image/bob/cat.png" alt="Cat">"""
         val result = prepareNoteContentForDisplay(html, "https://notes.example.com")
         assertEquals("![Cat](https://notes.example.com/api/image/bob/cat.png)", result)
+    }
+
+    @Test
+    fun noteContainsJottyMediaUrls_detectsMarkdownAndHtml() {
+        assertTrue(noteContainsJottyMediaUrls("![x](/api/image/1)"))
+        assertTrue(noteContainsJottyMediaUrls("""<img src="/api/image/a.png">"""))
+        assertTrue(noteContainsJottyMediaUrls("file at /api/file/doc.pdf"))
+        assertFalse(noteContainsJottyMediaUrls("![x](https://cdn.example.com/p.png)"))
+        assertFalse(noteContainsJottyMediaUrls("plain text"))
     }
 }

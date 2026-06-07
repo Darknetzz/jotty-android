@@ -3,7 +3,6 @@ package com.jotty.android.ui.notes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -21,7 +20,8 @@ import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.ui.common.CategorySelector
 
 /**
- * Dialog for creating a note with a title, optional initial content, and category.
+ * Dialog for creating a note with a title and category.
+ * [initialContent] is applied on create (e.g. text shared into the app) without a content field in the form.
  * Reused by the online and offline notes screens.
  */
 @Composable
@@ -33,7 +33,6 @@ fun CreateNoteDialog(
     initialContent: String = "",
 ) {
     var title by remember { mutableStateOf(initialTitle) }
-    var content by remember { mutableStateOf(initialContent) }
     var category by remember { mutableStateOf("") }
     val untitled = stringResource(R.string.untitled)
 
@@ -49,14 +48,6 @@ fun CreateNoteDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
-                OutlinedTextField(
-                    value = content,
-                    onValueChange = { content = it },
-                    label = { Text(stringResource(R.string.note_content_optional)) },
-                    placeholder = { Text(stringResource(R.string.write_your_note)) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 96.dp),
-                    minLines = 3,
-                )
                 CategorySelector(
                     category = category,
                     onCategoryChange = { category = it },
@@ -69,7 +60,7 @@ fun CreateNoteDialog(
                 onClick = {
                     onCreate(
                         title.ifBlank { untitled },
-                        content,
+                        initialContent,
                         category.ifBlank { API_CATEGORY_UNCATEGORIZED },
                     )
                 },

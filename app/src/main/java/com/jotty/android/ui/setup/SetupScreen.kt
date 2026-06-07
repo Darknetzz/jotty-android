@@ -36,9 +36,11 @@ import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.InlineAlert
 import com.jotty.android.ui.common.InlineAlertVariant
+import com.jotty.android.ui.common.ServerUrlInputField
 import com.jotty.android.ui.common.accentColor
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.browserUrlFromServerUrl
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -64,6 +66,9 @@ fun SetupScreen(
         }
     }
 
+    var instanceToEdit by remember { mutableStateOf<JottyInstance?>(null) }
+    val showingInstanceList = standaloneMode && instanceToEdit == null && !showAddForm
+
     Column(
         modifier =
             Modifier
@@ -79,13 +84,13 @@ fun SetupScreen(
                     },
                 ),
     ) {
-        if (standaloneMode) {
+        if (showingInstanceList) {
             Text(
                 text = stringResource(R.string.manage_instances_default_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        } else {
+        } else if (!standaloneMode) {
             Spacer(modifier = Modifier.height(24.dp))
             Text(
                 text = stringResource(R.string.connect_to_jotty),
@@ -102,7 +107,6 @@ fun SetupScreen(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        var instanceToEdit by remember { mutableStateOf<JottyInstance?>(null) }
         if (instanceToEdit != null) {
             InstanceForm(
                 initialInstance = instanceToEdit,
@@ -233,24 +237,11 @@ private fun InstanceCard(
             }
             Icon(Icons.Default.Link, contentDescription = stringResource(R.string.cd_link))
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = instance.name,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    if (isDefault) {
-                        AssistChip(
-                            onClick = {},
-                            label = { Text(stringResource(R.string.instance_default_chip)) },
-                            enabled = false,
-                            modifier = Modifier.height(24.dp),
-                        )
-                    }
-                }
+                Text(
+                    text = instance.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
                 Text(
                     text = instance.serverUrl,
                     style = MaterialTheme.typography.bodySmall,
@@ -345,23 +336,14 @@ private fun InstanceForm(
             color = MaterialTheme.colorScheme.primary,
         )
         Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
+        ServerUrlInputField(
             value = serverUrl,
             onValueChange = {
                 serverUrl = it
                 error = null
             },
-            label = { Text(stringResource(R.string.server_url)) },
-            placeholder = { Text(stringResource(R.string.server_url_placeholder)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
             isError = error == fillUrlAndKeyMsg,
-        )
-        Text(
-            text = stringResource(R.string.server_url_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp),
+            resetKey = initialInstance?.id,
         )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
@@ -514,6 +496,9 @@ private fun InstanceForm(
 
                             val api = ApiClient.create(url, key)
                             api.health()
+                            // health() is unauthenticated; verify the API key with an
+                            // authenticated endpoint so a wrong key fails here instead of later.
+                            api.getSummary()
 
                             val instance =
                                 JottyInstance(
@@ -555,9 +540,4 @@ private fun InstanceForm(
             }
         }
     }
-}
-
-private fun browserUrlFromServerUrl(serverUrl: String): String {
-    val trimmed = serverUrl.trim().trimEnd('/')
-    return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed else "https://$trimmed"
 }

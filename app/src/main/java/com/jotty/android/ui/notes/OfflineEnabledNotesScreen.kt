@@ -61,6 +61,7 @@ fun OfflineEnabledNotesScreen(
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
+    serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
 ) {
@@ -410,6 +411,7 @@ fun OfflineEnabledNotesScreen(
                         onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
                         imageLoader = imageLoader,
                         jottyServerUrl = jottyServerUrl,
+                        serverCapabilitiesKey = serverCapabilitiesKey,
                         isOnline = isOnline,
                         onRetrySync = { requestSync(showLoading = true) },
                         biometricStore = biometricStore,

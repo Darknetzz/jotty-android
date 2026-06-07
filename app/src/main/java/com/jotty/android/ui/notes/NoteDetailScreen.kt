@@ -74,6 +74,7 @@ internal fun NoteDetailScreen(
     modifier: Modifier = Modifier,
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
+    serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
     biometricSaveOfferEnabled: Boolean = true,
@@ -405,6 +406,16 @@ internal fun NoteDetailScreen(
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                 )
                             }
+                        }
+                        serverCapabilitiesKey?.let { key ->
+                            NoteImageAuthBanner(
+                                capabilitiesKey = key,
+                                noteContent = viewContent,
+                                modifier =
+                                    Modifier
+                                        .padding(horizontal = 16.dp)
+                                        .padding(bottom = 8.dp),
+                            )
                         }
                         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                             NoteView(

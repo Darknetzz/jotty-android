@@ -54,4 +54,17 @@ private suspend fun legacyRenameLeafItem(
     if (item.completed) api.checkItem(listId, newPath)
 }
 
+/**
+ * Updates checklist item description via PATCH. Description is not returned on GET by most servers yet;
+ * callers should keep a local draft when needed.
+ */
+suspend fun updateChecklistItemDescription(
+    api: JottyApi,
+    listId: String,
+    path: String,
+    description: String,
+) {
+    api.updateItem(listId, path, UpdateItemRequest(description = description))
+}
+
 private val UNSUPPORTED_PATCH_CODES = setOf(404, 405)

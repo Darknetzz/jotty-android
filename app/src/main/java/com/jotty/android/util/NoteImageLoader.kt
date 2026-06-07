@@ -32,13 +32,15 @@ fun createNoteImageLoader(
     context: Context,
     baseUrl: String?,
     apiKey: String?,
+    capabilitiesKey: String? = null,
 ): ImageLoader {
     if (baseUrl.isNullOrBlank() || apiKey.isNullOrBlank()) {
         return ImageLoader.Builder(context.applicationContext).build()
     }
     val normalizedBase = ApiClient.normalizeBaseUrl(baseUrl)
-    val key = "$normalizedBase|$apiKey"
+    val key = "$normalizedBase|$apiKey|${capabilitiesKey.orEmpty()}"
     loaderCache[key]?.let { return it }
+    val instanceKey = capabilitiesKey
     val jottyOrigin =
         try {
             URI(normalizedBase)
@@ -57,12 +59,24 @@ fun createNoteImageLoader(
                         request
                     }
                 val response = chain.proceed(newRequest)
-                if (!response.isSuccessful && isJottyMediaPath(requestUrl.encodedPath)) {
-                    AppLog.w(
-                        "notes",
-                        "Note image HTTP ${response.code} for ${requestUrl.redactApiKey()}" +
-                            " (Jotty media routes may require a server with API-key image auth or SERVE_PUBLIC_IMAGES)",
-                    )
+                if (isJottyMediaPath(requestUrl.encodedPath)) {
+                    if (response.isSuccessful) {
+                        if (!instanceKey.isNullOrBlank()) {
+                            ServerCapabilities.clearPrivateImagesAuthBlocked(instanceKey)
+                        }
+                    } else {
+                        if (
+                            !instanceKey.isNullOrBlank() &&
+                                ServerCapabilities.isPrivateImagesAuthBlockedHttpCode(response.code)
+                        ) {
+                            ServerCapabilities.markPrivateImagesAuthBlocked(instanceKey)
+                        }
+                        AppLog.w(
+                            "notes",
+                            "Note image HTTP ${response.code} for ${requestUrl.redactApiKey()}" +
+                                " (Jotty media routes may require a server with API-key image auth or SERVE_PUBLIC_IMAGES)",
+                        )
+                    }
                 }
                 response
             }

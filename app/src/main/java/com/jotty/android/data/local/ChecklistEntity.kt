@@ -132,6 +132,7 @@ fun applyOpToItems(
                 updateAtPath(items, path) { item ->
                     item.copy(
                         text = op.text ?: item.text,
+                        description = op.description ?: item.description,
                     )
                 }
             } ?: items

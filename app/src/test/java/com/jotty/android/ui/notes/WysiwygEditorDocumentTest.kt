@@ -15,9 +15,8 @@ class WysiwygEditorDocumentTest {
                 borderColor = 0xFFCCCCCC.toInt(),
             )
         assertTrue(doc.contains("INITIAL_CONTENT"))
-        // JSONObject.quote may escape '<' as \\u003c in the embedded JS string.
-        assertTrue(doc.contains("test"))
-        assertTrue(doc.contains("Cell"))
+        assertTrue(doc.contains("<h1>test</h1>"))
+        assertTrue(doc.contains("<table>"))
         assertTrue(doc.contains("contenteditable"))
         assertTrue(doc.contains("setEditorTheme"))
     }

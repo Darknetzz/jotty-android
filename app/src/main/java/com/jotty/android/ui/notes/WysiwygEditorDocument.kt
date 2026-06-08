@@ -1,7 +1,5 @@
 package com.jotty.android.ui.notes
 
-import org.json.JSONObject
-
 /**
  * Builds a self-contained HTML document for the note WYSIWYG editor.
  * Content is embedded in the page (not fetched via [JavascriptInterface]) because
@@ -13,7 +11,7 @@ internal fun buildWysiwygEditorDocument(
     textColor: Int,
     borderColor: Int,
 ): String {
-    val initialContentJs = JSONObject.quote(bodyHtml.ifBlank { "<p><br></p>" })
+    val initialContentJs = escapeForJsString(bodyHtml.ifBlank { "<p><br></p>" })
     return """
         <!DOCTYPE html>
         <html>
@@ -110,4 +108,23 @@ internal fun buildWysiwygEditorDocument(
         </body>
         </html>
         """.trimIndent()
+}
+
+/** JSON-style string literal for embedding HTML in a `<script>` block. */
+internal fun escapeForJsString(value: String): String {
+    val safe = value.replace("</script>", "<\\/script>", ignoreCase = true)
+    return buildString(safe.length + 2) {
+        append('"')
+        for (ch in safe) {
+            when (ch) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> append(ch)
+            }
+        }
+        append('"')
+    }
 }

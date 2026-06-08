@@ -150,10 +150,55 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
-    fun `prepareNoteContentForDisplay preserves html body on save path`() {
-        val raw = "<table><tr><td>A</td></tr></table>"
-        assertTrue(noteContentContainsRawHtml(raw))
-        val displayed = prepareNoteContentForDisplay(raw, "https://jotty.example.com")
-        assertFalse(displayed.contains("<table"))
+    fun `separateMarkdownHeadingsFromTables splits merged heading and table row`() {
+        val broken = "# test| Navn | asd | Kommentar |\n| --- | --- | --- |"
+        val fixed = separateMarkdownHeadingsFromTables(broken)
+        assertTrue(fixed.startsWith("# test\n\n| Navn"))
+    }
+
+    @Test
+    fun `convertHtmlStructuralElementsToMarkdown converts heading and table wrapper`() {
+        val html = "<h1>test</h1><table><tr><th>Navn</th><th>asd</th></tr><tr><td>a</td><td>b</td></tr></table>"
+        val md = convertHtmlStructuralElementsToMarkdown(html)
+        assertTrue(md.contains("# test"))
+        assertTrue(md.contains("<table"))
+    }
+
+    @Test
+    fun `prepareNoteContentForDisplay renders html heading before gfm table`() {
+        val html = "<p># test</p><table><tr><th>Navn</th><th>asd</th></tr><tr><td>sada</td><td>123</td></tr></table>"
+        val displayed = prepareNoteContentForDisplay(html, null)
+        assertTrue(displayed.contains("# test"))
+        assertTrue(displayed.contains("| Navn |"))
+        assertTrue(displayed.contains("| --- |"))
+        assertFalse(displayed.contains("# test|"))
+    }
+
+    @Test
+    fun `convertGfmTablesToHtml converts pipe table`() {
+        val md =
+            """
+            | Navn | asd |
+            | --- | --- |
+            | sada | 123 |
+            """.trimIndent()
+        val html = convertGfmTablesToHtml(md)
+        assertTrue(html.contains("<table"))
+        assertTrue(html.contains("<th>Navn</th>"))
+        assertTrue(html.contains("<td>sada</td>"))
+    }
+
+    @Test
+    fun `prepareNoteContentForWysiwyg converts markdown table to html`() {
+        val md =
+            """
+            # test
+            | Navn | asd |
+            | --- | --- |
+            | sada | 123 |
+            """.trimIndent()
+        val html = prepareNoteContentForWysiwyg(md)
+        assertTrue(html.contains("<h1>test</h1>"))
+        assertTrue(html.contains("<table"))
     }
 }

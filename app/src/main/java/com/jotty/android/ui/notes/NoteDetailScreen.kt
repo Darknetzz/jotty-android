@@ -73,6 +73,7 @@ import com.jotty.android.util.isArchivedCategory
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.util.formatNoteDate
 import com.jotty.android.util.noteContentContainsRawHtml
+import com.jotty.android.util.noteNeedsRichEditor
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -514,8 +515,7 @@ internal fun NoteDetailScreen(
                     )
                 isEditing -> {
                     val editBody = if (isEncrypted) decryptedContent.orEmpty() else content
-                    val useRichEditor =
-                        richEditorEnabled || noteContentContainsRawHtml(editBody)
+                    val useRichEditor = richEditorEnabled || noteNeedsRichEditor(editBody)
                     if (useRichEditor) {
                         WysiwygNoteEditor(
                             title = title,

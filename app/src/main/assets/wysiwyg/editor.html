@@ -2,60 +2,40 @@
 <html>
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
 <style>
-  html, body { height: 100%; margin: 0; }
-  body {
-    font-family: sans-serif;
-    padding: 8px;
-    color: #111;
-    background: #fff;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-  }
-  #toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 8px;
-    flex-shrink: 0;
-  }
-  button {
-    padding: 6px 10px;
-    border: 1px solid #ccc;
-    background: #f5f5f5;
-    border-radius: 4px;
-    font-size: 14px;
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
   }
   #editor {
-    flex: 1;
-    min-height: 240px;
+    height: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 12px 8px 16px;
     outline: none;
     line-height: 1.5;
+    font-size: 16px;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    word-wrap: break-word;
   }
   table { border-collapse: collapse; width: 100%; margin: 8px 0; }
   td, th { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
   img { max-width: 100%; height: auto; }
+  h1, h2, h3 { margin: 0.6em 0 0.3em; line-height: 1.25; }
+  p { margin: 0.4em 0; }
   @media (prefers-color-scheme: dark) {
-    body { color: #eee; background: #121212; }
-    button { background: #2a2a2a; border-color: #444; color: #eee; }
+    #editor { color: #eee; }
     td, th { border-color: #555; }
   }
 </style>
 </head>
 <body>
-<div id="toolbar">
-  <button type="button" onclick="cmd('bold')"><b>B</b></button>
-  <button type="button" onclick="cmd('italic')"><i>I</i></button>
-  <button type="button" onclick="cmd('insertUnorderedList')">• List</button>
-  <button type="button" onclick="cmd('insertOrderedList')">1. List</button>
-  <button type="button" onclick="insertLink()">Link</button>
-  <button type="button" onclick="insertTable()">Table</button>
-  <button type="button" onclick="cmd('formatBlock','H2')">H2</button>
-</div>
 <div id="editor" contenteditable="true"></div>
 <script>
   function cmd(command, value) {
@@ -67,7 +47,7 @@
     if (url) { cmd('createLink', url); }
   }
   function insertTable() {
-    var html = '<table><tr><th>Header</th></tr><tr><td>Cell</td></tr></table><p></p>';
+    var html = '<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Cell</td></tr></tbody></table><p></p>';
     cmd('insertHTML', html);
   }
   function setContent(html) {

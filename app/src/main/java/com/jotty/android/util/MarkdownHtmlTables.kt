@@ -12,7 +12,10 @@ fun convertHtmlTablesToGfm(markdown: String): String {
         return markdown
     }
     val tablePattern = Regex("""<table\b[^>]*>.*?</table>""", regexDotIgnoreCase)
-    return tablePattern.replace(markdown) { match -> htmlTableToGfm(match.value) }
+    return tablePattern
+        .replace(markdown) { match ->
+            "\n\n${htmlTableToGfm(match.value)}\n\n"
+        }.replace(Regex("""\n{3,}"""), "\n\n")
 }
 
 /**
@@ -252,3 +255,166 @@ private fun codePointToString(codePoint: Int): String? {
     if (codePoint in 0xD800..0xDFFF) return null
     return String(Character.toChars(codePoint))
 }
+
+private val htmlHeadingPattern =
+    Regex("""<h([1-6])\b[^>]*>(.*?)</h\1>""", regexDotIgnoreCase)
+private val htmlParagraphPattern =
+    Regex("""<p\b[^>]*>(.*?)</p>""", regexDotIgnoreCase)
+private val htmlDivPattern =
+    Regex("""<div\b[^>]*>(.*?)</div>""", regexDotIgnoreCase)
+private val htmlStrikePattern =
+    Regex("""<(?:strike|s|del)\b[^>]*>(.*?)</(?:strike|s|del)>""", regexDotIgnoreCase)
+
+/** Converts block-level HTML from WYSIWYG saves into markdown before table/image conversion. */
+fun convertHtmlStructuralElementsToMarkdown(content: String): String {
+    if (!content.contains('<')) {
+        return content
+    }
+    var result = content
+    result =
+        result.replace(htmlHeadingPattern) { match ->
+            val level = match.groupValues[1].toIntOrNull() ?: 1
+            val prefix = "#".repeat(level.coerceIn(1, 6))
+            val text = htmlInlineToMarkdown(match.groupValues[2])
+            "$prefix $text\n\n"
+        }
+    result =
+        result.replace(htmlStrikePattern) { match ->
+            "~~${htmlInlineToMarkdown(match.groupValues[1])}~~"
+        }
+    result =
+        result.replace(htmlParagraphPattern) { match ->
+            val text = htmlInlineToMarkdown(match.groupValues[1])
+            if (text.isBlank()) "" else "$text\n\n"
+        }
+    result =
+        result.replace(htmlDivPattern) { match ->
+            val text = htmlInlineToMarkdown(match.groupValues[1])
+            if (text.isBlank()) "" else "$text\n"
+        }
+    result = result.replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
+    return result.trim()
+}
+
+/** Prevents `# heading| col |` from being parsed as one giant heading in Markwon. */
+fun separateMarkdownHeadingsFromTables(content: String): String =
+    content.replace(
+        Regex("""(?m)^(#{1,6}\s+[^\n|]+)\|"""),
+    ) { match ->
+        "${match.groupValues[1]}\n\n|"
+    }
+
+private val gfmTableBlockPattern =
+    Regex(
+        """(?ms)^(\|[^\n]+\|)\s*\r?\n(\|[\s:|\-]+\|)\s*\r?\n((?:\|[^\n]+\|\s*(?:\r?\n)?)*)""",
+    )
+
+/** True when body contains a GFM pipe table (header + separator rows). */
+fun contentContainsGfmTable(content: String): Boolean = gfmTableBlockPattern.containsMatchIn(content)
+
+private fun parseGfmTableRow(line: String): List<String> =
+    line
+        .trim()
+        .removePrefix("|")
+        .removeSuffix("|")
+        .split("|")
+        .map { it.trim() }
+
+/** Converts GFM pipe tables to HTML for the WYSIWYG editor. */
+fun convertGfmTablesToHtml(content: String): String {
+    if (!content.contains('|')) {
+        return content
+    }
+    return gfmTableBlockPattern.replace(content) { match ->
+        val headerCells = parseGfmTableRow(match.groupValues[1])
+        val bodyRows =
+            match.groupValues[3]
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.startsWith("|") }
+                .map { parseGfmTableRow(it) }
+                .toList()
+        buildHtmlTable(headerCells, bodyRows)
+    }
+}
+
+private fun buildHtmlTable(
+    headerCells: List<String>,
+    bodyRows: List<List<String>>,
+): String {
+    if (headerCells.isEmpty()) {
+        return ""
+    }
+    return buildString {
+        append("<table><thead><tr>")
+        for (cell in headerCells) {
+            append("<th>").append(escapeHtmlText(cell)).append("</th>")
+        }
+        append("</tr></thead><tbody>")
+        for (row in bodyRows) {
+            append("<tr>")
+            for (i in headerCells.indices) {
+                val cell = row.getOrElse(i) { "" }
+                append("<td>").append(inlineMarkdownToHtml(cell)).append("</td>")
+            }
+            append("</tr>")
+        }
+        append("</tbody></table>")
+    }
+}
+
+private fun inlineMarkdownToHtml(text: String): String {
+    var result = escapeHtmlText(text)
+    result = result.replace(Regex("""\*\*(.+?)\*\*"""), "<strong>$1</strong>")
+    result = result.replace(Regex("""\*(.+?)\*"""), "<em>$1</em>")
+    result = result.replace(Regex("""~~(.+?)~~"""), "<s>$1</s>")
+    return result
+}
+
+private fun escapeHtmlText(text: String): String =
+    text
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+
+private val markdownHeadingLinePattern =
+    Regex("""(?m)^(#{1,6})\s+(.+)$""")
+
+fun convertMarkdownHeadingsToHtml(content: String): String =
+    markdownHeadingLinePattern.replace(content) { match ->
+        val level = match.groupValues[1].length.coerceIn(1, 6)
+        val text = escapeHtmlText(match.groupValues[2].trim())
+        "<h$level>$text</h$level>"
+    }
+
+/** Normalizes markdown headings wrapped in HTML paragraphs from WYSIWYG saves. */
+fun normalizeHtmlParagraphHeadings(html: String): String =
+    Regex("""<p\b[^>]*>\s*(#{1,6})\s+([^<]+?)\s*</p>""", regexDotIgnoreCase)
+        .replace(html) { match ->
+            val level = match.groupValues[1].length.coerceIn(1, 6)
+            val text = escapeHtmlText(match.groupValues[2].trim())
+            "<h$level>$text</h$level>"
+        }
+
+/** Prepares note body for loading into the WYSIWYG WebView (HTML). */
+fun prepareNoteContentForWysiwyg(content: String): String {
+    val stripped = stripInvisibleUnicode(content)
+    if (noteContentContainsRawHtml(stripped)) {
+        return normalizeHtmlParagraphHeadings(stripped)
+    }
+    var html = convertGfmTablesToHtml(stripped)
+    html = convertMarkdownHeadingsToHtml(html)
+    return html
+        .lines()
+        .joinToString("<br>") { line ->
+            when {
+                line.contains("<table", ignoreCase = true) -> line
+                line.contains("<h", ignoreCase = true) -> line
+                line.isBlank() -> ""
+                else -> inlineMarkdownToHtml(line)
+            }
+        }
+}
+
+fun noteNeedsRichEditor(content: String): Boolean =
+    noteContentContainsRawHtml(content) || contentContainsGfmTable(content)

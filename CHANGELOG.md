@@ -14,7 +14,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Kanban subtask progress** — Board cards show done/total subtask progress with a progress bar.
 - **Kanban inline title edit** — Double-tap a card title or choose Edit to rename in place on the board.
 - **Checklist share & archive** — Share checklist/Kanban as plain text; archive/unarchive via Jotty’s Archive category; server sharing dialog probes REST API when available.
-- **Notes: copy, selection, WYSIWYG** — Copy note from the menu; text selection in view mode; optional rich text editor (Settings → Behavior). Notes with HTML from the web app open in the visual editor automatically when you edit.
+- **Notes: copy, selection, WYSIWYG** — Copy note from the menu; text selection in view mode; optional rich text editor (Settings → Behavior). Notes with HTML or pipe tables open in the visual editor when you edit; view mode converts WYSIWYG HTML saves back to proper headings and GFM tables.
 - **Archived filter** — Notes and checklists lists hide archived items by default; **Archived** chip shows them.
 
 ### Changed
@@ -27,6 +27,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Note view text selection** — Long-press to select and copy note body text in view mode (uses `MarkdownText` native selection; Compose `SelectionContainer` does not apply to the Markwon `TextView`).
 - **Dev → stable updates** — About now blocks in-app install when a dev build cannot be replaced by stable (version code), shows the full explanation in a scrollable dialog, and offers “Open release page” instead of a failing download.
 
 ---

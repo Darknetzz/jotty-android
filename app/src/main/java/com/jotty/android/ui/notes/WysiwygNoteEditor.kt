@@ -34,7 +34,35 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.jotty.android.R
 import com.jotty.android.ui.common.CategorySelector
 import com.jotty.android.util.prepareNoteContentForWysiwyg
-import org.json.JSONObject
+import java.util.concurrent.atomic.AtomicBoolean
+
+/** Bridges note HTML into the WebView without embedding it in a JavaScript string (large HTML tables). */
+private class WysiwygEditorBridge(
+    private val onContentChanged: (String) -> Unit,
+) {
+    @Volatile
+    var pendingHtml: String = ""
+
+    private val acceptChanges = AtomicBoolean(false)
+
+    fun beginLoad() {
+        acceptChanges.set(false)
+    }
+
+    fun endLoad() {
+        acceptChanges.set(true)
+    }
+
+    @JavascriptInterface
+    fun getInitialHtml(): String = pendingHtml
+
+    @JavascriptInterface
+    fun onContentChanged(html: String) {
+        if (acceptChanges.get()) {
+            onContentChanged(html)
+        }
+    }
+}
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -52,7 +80,9 @@ internal fun WysiwygNoteEditor(
 ) {
     var editorWebView by remember { mutableStateOf<WebView?>(null) }
     val editorHtml = remember(contentReloadKey, content) { prepareNoteContentForWysiwyg(content) }
-    val surfaceColor = MaterialTheme.colorScheme.surface
+    val surfaceColor = MaterialTheme.colorScheme.surface.toArgb()
+    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    val borderColor = MaterialTheme.colorScheme.outlineVariant.toArgb()
 
     Column(
         modifier =
@@ -97,7 +127,9 @@ internal fun WysiwygNoteEditor(
         WysiwygWebEditor(
             htmlContent = editorHtml,
             contentReloadKey = contentReloadKey,
-            backgroundColor = surfaceColor.toArgb(),
+            backgroundColor = surfaceColor,
+            textColor = textColor,
+            borderColor = borderColor,
             onContentChange = onContentChange,
             onWebViewReady = { editorWebView = it },
             modifier =
@@ -152,6 +184,8 @@ private fun WysiwygWebEditor(
     htmlContent: String,
     contentReloadKey: String,
     backgroundColor: Int,
+    textColor: Int,
+    borderColor: Int,
     onContentChange: (String) -> Unit,
     onWebViewReady: (WebView) -> Unit,
     modifier: Modifier = Modifier,
@@ -159,14 +193,35 @@ private fun WysiwygWebEditor(
     var webView by remember { mutableStateOf<WebView?>(null) }
     var loaded by remember { mutableStateOf(false) }
     var skipNextReload by remember { mutableStateOf(false) }
+    val bridge =
+        remember {
+            WysiwygEditorBridge { html ->
+                skipNextReload = true
+                onContentChange(html)
+            }
+        }
 
-    fun applyContent(view: WebView, html: String) {
-        view.evaluateJavascript("setContent(${JSONObject.quote(html)});", null)
+    fun applyThemeAndContent(view: WebView) {
+        bridge.beginLoad()
+        view.evaluateJavascript(
+            "setEditorTheme($backgroundColor,$textColor,$borderColor);loadInitialContent();",
+        ) {
+            bridge.endLoad()
+        }
     }
 
-    LaunchedEffect(contentReloadKey, loaded) {
+    LaunchedEffect(htmlContent) {
+        bridge.pendingHtml = htmlContent
+    }
+
+    LaunchedEffect(contentReloadKey) {
+        loaded = false
+        bridge.beginLoad()
+    }
+
+    LaunchedEffect(contentReloadKey, loaded, htmlContent) {
         if (loaded && !skipNextReload) {
-            webView?.let { applyContent(it, htmlContent) }
+            webView?.let { applyThemeAndContent(it) }
         }
         skipNextReload = false
     }
@@ -180,6 +235,7 @@ private fun WysiwygWebEditor(
                 isVerticalScrollBarEnabled = false
                 settings.javaScriptEnabled = true
                 settings.domStorageEnabled = true
+                bridge.pendingHtml = htmlContent
                 webViewClient =
                     object : WebViewClient() {
                         override fun onPageFinished(
@@ -187,19 +243,10 @@ private fun WysiwygWebEditor(
                             url: String?,
                         ) {
                             loaded = true
-                            view?.let { applyContent(it, htmlContent) }
+                            view?.let { applyThemeAndContent(it) }
                         }
                     }
-                addJavascriptInterface(
-                    object {
-                        @JavascriptInterface
-                        fun onContentChanged(html: String) {
-                            skipNextReload = true
-                            onContentChange(html)
-                        }
-                    },
-                    "AndroidBridge",
-                )
+                addJavascriptInterface(bridge, "AndroidBridge")
                 loadUrl("file:///android_asset/wysiwyg/editor.html")
                 webView = this
                 onWebViewReady(this)
@@ -207,6 +254,7 @@ private fun WysiwygWebEditor(
         },
         update = { view ->
             webView = view
+            bridge.pendingHtml = htmlContent
             view.setBackgroundColor(backgroundColor)
             onWebViewReady(view)
         },

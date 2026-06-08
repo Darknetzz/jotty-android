@@ -189,6 +189,23 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
+    fun `prepareNoteContentForWysiwyg preserves jotty web html table`() {
+        val html =
+            """
+            <table>
+              <tbody>
+                <tr><th><p>Name</p></th><th><p>Value</p></th></tr>
+                <tr><td><p>Alpha</p></td><td><p>1</p></td></tr>
+              </tbody>
+            </table>
+            """.trimIndent()
+        val prepared = prepareNoteContentForWysiwyg(html)
+        assertTrue(prepared.contains("<table"))
+        assertTrue(prepared.contains("Alpha"))
+        assertFalse(prepared.isBlank())
+    }
+
+    @Test
     fun `prepareNoteContentForWysiwyg converts markdown table to html`() {
         val md =
             """

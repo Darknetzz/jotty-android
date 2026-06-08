@@ -25,19 +25,39 @@
     word-wrap: break-word;
   }
   table { border-collapse: collapse; width: 100%; margin: 8px 0; }
-  td, th { border: 1px solid #ccc; padding: 6px; vertical-align: top; }
+  td, th { border: 1px solid var(--border-color, #ccc); padding: 6px; vertical-align: top; }
   img { max-width: 100%; height: auto; }
   h1, h2, h3 { margin: 0.6em 0 0.3em; line-height: 1.25; }
   p { margin: 0.4em 0; }
-  @media (prefers-color-scheme: dark) {
-    #editor { color: #eee; }
-    td, th { border-color: #555; }
-  }
 </style>
 </head>
 <body>
 <div id="editor" contenteditable="true"></div>
 <script>
+  var suppressNotify = false;
+
+  function argbToCss(argb) {
+    var a = ((argb >>> 24) & 0xff) / 255;
+    var r = (argb >>> 16) & 0xff;
+    var g = (argb >>> 8) & 0xff;
+    var b = argb & 0xff;
+    if (a >= 0.999) {
+      return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+
+  function setEditorTheme(bgArgb, fgArgb, borderArgb) {
+    var bg = argbToCss(bgArgb);
+    var fg = argbToCss(fgArgb);
+    var border = argbToCss(borderArgb);
+    document.body.style.background = bg;
+    var editor = document.getElementById('editor');
+    editor.style.color = fg;
+    editor.style.caretColor = fg;
+    document.documentElement.style.setProperty('--border-color', border);
+  }
+
   function cmd(command, value) {
     document.execCommand(command, false, value || null);
     notifyChange();
@@ -51,12 +71,20 @@
     cmd('insertHTML', html);
   }
   function setContent(html) {
+    suppressNotify = true;
     document.getElementById('editor').innerHTML = html || '';
+    suppressNotify = false;
   }
   function getContent() {
     return document.getElementById('editor').innerHTML;
   }
+  function loadInitialContent() {
+    if (window.AndroidBridge && AndroidBridge.getInitialHtml) {
+      setContent(AndroidBridge.getInitialHtml());
+    }
+  }
   function notifyChange() {
+    if (suppressNotify) return;
     if (window.AndroidBridge && AndroidBridge.onContentChanged) {
       AndroidBridge.onContentChanged(getContent());
     }

@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -40,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -74,6 +77,7 @@ import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.util.formatNoteDate
 import com.jotty.android.util.noteContentContainsRawHtml
 import com.jotty.android.util.noteNeedsRichEditor
+import com.jotty.android.util.prepareWysiwygHtmlForMarkdown
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -126,6 +130,28 @@ internal fun NoteDetailScreen(
         remember(content) {
             (NoteEncryption.parse(content) as? ParsedNoteContent.Encrypted)?.encryptedBody
         }
+
+    var noteEditMode by rememberSaveable(note.id) { mutableStateOf(NoteEditMode.Markdown) }
+    var editorReloadNonce by rememberSaveable(note.id) { mutableIntStateOf(0) }
+
+    fun currentEditBody(): String = if (isEncrypted) decryptedContent.orEmpty() else content
+
+    fun setEditBody(value: String) {
+        if (isEncrypted) {
+            detailVm.setDecryptedContent(value)
+        } else {
+            detailVm.setContent(value)
+        }
+    }
+
+    fun onNoteEditModeChange(mode: NoteEditMode) {
+        if (mode == noteEditMode) return
+        if (mode == NoteEditMode.Markdown) {
+            setEditBody(prepareWysiwygHtmlForMarkdown(currentEditBody()))
+        }
+        noteEditMode = mode
+        editorReloadNonce++
+    }
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -395,7 +421,19 @@ internal fun NoteDetailScreen(
                         }
                     }
                     if (!isEditing && canEdit) {
-                        IconButton(onClick = { detailVm.startEditing() }) {
+                        IconButton(
+                            onClick = {
+                                val body = currentEditBody()
+                                noteEditMode =
+                                    if (richEditorEnabled || noteNeedsRichEditor(body)) {
+                                        NoteEditMode.Visual
+                                    } else {
+                                        NoteEditMode.Markdown
+                                    }
+                                editorReloadNonce++
+                                detailVm.startEditing()
+                            },
+                        ) {
                             Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.cd_edit))
                         }
                     }
@@ -514,36 +552,40 @@ internal fun NoteDetailScreen(
                         modifier = Modifier.fillMaxSize(),
                     )
                 isEditing -> {
-                    val editBody = if (isEncrypted) decryptedContent.orEmpty() else content
-                    val useRichEditor = richEditorEnabled || noteNeedsRichEditor(editBody)
-                    if (useRichEditor) {
-                        WysiwygNoteEditor(
-                            title = title,
-                            onTitleChange = { detailVm.setTitle(it) },
-                            content = editBody,
-                            contentReloadKey = "${note.id}:${note.updatedAt}",
-                            onContentChange = {
-                                if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
-                            },
-                            category = category,
-                            onCategoryChange = { detailVm.setCategory(it) },
-                            categorySuggestions = categorySuggestions,
-                            showHtmlSaveHint = noteContentContainsRawHtml(editBody),
-                            modifier = Modifier.fillMaxSize(),
+                    val editBody = currentEditBody()
+                    val editorReloadKey = "${note.id}:${note.updatedAt}:$editorReloadNonce"
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        NoteEditModeToggle(
+                            mode = noteEditMode,
+                            onModeChange = ::onNoteEditModeChange,
                         )
-                    } else {
-                        NoteEditor(
-                            title = title,
-                            onTitleChange = { detailVm.setTitle(it) },
-                            content = editBody,
-                            onContentChange = {
-                                if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
-                            },
-                            category = category,
-                            onCategoryChange = { detailVm.setCategory(it) },
-                            categorySuggestions = categorySuggestions,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        when (noteEditMode) {
+                            NoteEditMode.Visual ->
+                                WysiwygNoteEditor(
+                                    title = title,
+                                    onTitleChange = { detailVm.setTitle(it) },
+                                    content = editBody,
+                                    contentReloadKey = editorReloadKey,
+                                    onContentChange = ::setEditBody,
+                                    category = category,
+                                    onCategoryChange = { detailVm.setCategory(it) },
+                                    categorySuggestions = categorySuggestions,
+                                    showHtmlSaveHint = noteContentContainsRawHtml(editBody),
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            NoteEditMode.Markdown ->
+                                NoteEditor(
+                                    title = title,
+                                    onTitleChange = { detailVm.setTitle(it) },
+                                    content = editBody,
+                                    onContentChange = ::setEditBody,
+                                    category = category,
+                                    onCategoryChange = { detailVm.setCategory(it) },
+                                    categorySuggestions = categorySuggestions,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                        }
                     }
                 }
                 else -> {

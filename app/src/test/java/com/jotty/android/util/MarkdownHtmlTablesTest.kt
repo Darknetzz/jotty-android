@@ -189,6 +189,38 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
+    fun `prepareWysiwygHtmlForMarkdown passes through plain markdown`() {
+        val md = "# Hello\n\nSome **bold** text."
+        assertEquals(md, prepareWysiwygHtmlForMarkdown(md))
+    }
+
+    @Test
+    fun `prepareWysiwygHtmlForMarkdown converts wysiwyg html to markdown`() {
+        val html = "<h2>Title</h2><p>Hello <strong>world</strong></p><ul><li>One</li><li>Two</li></ul>"
+        val md = prepareWysiwygHtmlForMarkdown(html)
+        assertTrue(md.contains("## Title"))
+        assertTrue(md.contains("**world**"))
+        assertTrue(md.contains("- One"))
+        assertTrue(md.contains("- Two"))
+    }
+
+    @Test
+    fun `prepareWysiwygHtmlForMarkdown converts html table to gfm`() {
+        val html =
+            """
+            <table>
+              <tbody>
+                <tr><th>A</th><th>B</th></tr>
+                <tr><td>1</td><td>2</td></tr>
+              </tbody>
+            </table>
+            """.trimIndent()
+        val md = prepareWysiwygHtmlForMarkdown(html)
+        assertTrue(md.contains("| A | B |"))
+        assertTrue(md.contains("| 1 | 2 |"))
+    }
+
+    @Test
     fun `prepareNoteContentForWysiwyg preserves jotty web html table`() {
         val html =
             """

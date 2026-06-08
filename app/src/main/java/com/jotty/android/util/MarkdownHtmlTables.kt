@@ -418,3 +418,55 @@ fun prepareNoteContentForWysiwyg(content: String): String {
 
 fun noteNeedsRichEditor(content: String): Boolean =
     noteContentContainsRawHtml(content) || contentContainsGfmTable(content)
+
+private val htmlListItemPattern = Regex("""<li\b[^>]*>(.*?)</li>""", regexDotIgnoreCase)
+
+/** Converts HTML lists from the WYSIWYG editor into markdown list lines. */
+fun convertHtmlListsToMarkdown(content: String): String {
+    if (!content.contains("<li", ignoreCase = true)) {
+        return content
+    }
+    var result = content
+    for (ordered in listOf(false, true)) {
+        val tag = if (ordered) "ol" else "ul"
+        val listPattern = Regex("""<$tag\b[^>]*>(.*?)</$tag>""", regexDotIgnoreCase)
+        result =
+            listPattern.replace(result) { match ->
+                val lines =
+                    htmlListItemPattern
+                        .findAll(match.groupValues[1])
+                        .mapIndexed { index, item ->
+                            val text = htmlInlineToMarkdown(item.groupValues[1])
+                            if (ordered) "${index + 1}. $text" else "- $text"
+                        }.joinToString("\n")
+                if (lines.isBlank()) "" else "\n$lines\n"
+            }
+    }
+    return result
+}
+
+/**
+ * Converts WYSIWYG / HTML note body back to markdown when switching to source mode.
+ * Plain markdown passes through unchanged.
+ */
+fun prepareWysiwygHtmlForMarkdown(content: String): String {
+    val stripped = stripInvisibleUnicode(content)
+    if (!stripped.contains('<')) {
+        return stripped
+    }
+    var result = stripped
+    result = convertHtmlTablesToGfm(result)
+    result = convertHtmlListsToMarkdown(result)
+    result = convertHtmlStructuralElementsToMarkdown(result)
+    result = convertHtmlImagesToMarkdown(result)
+    result = result.replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
+    result =
+        result
+            .replace(Regex("""<(strong|b)\b[^>]*>(.*?)</\1>""", regexDotIgnoreCase), "**$2**")
+            .replace(Regex("""<(em|i)\b[^>]*>(.*?)</\1>""", regexDotIgnoreCase), "*$2*")
+            .replace(Regex("""<code\b[^>]*>(.*?)</code>""", regexDotIgnoreCase), "`$1`")
+    result = result.replace(tagPattern, "")
+    result = decodeBasicHtmlEntities(result)
+    result = separateMarkdownHeadingsFromTables(result)
+    return result.replace(Regex("""\n{3,}"""), "\n\n").trim()
+}

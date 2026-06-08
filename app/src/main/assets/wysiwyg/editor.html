@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 8px; color: #111; background: #fff; }
+  #editor { min-height: 280px; outline: none; line-height: 1.5; }
+  #toolbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  button { padding: 6px 10px; border: 1px solid #ccc; background: #f5f5f5; border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  td, th { border: 1px solid #ccc; padding: 6px; }
+  img { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button type="button" onclick="cmd('bold')"><b>B</b></button>
+  <button type="button" onclick="cmd('italic')"><i>I</i></button>
+  <button type="button" onclick="cmd('insertUnorderedList')">• List</button>
+  <button type="button" onclick="cmd('insertOrderedList')">1. List</button>
+  <button type="button" onclick="insertLink()">Link</button>
+  <button type="button" onclick="insertTable()">Table</button>
+  <button type="button" onclick="cmd('formatBlock','H2')">H2</button>
+</div>
+<div id="editor" contenteditable="true"></div>
+<script>
+  function cmd(command, value) {
+    document.execCommand(command, false, value || null);
+    notifyChange();
+  }
+  function insertLink() {
+    var url = prompt('URL');
+    if (url) { cmd('createLink', url); }
+  }
+  function insertTable() {
+    var html = '<table><tr><th>Header</th></tr><tr><td>Cell</td></tr></table><p></p>';
+    cmd('insertHTML', html);
+  }
+  function setContent(html) {
+    document.getElementById('editor').innerHTML = html || '';
+  }
+  function getContent() {
+    return document.getElementById('editor').innerHTML;
+  }
+  function notifyChange() {
+    if (window.AndroidBridge && AndroidBridge.onContentChanged) {
+      AndroidBridge.onContentChanged(getContent());
+    }
+  }
+  document.getElementById('editor').addEventListener('input', notifyChange);
+</script>
+</body>
+</html>

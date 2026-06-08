@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import com.jotty.android.util.filterNotesForCategory
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class OfflineEnabledNotesViewModel(
@@ -52,7 +53,13 @@ class OfflineEnabledNotesViewModel(
             _searchQuery.debounce { q -> if (q.isBlank()) 0L else SEARCH_DEBOUNCE_MS },
             _selectedCategory,
         ) { notes, query, category ->
-            Triple(notes, query, category)
+            val categoryFiltered =
+                when {
+                    query.isNotBlank() -> notes
+                    category != null -> filterNotesForCategory(notes, category)
+                    else -> filterNotesForCategory(notes, null)
+                }
+            Triple(categoryFiltered, query, category)
         }
             .flatMapLatest { (notes, query, category) ->
                 flow {

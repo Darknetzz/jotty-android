@@ -1,5 +1,6 @@
 package com.jotty.android.ui.checklists
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -57,10 +58,16 @@ import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.rememberListScreenState
+import com.jotty.android.ui.common.ShareServerDialog
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
+import com.jotty.android.util.defaultUnarchiveCategory
+import com.jotty.android.util.exportChecklistAsPlainText
+import com.jotty.android.util.isArchived
 import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
 import com.jotty.android.util.defaultKanbanItemStatus
+import com.jotty.android.util.kanbanCardReorderRequest
 import com.jotty.android.util.moveKanbanCardInColumnRequest
 import com.jotty.android.util.visibleKanbanColumns
 import kotlinx.coroutines.flow.first
@@ -363,7 +370,23 @@ fun OfflineEnabledChecklistsScreen(
                                 },
                             )
                         }
-                        items(checklistCategories, key = { it }) { cat ->
+                        item {
+                            FilterChip(
+                                selected = selectedCategory == JOTTY_ARCHIVE_CATEGORY,
+                                onClick = { vm.toggleCategoryChip(JOTTY_ARCHIVE_CATEGORY) },
+                                label = {
+                                    Text(
+                                        stringResource(R.string.category_archived),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                },
+                            )
+                        }
+                        items(
+                            checklistCategories.filter { !it.equals(JOTTY_ARCHIVE_CATEGORY, true) },
+                            key = { it },
+                        ) { cat ->
                             FilterChip(
                                 selected = selectedCategory == cat,
                                 onClick = { vm.toggleCategoryChip(cat) },
@@ -472,9 +495,10 @@ private fun OfflineChecklistCard(
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val displayTitle = checklist.title.ifBlank { stringResource(R.string.untitled) }
-    val completed = checklist.items.count { it.completed }
-    val total = checklist.items.size
-    val progress = if (total > 0) completed.toFloat() / total else 0f
+    val progressCounts = checklistProgressCounts(checklist)
+    val completed = progressCounts.completed
+    val total = progressCounts.total
+    val progress = progressCounts.fraction
     if (showDeleteConfirm) {
         ConfirmDeleteDialog(
             message = stringResource(R.string.delete_checklist_confirm, displayTitle),
@@ -584,6 +608,7 @@ private fun OfflineChecklistDetailContent(
 
     var newItemText by remember { mutableStateOf("") }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showShareDialog by remember { mutableStateOf(false) }
     var showManageStatusesDialog by remember { mutableStateOf(false) }
     var showDiscardPendingSyncDialog by remember { mutableStateOf(false) }
     var discardConfirmIsLocalOnly by remember { mutableStateOf(false) }
@@ -593,6 +618,8 @@ private fun OfflineChecklistDetailContent(
     var projectView by remember(liveChecklist.id) { mutableStateOf(KanbanProjectView.Board) }
     var selectedKanbanPath by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val exportShareTitle = stringResource(R.string.share_checklist)
     val discardConfirmMessage =
         if (discardConfirmIsLocalOnly) {
             stringResource(R.string.discard_pending_sync_local_only_confirm)
@@ -723,6 +750,25 @@ private fun OfflineChecklistDetailContent(
             onBack = onBack,
             onRename = { showRenameDialog = true },
             onDelete = onDelete,
+            onShare = { showShareDialog = true },
+            isArchived = liveChecklist.isArchived(),
+            onArchiveToggle = {
+                scope.launch {
+                    val archived = liveChecklist.isArchived()
+                    handleResult(
+                        offlineRepository.updateChecklist(
+                            liveChecklist.id,
+                            liveChecklist.title,
+                            if (archived) {
+                                defaultUnarchiveCategory()
+                            } else {
+                                JOTTY_ARCHIVE_CATEGORY
+                            },
+                        ),
+                    )
+                    if (!archived) onBack()
+                }
+            },
             onDiscardPendingSync =
                 if (hasPendingSync) {
                     {
@@ -736,6 +782,31 @@ private fun OfflineChecklistDetailContent(
                     null
                 },
         )
+
+        if (showShareDialog) {
+            ShareServerDialog(
+                itemType = "checklist",
+                itemId = liveChecklist.id,
+                itemTitle = liveChecklist.title,
+                api = api,
+                capabilitiesKey = serverCapabilitiesKey,
+                onDismiss = { showShareDialog = false },
+                onExportText = {
+                    val text =
+                        exportChecklistAsPlainText(
+                            liveChecklist.copy(items = items),
+                            taskStatuses,
+                        )
+                    val intent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                    context.startActivity(Intent.createChooser(intent, exportShareTitle))
+                    showShareDialog = false
+                },
+            )
+        }
 
         OfflineConnectivityBanner(
             isOnline = isOnline,
@@ -909,6 +980,18 @@ private fun OfflineChecklistDetailContent(
                         handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
                     }
                 },
+                onReorderCardInColumn = { columnCards, fromIndex, toIndex ->
+                    val request = kanbanCardReorderRequest(columnCards, fromIndex, toIndex) ?: return@TaskKanbanBoard
+                    scope.launch {
+                        handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
+                    }
+                },
+                onUpdateTitle = { apiPath, text ->
+                    scope.launch {
+                        handleResult(offlineRepository.updateItemText(liveChecklist.id, apiPath, text))
+                    }
+                },
+                dragReorderEnabled = dragReorderEnabled,
             )
             selectedKanbanPath?.let { path ->
                 val detailItem = itemAtPath(items, path)

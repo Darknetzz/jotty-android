@@ -1096,4 +1096,15 @@ private class FakeChecklistApi(
         itemIndex: String,
         body: UpdateTaskItemStatusRequest,
     ): SuccessResponse = SuccessResponse(true)
+
+    override suspend fun getSharingInfo(
+        itemType: String,
+        itemId: String,
+    ): com.jotty.android.data.api.ShareInfoResponse = com.jotty.android.data.api.ShareInfoResponse(success = false)
+
+    override suspend fun updateSharingInfo(
+        itemType: String,
+        itemId: String,
+        body: com.jotty.android.data.api.UpdateShareInfoRequest,
+    ): com.jotty.android.data.api.ShareInfoResponse = com.jotty.android.data.api.ShareInfoResponse(success = false)
 }

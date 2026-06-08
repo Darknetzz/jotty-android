@@ -140,4 +140,18 @@ interface JottyApi {
     /** User summary (notes, checklists, items). Works for all authenticated users. */
     @GET("api/summary")
     suspend fun getSummary(): SummaryResponse
+
+    /** Optional: server sharing metadata (404 on older Jotty without REST sharing). */
+    @GET("api/sharing/items/{itemType}/{itemId}")
+    suspend fun getSharingInfo(
+        @Path("itemType") itemType: String,
+        @Path("itemId") itemId: String,
+    ): ShareInfoResponse
+
+    @PUT("api/sharing/items/{itemType}/{itemId}")
+    suspend fun updateSharingInfo(
+        @Path("itemType") itemType: String,
+        @Path("itemId") itemId: String,
+        @Body body: UpdateShareInfoRequest,
+    ): ShareInfoResponse
 }

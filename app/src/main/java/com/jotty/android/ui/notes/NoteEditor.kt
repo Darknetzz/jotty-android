@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.unit.sp
 import com.jotty.android.R
 import com.jotty.android.ui.common.CategorySelector
+import com.jotty.android.util.noteContentContainsRawHtml
 
 @Composable
 internal fun NoteEditor(
@@ -92,6 +94,19 @@ internal fun NoteEditor(
                 onCategoryChange = onCategoryChange,
                 suggestions = categorySuggestions,
             )
+        }
+        if (noteContentContainsRawHtml(contentField.text)) {
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                shape = MaterialTheme.shapes.small,
+            ) {
+                Text(
+                    text = stringResource(R.string.note_html_save_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            }
         }
         MarkdownToolbar(
             value = contentField,

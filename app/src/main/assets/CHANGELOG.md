@@ -10,11 +10,20 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Kanban board / list toggle** — Project boards switch between the Kanban board and the tree/list view (inline edit, reorder) without losing Kanban when the status API is available.
 - **Kanban per-column add** — Each board column has an add field to create a task in that status.
-- **Kanban column reorder** — Card menu includes move up/down within the same column.
+- **Kanban column reorder** — Card menu includes move up/down within the same column; drag handle reorder when enabled in Settings.
+- **Kanban subtask progress** — Board cards show done/total subtask progress with a progress bar.
+- **Kanban inline title edit** — Double-tap a card title or choose Edit to rename in place on the board.
+- **Checklist share & archive** — Share checklist/Kanban as plain text; archive/unarchive via Jotty’s Archive category; server sharing dialog probes REST API when available.
+- **Notes: copy, selection, WYSIWYG** — Copy note from the menu; text selection in view mode; optional rich text editor (Settings → Behavior).
+- **Archived filter** — Notes and checklists lists hide archived items by default; **Archived** chip shows them.
 
 ### Changed
 
+- **Settings** — Export debug logs moved to the bottom of Settings, next to About.
+- **Checklist overview progress** — List cards count nested subtasks (matches detail view).
+- **Kanban board height** — Columns use viewport-aware height instead of a fixed 420dp.
 - **New project tasks** — Top-level add-item and per-column add pass the column status to the server so new cards land in the intended column.
+- **Kanban item detail** — Prompts to save or discard unsaved title/description changes when closing.
 
 ### Fixed
 

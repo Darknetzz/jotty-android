@@ -1,5 +1,8 @@
 package com.jotty.android.ui.notes
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Box
@@ -17,7 +20,8 @@ import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -30,6 +34,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -50,14 +55,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import com.jotty.android.R
+import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
+import androidx.compose.material.icons.filled.Share
+import com.jotty.android.ui.common.ArchiveDropdownMenuItem
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.NoteDetailDateSubtitle
+import com.jotty.android.ui.common.ShareDropdownMenuItem
+import com.jotty.android.ui.common.ShareServerDialog
+import com.jotty.android.util.defaultUnarchiveCategory
+import com.jotty.android.util.isArchivedCategory
+import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.util.formatNoteDate
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -79,6 +92,8 @@ internal fun NoteDetailScreen(
     biometricAutoUnlockEnabled: Boolean = true,
     biometricSaveOfferEnabled: Boolean = true,
     categorySuggestions: List<String> = emptyList(),
+    richEditorEnabled: Boolean = false,
+    api: JottyApi? = null,
 ) {
     val detailVm: NoteDetailViewModel =
         viewModel(
@@ -119,9 +134,13 @@ internal fun NoteDetailScreen(
     var biometricAutoTriggered by rememberSaveable(note.id) { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showShareServerDialog by remember { mutableStateOf(false) }
+    var showArchiveConfirm by remember { mutableStateOf(false) }
 
     val displayTitle = title.ifBlank { stringResource(R.string.untitled) }
     val deleteConfirmMessage = stringResource(R.string.delete_note_confirm, displayTitle)
+    val exportNoteTitle = stringResource(R.string.export_note)
+    val context = LocalContext.current
 
     val activity = LocalActivity.current as? FragmentActivity
     val biometricTitle = stringResource(R.string.biometric_prompt_title)
@@ -201,6 +220,85 @@ internal fun NoteDetailScreen(
         )
     }
 
+    if (showArchiveConfirm) {
+        val archived = isArchivedCategory(category)
+        AlertDialog(
+            onDismissRequest = { showArchiveConfirm = false },
+            title = {
+                Text(stringResource(if (archived) R.string.unarchive else R.string.archive))
+            },
+            text = { Text(stringResource(R.string.archive_note_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showArchiveConfirm = false
+                        scope.launch {
+                            val newCategory =
+                                if (archived) {
+                                    defaultUnarchiveCategory()
+                                } else {
+                                    JOTTY_ARCHIVE_CATEGORY
+                                }
+                            val noteContent =
+                                when {
+                                    isDecrypted -> decryptedContent.orEmpty()
+                                    else -> content
+                                }
+                            actions
+                                .updateNote(
+                                    noteId = note.id,
+                                    title = title,
+                                    content = noteContent,
+                                    category = newCategory,
+                                    originalCategory = category,
+                                ).onSuccess {
+                                    onUpdate(it)
+                                    if (!archived) onBack()
+                                }.onFailure {
+                                    onSaveFailed()
+                                }
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showArchiveConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    if (showShareServerDialog && api != null) {
+        ShareServerDialog(
+            itemType = "note",
+            itemId = note.id,
+            itemTitle = displayTitle,
+            api = api,
+            capabilitiesKey = serverCapabilitiesKey,
+            onDismiss = { showShareServerDialog = false },
+            onExportText = {
+                val text =
+                    when {
+                        isDecrypted -> decryptedContent.orEmpty()
+                        isEncrypted -> ""
+                        else -> content
+                    }.trim()
+                val shareText = if (text.isNotBlank()) "# $title\n\n$text" else title
+                val intent =
+                    Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TITLE, title)
+                        putExtra(Intent.EXTRA_TEXT, shareText)
+                    }
+                context.startActivity(Intent.createChooser(intent, exportNoteTitle))
+                showShareServerDialog = false
+            },
+        )
+    }
+
     val placeholderHint =
         if (hasBiometricPassphrase) {
             stringResource(R.string.enter_passphrase_or_biometric)
@@ -229,7 +327,6 @@ internal fun NoteDetailScreen(
                 },
                 actions = {
                     val ctx = LocalContext.current
-                    val exportTitle = stringResource(R.string.export_note)
                     val canEdit = !isEncrypted || isDecrypted
                     if (!isEditing && (isDecrypted || (!isEncrypted && content.isNotBlank()))) {
                         IconButton(
@@ -247,7 +344,7 @@ internal fun NoteDetailScreen(
                                         putExtra(Intent.EXTRA_TITLE, title)
                                         putExtra(Intent.EXTRA_TEXT, shareText)
                                     }
-                                ctx.startActivity(Intent.createChooser(intent, exportTitle))
+                                ctx.startActivity(Intent.createChooser(intent, exportNoteTitle))
                             },
                         ) {
                             Icon(Icons.Default.Share, contentDescription = stringResource(R.string.cd_share))
@@ -301,6 +398,7 @@ internal fun NoteDetailScreen(
                         }
                     }
                     if (!isEditing) {
+                        val noteCopiedMessage = stringResource(R.string.note_copied)
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                         }
@@ -308,6 +406,37 @@ internal fun NoteDetailScreen(
                             expanded = menuExpanded,
                             onDismissRequest = { menuExpanded = false },
                         ) {
+                            val copyBody =
+                                when {
+                                    isDecrypted -> decryptedContent.orEmpty()
+                                    isEncrypted -> ""
+                                    else -> content
+                                }.trim()
+                            if (copyBody.isNotBlank() || title.isNotBlank()) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.copy_note)) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.ContentCopy, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        menuExpanded = false
+                                        val copyText =
+                                            if (copyBody.isNotBlank()) {
+                                                "# $title\n\n$copyBody"
+                                            } else {
+                                                title
+                                            }
+                                        val clipboard =
+                                            ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(
+                                            ClipData.newPlainText(title.ifBlank { "note" }, copyText),
+                                        )
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar(noteCopiedMessage)
+                                        }
+                                    },
+                                )
+                            }
                             if (isEncrypted && isDecrypted) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.lock_note)) },
@@ -328,6 +457,24 @@ internal fun NoteDetailScreen(
                                     },
                                     leadingIcon = {
                                         Icon(Icons.Default.Lock, contentDescription = null)
+                                    },
+                                )
+                            }
+                            if (api != null) {
+                                ShareDropdownMenuItem(
+                                    labelRes = R.string.share_note,
+                                    onClick = {
+                                        menuExpanded = false
+                                        showShareServerDialog = true
+                                    },
+                                )
+                            }
+                            if (!isEncrypted || isDecrypted) {
+                                ArchiveDropdownMenuItem(
+                                    isArchived = isArchivedCategory(category),
+                                    onClick = {
+                                        menuExpanded = false
+                                        showArchiveConfirm = true
                                     },
                                 )
                             }
@@ -365,18 +512,33 @@ internal fun NoteDetailScreen(
                         modifier = Modifier.fillMaxSize(),
                     )
                 isEditing ->
-                    NoteEditor(
-                        title = title,
-                        onTitleChange = { detailVm.setTitle(it) },
-                        content = if (isEncrypted) decryptedContent.orEmpty() else content,
-                        onContentChange = {
-                            if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
-                        },
-                        category = category,
-                        onCategoryChange = { detailVm.setCategory(it) },
-                        categorySuggestions = categorySuggestions,
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    if (richEditorEnabled) {
+                        WysiwygNoteEditor(
+                            title = title,
+                            onTitleChange = { detailVm.setTitle(it) },
+                            content = if (isEncrypted) decryptedContent.orEmpty() else content,
+                            onContentChange = {
+                                if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
+                            },
+                            category = category,
+                            onCategoryChange = { detailVm.setCategory(it) },
+                            categorySuggestions = categorySuggestions,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        NoteEditor(
+                            title = title,
+                            onTitleChange = { detailVm.setTitle(it) },
+                            content = if (isEncrypted) decryptedContent.orEmpty() else content,
+                            onContentChange = {
+                                if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
+                            },
+                            category = category,
+                            onCategoryChange = { detailVm.setCategory(it) },
+                            categorySuggestions = categorySuggestions,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 else -> {
                     val viewContent =
                         when {

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -73,15 +74,17 @@ internal fun NoteView(
     ) {
         if (content.isNotBlank()) {
             key(markdownImageLoaderKey) {
-                MarkdownText(
-                    markdown = displayMarkdown,
-                    modifier = Modifier.fillMaxWidth(),
-                    style = bodyStyle,
-                    syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
-                    syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    imageLoader = imageLoader,
-                    onLinkClicked = { url -> uriHandler.openUri(url) },
-                )
+                SelectionContainer {
+                    MarkdownText(
+                        markdown = displayMarkdown,
+                        modifier = Modifier.fillMaxWidth(),
+                        style = bodyStyle,
+                        syntaxHighlightColor = MaterialTheme.colorScheme.surfaceVariant,
+                        syntaxHighlightTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        imageLoader = imageLoader,
+                        onLinkClicked = { url -> uriHandler.openUri(url) },
+                    )
+                }
             }
         } else {
             Text(

@@ -18,10 +18,19 @@ suspend fun loadNotesWithSearch(
     category: String?,
 ): List<Note> {
     val trimmed = query.trim()
+    val effectiveApiCategory =
+        when {
+            category == null -> null
+            category.equals(JOTTY_ARCHIVE_CATEGORY, ignoreCase = true) -> JOTTY_ARCHIVE_CATEGORY
+            else -> category
+        }
     if (trimmed.length < MIN_SEARCH_LENGTH) {
-        return api.getNotes(category = category, search = trimmed.takeIf { it.isNotBlank() })
-            .notes.orEmpty()
-            .map { it.normalizedForClient() }
+        return filterNotesForCategory(
+            api.getNotes(category = effectiveApiCategory, search = trimmed.takeIf { it.isNotBlank() })
+                .notes.orEmpty()
+                .map { it.normalizedForClient() },
+            category,
+        )
     }
 
     val rankedIds =
@@ -29,9 +38,12 @@ suspend fun loadNotesWithSearch(
             api.search(query = trimmed, type = "note").results.map { it.id }
         }.getOrElse { error ->
             if (error is HttpException && error.code() == 404) {
-                return api.getNotes(category = category, search = trimmed)
-                    .notes.orEmpty()
-                    .map { it.normalizedForClient() }
+                return filterNotesForCategory(
+                    api.getNotes(category = effectiveApiCategory, search = trimmed)
+                        .notes.orEmpty()
+                        .map { it.normalizedForClient() },
+                    category,
+                )
             }
             throw error
         }
@@ -39,12 +51,12 @@ suspend fun loadNotesWithSearch(
     if (rankedIds.isEmpty()) return emptyList()
 
     val notesById =
-        api.getNotes(category = category)
+        api.getNotes(category = effectiveApiCategory)
             .notes.orEmpty()
             .map { it.normalizedForClient() }
             .associateBy { it.id }
 
-    return rankedIds.mapNotNull { notesById[it] }
+    return filterNotesForCategory(rankedIds.mapNotNull { notesById[it] }, category)
 }
 
 /**
@@ -57,10 +69,16 @@ suspend fun loadChecklistsWithSearch(
     category: String?,
 ): List<Checklist> {
     val trimmed = query.trim()
-    val allChecklists = api.getChecklists(category = category).checklists
+    val effectiveApiCategory =
+        when {
+            category == null -> null
+            category.equals(JOTTY_ARCHIVE_CATEGORY, ignoreCase = true) -> JOTTY_ARCHIVE_CATEGORY
+            else -> category
+        }
+    val allChecklists = api.getChecklists(category = effectiveApiCategory).checklists
 
     if (trimmed.length < MIN_SEARCH_LENGTH) {
-        return allChecklists
+        return filterChecklistsForCategory(allChecklists, category)
     }
 
     val rankedIds =
@@ -79,7 +97,7 @@ suspend fun loadChecklistsWithSearch(
     if (rankedIds.isEmpty()) return emptyList()
 
     val listsById = allChecklists.associateBy { it.id }
-    return rankedIds.mapNotNull { listsById[it] }
+    return filterChecklistsForCategory(rankedIds.mapNotNull { listsById[it] }, category)
 }
 
 private fun itemMatchesQuery(

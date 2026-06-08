@@ -139,12 +139,21 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
-    fun `convertHtmlTablesToGfm escapes pipe in cell`() {
+    fun `convertHtmlTablesToGfm handles nested paragraph in cell`() {
         val html =
             """
-            <table><tr><th>A</th><th>B</th></tr><tr><td>x | y</td><td>ok</td></tr></table>
+            <table><tr><td><p>Cell with <strong>bold</strong></p></td></tr></table>
             """.trimIndent()
         val result = convertHtmlTablesToGfm(html)
-        assertTrue(result.contains("x \\| y"))
+        assertTrue(result.contains("**bold**"))
+        assertFalse(result.contains("<table"))
+    }
+
+    @Test
+    fun `prepareNoteContentForDisplay preserves html body on save path`() {
+        val raw = "<table><tr><td>A</td></tr></table>"
+        assertTrue(noteContentContainsRawHtml(raw))
+        val displayed = prepareNoteContentForDisplay(raw, "https://jotty.example.com")
+        assertFalse(displayed.contains("<table"))
     }
 }

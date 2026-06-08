@@ -32,11 +32,16 @@ class KanbanGroupingTest {
     }
 
     @Test
-    fun moveKanbanCardInColumnRequest_firstCardCannotMoveUp() {
+    fun kanbanCardReorderRequest_movesDown() {
         val cards =
             listOf(
                 KanbanCard(0, ChecklistItem(id = "a", index = 0, text = "A", status = "todo")),
+                KanbanCard(1, ChecklistItem(id = "b", index = 1, text = "B", status = "todo")),
+                KanbanCard(2, ChecklistItem(id = "c", index = 2, text = "C", status = "todo")),
             )
-        assertNull(moveKanbanCardInColumnRequest(cards, cardIndex = 0, up = true))
+        val request = kanbanCardReorderRequest(cards, fromIndex = 0, toIndex = 2)
+        assertEquals("a", request?.activeItemId)
+        assertEquals("c", request?.overItemId)
+        assertEquals("after", request?.position)
     }
 }

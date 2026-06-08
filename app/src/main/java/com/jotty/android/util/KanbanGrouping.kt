@@ -73,11 +73,23 @@ fun moveKanbanCardInColumnRequest(
     val itemId = columnCards[cardIndex].item.id ?: return null
     return if (up) {
         if (cardIndex <= 0) return null
-        val overId = columnCards[cardIndex - 1].item.id ?: return null
-        ReorderItemsRequest(activeItemId = itemId, overItemId = overId, position = "before")
+        kanbanCardReorderRequest(columnCards, cardIndex, cardIndex - 1)
     } else {
         if (cardIndex >= columnCards.lastIndex) return null
-        val overId = columnCards[cardIndex + 1].item.id ?: return null
-        ReorderItemsRequest(activeItemId = itemId, overItemId = overId, position = "after")
+        kanbanCardReorderRequest(columnCards, cardIndex, cardIndex + 1)
     }
+}
+
+/** Reorder request when dragging a card from [fromIndex] to [toIndex] within the same column. */
+fun kanbanCardReorderRequest(
+    columnCards: List<KanbanCard>,
+    fromIndex: Int,
+    toIndex: Int,
+): ReorderItemsRequest? {
+    if (fromIndex == toIndex) return null
+    if (fromIndex !in columnCards.indices || toIndex !in columnCards.indices) return null
+    val itemId = columnCards[fromIndex].item.id ?: return null
+    val overId = columnCards[toIndex].item.id ?: return null
+    val position = if (fromIndex < toIndex) "after" else "before"
+    return ReorderItemsRequest(activeItemId = itemId, overItemId = overId, position = position)
 }

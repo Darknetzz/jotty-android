@@ -25,7 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.MoreVert
 import com.jotty.android.R
+import com.jotty.android.ui.common.ArchiveDropdownMenuItem
+import com.jotty.android.ui.common.ShareDropdownMenuItem
 import com.jotty.android.ui.common.CategorySelector
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.ConfirmDiscardPendingSyncDialog
@@ -41,11 +44,42 @@ fun ChecklistDetailHeader(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
     onDiscardPendingSync: (() -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
+    isArchived: Boolean = false,
+    onArchiveToggle: (() -> Unit)? = null,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showArchiveConfirm by remember { mutableStateOf(false) }
     val displayTitle = title.ifBlank { stringResource(R.string.untitled) }
     val deleteConfirmMessage = stringResource(R.string.delete_checklist_confirm, displayTitle)
+
+    if (showArchiveConfirm && onArchiveToggle != null) {
+        AlertDialog(
+            onDismissRequest = { showArchiveConfirm = false },
+            title = {
+                Text(
+                    stringResource(if (isArchived) R.string.unarchive else R.string.archive),
+                )
+            },
+            text = { Text(stringResource(R.string.archive_checklist_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showArchiveConfirm = false
+                        onArchiveToggle()
+                    },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showArchiveConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
 
     if (showDeleteConfirm) {
         ConfirmDeleteDialog(
@@ -85,6 +119,23 @@ fun ChecklistDetailHeader(
                     onRename()
                 },
             )
+            if (onShare != null) {
+                ShareDropdownMenuItem(
+                    onClick = {
+                        menuExpanded = false
+                        onShare()
+                    },
+                )
+            }
+            if (onArchiveToggle != null) {
+                ArchiveDropdownMenuItem(
+                    isArchived = isArchived,
+                    onClick = {
+                        menuExpanded = false
+                        showArchiveConfirm = true
+                    },
+                )
+            }
             if (onDiscardPendingSync != null) {
                 DiscardPendingSyncDropdownMenuItem(
                     onClick = {

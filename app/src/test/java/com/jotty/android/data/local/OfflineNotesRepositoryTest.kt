@@ -102,7 +102,7 @@ class OfflineNotesRepositoryTest {
                             true,
                             Note(
                                 id = noteId,
-                                title = body.title,
+                                title = body.title.orEmpty(),
                                 category = body.category ?: API_CATEGORY_UNCATEGORIZED,
                                 content = body.content.orEmpty(),
                                 createdAt = "c",
@@ -307,7 +307,7 @@ class OfflineNotesRepositoryTest {
                         updateCalled = true
                         ApiResponse(
                             true,
-                            Note(noteId, req.title, req.category ?: API_CATEGORY_UNCATEGORIZED, req.content.orEmpty(), "c", "u"),
+                            Note(noteId, req.title.orEmpty(), req.category ?: API_CATEGORY_UNCATEGORIZED, req.content.orEmpty(), "c", "u"),
                         )
                     },
                 )

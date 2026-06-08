@@ -25,6 +25,8 @@ import com.jotty.android.data.api.TaskStatusesResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
+import com.jotty.android.data.api.ShareInfoResponse
+import com.jotty.android.data.api.UpdateShareInfoRequest
 import com.jotty.android.data.api.UpdateTaskStatusRequest
 
 /**
@@ -119,7 +121,7 @@ internal class FakeJottyApi(
                 true,
                 Note(
                     id = noteId,
-                    title = body.title,
+                    title = body.title.orEmpty(),
                     category = body.category ?: API_CATEGORY_UNCATEGORIZED,
                     content = body.content.orEmpty(),
                     createdAt = "c",
@@ -186,4 +188,15 @@ internal class FakeJottyApi(
         itemIndex: String,
         body: UpdateTaskItemStatusRequest,
     ): SuccessResponse = SuccessResponse(true)
+
+    override suspend fun getSharingInfo(
+        itemType: String,
+        itemId: String,
+    ): ShareInfoResponse = ShareInfoResponse(success = false)
+
+    override suspend fun updateSharingInfo(
+        itemType: String,
+        itemId: String,
+        body: UpdateShareInfoRequest,
+    ): ShareInfoResponse = ShareInfoResponse(success = false)
 }

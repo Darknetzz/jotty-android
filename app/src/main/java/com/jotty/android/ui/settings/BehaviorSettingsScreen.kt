@@ -21,6 +21,7 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
+    val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
@@ -119,6 +120,26 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                         onCheckedChange = {
                             scope.launch {
                                 settingsRepository.setKanbanHideEmptyColumns(it)
+                            }
+                        },
+                    )
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.rich_note_editor)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.rich_note_editor_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = richNoteEditorEnabled,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setRichNoteEditorEnabled(it)
                             }
                         },
                     )

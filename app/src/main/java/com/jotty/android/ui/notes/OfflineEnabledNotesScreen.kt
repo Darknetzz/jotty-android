@@ -27,6 +27,7 @@ import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConflictCopiesBanner
+import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.rememberStaleListWhileRefresh
@@ -67,6 +68,7 @@ fun OfflineEnabledNotesScreen(
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -298,7 +300,20 @@ fun OfflineEnabledNotesScreen(
                                     },
                                 )
                             }
-                            items(noteCategories, key = { it }) { cat ->
+                            item {
+                                FilterChip(
+                                    selected = selectedCategory == JOTTY_ARCHIVE_CATEGORY,
+                                    onClick = { vm.toggleCategoryChip(JOTTY_ARCHIVE_CATEGORY) },
+                                    label = {
+                                        Text(
+                                            stringResource(R.string.category_archived),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                )
+                            }
+                            items(noteCategories.filter { !it.equals(JOTTY_ARCHIVE_CATEGORY, true) }, key = { it }) { cat ->
                                 FilterChip(
                                     selected = selectedCategory == cat,
                                     onClick = { vm.toggleCategoryChip(cat) },
@@ -418,6 +433,8 @@ fun OfflineEnabledNotesScreen(
                         biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
                         biometricSaveOfferEnabled = biometricSaveOfferEnabled,
                         categorySuggestions = noteCategories,
+                        richEditorEnabled = richNoteEditorEnabled,
+                        api = api,
                     )
                 }
             }

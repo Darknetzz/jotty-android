@@ -12,6 +12,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import coil.ImageLoader
+import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.local.OfflineNotesRepository
@@ -39,6 +40,8 @@ fun OfflineNoteDetailScreen(
     biometricAutoUnlockEnabled: Boolean = true,
     biometricSaveOfferEnabled: Boolean = true,
     categorySuggestions: List<String> = emptyList(),
+    richEditorEnabled: Boolean = false,
+    api: JottyApi? = null,
 ) {
     val scope = rememberCoroutineScope()
     val allNotes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -83,6 +86,8 @@ fun OfflineNoteDetailScreen(
             biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
             biometricSaveOfferEnabled = biometricSaveOfferEnabled,
             categorySuggestions = categorySuggestions,
+            richEditorEnabled = richEditorEnabled,
+            api = api,
         )
     }
 }

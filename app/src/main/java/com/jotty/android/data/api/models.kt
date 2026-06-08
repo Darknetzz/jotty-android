@@ -236,10 +236,30 @@ data class CreateNoteRequest(
 )
 
 data class UpdateNoteRequest(
-    val title: String,
+    val title: String? = null,
     val content: String? = null,
     val category: String? = null,
     val originalCategory: String? = null,
+)
+
+// ─── Sharing (optional REST; may 404 on current Jotty servers) ─────────────
+
+data class ShareInfoResponse(
+    val success: Boolean = true,
+    val data: ShareInfo? = null,
+)
+
+data class ShareInfo(
+    val id: String,
+    val type: String,
+    val isPubliclyShared: Boolean = false,
+    val publicUrl: String? = null,
+    val sharedWith: List<String> = emptyList(),
+)
+
+data class UpdateShareInfoRequest(
+    val isPubliclyShared: Boolean? = null,
+    val sharedWith: List<String>? = null,
 )
 
 // ─── Categories ─────────────────────────────────────────────────────────────

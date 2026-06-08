@@ -40,6 +40,21 @@ See [upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md](upstream/KANBAN_ITEM_FIELDS_AP
 - Encrypted notes (XChaCha20) match the Jotty web format; PGP notes are view-only in-app.
 - Note images: relative URLs such as `/api/image/...` are resolved against the instance base URL (RFC 3986) before Markdown render; HTML `<img src>` attributes are rewritten too. Absolute Jotty media URLs that use a different host than the configured instance (e.g. LAN IP vs hostname) are rewritten to the instance origin.
 - **Image authentication:** Jotty’s `/api/image/` and `/api/file/` routes authenticate via **browser session cookies**, not `x-api-key`. The Android app sends `x-api-key` on same-origin media requests, but **standard Jotty server versions return HTTP 401** for private images unless `SERVE_PUBLIC_IMAGES=yes` is set on the server. Notes/checklists API calls are unaffected. Upstream Jotty would need API-key support on media routes for private images to load in-app without that env var. When image auth fails, note detail shows a dismissible banner (same condition as above).
+- **Archive (notes/checklists):** Jotty web moves items to category **`Archive`** (`ARCHIVED_DIR_NAME`). The Android app archives via `PUT /api/notes/{id}` or `PUT /api/checklists/{id}` with `category: "Archive"`. Archived items are hidden from the default list and shown under the **Archived** filter chip.
+- **Save with HTML/images:** The app saves note body as written (no HTML→Markdown conversion on write). Display-only conversion runs when viewing.
+
+## Sharing
+
+| Capability | Jotty web | Jotty OpenAPI (`public/api/paths`) | Android behavior |
+|------------|-----------|-------------------------------------|------------------|
+| Share with users / public link | Server Actions (`app/_server/actions/sharing/`) | **Not documented** (no `sharing.yaml` in OpenAPI as of Jotty `main`) | Probes `GET /api/sharing/items/{type}/{id}`; on 404 shows export fallback + web-app hint |
+| Text export | N/A | N/A | Checklists/Kanban: plain-text export via Share; notes: existing Share action |
+
+When Jotty adds REST sharing endpoints, the client uses [`ShareServerDialog`](../app/src/main/java/com/jotty/android/ui/common/ShareServerDialog.kt) and [`JottySharingProbe`](../app/src/main/java/com/jotty/android/util/JottySharingProbe.kt).
+
+## Kanban item archive
+
+Kanban **item** archive/unarchive in the web app uses server actions (`archiveItem` / `unarchiveItem` on checklist items). There is **no REST equivalent** in OpenAPI today. Android does not expose per-item archive until upstream adds PATCH fields (e.g. `isArchived`) or a dedicated endpoint.
 
 ## In-app signals
 

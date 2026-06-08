@@ -2,6 +2,7 @@ package com.jotty.android.ui.notes
 
 import android.annotation.SuppressLint
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -9,6 +10,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,11 +23,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -37,16 +38,10 @@ import com.jotty.android.ui.common.CategorySelector
 import com.jotty.android.util.prepareNoteContentForWysiwyg
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * Bridges note HTML into the WebView without embedding it in a JavaScript string.
- * Must be public to the JVM (not private) so [WebView.addJavascriptInterface] can invoke it.
- */
+/** Notifies Kotlin when the user edits the WYSIWYG body. */
 internal class WysiwygEditorBridge(
     private val onContentChanged: (String) -> Unit,
 ) {
-    @Volatile
-    var pendingHtml: String = ""
-
     private val acceptChanges = AtomicBoolean(false)
     private val userEdited = AtomicBoolean(false)
 
@@ -60,13 +55,9 @@ internal class WysiwygEditorBridge(
     }
 
     @JavascriptInterface
-    fun getInitialHtml(): String = pendingHtml
-
-    @JavascriptInterface
     fun onContentChanged(html: String) {
         if (!acceptChanges.get()) return
-        // Ignore the empty editor firing before initial content is injected.
-        if (!userEdited.get() && html.isBlank() && pendingHtml.isNotBlank()) return
+        if (!userEdited.get() && html.isBlank()) return
         userEdited.set(true)
         onContentChanged(html)
     }
@@ -144,7 +135,8 @@ internal fun WysiwygNoteEditor(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .weight(1f)
+                    .defaultMinSize(minHeight = 160.dp),
         )
     }
 }
@@ -199,72 +191,56 @@ private fun WysiwygWebEditor(
     onWebViewReady: (WebView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var webView by remember { mutableStateOf<WebView?>(null) }
-    var pageReady by remember { mutableStateOf(false) }
-    var skipNextReload by remember { mutableStateOf(false) }
+    val documentHtml =
+        remember(contentReloadKey, htmlContent, backgroundColor, textColor, borderColor) {
+            buildWysiwygEditorDocument(htmlContent, backgroundColor, textColor, borderColor)
+        }
     val bridge =
         remember(contentReloadKey) {
-            WysiwygEditorBridge { html ->
-                skipNextReload = true
-                onContentChange(html)
-            }
+            WysiwygEditorBridge(onContentChange)
         }
-
-    fun applyThemeAndContent(view: WebView) {
-        bridge.pendingHtml = htmlContent
-        bridge.beginLoad()
-        view.evaluateJavascript(
-            "setEditorTheme($backgroundColor,$textColor,$borderColor);loadInitialContent();",
-        ) {
-            bridge.endLoad()
-        }
-    }
-
-    LaunchedEffect(contentReloadKey, htmlContent) {
-        bridge.pendingHtml = htmlContent
-    }
-
-    LaunchedEffect(contentReloadKey) {
-        pageReady = false
-        bridge.beginLoad()
-    }
-
-    LaunchedEffect(contentReloadKey, pageReady) {
-        if (pageReady && !skipNextReload) {
-            webView?.let { applyThemeAndContent(it) }
-        }
-        skipNextReload = false
-    }
 
     key(contentReloadKey) {
         AndroidView(
             modifier = modifier,
             factory = { context ->
                 WebView(context).apply {
+                    layoutParams =
+                        ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                        )
                     setBackgroundColor(backgroundColor)
                     overScrollMode = View.OVER_SCROLL_NEVER
-                    isVerticalScrollBarEnabled = false
+                    isVerticalScrollBarEnabled = true
+                    isFocusable = true
+                    isFocusableInTouchMode = true
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = false
-                    bridge.pendingHtml = htmlContent
+                    settings.allowFileAccess = true
+                    bridge.beginLoad()
+                    addJavascriptInterface(bridge, "AndroidBridge")
                     webViewClient =
                         object : WebViewClient() {
                             override fun onPageFinished(
                                 view: WebView?,
                                 url: String?,
                             ) {
-                                pageReady = true
-                                view?.let { applyThemeAndContent(it) }
+                                bridge.endLoad()
+                                view?.requestFocus()
                             }
                         }
-                    addJavascriptInterface(bridge, "AndroidBridge")
-                    loadUrl("file:///android_asset/wysiwyg/editor.html")
-                    webView = this
+                    loadDataWithBaseURL(
+                        "file:///android_asset/",
+                        documentHtml,
+                        "text/html",
+                        "UTF-8",
+                        null,
+                    )
                     onWebViewReady(this)
                 }
             },
             update = { view ->
-                webView = view
                 view.setBackgroundColor(backgroundColor)
                 onWebViewReady(view)
             },

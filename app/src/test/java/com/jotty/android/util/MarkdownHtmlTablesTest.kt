@@ -238,6 +238,27 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
+    fun `prepareNoteContentForWysiwyg converts pipe table note like wysiwyg test`() {
+        val md =
+            """
+            # test
+
+            | Navn | asd | Kommentar |
+            | --- | --- | --- |
+            | sada | 123 | asdasd |
+            | test | 321 | |
+            | test | 123 | 2026-05-27 |
+            | test | -123 | 2026-06-03 |
+            """.trimIndent()
+        val html = prepareNoteContentForWysiwyg(md)
+        assertFalse(html.isBlank())
+        assertTrue(html.contains("<h1>test</h1>"))
+        assertTrue(html.contains("<table"))
+        assertTrue(html.contains("Navn"))
+        assertTrue(html.contains("asdasd"))
+    }
+
+    @Test
     fun `prepareNoteContentForWysiwyg converts markdown table to html`() {
         val md =
             """

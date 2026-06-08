@@ -30,6 +30,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Note view text selection** — Long-press to select and copy note body text in view mode (uses `MarkdownText` native selection; Compose `SelectionContainer` does not apply to the Markwon `TextView`).
 - **WYSIWYG editor blank for HTML tables** — Note HTML (including tables from the Jotty web app) loads via the JavaScript bridge instead of `evaluateJavascript`, with theme-matched text and table borders.
+- **WYSIWYG editor blank for markdown tables** — Visual mode no longer clears note body before content loads; markdown pipe tables convert to HTML when opening visual edit.
 - **Dev → stable updates** — About now blocks in-app install when a dev build cannot be replaced by stable (version code), shows the full explanation in a scrollable dialog, and offers “Open release page” instead of a failing download.
 
 ---

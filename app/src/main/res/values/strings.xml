@@ -300,7 +300,7 @@
     <string name="note_list_preview">Note preview in list</string>
     <string name="note_list_preview_description">Show a short excerpt of each note under the title in the notes list</string>
     <string name="rich_note_editor">Rich text editor</string>
-    <string name="rich_note_editor_description">Edit notes with a WYSIWYG editor (HTML). Falls back to markdown source when off.</string>
+    <string name="rich_note_editor_description">Edit notes with a visual editor. Notes that contain HTML (tables, images from the web app) use it automatically; turn on to use it for all notes.</string>
     <string name="content_padding">Content padding</string>
     <string name="content_padding_description">Vertical spacing at top and bottom of screens</string>
     <string name="content_padding_comfortable">Comfortable</string>

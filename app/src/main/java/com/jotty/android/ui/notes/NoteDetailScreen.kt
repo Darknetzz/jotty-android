@@ -72,6 +72,7 @@ import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.isArchivedCategory
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.util.formatNoteDate
+import com.jotty.android.util.noteContentContainsRawHtml
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -511,25 +512,30 @@ internal fun NoteDetailScreen(
                             },
                         modifier = Modifier.fillMaxSize(),
                     )
-                isEditing ->
-                    if (richEditorEnabled) {
+                isEditing -> {
+                    val editBody = if (isEncrypted) decryptedContent.orEmpty() else content
+                    val useRichEditor =
+                        richEditorEnabled || noteContentContainsRawHtml(editBody)
+                    if (useRichEditor) {
                         WysiwygNoteEditor(
                             title = title,
                             onTitleChange = { detailVm.setTitle(it) },
-                            content = if (isEncrypted) decryptedContent.orEmpty() else content,
+                            content = editBody,
+                            contentReloadKey = "${note.id}:${note.updatedAt}",
                             onContentChange = {
                                 if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
                             },
                             category = category,
                             onCategoryChange = { detailVm.setCategory(it) },
                             categorySuggestions = categorySuggestions,
+                            showHtmlSaveHint = noteContentContainsRawHtml(editBody),
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
                         NoteEditor(
                             title = title,
                             onTitleChange = { detailVm.setTitle(it) },
-                            content = if (isEncrypted) decryptedContent.orEmpty() else content,
+                            content = editBody,
                             onContentChange = {
                                 if (isEncrypted) detailVm.setDecryptedContent(it) else detailVm.setContent(it)
                             },
@@ -539,6 +545,7 @@ internal fun NoteDetailScreen(
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
+                }
                 else -> {
                     val viewContent =
                         when {

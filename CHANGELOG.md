@@ -35,6 +35,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **WYSIWYG editor always blank** — Note HTML is embedded in the editor page via `loadDataWithBaseURL` instead of a `JavascriptInterface` bridge that failed to load content from `file://` asset pages.
 - **Dev → stable updates** — About now blocks in-app install when a dev build cannot be replaced by stable (version code), shows the full explanation in a scrollable dialog, and offers “Open release page” instead of a failing download.
 
+### Documentation
+
+- **Privacy policy** — [docs/PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) for Google Play and users (local storage, Jotty server communication, optional GitHub update checks, no analytics).
+
 ---
 
 ## [1.5.2] - 2026-06-08

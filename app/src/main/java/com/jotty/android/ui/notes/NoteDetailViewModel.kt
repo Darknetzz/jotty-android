@@ -99,6 +99,9 @@ class NoteDetailViewModel(
             }
         }
 
+    /** Body to persist on the server — always ciphertext for encrypted notes, never session plaintext. */
+    fun contentForServerUpdate(): String = _content.value
+
     fun resetFromNote(updated: Note) {
         adoptNoteId(updated.id)
         _title.value = stripInvisibleFromEdges(updated.title)

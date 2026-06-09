@@ -345,6 +345,49 @@ class OfflineNotesRepositoryTest {
         }
 
     @Test
+    fun updateNote_encryptedNote_rejectsPlaintextContent() =
+        runTest {
+            val encryptedBody =
+                "---\nencrypted: true\nencryptionMethod: xchacha\n---\n{\"salt\":\"x\"}"
+            database.noteDao().insertNote(
+                NoteEntity(
+                    id = "encrypted-note-id",
+                    title = "Secret",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = encryptedBody,
+                    createdAt = "2024-01-01T00:00:00Z",
+                    updatedAt = "2024-01-01T00:00:00Z",
+                    encrypted = true,
+                    isDirty = false,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineNotesRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeJottyApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            val result =
+                repo.updateNote(
+                    "encrypted-note-id",
+                    "Secret",
+                    "leaked plaintext from session",
+                    API_CATEGORY_UNCATEGORIZED,
+                )
+
+            assertTrue(result.isFailure)
+            val stored = database.noteDao().getNoteById("encrypted-note-id")
+            assertEquals(encryptedBody, stored?.content)
+        }
+
+    @Test
     fun syncNote_createOfflineThenEditOfflineThenSync_callsCreateNotUpdateNote() =
         runTest {
             // Exact reproduction of the original bug:

@@ -267,16 +267,11 @@ internal fun NoteDetailScreen(
                                 } else {
                                     JOTTY_ARCHIVE_CATEGORY
                                 }
-                            val noteContent =
-                                when {
-                                    isDecrypted -> decryptedContent.orEmpty()
-                                    else -> content
-                                }
                             actions
                                 .updateNote(
                                     noteId = note.id,
                                     title = title,
-                                    content = noteContent,
+                                    content = detailVm.contentForServerUpdate(),
                                     category = newCategory,
                                     originalCategory = category,
                                 ).onSuccess {

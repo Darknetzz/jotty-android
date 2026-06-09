@@ -462,5 +462,8 @@
     <string name="biometric_clear_all">Clear all remembered passphrases</string>
     <string name="biometric_clear_all_confirm_title">Clear remembered passphrases?</string>
     <string name="biometric_clear_all_confirm_message">You will need to enter each note\'s passphrase again (or re-save with biometric after decrypt).</string>
+    <string name="biometric_enrollment_changed_title">Biometric setup changed</string>
+    <string name="biometric_enrollment_changed_message_one">Your device\'s fingerprint or face unlock was changed. For security, the remembered passphrase for this note was cleared. Enter your passphrase to decrypt, then you can save it with biometric again.</string>
+    <string name="biometric_enrollment_changed_message_many">Your device\'s fingerprint or face unlock was changed. For security, %1$d remembered passphrases were cleared. Enter each note\'s passphrase to decrypt, then you can save with biometric again.</string>
     <string name="clear">Clear</string>
 </resources>

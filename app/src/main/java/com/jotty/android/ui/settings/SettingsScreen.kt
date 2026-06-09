@@ -74,7 +74,15 @@ fun SettingsScreen(
     val context = LocalContext.current
     val biometricStore = remember { BiometricPassphraseStore(context.applicationContext) }
     val biometricAvailability = remember { biometricStore.availabilityStatus() }
-    var storedPassphraseCount by remember { mutableIntStateOf(biometricStore.storedCount()) }
+    var storedPassphraseCount by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(biometricStore) {
+        storedPassphraseCount =
+            withContext(Dispatchers.IO) {
+                biometricStore.pruneInvalidatedPassphrases()
+                biometricStore.storedCount()
+            }
+    }
     var showClearBiometricConfirm by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val biometricClearedMsg = stringResource(R.string.biometric_passphrase_forgotten)

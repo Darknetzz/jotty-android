@@ -78,8 +78,10 @@ import com.jotty.android.util.formatNoteDate
 import com.jotty.android.util.noteContentContainsRawHtml
 import com.jotty.android.util.noteNeedsRichEditor
 import com.jotty.android.util.prepareWysiwygHtmlForMarkdown
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,11 +180,6 @@ internal fun NoteDetailScreen(
     val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
     val biometricSavedMsg = stringResource(R.string.biometric_passphrase_saved)
 
-    DisposableEffect(note.id, biometricStore) {
-        hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
-        onDispose {}
-    }
-
     val biometricUnlock =
         rememberBiometricNoteUnlock(
             activity = activity,
@@ -217,9 +214,12 @@ internal fun NoteDetailScreen(
         detailVm.onNoteSnapshotUpdated(note)
     }
 
-    LaunchedEffect(note.id) {
+    LaunchedEffect(note.id, biometricStore) {
         detailVm.loadSessionDecryptedContent()
-        hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
+        hasBiometricPassphrase =
+            withContext(Dispatchers.IO) {
+                biometricStore?.ensurePassphraseValid(note.id) == true
+            }
         if (
             biometricAutoUnlockEnabled &&
             detailVm.decryptedContent.value.isNullOrBlank() &&

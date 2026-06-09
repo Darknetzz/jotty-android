@@ -278,8 +278,15 @@ internal fun DecryptNoteDialog(
     val scope = rememberCoroutineScope()
     val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
     val decryptAuthFailedHint = stringResource(R.string.decrypt_auth_failed_hint)
-    val hasStoredBiometric = biometricStore?.hasPassphrase(noteId) == true
+    var hasStoredBiometric by remember(noteId) { mutableStateOf(false) }
     var biometricDialogTriggered by rememberSaveable(noteId) { mutableStateOf(false) }
+
+    LaunchedEffect(noteId, biometricStore) {
+        hasStoredBiometric =
+            withContext(Dispatchers.IO) {
+                biometricStore?.ensurePassphraseValid(noteId) == true
+            }
+    }
 
     val activity = LocalActivity.current as? FragmentActivity
     val biometricTitle = stringResource(R.string.biometric_prompt_title)

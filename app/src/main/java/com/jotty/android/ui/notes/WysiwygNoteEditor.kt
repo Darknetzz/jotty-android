@@ -3,7 +3,6 @@ package com.jotty.android.ui.notes
 import android.annotation.SuppressLint
 import android.view.View
 import android.view.ViewGroup
-import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.horizontalScroll
@@ -36,32 +35,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.jotty.android.R
 import com.jotty.android.ui.common.CategorySelector
 import com.jotty.android.util.prepareNoteContentForWysiwyg
-import java.util.concurrent.atomic.AtomicBoolean
-
-/** Notifies Kotlin when the user edits the WYSIWYG body. */
-internal class WysiwygEditorBridge(
-    private val onContentChanged: (String) -> Unit,
-) {
-    private val acceptChanges = AtomicBoolean(false)
-    private val userEdited = AtomicBoolean(false)
-
-    fun beginLoad() {
-        acceptChanges.set(false)
-        userEdited.set(false)
-    }
-
-    fun endLoad() {
-        acceptChanges.set(true)
-    }
-
-    @JavascriptInterface
-    fun onContentChanged(html: String) {
-        if (!acceptChanges.get()) return
-        if (!userEdited.get() && html.isBlank()) return
-        userEdited.set(true)
-        onContentChanged(html)
-    }
-}
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -197,7 +170,7 @@ private fun WysiwygWebEditor(
         }
     val bridge =
         remember(contentReloadKey) {
-            WysiwygEditorBridge(onContentChange)
+            WysiwygEditorBridge { html -> onContentChange(html) }
         }
 
     key(contentReloadKey) {
@@ -218,8 +191,7 @@ private fun WysiwygWebEditor(
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = false
                     settings.allowFileAccess = true
-                    bridge.beginLoad()
-                    addJavascriptInterface(bridge, "AndroidBridge")
+                    bridge.attachTo(this)
                     webViewClient =
                         object : WebViewClient() {
                             override fun onPageFinished(

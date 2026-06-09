@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Notes list unlocked badge** — Encrypted notes decrypted in this session show **Unlocked** with an open lock on the overview instead of **Encrypted**.
 - **Biometric enrollment changed** — When device fingerprint or face unlock changes, remembered note passphrases are cleared with an explanation dialog; Settings shows an accurate count of still-valid remembered passphrases.
 - **Checklist add-item search** — On simple checklists, the add field filters existing items as you type; matching a completed item unchecks it instead of creating a duplicate.
 - **Kanban board / list toggle** — Project boards switch between the Kanban board and the tree/list view (inline edit, reorder) without losing Kanban when the status API is available.
@@ -23,6 +24,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Biometric setup changed dialog** — Singular message no longer says “this note” when the app clears remembered passphrases on launch (it means one affected note, not the screen you are on).
+- **Encrypted note menu** — While viewing a decrypted encrypted note, the ⋮ menu shows **Re-encrypt** (save to server) instead of **Encrypt**, to distinguish it from **Lock note** (hide locally).
 - **Settings** — Export debug logs moved to the bottom of Settings, next to About.
 - **Checklist overview progress** — List cards count nested subtasks (matches detail view).
 - **Kanban board height** — Columns use viewport-aware height instead of a fixed 420dp.

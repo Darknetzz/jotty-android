@@ -48,4 +48,13 @@ class NoteDecryptionSessionTest {
         assertNull(NoteDecryptionSession.get("a"))
         assertNull(NoteDecryptionSession.get("b"))
     }
+
+    @Test
+    fun isUnlocked_reflectsSessionCache() {
+        assertFalse(NoteDecryptionSession.isUnlocked("note-1"))
+        NoteDecryptionSession.put("note-1", "Secret")
+        assertTrue(NoteDecryptionSession.isUnlocked("note-1"))
+        NoteDecryptionSession.remove("note-1")
+        assertFalse(NoteDecryptionSession.isUnlocked("note-1"))
+    }
 }

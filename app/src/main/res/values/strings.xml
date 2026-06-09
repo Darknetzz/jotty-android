@@ -126,6 +126,7 @@
     <string name="note_deleted">Note deleted</string>
     <string name="checklist_deleted">Checklist deleted</string>
     <string name="encrypted">Encrypted</string>
+    <string name="unlocked">Unlocked</string>
     <string name="note_decrypted_session">Decrypted</string>
     <string name="lock_note">Lock note</string>
     <string name="cd_lock_note">Lock note and hide decrypted content</string>

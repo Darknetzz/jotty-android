@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Notes list unlocked badge** — Encrypted notes decrypted in this session show **Unlocked** with an open lock on the overview instead of **Encrypted**.
 - **Biometric enrollment changed** — When device fingerprint or face unlock changes, remembered note passphrases are cleared with an explanation dialog; Settings shows an accurate count of still-valid remembered passphrases.
 - **Checklist add-item search** — On simple checklists, the add field filters existing items as you type; matching a completed item unchecks it instead of creating a duplicate.
 - **Kanban board / list toggle** — Project boards switch between the Kanban board and the tree/list view (inline edit, reorder) without losing Kanban when the status API is available.

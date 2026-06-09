@@ -23,6 +23,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Biometric setup changed dialog** — Singular message no longer says “this note” when the app clears remembered passphrases on launch (it means one affected note, not the screen you are on).
 - **Encrypted note menu** — While viewing a decrypted encrypted note, the ⋮ menu shows **Re-encrypt** (save to server) instead of **Encrypt**, to distinguish it from **Lock note** (hide locally).
 - **Settings** — Export debug logs moved to the bottom of Settings, next to About.
 - **Checklist overview progress** — List cards count nested subtasks (matches detail view).

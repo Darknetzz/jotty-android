@@ -37,6 +37,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.DEFAULT_TASK_STATUSES
+import com.jotty.android.data.api.isCompletedForApi
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.TaskStatus
 import com.jotty.android.data.api.UpdateChecklistRequest
@@ -613,49 +614,6 @@ private fun ChecklistDetailScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = newItemText,
-                onValueChange = { newItemText = it },
-                placeholder = { Text(stringResource(R.string.add_item)) },
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(
-                onClick = {
-                    if (newItemText.isNotBlank()) {
-                        scope.launch {
-                            try {
-                                val defaultStatus =
-                                    if (isProject && canUseKanbanBoard) {
-                                        defaultKanbanItemStatus(taskStatuses)
-                                    } else {
-                                        null
-                                    }
-                                api.addChecklistItem(
-                                    checklist.id,
-                                    com.jotty.android.data.api.AddItemRequest(
-                                        text = newItemText,
-                                        status = defaultStatus,
-                                    ),
-                                )
-                                newItemText = ""
-                                refresh()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
-                        }
-                    }
-                },
-            ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
-            }
-        }
-
         val flatItems =
             remember(items, isProject) {
                 if (isProject) {
@@ -664,8 +622,51 @@ private fun ChecklistDetailScreen(
                     items.mapIndexed { index, item -> ChecklistFlatItem(item, 0, "$index") }
                 }
             }
-        val toDo = flatItems.filter { !it.item.completed }
-        val completed = flatItems.filter { it.item.completed }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        ChecklistAddItemField(
+            value = newItemText,
+            onValueChange = { newItemText = it },
+            existingItems = flatItems,
+            itemSearchEnabled = !isProject,
+            modifier = Modifier.padding(horizontal = 16.dp),
+            onAddItem = { text ->
+                scope.launch {
+                    try {
+                        val defaultStatus =
+                            if (isProject && canUseKanbanBoard) {
+                                defaultKanbanItemStatus(taskStatuses)
+                            } else {
+                                null
+                            }
+                        api.addChecklistItem(
+                            checklist.id,
+                            com.jotty.android.data.api.AddItemRequest(
+                                text = text,
+                                status = defaultStatus,
+                            ),
+                        )
+                        refresh()
+                    } catch (_: Exception) {
+                        onSaveFailed()
+                    }
+                }
+            },
+            onUncheckItem = { path ->
+                scope.launch {
+                    try {
+                        api.uncheckItem(checklist.id, path)
+                        refresh()
+                    } catch (_: Exception) {
+                        onSaveFailed()
+                    }
+                }
+            },
+        )
+
+        val toDo = flatItems.filter { !it.item.isCompletedForApi() }
+        val completed = flatItems.filter { it.item.isCompletedForApi() }
         val total = flatItems.size
         val doneCount = completed.size
 

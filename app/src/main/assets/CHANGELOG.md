@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Checklist add-item search** — On simple checklists, the add field filters existing items as you type; matching a completed item unchecks it instead of creating a duplicate.
 - **Kanban board / list toggle** — Project boards switch between the Kanban board and the tree/list view (inline edit, reorder) without losing Kanban when the status API is available.
 - **Kanban per-column add** — Each board column has an add field to create a task in that status.
 - **Kanban column reorder** — Card menu includes move up/down within the same column; drag handle reorder when enabled in Settings.
@@ -34,6 +35,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **WYSIWYG editor blank for markdown tables** — Visual mode no longer clears note body before content loads; markdown pipe tables convert to HTML when opening visual edit.
 - **WYSIWYG editor always blank** — Note HTML is embedded in the editor page via `loadDataWithBaseURL` instead of a `JavascriptInterface` bridge that failed to load content from `file://` asset pages.
 - **Dev → stable updates** — About now blocks in-app install when a dev build cannot be replaced by stable (version code), shows the full explanation in a scrollable dialog, and offers “Open release page” instead of a failing download.
+
+### Documentation
+
+- **Privacy policy** — [docs/PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) for Google Play and users (local storage, Jotty server communication, optional GitHub update checks, no analytics).
 
 ---
 

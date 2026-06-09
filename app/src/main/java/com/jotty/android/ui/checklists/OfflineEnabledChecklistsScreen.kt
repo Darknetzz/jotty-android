@@ -31,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.isCompletedForApi
 import com.jotty.android.data.api.DEFAULT_TASK_STATUSES
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
@@ -639,8 +640,8 @@ private fun OfflineChecklistDetailContent(
                 items.mapIndexed { i, item -> ChecklistFlatItem(item, 0, "$i") }
             }
         }
-    val toDo = flatItems.filter { !it.item.completed }
-    val done = flatItems.filter { it.item.completed }
+    val toDo = flatItems.filter { !it.item.isCompletedForApi() }
+    val done = flatItems.filter { it.item.isCompletedForApi() }
 
     fun handleResult(result: Result<Checklist>) {
         result.onSuccess { updated ->
@@ -826,67 +827,35 @@ private fun OfflineChecklistDetailContent(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = newItemText,
-                onValueChange = { newItemText = it },
-                placeholder = { Text(stringResource(R.string.add_item)) },
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions =
-                    KeyboardActions(
-                        onDone = {
-                            if (newItemText.isNotBlank()) {
-                                val text = newItemText
-                                newItemText = ""
-                                val defaultStatus =
-                                    if (isProject && canUseKanbanBoard) {
-                                        defaultKanbanItemStatus(taskStatuses)
-                                    } else {
-                                        null
-                                    }
-                                scope.launch {
-                                    handleResult(
-                                        offlineRepository.addItem(
-                                            liveChecklist.id,
-                                            text,
-                                            status = defaultStatus,
-                                        ),
-                                    )
-                                }
-                            }
-                        },
-                    ),
-            )
-            IconButton(
-                onClick = {
-                    if (newItemText.isNotBlank()) {
-                        val text = newItemText
-                        newItemText = ""
-                        val defaultStatus =
-                            if (isProject && canUseKanbanBoard) {
-                                defaultKanbanItemStatus(taskStatuses)
-                            } else {
-                                null
-                            }
-                        scope.launch {
-                            handleResult(
-                                offlineRepository.addItem(
-                                    liveChecklist.id,
-                                    text,
-                                    status = defaultStatus,
-                                ),
-                            )
-                        }
+        ChecklistAddItemField(
+            value = newItemText,
+            onValueChange = { newItemText = it },
+            existingItems = flatItems,
+            itemSearchEnabled = !isProject,
+            modifier = Modifier.padding(horizontal = 16.dp),
+            onAddItem = { text ->
+                val defaultStatus =
+                    if (isProject && canUseKanbanBoard) {
+                        defaultKanbanItemStatus(taskStatuses)
+                    } else {
+                        null
                     }
-                },
-            ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
-            }
-        }
+                scope.launch {
+                    handleResult(
+                        offlineRepository.addItem(
+                            liveChecklist.id,
+                            text,
+                            status = defaultStatus,
+                        ),
+                    )
+                }
+            },
+            onUncheckItem = { path ->
+                scope.launch {
+                    handleResult(offlineRepository.uncheckItem(liveChecklist.id, path))
+                }
+            },
+        )
 
         fun reorderItem(itemId: String?, up: Boolean) {
             val id = itemId ?: return

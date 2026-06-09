@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Checklist add-item search** — On simple checklists, the add field filters existing items as you type; matching a completed item unchecks it instead of creating a duplicate.
 - **Kanban board / list toggle** — Project boards switch between the Kanban board and the tree/list view (inline edit, reorder) without losing Kanban when the status API is available.
 - **Kanban per-column add** — Each board column has an add field to create a task in that status.
 - **Kanban column reorder** — Card menu includes move up/down within the same column; drag handle reorder when enabled in Settings.

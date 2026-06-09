@@ -61,6 +61,9 @@
     <string name="tap_add_checklist">Tap + to add a checklist</string>
     <string name="task_project_sub_tasks">Task project (sub-tasks)</string>
     <string name="add_item">Add item…</string>
+    <string name="checklist_add_item_find_hint">Add or find item…</string>
+    <string name="checklist_add_item_match_uncheck">Uncheck</string>
+    <string name="checklist_add_item_match_on_list">On list</string>
     <string name="add">Add</string>
     <string name="add_sub_task">Add sub-task</string>
     <string name="delete_task">Delete task</string>

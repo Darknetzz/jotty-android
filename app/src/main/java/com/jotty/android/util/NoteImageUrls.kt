@@ -123,6 +123,8 @@ internal fun prepareNoteContentForDisplay(
     val withColors = convertHtmlColorSpans(withFonts)
     val withResolvedHtmlSrc = resolveNoteImageUrlsInHtml(withColors, jottyServerUrl)
     val htmlAsMarkdown = convertHtmlImagesToMarkdown(withResolvedHtmlSrc)
-    val withTables = convertHtmlTablesToGfm(htmlAsMarkdown)
-    return resolveNoteImageUrlsInMarkdown(withTables, jottyServerUrl)
+    val withStructure = convertHtmlStructuralElementsToMarkdown(htmlAsMarkdown)
+    val withTables = convertHtmlTablesToGfm(withStructure)
+    val separated = separateMarkdownHeadingsFromTables(withTables)
+    return resolveNoteImageUrlsInMarkdown(separated, jottyServerUrl)
 }

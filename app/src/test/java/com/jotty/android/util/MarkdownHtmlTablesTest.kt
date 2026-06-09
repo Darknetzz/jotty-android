@@ -139,12 +139,136 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
-    fun `convertHtmlTablesToGfm escapes pipe in cell`() {
+    fun `convertHtmlTablesToGfm handles nested paragraph in cell`() {
         val html =
             """
-            <table><tr><th>A</th><th>B</th></tr><tr><td>x | y</td><td>ok</td></tr></table>
+            <table><tr><td><p>Cell with <strong>bold</strong></p></td></tr></table>
             """.trimIndent()
         val result = convertHtmlTablesToGfm(html)
-        assertTrue(result.contains("x \\| y"))
+        assertTrue(result.contains("**bold**"))
+        assertFalse(result.contains("<table"))
+    }
+
+    @Test
+    fun `separateMarkdownHeadingsFromTables splits merged heading and table row`() {
+        val broken = "# test| Navn | asd | Kommentar |\n| --- | --- | --- |"
+        val fixed = separateMarkdownHeadingsFromTables(broken)
+        assertTrue(fixed.startsWith("# test\n\n| Navn"))
+    }
+
+    @Test
+    fun `convertHtmlStructuralElementsToMarkdown converts heading and table wrapper`() {
+        val html = "<h1>test</h1><table><tr><th>Navn</th><th>asd</th></tr><tr><td>a</td><td>b</td></tr></table>"
+        val md = convertHtmlStructuralElementsToMarkdown(html)
+        assertTrue(md.contains("# test"))
+        assertTrue(md.contains("<table"))
+    }
+
+    @Test
+    fun `prepareNoteContentForDisplay renders html heading before gfm table`() {
+        val html = "<p># test</p><table><tr><th>Navn</th><th>asd</th></tr><tr><td>sada</td><td>123</td></tr></table>"
+        val displayed = prepareNoteContentForDisplay(html, null)
+        assertTrue(displayed.contains("# test"))
+        assertTrue(displayed.contains("| Navn |"))
+        assertTrue(displayed.contains("| --- |"))
+        assertFalse(displayed.contains("# test|"))
+    }
+
+    @Test
+    fun `convertGfmTablesToHtml converts pipe table`() {
+        val md =
+            """
+            | Navn | asd |
+            | --- | --- |
+            | sada | 123 |
+            """.trimIndent()
+        val html = convertGfmTablesToHtml(md)
+        assertTrue(html.contains("<table"))
+        assertTrue(html.contains("<th>Navn</th>"))
+        assertTrue(html.contains("<td>sada</td>"))
+    }
+
+    @Test
+    fun `prepareWysiwygHtmlForMarkdown passes through plain markdown`() {
+        val md = "# Hello\n\nSome **bold** text."
+        assertEquals(md, prepareWysiwygHtmlForMarkdown(md))
+    }
+
+    @Test
+    fun `prepareWysiwygHtmlForMarkdown converts wysiwyg html to markdown`() {
+        val html = "<h2>Title</h2><p>Hello <strong>world</strong></p><ul><li>One</li><li>Two</li></ul>"
+        val md = prepareWysiwygHtmlForMarkdown(html)
+        assertTrue(md.contains("## Title"))
+        assertTrue(md.contains("**world**"))
+        assertTrue(md.contains("- One"))
+        assertTrue(md.contains("- Two"))
+    }
+
+    @Test
+    fun `prepareWysiwygHtmlForMarkdown converts html table to gfm`() {
+        val html =
+            """
+            <table>
+              <tbody>
+                <tr><th>A</th><th>B</th></tr>
+                <tr><td>1</td><td>2</td></tr>
+              </tbody>
+            </table>
+            """.trimIndent()
+        val md = prepareWysiwygHtmlForMarkdown(html)
+        assertTrue(md.contains("| A | B |"))
+        assertTrue(md.contains("| 1 | 2 |"))
+    }
+
+    @Test
+    fun `prepareNoteContentForWysiwyg preserves jotty web html table`() {
+        val html =
+            """
+            <table>
+              <tbody>
+                <tr><th><p>Name</p></th><th><p>Value</p></th></tr>
+                <tr><td><p>Alpha</p></td><td><p>1</p></td></tr>
+              </tbody>
+            </table>
+            """.trimIndent()
+        val prepared = prepareNoteContentForWysiwyg(html)
+        assertTrue(prepared.contains("<table"))
+        assertTrue(prepared.contains("Alpha"))
+        assertFalse(prepared.isBlank())
+    }
+
+    @Test
+    fun `prepareNoteContentForWysiwyg converts pipe table note like wysiwyg test`() {
+        val md =
+            """
+            # test
+
+            | Navn | asd | Kommentar |
+            | --- | --- | --- |
+            | sada | 123 | asdasd |
+            | test | 321 | |
+            | test | 123 | 2026-05-27 |
+            | test | -123 | 2026-06-03 |
+            """.trimIndent()
+        val html = prepareNoteContentForWysiwyg(md)
+        assertFalse(html.isBlank())
+        assertTrue(html.contains("<h1>test</h1>"))
+        assertTrue(html.contains("<table"))
+        assertTrue(html.contains("Navn"))
+        assertTrue(html.contains("asdasd"))
+    }
+
+    @Test
+    fun `prepareNoteContentForWysiwyg converts markdown table to html`() {
+        val md =
+            """
+            # test
+            | Navn | asd |
+            | --- | --- |
+            | sada | 123 |
+            """.trimIndent()
+        val html = prepareNoteContentForWysiwyg(md)
+        assertTrue(html.contains("<h1>test</h1>"))
+        assertTrue(html.contains("<table"))
     }
 }

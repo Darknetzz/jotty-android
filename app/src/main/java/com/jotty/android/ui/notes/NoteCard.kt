@@ -9,12 +9,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.ui.common.NoteMetadataRow
 import com.jotty.android.util.formatNoteDate
@@ -41,6 +45,11 @@ internal fun NoteCard(
     val isEncrypted =
         remember(note.encrypted, note.content) {
             note.encrypted == true || NoteEncryption.isEncrypted(note.content)
+        }
+    val sessionRevision by NoteDecryptionSession.revision.collectAsState()
+    val isUnlockedInSession =
+        remember(note.id, isEncrypted, sessionRevision) {
+            isEncrypted && NoteDecryptionSession.isUnlocked(note.id)
         }
     val contentPreview =
         remember(strippedContent, isEncrypted) {
@@ -72,18 +81,33 @@ internal fun NoteCard(
                     modifier = Modifier.padding(top = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(
-                        Icons.Default.Lock,
-                        contentDescription = stringResource(R.string.encrypted),
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = stringResource(R.string.encrypted),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (isUnlockedInSession) {
+                        Icon(
+                            Icons.Default.LockOpen,
+                            contentDescription = stringResource(R.string.unlocked),
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.unlocked),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Lock,
+                            contentDescription = stringResource(R.string.encrypted),
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.encrypted),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             } else if (showPreview && contentPreview != null) {
                 Text(

@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -60,6 +61,7 @@ fun KanbanItemDetailScreen(
     onDeleted: () -> Unit,
     onError: () -> Unit,
     modifier: Modifier = Modifier,
+    showChecklistEmojis: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
     var titleText by remember(itemPath, item.text) { mutableStateOf(item.text) }
@@ -69,7 +71,50 @@ fun KanbanItemDetailScreen(
     var currentStatusId by remember(itemPath, item.status) { mutableStateOf(item.status) }
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
+
+    fun hasUnsavedChanges(): Boolean {
+        val titleChanged = titleText.trim() != item.text.trim() && titleText.trim().isNotEmpty()
+        val descChanged = descriptionText.trim() != item.description.orEmpty().trim()
+        return titleChanged || descChanged
+    }
+
+    fun dismissWithOptionalSave() {
+        if (!hasUnsavedChanges()) {
+            onDismiss()
+            return
+        }
+        showDiscardConfirm = true
+    }
+
+    fun savePendingAndDismiss() {
+        scope.launch {
+            saving = true
+            val titleChanged = titleText.trim() != item.text.trim() && titleText.trim().isNotEmpty()
+            val descChanged = descriptionText.trim() != item.description.orEmpty().trim()
+            if (titleChanged) {
+                actions.updateTitle(titleText)
+                    .onFailure {
+                        saving = false
+                        onError()
+                        return@launch
+                    }
+            }
+            if (descChanged) {
+                localDescription = descriptionText
+                actions.updateDescription(descriptionText)
+                    .onFailure {
+                        saving = false
+                        onError()
+                        return@launch
+                    }
+            }
+            saving = false
+            showDiscardConfirm = false
+            onDismiss()
+        }
+    }
 
     LaunchedEffect(item) {
         titleText = item.text
@@ -125,8 +170,31 @@ fun KanbanItemDetailScreen(
         )
     }
 
+    if (showDiscardConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDiscardConfirm = false },
+            title = { Text(stringResource(R.string.kanban_unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.kanban_unsaved_changes_message)) },
+            confirmButton = {
+                TextButton(onClick = { savePendingAndDismiss() }) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDiscardConfirm = false
+                        onDismiss()
+                    },
+                ) {
+                    Text(stringResource(R.string.discard))
+                }
+            },
+        )
+    }
+
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { dismissWithOptionalSave() },
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Scaffold(
@@ -143,7 +211,7 @@ fun KanbanItemDetailScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onDismiss) {
+                        IconButton(onClick = { dismissWithOptionalSave() }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = stringResource(R.string.back),
@@ -263,6 +331,7 @@ fun KanbanItemDetailScreen(
                     onUpdateText = { path, text -> runAction { actions.updateSubtaskText(path, text) } },
                     onDelete = { path -> runAction { actions.deleteSubtask(path) } },
                     onAdd = { text -> runAction { actions.addSubtask(text) } },
+                    showChecklistEmojis = showChecklistEmojis,
                 )
 
                 KanbanItemBlockedFieldsSection()

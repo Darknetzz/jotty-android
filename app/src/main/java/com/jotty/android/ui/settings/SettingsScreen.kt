@@ -74,7 +74,15 @@ fun SettingsScreen(
     val context = LocalContext.current
     val biometricStore = remember { BiometricPassphraseStore(context.applicationContext) }
     val biometricAvailability = remember { biometricStore.availabilityStatus() }
-    var storedPassphraseCount by remember { mutableIntStateOf(biometricStore.storedCount()) }
+    var storedPassphraseCount by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(biometricStore) {
+        storedPassphraseCount =
+            withContext(Dispatchers.IO) {
+                biometricStore.pruneInvalidatedPassphrases()
+                biometricStore.storedCount()
+            }
+    }
     var showClearBiometricConfirm by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val biometricClearedMsg = stringResource(R.string.biometric_passphrase_forgotten)
@@ -272,114 +280,6 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // ─── Troubleshooting ────────────────────────────────────────────────────
-                SettingsSectionTitle(stringResource(R.string.settings_category_troubleshooting))
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.export_debug_logs)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.export_debug_logs_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Default.BugReport,
-                                contentDescription = stringResource(R.string.export_debug_logs),
-                            )
-                        },
-                        trailingContent = {
-                            if (isExportingLogs) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                            } else {
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    TextButton(
-                                        onClick = {
-                                            scope.launch {
-                                                isExportingLogs = true
-                                                val instance = currentInstance
-                                                val writeResult =
-                                                    withContext(Dispatchers.IO) {
-                                                        DebugLogExporter.writeReport(context, instance)
-                                                    }
-                                                isExportingLogs = false
-                                                when (writeResult) {
-                                                    is DebugLogExporter.WriteResult.Failed ->
-                                                        snackbarHostState.showSnackbar(writeResult.message)
-                                                    is DebugLogExporter.WriteResult.Ok ->
-                                                        when (
-                                                            val saveResult =
-                                                                withContext(Dispatchers.IO) {
-                                                                    DebugLogExporter.saveToDownloads(
-                                                                        context,
-                                                                        writeResult.file,
-                                                                    )
-                                                                }
-                                                        ) {
-                                                            is DebugLogExporter.SaveResult.Saved ->
-                                                                snackbarHostState.showSnackbar(
-                                                                    String.format(
-                                                                        Locale.getDefault(),
-                                                                        logSavedDownloadsFormat,
-                                                                        saveResult.displayName,
-                                                                    ),
-                                                                )
-                                                            is DebugLogExporter.SaveResult.NeedsPicker -> {
-                                                                pendingLogFile = saveResult.file
-                                                                saveLogLauncher.launch(saveResult.suggestedName)
-                                                            }
-                                                            is DebugLogExporter.SaveResult.Failed ->
-                                                                snackbarHostState.showSnackbar(saveResult.message)
-                                                        }
-                                                }
-                                            }
-                                        },
-                                    ) {
-                                        Text(stringResource(R.string.export_debug_logs_save))
-                                    }
-                                    TextButton(
-                                        onClick = {
-                                            scope.launch {
-                                                isExportingLogs = true
-                                                val instance = currentInstance
-                                                val writeResult =
-                                                    withContext(Dispatchers.IO) {
-                                                        DebugLogExporter.writeReport(context, instance)
-                                                    }
-                                                isExportingLogs = false
-                                                when (writeResult) {
-                                                    is DebugLogExporter.WriteResult.Failed ->
-                                                        snackbarHostState.showSnackbar(writeResult.message)
-                                                    is DebugLogExporter.WriteResult.Ok ->
-                                                        when (
-                                                            val shareResult =
-                                                                DebugLogExporter.shareReport(
-                                                                    context,
-                                                                    writeResult.file,
-                                                                )
-                                                        ) {
-                                                            is DebugLogExporter.ShareResult.Failed ->
-                                                                snackbarHostState.showSnackbar(shareResult.message)
-                                                            is DebugLogExporter.ShareResult.Started -> Unit
-                                                        }
-                                                }
-                                            }
-                                        },
-                                    ) {
-                                        Text(stringResource(R.string.export_debug_logs_action))
-                                    }
-                                }
-                            }
-                        },
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
                 // ─── Security (biometric note passphrases) ─────────────────────────────
                 SettingsSectionTitle(stringResource(R.string.settings_category_security))
                 Card(
@@ -516,6 +416,114 @@ fun SettingsScreen(
                             )
                         }
                     }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // ─── Troubleshooting ────────────────────────────────────────────────────
+                SettingsSectionTitle(stringResource(R.string.settings_category_troubleshooting))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.export_debug_logs)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.export_debug_logs_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.BugReport,
+                                contentDescription = stringResource(R.string.export_debug_logs),
+                            )
+                        },
+                        trailingContent = {
+                            if (isExportingLogs) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            } else {
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                isExportingLogs = true
+                                                val instance = currentInstance
+                                                val writeResult =
+                                                    withContext(Dispatchers.IO) {
+                                                        DebugLogExporter.writeReport(context, instance)
+                                                    }
+                                                isExportingLogs = false
+                                                when (writeResult) {
+                                                    is DebugLogExporter.WriteResult.Failed ->
+                                                        snackbarHostState.showSnackbar(writeResult.message)
+                                                    is DebugLogExporter.WriteResult.Ok ->
+                                                        when (
+                                                            val saveResult =
+                                                                withContext(Dispatchers.IO) {
+                                                                    DebugLogExporter.saveToDownloads(
+                                                                        context,
+                                                                        writeResult.file,
+                                                                    )
+                                                                }
+                                                        ) {
+                                                            is DebugLogExporter.SaveResult.Saved ->
+                                                                snackbarHostState.showSnackbar(
+                                                                    String.format(
+                                                                        Locale.getDefault(),
+                                                                        logSavedDownloadsFormat,
+                                                                        saveResult.displayName,
+                                                                    ),
+                                                                )
+                                                            is DebugLogExporter.SaveResult.NeedsPicker -> {
+                                                                pendingLogFile = saveResult.file
+                                                                saveLogLauncher.launch(saveResult.suggestedName)
+                                                            }
+                                                            is DebugLogExporter.SaveResult.Failed ->
+                                                                snackbarHostState.showSnackbar(saveResult.message)
+                                                        }
+                                                }
+                                            }
+                                        },
+                                    ) {
+                                        Text(stringResource(R.string.export_debug_logs_save))
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                isExportingLogs = true
+                                                val instance = currentInstance
+                                                val writeResult =
+                                                    withContext(Dispatchers.IO) {
+                                                        DebugLogExporter.writeReport(context, instance)
+                                                    }
+                                                isExportingLogs = false
+                                                when (writeResult) {
+                                                    is DebugLogExporter.WriteResult.Failed ->
+                                                        snackbarHostState.showSnackbar(writeResult.message)
+                                                    is DebugLogExporter.WriteResult.Ok ->
+                                                        when (
+                                                            val shareResult =
+                                                                DebugLogExporter.shareReport(
+                                                                    context,
+                                                                    writeResult.file,
+                                                                )
+                                                        ) {
+                                                            is DebugLogExporter.ShareResult.Failed ->
+                                                                snackbarHostState.showSnackbar(shareResult.message)
+                                                            is DebugLogExporter.ShareResult.Started -> Unit
+                                                        }
+                                                }
+                                            }
+                                        },
+                                    ) {
+                                        Text(stringResource(R.string.export_debug_logs_action))
+                                    }
+                                }
+                            }
+                        },
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -690,7 +698,14 @@ private fun AboutDialog(
         },
         title = { Text(stringResource(R.string.about_jotty_android)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 480.dp)
+                        .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Text(
                     stringResource(R.string.about_tagline),
                     style = MaterialTheme.typography.bodyMedium,
@@ -781,11 +796,10 @@ private fun AboutDialog(
                     )
                 }
                 if (UpdateChecker.isDevBuild() && parsedChannel == UpdateChannel.Stable) {
-                    Text(
-                        text = stringResource(R.string.update_dev_on_stable_channel_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(top = 6.dp),
+                    UpdateStatusAlert(
+                        message = stringResource(R.string.update_dev_on_stable_channel_hint),
+                        variant = UpdateStatusAlertVariant.Info,
+                        modifier = Modifier.padding(top = 4.dp),
                     )
                 }
                 when (val state = updateState) {
@@ -844,6 +858,8 @@ private fun AboutDialog(
                                     downloadUrl = r.downloadUrl,
                                     releaseNotes = r.releaseNotes,
                                     installFailedMessage = null,
+                                    inAppInstallBlocked = r.inAppInstallBlocked,
+                                    inAppInstallBlockedMessage = r.inAppInstallBlockedMessage,
                                     showSigningHints = parsedChannel == UpdateChannel.Dev,
                                     onViewChangelog = {
                                         openUpdateChangelog(
@@ -919,6 +935,8 @@ private fun AboutDialog(
                             downloadUrl = state.downloadUrl,
                             releaseNotes = state.releaseNotes,
                             installFailedMessage = state.userMessage,
+                            inAppInstallBlocked = UpdateChecker.stableUpdateRequiresFreshInstall(),
+                            inAppInstallBlockedMessage = null,
                             showSigningHints = true,
                             onViewChangelog = {
                                 openUpdateChangelog(
@@ -1066,12 +1084,15 @@ private fun UpdateAvailableContent(
     downloadUrl: String,
     releaseNotes: String?,
     installFailedMessage: String?,
+    inAppInstallBlocked: Boolean,
+    inAppInstallBlockedMessage: String?,
     showSigningHints: Boolean = false,
     onViewChangelog: () -> Unit,
     onDownloadAndInstall: () -> Unit,
     onOpenReleasePage: () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    val showReleasePageAction = inAppInstallBlocked || installFailedMessage != null
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         UpdateStatusAlert(
             message = stringResource(R.string.update_available, versionName),
             variant = UpdateStatusAlertVariant.Info,
@@ -1094,30 +1115,45 @@ private fun UpdateAvailableContent(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        inAppInstallBlockedMessage?.let { msg ->
+            UpdateStatusAlert(
+                message = msg,
+                variant = UpdateStatusAlertVariant.Danger,
+            )
+        }
         installFailedMessage?.let { msg ->
             UpdateStatusAlert(
                 message = stringResource(R.string.install_failed, msg),
                 variant = UpdateStatusAlertVariant.Danger,
             )
+            if (!inAppInstallBlocked) {
+                Text(
+                    text = stringResource(R.string.install_failed_open_release_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(
-                onClick = onDownloadAndInstall,
-                contentPadding = PaddingValues(0.dp),
-            ) {
-                Icon(
-                    Icons.Default.Download,
-                    contentDescription = stringResource(R.string.cd_download),
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(stringResource(R.string.download_and_install))
+            if (!inAppInstallBlocked) {
+                TextButton(
+                    onClick = onDownloadAndInstall,
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Download,
+                        contentDescription = stringResource(R.string.cd_download),
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.download_and_install))
+                }
             }
-            if (installFailedMessage != null) {
+            if (showReleasePageAction) {
                 TextButton(
                     onClick = onOpenReleasePage,
                     contentPadding = PaddingValues(0.dp),

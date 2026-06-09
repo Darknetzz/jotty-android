@@ -44,6 +44,12 @@ sealed class UpdateCheckResult {
         val buildDateUtc: String? = null,
         /** Resolved from remote `CHANGELOG.md` when checking; falls back to [releaseNotes]. */
         val changelogMarkdown: String? = null,
+        /**
+         * When true, the APK cannot replace the installed app (e.g. dev build version code vs stable).
+         * UI should explain and link to GitHub releases instead of offering in-app install.
+         */
+        val inAppInstallBlocked: Boolean = false,
+        val inAppInstallBlockedMessage: String? = null,
     ) : UpdateCheckResult()
 
     data object UpToDate : UpdateCheckResult()
@@ -154,12 +160,20 @@ object UpdateChecker {
             UpdateCheckResult.UpToDate
         } else {
             val releaseNotes = release.body?.trim()?.takeIf { it.isNotBlank() }
+            val blocked = stableUpdateRequiresFreshInstall()
             buildUpdateAvailable(
                 channel = UpdateChannel.Stable,
                 versionName = latestVersion,
                 downloadUrl = apkAsset.browserDownloadUrl,
                 releaseNotes = releaseNotes,
                 buildDateUtc = release.publishedAt?.trim()?.takeIf { it.isNotBlank() },
+                inAppInstallBlocked = blocked,
+                inAppInstallBlockedMessage =
+                    if (blocked) {
+                        freshInstallBlockedMessage(context, latestVersion)
+                    } else {
+                        null
+                    },
             )
         }
     }
@@ -225,6 +239,8 @@ object UpdateChecker {
         downloadUrl: String,
         releaseNotes: String?,
         buildDateUtc: String?,
+        inAppInstallBlocked: Boolean = false,
+        inAppInstallBlockedMessage: String? = null,
     ): UpdateCheckResult.UpdateAvailable {
         val remoteChangelog = fetchRemoteChangelog(channel)
         val changelogMarkdown =
@@ -240,11 +256,29 @@ object UpdateChecker {
             releaseNotes = releaseNotes,
             buildDateUtc = buildDateUtc,
             changelogMarkdown = changelogMarkdown,
+            inAppInstallBlocked = inAppInstallBlocked,
+            inAppInstallBlockedMessage = inAppInstallBlockedMessage,
         )
     }
 
     /** True when this APK was built from the rolling `dev` channel (`VERSION_NAME-dev+<sha>`). */
     fun isDevBuild(): Boolean = isDevVersionName(BuildConfig.VERSION_NAME)
+
+    /**
+     * Dev CI assigns `VERSION_CODE = base * 10000 + run`, which is always above stable [VERSION_CODE],
+     * so Android blocks installing a stable APK over a dev build.
+     */
+    fun stableUpdateRequiresFreshInstall(): Boolean = isDevBuild()
+
+    fun freshInstallBlockedMessage(
+        context: Context,
+        stableVersionName: String,
+    ): String =
+        context.getString(
+            R.string.update_dev_to_stable_fresh_install_required,
+            BuildConfig.VERSION_CODE,
+            stableVersionName,
+        )
 
     internal fun isDevVersionName(versionName: String): Boolean = versionName.contains("-dev+")
 
@@ -377,7 +411,10 @@ object UpdateChecker {
             AppLog.w(TAG, "Update APK versionCode is lower than installed app")
             val message =
                 if (isDevBuild()) {
-                    context.getString(R.string.update_dev_to_stable_downgrade_blocked)
+                    context.getString(
+                        R.string.update_dev_to_stable_downgrade_blocked,
+                        BuildConfig.VERSION_CODE,
+                    )
                 } else {
                     context.getString(R.string.update_version_downgrade_blocked)
                 }

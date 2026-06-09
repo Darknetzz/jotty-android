@@ -102,7 +102,7 @@ class OfflineNotesRepositoryTest {
                             true,
                             Note(
                                 id = noteId,
-                                title = body.title,
+                                title = body.title.orEmpty(),
                                 category = body.category ?: API_CATEGORY_UNCATEGORIZED,
                                 content = body.content.orEmpty(),
                                 createdAt = "c",
@@ -307,7 +307,7 @@ class OfflineNotesRepositoryTest {
                         updateCalled = true
                         ApiResponse(
                             true,
-                            Note(noteId, req.title, req.category ?: API_CATEGORY_UNCATEGORIZED, req.content.orEmpty(), "c", "u"),
+                            Note(noteId, req.title.orEmpty(), req.category ?: API_CATEGORY_UNCATEGORIZED, req.content.orEmpty(), "c", "u"),
                         )
                     },
                 )
@@ -342,6 +342,49 @@ class OfflineNotesRepositoryTest {
             assertTrue(result.isSuccess)
             assertFalse("createNote must not be called for an existing note", createCalled)
             assertTrue("updateNote should have been called", updateCalled)
+        }
+
+    @Test
+    fun updateNote_encryptedNote_rejectsPlaintextContent() =
+        runTest {
+            val encryptedBody =
+                "---\nencrypted: true\nencryptionMethod: xchacha\n---\n{\"salt\":\"x\"}"
+            database.noteDao().insertNote(
+                NoteEntity(
+                    id = "encrypted-note-id",
+                    title = "Secret",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = encryptedBody,
+                    createdAt = "2024-01-01T00:00:00Z",
+                    updatedAt = "2024-01-01T00:00:00Z",
+                    encrypted = true,
+                    isDirty = false,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = false,
+                ),
+            )
+            val repo =
+                OfflineNotesRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeJottyApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            val result =
+                repo.updateNote(
+                    "encrypted-note-id",
+                    "Secret",
+                    "leaked plaintext from session",
+                    API_CATEGORY_UNCATEGORIZED,
+                )
+
+            assertTrue(result.isFailure)
+            val stored = database.noteDao().getNoteById("encrypted-note-id")
+            assertEquals(encryptedBody, stored?.content)
         }
 
     @Test

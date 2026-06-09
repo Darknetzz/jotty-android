@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<style>
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+  }
+  #editor {
+    height: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 12px 8px 16px;
+    outline: none;
+    line-height: 1.5;
+    font-size: 16px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+    word-wrap: break-word;
+  }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  td, th { border: 1px solid var(--border-color, #ccc); padding: 6px; vertical-align: top; }
+  img { max-width: 100%; height: auto; }
+  h1, h2, h3 { margin: 0.6em 0 0.3em; line-height: 1.25; }
+  p { margin: 0.4em 0; }
+</style>
+</head>
+<body>
+<div id="editor" contenteditable="true"></div>
+<script>
+  var suppressNotify = false;
+
+  function argbToCss(argb) {
+    var a = ((argb >>> 24) & 0xff) / 255;
+    var r = (argb >>> 16) & 0xff;
+    var g = (argb >>> 8) & 0xff;
+    var b = argb & 0xff;
+    if (a >= 0.999) {
+      return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+    return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+  }
+
+  function setEditorTheme(bgArgb, fgArgb, borderArgb) {
+    var bg = argbToCss(bgArgb);
+    var fg = argbToCss(fgArgb);
+    var border = argbToCss(borderArgb);
+    document.body.style.background = bg;
+    var editor = document.getElementById('editor');
+    editor.style.color = fg;
+    editor.style.caretColor = fg;
+    document.documentElement.style.setProperty('--border-color', border);
+  }
+
+  function cmd(command, value) {
+    document.execCommand(command, false, value || null);
+    notifyChange();
+  }
+  function insertLink() {
+    var url = prompt('URL');
+    if (url) { cmd('createLink', url); }
+  }
+  function insertTable() {
+    var html = '<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Cell</td></tr></tbody></table><p></p>';
+    cmd('insertHTML', html);
+  }
+  function setContent(html) {
+    suppressNotify = true;
+    document.getElementById('editor').innerHTML = html || '';
+    suppressNotify = false;
+  }
+  function getContent() {
+    return document.getElementById('editor').innerHTML;
+  }
+  function loadInitialContent() {
+    if (!window.AndroidBridge || !AndroidBridge.getInitialHtml) return;
+    try {
+      var html = AndroidBridge.getInitialHtml();
+      if (html) setContent(html);
+    } catch (e) { /* bridge not ready */ }
+  }
+  function notifyChange() {
+    if (suppressNotify) return;
+    if (window.AndroidBridge && AndroidBridge.onContentChanged) {
+      AndroidBridge.onContentChanged(getContent());
+    }
+  }
+  document.getElementById('editor').addEventListener('input', notifyChange);
+  document.addEventListener('DOMContentLoaded', loadInitialContent);
+</script>
+</body>
+</html>

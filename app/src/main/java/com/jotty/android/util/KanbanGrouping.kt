@@ -2,6 +2,7 @@ package com.jotty.android.util
 
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.DEFAULT_TASK_STATUSES
+import com.jotty.android.data.api.ReorderItemsRequest
 import com.jotty.android.data.api.TaskStatus
 import com.jotty.android.data.api.isCompletedForApi
 
@@ -54,3 +55,41 @@ fun buildKanbanColumns(
 /** When [hideEmpty] is true, drops columns with no cards. */
 fun List<KanbanColumn>.visibleKanbanColumns(hideEmpty: Boolean): List<KanbanColumn> =
     if (hideEmpty) filter { it.cards.isNotEmpty() } else this
+
+/** Default status id for a new top-level Kanban task (lowest [TaskStatus.order]). */
+fun defaultKanbanItemStatus(statuses: List<TaskStatus>): String? =
+    statuses.minByOrNull { it.order }?.id
+
+/**
+ * Reorder request to move a card up or down within its Kanban column
+ * (top-level siblings that share the same status bucket).
+ */
+fun moveKanbanCardInColumnRequest(
+    columnCards: List<KanbanCard>,
+    cardIndex: Int,
+    up: Boolean,
+): ReorderItemsRequest? {
+    if (cardIndex !in columnCards.indices) return null
+    val itemId = columnCards[cardIndex].item.id ?: return null
+    return if (up) {
+        if (cardIndex <= 0) return null
+        kanbanCardReorderRequest(columnCards, cardIndex, cardIndex - 1)
+    } else {
+        if (cardIndex >= columnCards.lastIndex) return null
+        kanbanCardReorderRequest(columnCards, cardIndex, cardIndex + 1)
+    }
+}
+
+/** Reorder request when dragging a card from [fromIndex] to [toIndex] within the same column. */
+fun kanbanCardReorderRequest(
+    columnCards: List<KanbanCard>,
+    fromIndex: Int,
+    toIndex: Int,
+): ReorderItemsRequest? {
+    if (fromIndex == toIndex) return null
+    if (fromIndex !in columnCards.indices || toIndex !in columnCards.indices) return null
+    val itemId = columnCards[fromIndex].item.id ?: return null
+    val overId = columnCards[toIndex].item.id ?: return null
+    val position = if (fromIndex < toIndex) "after" else "before"
+    return ReorderItemsRequest(activeItemId = itemId, overItemId = overId, position = position)
+}

@@ -44,6 +44,7 @@ fun KanbanSubtasksSection(
     onDelete: (subPath: String) -> Unit,
     onAdd: (text: String) -> Unit,
     modifier: Modifier = Modifier,
+    showChecklistEmojis: Boolean = true,
 ) {
     var newSubtaskText by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
@@ -69,6 +70,7 @@ fun KanbanSubtasksSection(
                     onUncheck = onUncheck,
                     onUpdateText = onUpdateText,
                     onDelete = onDelete,
+                    showChecklistEmojis = showChecklistEmojis,
                 )
             }
         }
@@ -118,11 +120,14 @@ private fun KanbanSubtaskRow(
     onUncheck: (String) -> Unit,
     onUpdateText: (String, String) -> Unit,
     onDelete: (String) -> Unit,
+    showChecklistEmojis: Boolean = true,
 ) {
     var showDeleteConfirm by remember(subPath) { mutableStateOf(false) }
     var isEditing by remember(subPath) { mutableStateOf(false) }
     var editText by remember(item.text, isEditing) { mutableStateOf(item.text) }
-    val label = item.text.ifBlank { stringResource(R.string.item_placeholder) }
+    val label =
+        checklistDisplayText(item.text, showChecklistEmojis)
+            .ifBlank { stringResource(R.string.item_placeholder) }
 
     if (showDeleteConfirm) {
         ConfirmDeleteDialog(

@@ -106,6 +106,18 @@ class SettingsRepository(
             prefs[KEY_CHECKLIST_DRAG_REORDER] ?: true
         }.catch { emit(true) }
 
+    /** Keyword emoji prefixes on checklist item labels (display only). Default true. */
+    val showChecklistEmojis: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_SHOW_CHECKLIST_EMOJIS] ?: true
+        }.catch { emit(true) }
+
+    /** Rich WYSIWYG note editor (WebView) instead of markdown source. Default false. */
+    val richNoteEditorEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_RICH_NOTE_EDITOR] ?: false
+        }.catch { emit(false) }
+
     /** Hide Kanban columns with no tasks on project boards. Default false. */
     val kanbanHideEmptyColumns: Flow<Boolean> =
         context.jottySettingsDataStore.data.map { prefs ->
@@ -295,6 +307,18 @@ class SettingsRepository(
     suspend fun setChecklistDragReorderEnabled(value: Boolean) {
         context.jottySettingsDataStore.edit {
             if (value) it.remove(KEY_CHECKLIST_DRAG_REORDER) else it[KEY_CHECKLIST_DRAG_REORDER] = false
+        }
+    }
+
+    suspend fun setShowChecklistEmojis(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it.remove(KEY_SHOW_CHECKLIST_EMOJIS) else it[KEY_SHOW_CHECKLIST_EMOJIS] = false
+        }
+    }
+
+    suspend fun setRichNoteEditorEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it[KEY_RICH_NOTE_EDITOR] = true else it.remove(KEY_RICH_NOTE_EDITOR)
         }
     }
 
@@ -504,7 +528,9 @@ class SettingsRepository(
 
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
+        private val KEY_RICH_NOTE_EDITOR = booleanPreferencesKey("rich_note_editor_enabled")
         private val KEY_CHECKLIST_DRAG_REORDER = booleanPreferencesKey("checklist_drag_reorder_enabled")
+        private val KEY_SHOW_CHECKLIST_EMOJIS = booleanPreferencesKey("show_checklist_emojis")
         private val KEY_KANBAN_HIDE_EMPTY_COLUMNS = booleanPreferencesKey("kanban_hide_empty_columns")
         private val KEY_NOTE_LIST_PREVIEW = booleanPreferencesKey("note_list_preview_enabled")
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")

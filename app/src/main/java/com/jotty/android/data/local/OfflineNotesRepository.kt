@@ -183,6 +183,15 @@ class OfflineNotesRepository(
                 }
 
                 val isEncryptedContent = NoteEncryption.parse(content) is ParsedNoteContent.Encrypted
+                if (existing.encrypted == true && !isEncryptedContent) {
+                    AppLog.e(
+                        "OfflineNotesRepository",
+                        "Refusing to replace encrypted note $resolvedId with plaintext content",
+                    )
+                    return@withContext Result.failure(
+                        IllegalStateException("Cannot save plaintext over encrypted note content"),
+                    )
+                }
                 val updated =
                     existing.copy(
                         title = title,

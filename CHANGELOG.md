@@ -8,6 +8,50 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ---
 
+## [1.6.0] - 2026-06-09
+
+### Added
+
+- **Notes list unlocked badge** — Encrypted notes decrypted in this session show **Unlocked** with an open lock on the overview instead of **Encrypted**.
+- **Biometric enrollment changed** — When device fingerprint or face unlock changes, remembered note passphrases are cleared with an explanation dialog; Settings shows an accurate count of still-valid remembered passphrases.
+- **Checklist add-item search** — On simple checklists, the add field filters existing items as you type; matching a completed item unchecks it instead of creating a duplicate.
+- **Kanban board / list toggle** — Project boards switch between the Kanban board and the tree/list view (inline edit, reorder) without losing Kanban when the status API is available.
+- **Kanban per-column add** — Each board column has an add field to create a task in that status.
+- **Kanban column reorder** — Card menu includes move up/down within the same column; drag handle reorder when enabled in Settings.
+- **Kanban subtask progress** — Board cards show done/total subtask progress with a progress bar.
+- **Kanban inline title edit** — Double-tap a card title or choose Edit to rename in place on the board.
+- **Checklist share & archive** — Share checklist/Kanban as plain text; archive/unarchive via Jotty’s Archive category; server sharing dialog probes REST API when available.
+- **Notes: copy, selection, WYSIWYG** — Copy note from the menu; text selection in view mode; optional rich text editor (Settings → Behavior). Notes with HTML or pipe tables open in the visual editor when you edit; view mode converts WYSIWYG HTML saves back to proper headings and GFM tables.
+- **Visual / Markdown edit toggle** — While editing any note, switch between the visual editor and markdown source with the chips above the editor.
+- **Archived filter** — Notes and checklists lists hide archived items by default; **Archived** chip shows them.
+- **Checklist auto-emoji** — Settings → Behavior → **Show emojis on checklists** prepends keyword-matched emoji on checklist and Kanban item labels (display only; plain text is still saved to the server, matching Jotty web “Show Emojis”).
+
+### Changed
+
+- **Biometric setup changed dialog** — Singular message no longer says “this note” when the app clears remembered passphrases on launch (it means one affected note, not the screen you are on).
+- **Encrypted note menu** — While viewing a decrypted encrypted note, the ⋮ menu shows **Re-encrypt** (save to server) instead of **Encrypt**, to distinguish it from **Lock note** (hide locally).
+- **Settings** — Export debug logs moved to the bottom of Settings, next to About.
+- **Checklist overview progress** — List cards count nested subtasks (matches detail view).
+- **Kanban board height** — Columns use viewport-aware height instead of a fixed 420dp.
+- **New project tasks** — Top-level add-item and per-column add pass the column status to the server so new cards land in the intended column.
+- **Kanban item detail** — Prompts to save or discard unsaved title/description changes when closing.
+
+### Fixed
+
+- **Encrypted notes accidentally decrypted on server** — Archiving an encrypted note while it was open in the app sent session plaintext to the server instead of the stored ciphertext; archive now keeps encryption, and offline sync refuses plaintext over encrypted note bodies.
+- **Note view text selection** — Long-press to select and copy note body text in view mode (uses `MarkdownText` native selection; Compose `SelectionContainer` does not apply to the Markwon `TextView`).
+- **WYSIWYG editor blank for HTML tables** — Note HTML (including tables from the Jotty web app) loads via the JavaScript bridge instead of `evaluateJavascript`, with theme-matched text and table borders.
+- **WYSIWYG editor blank for markdown tables** — Visual mode no longer clears note body before content loads; markdown pipe tables convert to HTML when opening visual edit.
+- **WYSIWYG editor always blank** — Note HTML is embedded in the editor page via `loadDataWithBaseURL` instead of a `JavascriptInterface` bridge that failed to load content from `file://` asset pages.
+- **Dev → stable updates** — About now blocks in-app install when a dev build cannot be replaced by stable (version code), shows the full explanation in a scrollable dialog, and offers “Open release page” instead of a failing download.
+
+### Documentation
+
+- **Privacy policy** — [docs/PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) for Google Play and users (local storage, Jotty server communication, optional GitHub update checks, no analytics).
+
+
+---
+
 ## [1.5.2] - 2026-06-08
 
 ### Fixed
@@ -902,3 +946,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.5.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.1
 
 [1.5.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.2
+
+[1.6.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.6.0

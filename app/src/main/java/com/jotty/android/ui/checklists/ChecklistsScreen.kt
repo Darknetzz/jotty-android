@@ -37,6 +37,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.DEFAULT_TASK_STATUSES
+import com.jotty.android.data.api.isCompletedForApi
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.TaskStatus
 import com.jotty.android.data.api.UpdateChecklistRequest
@@ -57,10 +58,19 @@ import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ServerCapabilities
+import android.content.Intent
+import com.jotty.android.ui.common.ShareServerDialog
+import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
+import com.jotty.android.util.defaultUnarchiveCategory
+import com.jotty.android.util.exportChecklistAsPlainText
+import com.jotty.android.util.isArchived
 import com.jotty.android.util.buildKanbanColumns
-import com.jotty.android.util.visibleKanbanColumns
+import com.jotty.android.util.defaultKanbanItemStatus
+import com.jotty.android.util.kanbanCardReorderRequest
+import com.jotty.android.util.moveKanbanCardInColumnRequest
 import com.jotty.android.util.moveChecklistItemDownRequest
 import com.jotty.android.util.moveChecklistItemUpRequest
+import com.jotty.android.util.visibleKanbanColumns
 import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -85,6 +95,7 @@ fun ChecklistsScreen(
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val checklistCategories by vm.checklistCategories.collectAsStateWithLifecycle()
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val showChecklistEmojis by settingsRepository.showChecklistEmojis.collectAsStateWithLifecycle(initialValue = true)
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
@@ -181,6 +192,7 @@ fun ChecklistsScreen(
                     api = api,
                     categorySuggestions = checklistCategories,
                     dragReorderEnabled = checklistDragReorderEnabled,
+                    showChecklistEmojis = showChecklistEmojis,
                     kanbanHideEmptyColumns = kanbanHideEmptyColumns,
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = {
@@ -237,7 +249,23 @@ fun ChecklistsScreen(
                                     },
                                 )
                             }
-                            items(checklistCategories, key = { it }) { cat ->
+                            item {
+                                FilterChip(
+                                    selected = selectedCategory == JOTTY_ARCHIVE_CATEGORY,
+                                    onClick = { vm.toggleCategoryChip(JOTTY_ARCHIVE_CATEGORY) },
+                                    label = {
+                                        Text(
+                                            stringResource(R.string.category_archived),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                )
+                            }
+                            items(
+                                checklistCategories.filter { !it.equals(JOTTY_ARCHIVE_CATEGORY, true) },
+                                key = { it },
+                            ) { cat ->
                                 FilterChip(
                                     selected = selectedCategory == cat,
                                     onClick = { vm.toggleCategoryChip(cat) },
@@ -324,9 +352,10 @@ private fun ChecklistCard(
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
     val displayTitle = checklist.title.ifBlank { stringResource(R.string.untitled) }
-    val completed = checklist.items.count { it.completed }
-    val total = checklist.items.size
-    val progress = if (total > 0) completed.toFloat() / total else 0f
+    val progressCounts = checklistProgressCounts(checklist)
+    val completed = progressCounts.completed
+    val total = progressCounts.total
+    val progress = progressCounts.fraction
 
     if (showDeleteConfirm) {
         ConfirmDeleteDialog(
@@ -398,6 +427,7 @@ private fun ChecklistDetailScreen(
     api: JottyApi,
     categorySuggestions: List<String> = emptyList(),
     dragReorderEnabled: Boolean = true,
+    showChecklistEmojis: Boolean = true,
     kanbanHideEmptyColumns: Boolean = false,
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
@@ -415,8 +445,11 @@ private fun ChecklistDetailScreen(
     var editingItemKey by remember(checklist.id) { mutableStateOf<String?>(null) }
     var taskStatuses by remember(checklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
     var canUseKanbanBoard by remember(checklist.id) { mutableStateOf(true) }
+    var projectView by remember(checklist.id) { mutableStateOf(KanbanProjectView.Board) }
     var selectedKanbanPath by remember(checklist.id) { mutableStateOf<String?>(null) }
+    var showShareDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     LaunchedEffect(checklist.id, checklist.title, checklist.items) {
         displayTitle = checklist.title
@@ -525,47 +558,60 @@ private fun ChecklistDetailScreen(
             onBack = onBack,
             onRename = { showRenameDialog = true },
             onDelete = onDelete,
+            onShare = { showShareDialog = true },
+            isArchived = checklist.isArchived(),
+            onArchiveToggle = {
+                scope.launch {
+                    try {
+                        val archived = checklist.isArchived()
+                        val response =
+                            api.updateChecklist(
+                                checklist.id,
+                                UpdateChecklistRequest(
+                                    category =
+                                        if (archived) {
+                                            defaultUnarchiveCategory()
+                                        } else {
+                                            JOTTY_ARCHIVE_CATEGORY
+                                        },
+                                ),
+                            )
+                        onUpdate(response.data)
+                        if (!archived) onBack()
+                    } catch (_: Exception) {
+                        onSaveFailed()
+                    }
+                }
+            },
         )
+
+        if (showShareDialog) {
+            val exportTitle = stringResource(R.string.share_checklist)
+            ShareServerDialog(
+                itemType = "checklist",
+                itemId = checklist.id,
+                itemTitle = displayTitle,
+                api = api,
+                capabilitiesKey = serverCapabilitiesKey,
+                onDismiss = { showShareDialog = false },
+                onExportText = {
+                    val text = exportChecklistAsPlainText(checklist.copy(items = items, title = displayTitle), taskStatuses)
+                    val intent =
+                        Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, text)
+                        }
+                    context.startActivity(Intent.createChooser(intent, exportTitle))
+                    showShareDialog = false
+                },
+            )
+        }
 
         serverCapabilitiesKey?.let { key ->
             ChecklistPatchCapabilityBanner(
                 capabilitiesKey = key,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
             )
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            OutlinedTextField(
-                value = newItemText,
-                onValueChange = { newItemText = it },
-                placeholder = { Text(stringResource(R.string.add_item)) },
-                modifier = Modifier.weight(1f),
-            )
-            IconButton(
-                onClick = {
-                    if (newItemText.isNotBlank()) {
-                        scope.launch {
-                            try {
-                                api.addChecklistItem(
-                                    checklist.id,
-                                    com.jotty.android.data.api.AddItemRequest(text = newItemText),
-                                )
-                                newItemText = ""
-                                refresh()
-                            } catch (_: Exception) {
-                                onSaveFailed()
-                            }
-                        }
-                    }
-                },
-            ) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
-            }
         }
 
         val flatItems =
@@ -576,8 +622,51 @@ private fun ChecklistDetailScreen(
                     items.mapIndexed { index, item -> ChecklistFlatItem(item, 0, "$index") }
                 }
             }
-        val toDo = flatItems.filter { !it.item.completed }
-        val completed = flatItems.filter { it.item.completed }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        ChecklistAddItemField(
+            value = newItemText,
+            onValueChange = { newItemText = it },
+            existingItems = flatItems,
+            itemSearchEnabled = !isProject,
+            modifier = Modifier.padding(horizontal = 16.dp),
+            onAddItem = { text ->
+                scope.launch {
+                    try {
+                        val defaultStatus =
+                            if (isProject && canUseKanbanBoard) {
+                                defaultKanbanItemStatus(taskStatuses)
+                            } else {
+                                null
+                            }
+                        api.addChecklistItem(
+                            checklist.id,
+                            com.jotty.android.data.api.AddItemRequest(
+                                text = text,
+                                status = defaultStatus,
+                            ),
+                        )
+                        refresh()
+                    } catch (_: Exception) {
+                        onSaveFailed()
+                    }
+                }
+            },
+            onUncheckItem = { path ->
+                scope.launch {
+                    try {
+                        api.uncheckItem(checklist.id, path)
+                        refresh()
+                    } catch (_: Exception) {
+                        onSaveFailed()
+                    }
+                }
+            },
+        )
+
+        val toDo = flatItems.filter { !it.item.isCompletedForApi() }
+        val completed = flatItems.filter { it.item.isCompletedForApi() }
         val total = flatItems.size
         val doneCount = completed.size
 
@@ -611,24 +700,28 @@ private fun ChecklistDetailScreen(
         }
 
         if (isProject && canUseKanbanBoard) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                KanbanProjectViewToggle(
+                    view = projectView,
+                    onViewChange = { projectView = it },
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                TextButton(onClick = { showManageStatusesDialog = true }) {
+                    Text(stringResource(R.string.kanban_manage_statuses))
+                }
+            }
+        }
+
+        if (isProject && canUseKanbanBoard && projectView == KanbanProjectView.Board) {
             val columns =
                 remember(items, taskStatuses, kanbanHideEmptyColumns) {
                     buildKanbanColumns(items = items, statuses = taskStatuses)
                         .visibleKanbanColumns(kanbanHideEmptyColumns)
                 }
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(R.string.kanban_board),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = { showManageStatusesDialog = true }) {
-                    Text(stringResource(R.string.kanban_manage_statuses))
-                }
-            }
             TaskKanbanBoard(
                 columns = columns,
                 allStatuses = taskStatuses,
@@ -662,6 +755,50 @@ private fun ChecklistDetailScreen(
                     }
                 },
                 onOpenItem = { card -> selectedKanbanPath = "${card.index}" },
+                onAddToColumn = { statusId, text ->
+                    scope.launch {
+                        try {
+                            api.addChecklistItem(
+                                checklist.id,
+                                com.jotty.android.data.api.AddItemRequest(text = text, status = statusId),
+                            )
+                            refresh()
+                        } catch (_: Exception) {
+                            onSaveFailed()
+                        }
+                    }
+                },
+                onMoveCardInColumn = { columnCards, cardIndex, up ->
+                    val request = moveKanbanCardInColumnRequest(columnCards, cardIndex, up) ?: return@TaskKanbanBoard
+                    applyDragReorder(request)
+                },
+                onReorderCardInColumn = { columnCards, fromIndex, toIndex ->
+                    val request = kanbanCardReorderRequest(columnCards, fromIndex, toIndex) ?: return@TaskKanbanBoard
+                    applyDragReorder(request)
+                },
+                onUpdateTitle = { apiPath, text ->
+                    scope.launch {
+                        try {
+                            updateChecklistItemText(
+                                api = api,
+                                listId = checklist.id,
+                                path = apiPath,
+                                text = text,
+                                items = items,
+                                onPatchUnavailable = {
+                                    serverCapabilitiesKey?.let { ServerCapabilities.markItemPatchLimited(it) }
+                                },
+                            )
+                            refresh()
+                        } catch (e: UnsupportedOperationException) {
+                            onRenameUnsupported()
+                        } catch (_: Exception) {
+                            onSaveFailed()
+                        }
+                    }
+                },
+                dragReorderEnabled = dragReorderEnabled,
+                showChecklistEmojis = showChecklistEmojis,
             )
             selectedKanbanPath?.let { path ->
                 val detailItem = itemAtPath(items, path)
@@ -695,12 +832,15 @@ private fun ChecklistDetailScreen(
                         onDismiss = { selectedKanbanPath = null },
                         onDeleted = { selectedKanbanPath = null },
                         onError = onSaveFailed,
+                        showChecklistEmojis = showChecklistEmojis,
                     )
                 } else {
                     LaunchedEffect(path) { selectedKanbanPath = null }
                 }
             }
-        } else {
+        }
+
+        if (!isProject || !canUseKanbanBoard || projectView == KanbanProjectView.List) {
             if (isProject && !canUseKanbanBoard) {
                 Text(
                     text = stringResource(R.string.kanban_not_supported_fallback),
@@ -726,6 +866,7 @@ private fun ChecklistDetailScreen(
                 reorderableScope = reorderableScope,
                 onDragStarted = onDragStarted,
                 onDragStopped = onDragStopped,
+                showChecklistEmojis = showChecklistEmojis,
                     onCheck = {
                         scope.launch {
                             try {

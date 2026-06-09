@@ -177,6 +177,12 @@ class UpdateCheckerTest {
     }
 
     @Test
+    fun `stableUpdateRequiresFreshInstall is true only for dev version names`() {
+        assertTrue(UpdateChecker.isDevVersionName("1.5.1-dev+1e8480d"))
+        assertFalse(UpdateChecker.isDevVersionName("1.5.2"))
+    }
+
+    @Test
     fun `devCiVersionCode increments within base version band`() {
         assertEquals(270001, ApkInstallHelper.devCiVersionCode(27, 1))
         assertEquals(279999, ApkInstallHelper.devCiVersionCode(27, 9999))

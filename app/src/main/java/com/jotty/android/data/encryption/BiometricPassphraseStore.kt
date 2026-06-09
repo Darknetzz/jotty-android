@@ -33,6 +33,8 @@ import javax.crypto.spec.GCMParameterSpec
  *   key "ct_<instanceId>"  → Base64 ciphertext + tag
  */
 class BiometricPassphraseStore(private val context: Context) {
+    private val storeLock = Any()
+
     private val prefs: SharedPreferences by lazy {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
@@ -53,8 +55,60 @@ class BiometricPassphraseStore(private val context: Context) {
         }
     }
 
-    /** True when a passphrase is stored for [noteId]. */
+    /** True when encrypted passphrase data exists for [noteId] (prefs only; may be stale). */
     fun hasPassphrase(noteId: String): Boolean = prefs.contains(ivKey(noteId)) && prefs.contains(ctKey(noteId))
+
+    /**
+     * True when [noteId] has stored data and the Keystore key can decrypt it.
+     * Clears stale entries and emits [BiometricInvalidationNotifier] when the key was invalidated.
+     */
+    fun ensurePassphraseValid(noteId: String): Boolean {
+        if (!hasPassphrase(noteId)) return false
+        return try {
+            initDecryptCipher(noteId) != null
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            clearInvalidatedPassphrase(noteId, notify = true)
+            false
+        } catch (e: Exception) {
+            AppLog.e(TAG, "ensurePassphraseValid failed for $noteId", e)
+            clearPassphrase(noteId)
+            false
+        }
+    }
+
+    /**
+     * Removes passphrases whose Keystore keys were invalidated (e.g. fingerprint enrollment changed).
+     * @return number of cleared entries
+     */
+    fun pruneInvalidatedPassphrases(): Int =
+        synchronized(storeLock) {
+            pruneInvalidatedPassphrasesLocked()
+        }
+
+    private fun pruneInvalidatedPassphrasesLocked(): Int {
+        var pruned = 0
+        for (noteId in storedNoteIds()) {
+            if (!hasPassphrase(noteId)) continue
+            try {
+                if (initDecryptCipher(noteId) == null) {
+                    clearPassphrase(noteId)
+                    pruned++
+                }
+            } catch (e: KeyPermanentlyInvalidatedException) {
+                clearInvalidatedPassphrase(noteId, notify = false)
+                pruned++
+            } catch (e: Exception) {
+                AppLog.e(TAG, "pruneInvalidatedPassphrases failed for $noteId", e)
+                clearPassphrase(noteId)
+                pruned++
+            }
+        }
+        if (pruned > 0) {
+            BiometricInvalidationNotifier.notifyInvalidated(pruned)
+        }
+        return pruned
+    }
+
 
     /** Note IDs with a biometric-protected passphrase stored (from `iv_<noteId>` keys). */
     fun storedNoteIds(): List<String> =
@@ -94,15 +148,9 @@ class BiometricPassphraseStore(private val context: Context) {
      */
     fun getCipherForDecrypt(instanceId: String): Cipher? {
         return try {
-            val ivB64 = prefs.getString(ivKey(instanceId), null) ?: return null
-            val iv = Base64.decode(ivB64, Base64.NO_WRAP)
-            val key = getKey(instanceId) ?: return null
-            Cipher.getInstance(TRANSFORMATION).apply {
-                init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_BITS, iv))
-            }
+            initDecryptCipher(instanceId)
         } catch (e: KeyPermanentlyInvalidatedException) {
-            AppLog.d(TAG, "Biometric key invalidated for $instanceId — clearing stored passphrase")
-            clearPassphrase(instanceId)
+            clearInvalidatedPassphrase(instanceId, notify = true)
             null
         } catch (e: Exception) {
             AppLog.e(TAG, "getCipherForDecrypt failed for $instanceId", e)
@@ -189,10 +237,34 @@ class BiometricPassphraseStore(private val context: Context) {
         }
     }
 
+    private fun initDecryptCipher(noteId: String): Cipher? {
+        val ivB64 = prefs.getString(ivKey(noteId), null) ?: return null
+        val iv = Base64.decode(ivB64, Base64.NO_WRAP)
+        val key = getKey(noteId) ?: return null
+        return Cipher.getInstance(TRANSFORMATION).apply {
+            init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(GCM_TAG_BITS, iv))
+        }
+    }
+
+    private fun clearInvalidatedPassphrase(
+        noteId: String,
+        notify: Boolean,
+    ) = synchronized(storeLock) {
+        if (!hasPassphrase(noteId)) return@synchronized
+        AppLog.d(TAG, "Biometric key invalidated for $noteId — clearing stored passphrase")
+        clearPassphrase(noteId)
+        if (notify) {
+            BiometricInvalidationNotifier.notifyInvalidated(1)
+        }
+    }
+
     private fun getOrCreateKey(instanceId: String): SecretKey {
         val ks = KeyStore.getInstance(KEYSTORE).apply { load(null) }
         val alias = keyAlias(instanceId)
-        ks.getKey(alias, null)?.let { return it as SecretKey }
+        (ks.getKey(alias, null) as? SecretKey)?.let { existing ->
+            if (!isKeyPermanentlyInvalidated(existing)) return existing
+            ks.deleteEntry(alias)
+        }
         val spec =
             KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
@@ -209,6 +281,15 @@ class BiometricPassphraseStore(private val context: Context) {
     private fun getKey(instanceId: String): SecretKey? {
         val ks = KeyStore.getInstance(KEYSTORE).apply { load(null) }
         return ks.getKey(keyAlias(instanceId), null) as? SecretKey
+    }
+
+    private fun isKeyPermanentlyInvalidated(key: SecretKey): Boolean {
+        return try {
+            Cipher.getInstance(TRANSFORMATION).init(Cipher.ENCRYPT_MODE, key)
+            false
+        } catch (e: KeyPermanentlyInvalidatedException) {
+            true
+        }
     }
 
     private fun keyAlias(instanceId: String) = "$KEY_ALIAS_PREFIX$instanceId"

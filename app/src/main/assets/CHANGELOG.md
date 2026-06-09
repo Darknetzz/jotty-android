@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+---
+
+## [1.6.0] - 2026-06-09
+
 ### Added
 
 - **Notes list unlocked badge** — Encrypted notes decrypted in this session show **Unlocked** with an open lock on the overview instead of **Encrypted**.
@@ -44,6 +48,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Documentation
 
 - **Privacy policy** — [docs/PRIVACY_POLICY.md](docs/PRIVACY_POLICY.md) for Google Play and users (local storage, Jotty server communication, optional GitHub update checks, no analytics).
+
 
 ---
 
@@ -941,3 +946,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.5.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.1
 
 [1.5.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.2
+
+[1.6.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.6.0

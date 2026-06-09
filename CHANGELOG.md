@@ -23,6 +23,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Encrypted note menu** — While viewing a decrypted encrypted note, the ⋮ menu shows **Re-encrypt** (save to server) instead of **Encrypt**, to distinguish it from **Lock note** (hide locally).
 - **Settings** — Export debug logs moved to the bottom of Settings, next to About.
 - **Checklist overview progress** — List cards count nested subtasks (matches detail view).
 - **Kanban board height** — Columns use viewport-aware height instead of a fixed 420dp.

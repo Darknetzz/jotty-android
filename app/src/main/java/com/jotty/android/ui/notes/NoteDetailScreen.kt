@@ -485,7 +485,7 @@ internal fun NoteDetailScreen(
                                     },
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.encrypt)) },
+                                    text = { Text(stringResource(R.string.reencrypt)) },
                                     onClick = {
                                         menuExpanded = false
                                         detailVm.showEncryptDialog()

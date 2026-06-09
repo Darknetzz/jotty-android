@@ -65,6 +65,7 @@ fun ChecklistItemRow(
     onDragStopped: (() -> Unit)? = null,
     actionIconSize: Dp = 48.dp,
     actionGlyphSize: Dp = 22.dp,
+    showChecklistEmojis: Boolean = true,
 ) {
     val indent = (depth * 20).dp
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -142,8 +143,11 @@ fun ChecklistItemRow(
                     ),
             )
         } else {
+            val displayText =
+                checklistDisplayText(item.text, showChecklistEmojis)
+                    .ifBlank { stringResource(R.string.item_placeholder) }
             Text(
-                text = item.text.ifBlank { stringResource(R.string.item_placeholder) },
+                text = displayText,
                 style = MaterialTheme.typography.bodyLarge,
                 textDecoration = if (item.completed) TextDecoration.LineThrough else null,
                 color =

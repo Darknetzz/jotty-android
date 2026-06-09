@@ -94,6 +94,7 @@ fun ChecklistsScreen(
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val checklistCategories by vm.checklistCategories.collectAsStateWithLifecycle()
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val showChecklistEmojis by settingsRepository.showChecklistEmojis.collectAsStateWithLifecycle(initialValue = true)
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
@@ -190,6 +191,7 @@ fun ChecklistsScreen(
                     api = api,
                     categorySuggestions = checklistCategories,
                     dragReorderEnabled = checklistDragReorderEnabled,
+                    showChecklistEmojis = showChecklistEmojis,
                     kanbanHideEmptyColumns = kanbanHideEmptyColumns,
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = {
@@ -424,6 +426,7 @@ private fun ChecklistDetailScreen(
     api: JottyApi,
     categorySuggestions: List<String> = emptyList(),
     dragReorderEnabled: Boolean = true,
+    showChecklistEmojis: Boolean = true,
     kanbanHideEmptyColumns: Boolean = false,
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
@@ -794,6 +797,7 @@ private fun ChecklistDetailScreen(
                     }
                 },
                 dragReorderEnabled = dragReorderEnabled,
+                showChecklistEmojis = showChecklistEmojis,
             )
             selectedKanbanPath?.let { path ->
                 val detailItem = itemAtPath(items, path)
@@ -827,6 +831,7 @@ private fun ChecklistDetailScreen(
                         onDismiss = { selectedKanbanPath = null },
                         onDeleted = { selectedKanbanPath = null },
                         onError = onSaveFailed,
+                        showChecklistEmojis = showChecklistEmojis,
                     )
                 } else {
                     LaunchedEffect(path) { selectedKanbanPath = null }
@@ -860,6 +865,7 @@ private fun ChecklistDetailScreen(
                 reorderableScope = reorderableScope,
                 onDragStarted = onDragStarted,
                 onDragStopped = onDragStopped,
+                showChecklistEmojis = showChecklistEmojis,
                     onCheck = {
                         scope.launch {
                             try {

@@ -100,6 +100,7 @@ fun TaskKanbanBoard(
     onUpdateTitle: (apiPath: String, text: String) -> Unit,
     reorderInColumnEnabled: Boolean = true,
     dragReorderEnabled: Boolean = true,
+    showChecklistEmojis: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val boardHeight = rememberKanbanBoardHeight()
@@ -126,6 +127,7 @@ fun TaskKanbanBoard(
                 onUpdateTitle = onUpdateTitle,
                 reorderInColumnEnabled = reorderInColumnEnabled,
                 dragReorderEnabled = dragReorderEnabled,
+                showChecklistEmojis = showChecklistEmojis,
                 editingCardPath = editingCardPath,
                 onEditingCardPathChange = { editingCardPath = it },
             )
@@ -147,6 +149,7 @@ private fun KanbanStatusColumn(
     onUpdateTitle: (apiPath: String, text: String) -> Unit,
     reorderInColumnEnabled: Boolean,
     dragReorderEnabled: Boolean,
+    showChecklistEmojis: Boolean,
     editingCardPath: String?,
     onEditingCardPathChange: (String?) -> Unit,
 ) {
@@ -236,6 +239,7 @@ private fun KanbanStatusColumn(
                     moveEnabled = moveEnabled,
                     reorderInColumnEnabled = reorderInColumnEnabled,
                     dragReorderEnabled = dragReorderEnabled,
+                    showChecklistEmojis = showChecklistEmojis,
                     reorderableScope = reorderableScope,
                     onDragStarted = {
                         isDragging = true
@@ -330,6 +334,7 @@ private fun KanbanTaskCard(
     moveEnabled: Boolean,
     reorderInColumnEnabled: Boolean,
     dragReorderEnabled: Boolean,
+    showChecklistEmojis: Boolean,
     reorderableScope: ReorderableCollectionItemScope?,
     onDragStarted: () -> Unit,
     onDragStopped: () -> Unit,
@@ -443,8 +448,11 @@ private fun KanbanTaskCard(
                             ),
                     )
                 } else {
+                    val displayTitle =
+                        checklistDisplayText(card.item.text, showChecklistEmojis)
+                            .ifBlank { stringResource(R.string.untitled) }
                     Text(
-                        text = card.item.text.ifBlank { stringResource(R.string.untitled) },
+                        text = displayTitle,
                         style = MaterialTheme.typography.bodyMedium,
                         maxLines = 4,
                         overflow = TextOverflow.Ellipsis,

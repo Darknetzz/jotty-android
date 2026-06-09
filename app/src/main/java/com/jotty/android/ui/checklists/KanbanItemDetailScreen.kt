@@ -61,6 +61,7 @@ fun KanbanItemDetailScreen(
     onDeleted: () -> Unit,
     onError: () -> Unit,
     modifier: Modifier = Modifier,
+    showChecklistEmojis: Boolean = true,
 ) {
     val scope = rememberCoroutineScope()
     var titleText by remember(itemPath, item.text) { mutableStateOf(item.text) }
@@ -330,6 +331,7 @@ fun KanbanItemDetailScreen(
                     onUpdateText = { path, text -> runAction { actions.updateSubtaskText(path, text) } },
                     onDelete = { path -> runAction { actions.deleteSubtask(path) } },
                     onAdd = { text -> runAction { actions.addSubtask(text) } },
+                    showChecklistEmojis = showChecklistEmojis,
                 )
 
                 KanbanItemBlockedFieldsSection()

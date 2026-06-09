@@ -292,6 +292,8 @@
     <string name="swipe_to_delete_description">Swipe list or note rows left to delete (checklists and notes)</string>
     <string name="checklist_drag_reorder">Drag to reorder checklists</string>
     <string name="checklist_drag_reorder_description">Show a drag handle on checklist items to reorder by dragging (move up/down in the menu still works when off)</string>
+    <string name="show_checklist_emojis">Show emojis on checklists</string>
+    <string name="show_checklist_emojis_description">Match keywords in checklist item text with emoji prefixes (display only; same as Jotty web “Show Emojis”)</string>
     <string name="kanban_hide_empty_columns">Hide empty Kanban columns</string>
     <string name="kanban_hide_empty_columns_description">On project boards, hide status columns that have no tasks</string>
     <string name="kanban_view_board">Board</string>

@@ -17,6 +17,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Notes: copy, selection, WYSIWYG** — Copy note from the menu; text selection in view mode; optional rich text editor (Settings → Behavior). Notes with HTML or pipe tables open in the visual editor when you edit; view mode converts WYSIWYG HTML saves back to proper headings and GFM tables.
 - **Visual / Markdown edit toggle** — While editing any note, switch between the visual editor and markdown source with the chips above the editor.
 - **Archived filter** — Notes and checklists lists hide archived items by default; **Archived** chip shows them.
+- **Checklist auto-emoji** — Settings → Behavior → **Show emojis on checklists** prepends keyword-matched emoji on checklist and Kanban item labels (display only; plain text is still saved to the server, matching Jotty web “Show Emojis”).
 
 ### Changed
 

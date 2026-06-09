@@ -2,6 +2,15 @@
 
 This document describes how **jotty-android** behaves against different Jotty server versions. The web app on [Jotty](https://jotty.page/) evolves on `main` and tagged releases; the Android app targets the public REST API.
 
+## Checklist item emojis
+
+| Capability | Android behavior |
+|------------|------------------|
+| Keyword emoji on item labels | **Client-side display only** — not stored in `ChecklistItem.text` and not exposed by the REST API. Matches Jotty web “Show Emojis” using a bundled keyword dictionary. |
+| Manual emoji in `text` | Rendered as part of item text (e.g. `💊 Paracet`); no double prefix when auto-emoji is on. |
+| Server `config/emojis.json` | **Not fetched** — no stable public REST endpoint; custom server mappings are out of scope until upstream documents one. |
+| Toggle | Settings → Behavior → **Show emojis on checklists** (default on). |
+
 ## Checklist item rename (PATCH)
 
 | Capability | Android behavior |

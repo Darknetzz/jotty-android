@@ -20,6 +20,7 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
     val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val showChecklistEmojis by settingsRepository.showChecklistEmojis.collectAsStateWithLifecycle(initialValue = true)
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -100,6 +101,26 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                         onCheckedChange = {
                             scope.launch {
                                 settingsRepository.setChecklistDragReorderEnabled(it)
+                            }
+                        },
+                    )
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.show_checklist_emojis)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.show_checklist_emojis_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = showChecklistEmojis,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setShowChecklistEmojis(it)
                             }
                         },
                     )

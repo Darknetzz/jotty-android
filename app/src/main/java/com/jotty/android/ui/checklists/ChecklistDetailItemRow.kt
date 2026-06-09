@@ -24,6 +24,7 @@ fun ChecklistDetailItemRow(
     onAddSubItem: (() -> Unit)?,
     actionIconSize: Dp = 48.dp,
     actionGlyphSize: Dp = 22.dp,
+    showChecklistEmojis: Boolean = true,
 ) {
     ChecklistItemRow(
         item = flat.item,
@@ -44,5 +45,6 @@ fun ChecklistDetailItemRow(
         onDragStopped = onDragStopped,
         actionIconSize = actionIconSize,
         actionGlyphSize = actionGlyphSize,
+        showChecklistEmojis = showChecklistEmojis,
     )
 }

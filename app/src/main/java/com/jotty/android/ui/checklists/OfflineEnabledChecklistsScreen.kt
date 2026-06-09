@@ -87,6 +87,7 @@ fun OfflineEnabledChecklistsScreen(
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val showChecklistEmojis by settingsRepository.showChecklistEmojis.collectAsStateWithLifecycle(initialValue = true)
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
@@ -288,6 +289,7 @@ fun OfflineEnabledChecklistsScreen(
                     offlineRepository = offlineRepository,
                     categorySuggestions = checklistCategories,
                     dragReorderEnabled = checklistDragReorderEnabled,
+                    showChecklistEmojis = showChecklistEmojis,
                     kanbanHideEmptyColumns = kanbanHideEmptyColumns,
                     isOnline = isOnline,
                     hasPendingSync = currentList.id in dirtyChecklistIds,
@@ -582,6 +584,7 @@ private fun OfflineChecklistDetailContent(
     offlineRepository: OfflineChecklistsRepository,
     categorySuggestions: List<String> = emptyList(),
     dragReorderEnabled: Boolean = true,
+    showChecklistEmojis: Boolean = true,
     kanbanHideEmptyColumns: Boolean = false,
     isOnline: Boolean,
     hasPendingSync: Boolean = false,
@@ -992,6 +995,7 @@ private fun OfflineChecklistDetailContent(
                     }
                 },
                 dragReorderEnabled = dragReorderEnabled,
+                showChecklistEmojis = showChecklistEmojis,
             )
             selectedKanbanPath?.let { path ->
                 val detailItem = itemAtPath(items, path)
@@ -1027,6 +1031,7 @@ private fun OfflineChecklistDetailContent(
                         onDismiss = { selectedKanbanPath = null },
                         onDeleted = { selectedKanbanPath = null },
                         onError = onSaveFailed,
+                        showChecklistEmojis = showChecklistEmojis,
                     )
                 } else {
                     LaunchedEffect(path) { selectedKanbanPath = null }
@@ -1064,6 +1069,7 @@ private fun OfflineChecklistDetailContent(
                 reorderableScope = reorderableScope,
                 onDragStarted = onDragStarted,
                 onDragStopped = onDragStopped,
+                showChecklistEmojis = showChecklistEmojis,
                     onCheck = {
                         scope.launch {
                             handleResult(offlineRepository.checkItem(liveChecklist.id, flat.apiPath))

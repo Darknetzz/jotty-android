@@ -29,6 +29,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.local.OfflineNotesRepository
@@ -51,22 +52,21 @@ fun SetupScreen(
     standaloneMode: Boolean = false,
     onBack: (() -> Unit)? = null,
 ) {
+    val setupVm: SetupViewModel = viewModel { SetupViewModel() }
     val instances by settingsRepository.instances.collectAsStateWithLifecycle(initialValue = emptyList())
     val defaultInstanceId by settingsRepository.defaultInstanceId.collectAsStateWithLifecycle(initialValue = null)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
-    var showAddForm by remember { mutableStateOf(instances.isEmpty()) }
+    val showAddForm by setupVm.showAddForm.collectAsStateWithLifecycle()
+    val instanceToEdit by setupVm.instanceToEdit.collectAsStateWithLifecycle()
+    val instanceToDelete by setupVm.instanceToDelete.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val appContext = LocalContext.current.applicationContext
 
     LaunchedEffect(instances) {
-        when {
-            instances.isEmpty() -> showAddForm = true
-            showAddForm -> showAddForm = false
-        }
+        setupVm.syncWithInstances(instances.isEmpty())
     }
 
-    var instanceToEdit by remember { mutableStateOf<JottyInstance?>(null) }
     val showingInstanceList = standaloneMode && instanceToEdit == null && !showAddForm
 
     Column(
@@ -113,8 +113,8 @@ fun SetupScreen(
                 settingsRepository = settingsRepository,
                 setAsCurrentOnConnect = !standaloneMode,
                 onDone = onConfigured,
-                onSaved = { instanceToEdit = null },
-                onCancel = { instanceToEdit = null },
+                onSaved = { setupVm.setInstanceToEdit(null) },
+                onCancel = { setupVm.setInstanceToEdit(null) },
             )
         } else if (showAddForm) {
             InstanceForm(
@@ -124,15 +124,14 @@ fun SetupScreen(
                 onDone = onConfigured,
                 onSaved =
                     if (standaloneMode) {
-                        { showAddForm = false }
+                        { setupVm.setShowAddForm(false) }
                     } else {
                         null
                     },
-                onCancel = { if (instances.isNotEmpty()) showAddForm = false },
+                onCancel = { if (instances.isNotEmpty()) setupVm.setShowAddForm(false) },
             )
         } else {
             if (instances.isNotEmpty()) {
-                var instanceToDelete by remember { mutableStateOf<JottyInstance?>(null) }
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(instances, key = { it.id }) { instance ->
                         InstanceCard(
@@ -149,14 +148,14 @@ fun SetupScreen(
                                     settingsRepository.setDefaultInstanceId(instance.id)
                                 }
                             },
-                            onEdit = { instanceToEdit = instance },
-                            onDelete = { instanceToDelete = instance },
+                            onEdit = { setupVm.setInstanceToEdit(instance) },
+                            onDelete = { setupVm.setInstanceToDelete(instance) },
                         )
                     }
                     item {
                         OutlinedCard(
                             modifier = Modifier.fillMaxWidth(),
-                            onClick = { showAddForm = true },
+                            onClick = { setupVm.setShowAddForm(true) },
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
@@ -171,7 +170,7 @@ fun SetupScreen(
                 }
                 instanceToDelete?.let { instance ->
                     AlertDialog(
-                        onDismissRequest = { instanceToDelete = null },
+                        onDismissRequest = { setupVm.setInstanceToDelete(null) },
                         title = { Text(stringResource(R.string.remove_instance_title)) },
                         text = { Text(stringResource(R.string.remove_instance_message, instance.name)) },
                         confirmButton = {
@@ -180,7 +179,7 @@ fun SetupScreen(
                                     scope.launch {
                                         OfflineNotesRepository.clearLocalNotes(appContext, instance.id)
                                         settingsRepository.removeInstance(instance.id)
-                                        instanceToDelete = null
+                                        setupVm.setInstanceToDelete(null)
                                     }
                                 },
                             ) {
@@ -188,7 +187,7 @@ fun SetupScreen(
                             }
                         },
                         dismissButton = {
-                            TextButton(onClick = { instanceToDelete = null }) {
+                            TextButton(onClick = { setupVm.setInstanceToDelete(null) }) {
                                 Text(stringResource(R.string.cancel))
                             }
                         },

@@ -16,8 +16,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,7 +25,6 @@ import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Note
-import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.ui.common.NoteMetadataRow
 import com.jotty.android.util.formatNoteDate
@@ -38,18 +35,14 @@ internal fun NoteCard(
     note: Note,
     onClick: () -> Unit,
     showPreview: Boolean = true,
-    syncStatusLabel: String? = null,
+    showPendingSync: Boolean = false,
+    isUnlockedInSession: Boolean = false,
 ) {
     val titleText = remember(note.title) { stripInvisibleFromEdges(note.title) }
     val strippedContent = remember(note.content) { stripInvisibleFromEdges(note.content) }
     val isEncrypted =
         remember(note.encrypted, note.content) {
             note.encrypted == true || NoteEncryption.isEncrypted(note.content)
-        }
-    val sessionRevision by NoteDecryptionSession.revision.collectAsState()
-    val isUnlockedInSession =
-        remember(note.id, isEncrypted, sessionRevision) {
-            isEncrypted && NoteDecryptionSession.isUnlocked(note.id)
         }
     val contentPreview =
         remember(strippedContent, isEncrypted) {
@@ -120,7 +113,7 @@ internal fun NoteCard(
             }
             NoteMetadataRow(
                 modifier = Modifier.padding(top = 6.dp),
-                syncStatusLabel = syncStatusLabel,
+                showPendingSync = showPendingSync,
                 category =
                     note.category.takeIf {
                         it.isNotBlank() && it != API_CATEGORY_UNCATEGORIZED

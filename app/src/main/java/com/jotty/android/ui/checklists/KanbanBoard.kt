@@ -488,7 +488,7 @@ private fun KanbanTaskCard(
                     ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.edit)) },
-                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
+                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit)) },
                             onClick = {
                                 menuExpanded = false
                                 onEditingCardPathChange(apiPath)
@@ -505,7 +505,10 @@ private fun KanbanTaskCard(
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.cd_move_item_up)) },
                                 leadingIcon = {
-                                    Icon(Icons.Default.ArrowUpward, contentDescription = null)
+                                    Icon(
+                                        Icons.Default.ArrowUpward,
+                                        contentDescription = stringResource(R.string.cd_move_item_up),
+                                    )
                                 },
                                 onClick = {
                                     menuExpanded = false
@@ -517,7 +520,10 @@ private fun KanbanTaskCard(
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.cd_move_item_down)) },
                                 leadingIcon = {
-                                    Icon(Icons.Default.ArrowDownward, contentDescription = null)
+                                    Icon(
+                                        Icons.Default.ArrowDownward,
+                                        contentDescription = stringResource(R.string.cd_move_item_down),
+                                    )
                                 },
                                 onClick = {
                                     menuExpanded = false

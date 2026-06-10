@@ -190,6 +190,7 @@
     <string name="note_is_encrypted">This note is encrypted</string>
     <string name="pgp_not_supported">PGP decryption is not supported in the app. Use the Jotty web app to decrypt.</string>
     <string name="enter_passphrase_to_view">Enter your passphrase to view the content.</string>
+    <string name="encrypted_note_offline_hint">You\'re offline. Enter your passphrase to view this note on this device. Connect to the internet to sync changes or set up biometric unlock.</string>
     <string name="use_web_app_to_decrypt">Use the Jotty web app to decrypt this note.</string>
     <string name="pgp_not_supported_short">PGP decryption is not supported in the app. Use the Jotty web app.</string>
     <string name="legacy_encryption_warning">This note uses a legacy encryption payload format. Re-encrypt and save it to restore web compatibility.</string>
@@ -346,6 +347,7 @@
     <string name="connectivity_status_offline_hint">Server unreachable — pull to refresh after you are back online</string>
     <string name="saved_locally">Saved locally</string>
     <string name="pending_sync">Pending sync</string>
+    <string name="offline_category_filter_empty">No \"%1$s\" items on this device yet. Sync when online to download them.</string>
     <string name="discard_pending_sync">Discard pending sync</string>
     <string name="discard_pending_sync_title">Discard pending sync?</string>
     <string name="discard_pending_sync_confirm">Restore this checklist from the server? Unsynced changes on this device will be lost.</string>

@@ -437,68 +437,38 @@ private fun ChecklistDetailScreen(
     onRenameUnsupported: () -> Unit = {},
     serverCapabilitiesKey: String? = null,
 ) {
-    var items by remember { mutableStateOf(checklist.items) }
-    var displayTitle by remember { mutableStateOf(checklist.title) }
-    var showRenameDialog by remember { mutableStateOf(false) }
-    var showManageStatusesDialog by remember { mutableStateOf(false) }
+    val detailVm: ChecklistDetailViewModel =
+        viewModel(key = checklist.id) {
+            ChecklistDetailViewModel(checklist.id, api)
+        }
+    val items by detailVm.items.collectAsStateWithLifecycle()
+    val displayTitle by detailVm.displayTitle.collectAsStateWithLifecycle()
+    val showRenameDialog by detailVm.showRenameDialog.collectAsStateWithLifecycle()
+    val showManageStatusesDialog by detailVm.showManageStatusesDialog.collectAsStateWithLifecycle()
+    val editingItemKey by detailVm.editingItemKey.collectAsStateWithLifecycle()
+    val taskStatuses by detailVm.taskStatuses.collectAsStateWithLifecycle()
+    val canUseKanbanBoard by detailVm.canUseKanbanBoard.collectAsStateWithLifecycle()
+    val projectView by detailVm.projectView.collectAsStateWithLifecycle()
+    val selectedKanbanPath by detailVm.selectedKanbanPath.collectAsStateWithLifecycle()
+    val showShareDialog by detailVm.showShareDialog.collectAsStateWithLifecycle()
     var newItemText by remember { mutableStateOf("") }
-    var editingItemKey by remember(checklist.id) { mutableStateOf<String?>(null) }
-    var taskStatuses by remember(checklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
-    var canUseKanbanBoard by remember(checklist.id) { mutableStateOf(true) }
-    var projectView by remember(checklist.id) { mutableStateOf(KanbanProjectView.Board) }
-    var selectedKanbanPath by remember(checklist.id) { mutableStateOf<String?>(null) }
-    var showShareDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     LaunchedEffect(checklist.id, checklist.title, checklist.items) {
-        displayTitle = checklist.title
-        items = checklist.items
-        editingItemKey = null
-    }
-
-    suspend fun refreshItemsFromServer() {
-        val updated = api.getChecklists().checklists.find { it.id == checklist.id }
-        if (updated != null) {
-            items = updated.items
-            onUpdate(updated)
-        }
+        detailVm.syncFromChecklist(checklist)
     }
 
     fun refresh() {
-        scope.launch {
-            try {
-                refreshItemsFromServer()
-            } catch (_: Exception) {
-                onSaveFailed()
-            }
-        }
+        detailVm.refreshItemsFromServer(onUpdated = onUpdate, onFailed = onSaveFailed)
     }
 
     val isProject = isProjectChecklistType(checklist.type)
     val showItemEmojis = checklistAutoEmojiEnabled(showChecklistEmojis, checklist.type)
 
-    fun refreshTaskStatuses() {
-        if (!isProject) return
-        scope.launch {
-            try {
-                val statuses = api.getTaskStatuses(checklist.id).statuses.sortedBy { it.order }
-                taskStatuses = if (statuses.isNotEmpty()) statuses else DEFAULT_TASK_STATUSES
-                canUseKanbanBoard = true
-            } catch (e: Exception) {
-                if (e is HttpException && e.code() in setOf(404, 405)) {
-                    canUseKanbanBoard = false
-                    return@launch
-                }
-                canUseKanbanBoard = false
-            }
-        }
-    }
-
     LaunchedEffect(checklist.id, isProject) {
-        taskStatuses = DEFAULT_TASK_STATUSES
-        canUseKanbanBoard = true
-        if (isProject) refreshTaskStatuses()
+        detailVm.resetProjectState()
+        if (isProject) detailVm.refreshTaskStatuses(isProject = true)
     }
 
     if (showRenameDialog) {
@@ -506,35 +476,25 @@ private fun ChecklistDetailScreen(
             initialTitle = displayTitle,
             initialCategory = checklist.category,
             categorySuggestions = categorySuggestions,
-            onDismiss = { showRenameDialog = false },
+            onDismiss = { detailVm.setShowRenameDialog(false) },
             onConfirm = { newTitle, newCategory ->
-                showRenameDialog = false
-                scope.launch {
-                    try {
-                        val response =
-                            api.updateChecklist(
-                                checklist.id,
-                                UpdateChecklistRequest(title = newTitle, category = newCategory),
-                            )
-                        if (response.success) {
-                            displayTitle = response.data.title
-                            onUpdate(response.data)
-                        } else {
-                            onSaveFailed()
-                        }
-                    } catch (_: Exception) {
-                        onSaveFailed()
-                    }
-                }
+                detailVm.setShowRenameDialog(false)
+                detailVm.renameChecklist(
+                    currentCategory = checklist.category,
+                    newTitle = newTitle,
+                    newCategory = newCategory,
+                    onUpdated = onUpdate,
+                    onFailed = onSaveFailed,
+                )
             },
         )
     }
     if (showManageStatusesDialog) {
         ManageTaskStatusesDialog(
             statuses = taskStatuses,
-            onDismiss = { showManageStatusesDialog = false },
+            onDismiss = { detailVm.setShowManageStatusesDialog(false) },
             onSave = { updated ->
-                showManageStatusesDialog = false
+                detailVm.setShowManageStatusesDialog(false)
                 scope.launch {
                     try {
                         saveTaskStatuses(
@@ -543,7 +503,7 @@ private fun ChecklistDetailScreen(
                             previous = taskStatuses,
                             updated = updated,
                         )
-                        refreshTaskStatuses()
+                        detailVm.refreshTaskStatuses(isProject = true)
                         refresh()
                     } catch (_: Exception) {
                         onSaveFailed()
@@ -557,9 +517,9 @@ private fun ChecklistDetailScreen(
         ChecklistDetailHeader(
             title = displayTitle,
             onBack = onBack,
-            onRename = { showRenameDialog = true },
+            onRename = { detailVm.setShowRenameDialog(true) },
             onDelete = onDelete,
-            onShare = { showShareDialog = true },
+            onShare = { detailVm.setShowShareDialog(true) },
             isArchived = checklist.isArchived(),
             onArchiveToggle = {
                 scope.launch {
@@ -594,7 +554,7 @@ private fun ChecklistDetailScreen(
                 itemTitle = displayTitle,
                 api = api,
                 capabilitiesKey = serverCapabilitiesKey,
-                onDismiss = { showShareDialog = false },
+                onDismiss = { detailVm.setShowShareDialog(false) },
                 onExportText = {
                     val text = exportChecklistAsPlainText(checklist.copy(items = items, title = displayTitle), taskStatuses)
                     val intent =
@@ -603,7 +563,7 @@ private fun ChecklistDetailScreen(
                             putExtra(Intent.EXTRA_TEXT, text)
                         }
                     context.startActivity(Intent.createChooser(intent, exportTitle))
-                    showShareDialog = false
+                    detailVm.setShowShareDialog(false)
                 },
             )
         }
@@ -708,10 +668,10 @@ private fun ChecklistDetailScreen(
             ) {
                 KanbanProjectViewToggle(
                     view = projectView,
-                    onViewChange = { projectView = it },
+                    onViewChange = { detailVm.setProjectView(it) },
                 )
                 Spacer(modifier = Modifier.weight(1f))
-                TextButton(onClick = { showManageStatusesDialog = true }) {
+                TextButton(onClick = { detailVm.setShowManageStatusesDialog(true) }) {
                     Text(stringResource(R.string.kanban_manage_statuses))
                 }
             }
@@ -739,7 +699,7 @@ private fun ChecklistDetailScreen(
                             refresh()
                         } catch (e: Exception) {
                             if (e is HttpException && e.code() in setOf(404, 405)) {
-                                canUseKanbanBoard = false
+                                detailVm.setCanUseKanbanBoard(false)
                             }
                             onSaveFailed()
                         }
@@ -755,7 +715,7 @@ private fun ChecklistDetailScreen(
                         }
                     }
                 },
-                onOpenItem = { card -> selectedKanbanPath = "${card.index}" },
+                onOpenItem = { card -> detailVm.setSelectedKanbanPath("${card.index}") },
                 onAddToColumn = { statusId, text ->
                     scope.launch {
                         try {
@@ -816,27 +776,30 @@ private fun ChecklistDetailScreen(
                                 itemPath = path,
                                 items = { items },
                                 onRefresh = {
-                                    refreshItemsFromServer()
+                                    detailVm.pullItemsFromServer(onUpdated = onUpdate, onFailed = onSaveFailed)
                                 },
                                 serverCapabilitiesKey = serverCapabilitiesKey,
                                 performMoveToStatus = { statusId ->
-                                    runCatching {
+                                    try {
                                         api.updateTaskItemStatus(
                                             checklist.id,
                                             path,
                                             UpdateTaskItemStatusRequest(status = statusId),
                                         )
-                                        refreshItemsFromServer()
+                                        detailVm.refreshItemsFromServer()?.let(onUpdate)
+                                        Result.success(Unit)
+                                    } catch (e: Exception) {
+                                        Result.failure(e)
                                     }
                                 },
                             ),
-                        onDismiss = { selectedKanbanPath = null },
-                        onDeleted = { selectedKanbanPath = null },
+                        onDismiss = { detailVm.setSelectedKanbanPath(null) },
+                        onDeleted = { detailVm.setSelectedKanbanPath(null) },
                         onError = onSaveFailed,
                         showChecklistEmojis = showItemEmojis,
                     )
                 } else {
-                    LaunchedEffect(path) { selectedKanbanPath = null }
+                    LaunchedEffect(path) { detailVm.setSelectedKanbanPath(null) }
                 }
             }
         }
@@ -862,7 +825,7 @@ private fun ChecklistDetailScreen(
             ChecklistDetailItemRow(
                 flat = flat,
                 editingItemKey = editingItemKey,
-                onEditingItemKeyChange = { editingItemKey = it },
+                onEditingItemKeyChange = { detailVm.setEditingItemKey(it) },
                 isProject = isProject,
                 reorderableScope = reorderableScope,
                 onDragStarted = onDragStarted,

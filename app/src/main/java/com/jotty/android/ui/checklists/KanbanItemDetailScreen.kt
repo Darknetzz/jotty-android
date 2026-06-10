@@ -344,7 +344,7 @@ fun KanbanItemDetailScreen(
                         onClick = { showDeleteConfirm = true },
                         enabled = !saving,
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = null)
+                        Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete))
                         Text(
                             text = stringResource(R.string.delete),
                             modifier = Modifier.padding(start = 4.dp),

@@ -55,6 +55,7 @@ import com.jotty.android.util.moveChecklistItemUpRequest
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.OfflineConnectivityBanner
+import com.jotty.android.ui.common.PendingSyncBadge
 import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
@@ -135,7 +136,6 @@ fun OfflineEnabledChecklistsScreen(
     val replayFailedMsg = stringResource(R.string.sync_replay_ops_failed, replayFailuresDetected)
     val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
     val undoActionLabel = stringResource(R.string.undo)
-    val pendingSyncLabel = stringResource(R.string.pending_sync)
     val discardPendingSyncDoneMsg = stringResource(R.string.discard_pending_sync_done)
 
     suspend fun offlineDeleteWithUndo(list: Checklist) {
@@ -225,6 +225,14 @@ fun OfflineEnabledChecklistsScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        vm.categoryFilterEmptyEvents.collect { category ->
+            snackbarHostState.showSnackbar(
+                message = context.getString(R.string.offline_category_filter_empty, category),
+            )
+        }
+    }
+
     LaunchedEffect(isOnline, checklists) {
         vm.loadCategories(isOnline, checklists)
     }
@@ -242,8 +250,13 @@ fun OfflineEnabledChecklistsScreen(
         settingsRepository.checklistsCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
         filterRestored = true
     }
-    LaunchedEffect(selectedCategory, filterRestored) {
-        if (filterRestored) settingsRepository.setChecklistsCategoryFilter(selectedCategory)
+    LaunchedEffect(selectedCategory, filterRestored, checklists) {
+        if (filterRestored) {
+            settingsRepository.setChecklistsCategoryFilter(selectedCategory)
+            if (!isOnline) {
+                vm.notifyCategoryFilterEmptyIfNeeded(selectedCategory, checklists)
+            }
+        }
     }
 
     val inChecklistDetail = selectedList != null
@@ -376,7 +389,7 @@ fun OfflineEnabledChecklistsScreen(
                         item {
                             FilterChip(
                                 selected = selectedCategory == JOTTY_ARCHIVE_CATEGORY,
-                                onClick = { vm.toggleCategoryChip(JOTTY_ARCHIVE_CATEGORY) },
+                                onClick = { vm.toggleCategoryChip(JOTTY_ARCHIVE_CATEGORY, checklists) },
                                 label = {
                                     Text(
                                         stringResource(R.string.category_archived),
@@ -392,7 +405,7 @@ fun OfflineEnabledChecklistsScreen(
                         ) { cat ->
                             FilterChip(
                                 selected = selectedCategory == cat,
-                                onClick = { vm.toggleCategoryChip(cat) },
+                                onClick = { vm.toggleCategoryChip(cat, checklists) },
                                 label = {
                                     Text(cat, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 },
@@ -440,7 +453,7 @@ fun OfflineEnabledChecklistsScreen(
                                             checklist = list,
                                             onClick = { vm.setSelectedList(list) },
                                             onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
-                                            syncStatusLabel = if (list.id in dirtyChecklistIds) pendingSyncLabel else null,
+                                            showPendingSync = list.id in dirtyChecklistIds,
                                         )
                                     }
                                 } else {
@@ -448,7 +461,7 @@ fun OfflineEnabledChecklistsScreen(
                                         checklist = list,
                                         onClick = { vm.setSelectedList(list) },
                                         onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
-                                        syncStatusLabel = if (list.id in dirtyChecklistIds) pendingSyncLabel else null,
+                                        showPendingSync = list.id in dirtyChecklistIds,
                                     )
                                 }
                             }
@@ -493,7 +506,7 @@ private fun OfflineChecklistCard(
     checklist: Checklist,
     onClick: () -> Unit,
     onDelete: () -> Unit,
-    syncStatusLabel: String? = null,
+    showPendingSync: Boolean = false,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -543,15 +556,8 @@ private fun OfflineChecklistCard(
                         modifier = Modifier.padding(top = 4.dp),
                     )
                 }
-                if (!syncStatusLabel.isNullOrBlank()) {
-                    Text(
-                        text = syncStatusLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 6.dp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                if (showPendingSync) {
+                    PendingSyncBadge(modifier = Modifier.padding(top = 6.dp))
                 }
             }
             DropdownMenu(

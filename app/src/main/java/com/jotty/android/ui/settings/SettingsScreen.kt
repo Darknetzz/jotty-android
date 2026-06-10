@@ -32,6 +32,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.BuildConfig
 import com.jotty.android.R
 import com.jotty.android.data.api.JottyApi
@@ -70,18 +71,15 @@ fun SettingsScreen(
     onDashboard: () -> Unit = {},
     onBehavior: () -> Unit = {},
 ) {
+    val settingsVm: SettingsViewModel = viewModel { SettingsViewModel() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val biometricStore = remember { BiometricPassphraseStore(context.applicationContext) }
     val biometricAvailability = remember { biometricStore.availabilityStatus() }
-    var storedPassphraseCount by remember { mutableIntStateOf(0) }
+    val storedPassphraseCount by settingsVm.storedPassphraseCount.collectAsStateWithLifecycle()
 
     LaunchedEffect(biometricStore) {
-        storedPassphraseCount =
-            withContext(Dispatchers.IO) {
-                biometricStore.pruneInvalidatedPassphrases()
-                biometricStore.storedCount()
-            }
+        settingsVm.refreshBiometricCount(biometricStore)
     }
     var showClearBiometricConfirm by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -91,8 +89,8 @@ fun SettingsScreen(
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val updateChannelPref by settingsRepository.updateChannel.collectAsStateWithLifecycle(initialValue = "stable")
-    var isExportingLogs by remember { mutableStateOf(false) }
-    var pendingLogFile by remember { mutableStateOf<File?>(null) }
+    val isExportingLogs by settingsVm.isExportingLogs.collectAsStateWithLifecycle()
+    val pendingLogFile by settingsVm.pendingLogFile.collectAsStateWithLifecycle()
     val logSavedPickerMsg = stringResource(R.string.export_debug_logs_saved_picker)
     val logSavedDownloadsFormat = stringResource(R.string.export_debug_logs_saved_downloads)
     val logSaveFailedMsg = stringResource(R.string.export_debug_logs_save_failed)
@@ -101,7 +99,7 @@ fun SettingsScreen(
             contract = ActivityResultContracts.CreateDocument("text/plain"),
         ) { uri ->
             val file = pendingLogFile
-            pendingLogFile = null
+            settingsVm.setPendingLogFile(null)
             if (uri == null || file == null) return@rememberLauncherForActivityResult
             scope.launch {
                 val ok =
@@ -113,29 +111,13 @@ fun SettingsScreen(
                 )
             }
         }
-    var healthOk by remember { mutableStateOf<Boolean?>(null) }
-    var serverVersion by remember { mutableStateOf<String?>(null) }
+    val healthOk by settingsVm.healthOk.collectAsStateWithLifecycle()
+    val serverVersion by settingsVm.serverVersion.collectAsStateWithLifecycle()
     var showAboutDialog by remember { mutableStateOf(false) }
-    var isRefreshing by remember { mutableStateOf(false) }
+    val isRefreshing by settingsVm.isRefreshing.collectAsStateWithLifecycle()
 
     fun refreshConnection(showRefreshingIndicator: Boolean) {
-        scope.launch {
-            if (showRefreshingIndicator) isRefreshing = true
-            try {
-                api?.let { a ->
-                    try {
-                        val health = a.health()
-                        healthOk = true
-                        serverVersion = health.version
-                    } catch (_: Exception) {
-                        healthOk = false
-                        serverVersion = null
-                    }
-                }
-            } finally {
-                if (showRefreshingIndicator) isRefreshing = false
-            }
-        }
+        settingsVm.refreshConnection(api, showRefreshingIndicator)
     }
 
     LaunchedEffect(api) {
@@ -372,8 +354,7 @@ fun SettingsScreen(
                             TextButton(
                                 onClick = {
                                     showClearBiometricConfirm = false
-                                    biometricStore.clearAll()
-                                    storedPassphraseCount = 0
+                                    settingsVm.clearBiometricPassphrases(biometricStore)
                                     scope.launch { snackbarHostState.showSnackbar(biometricClearedMsg) }
                                 },
                             ) {
@@ -448,13 +429,13 @@ fun SettingsScreen(
                                     TextButton(
                                         onClick = {
                                             scope.launch {
-                                                isExportingLogs = true
+                                                settingsVm.setExportingLogs(true)
                                                 val instance = currentInstance
                                                 val writeResult =
                                                     withContext(Dispatchers.IO) {
                                                         DebugLogExporter.writeReport(context, instance)
                                                     }
-                                                isExportingLogs = false
+                                                settingsVm.setExportingLogs(false)
                                                 when (writeResult) {
                                                     is DebugLogExporter.WriteResult.Failed ->
                                                         snackbarHostState.showSnackbar(writeResult.message)
@@ -477,7 +458,7 @@ fun SettingsScreen(
                                                                     ),
                                                                 )
                                                             is DebugLogExporter.SaveResult.NeedsPicker -> {
-                                                                pendingLogFile = saveResult.file
+                                                                settingsVm.setPendingLogFile(saveResult.file)
                                                                 saveLogLauncher.launch(saveResult.suggestedName)
                                                             }
                                                             is DebugLogExporter.SaveResult.Failed ->
@@ -492,13 +473,13 @@ fun SettingsScreen(
                                     TextButton(
                                         onClick = {
                                             scope.launch {
-                                                isExportingLogs = true
+                                                settingsVm.setExportingLogs(true)
                                                 val instance = currentInstance
                                                 val writeResult =
                                                     withContext(Dispatchers.IO) {
                                                         DebugLogExporter.writeReport(context, instance)
                                                     }
-                                                isExportingLogs = false
+                                                settingsVm.setExportingLogs(false)
                                                 when (writeResult) {
                                                     is DebugLogExporter.WriteResult.Failed ->
                                                         snackbarHostState.showSnackbar(writeResult.message)

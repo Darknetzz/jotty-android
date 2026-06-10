@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.local.OfflineNotesRepository
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
@@ -38,9 +41,30 @@ class OfflineEnabledNotesViewModel(
         _selectedCategory.value = category
     }
 
-    fun toggleCategoryChip(category: String) {
-        _selectedCategory.value =
-            if (_selectedCategory.value == category) null else category
+    fun toggleCategoryChip(
+        category: String,
+        localNotes: List<Note> = emptyList(),
+    ) {
+        val wasSelected = _selectedCategory.value == category
+        _selectedCategory.value = if (wasSelected) null else category
+        if (!wasSelected && _selectedCategory.value == category &&
+            filterNotesForCategory(localNotes, category).isEmpty()
+        ) {
+            viewModelScope.launch { _categoryFilterEmptyEvents.emit(category) }
+        }
+    }
+
+    private val _categoryFilterEmptyEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val categoryFilterEmptyEvents: SharedFlow<String> = _categoryFilterEmptyEvents.asSharedFlow()
+
+    fun notifyCategoryFilterEmptyIfNeeded(
+        category: String?,
+        localNotes: List<Note>,
+    ) {
+        if (category == null) return
+        if (filterNotesForCategory(localNotes, category).isEmpty()) {
+            viewModelScope.launch { _categoryFilterEmptyEvents.emit(category) }
+        }
     }
 
     fun applyConflictSearchFilter() {

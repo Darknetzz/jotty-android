@@ -6,12 +6,23 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Pending sync badge** — Notes and checklists with unsynced local changes show a compact **Pending sync** badge on list cards.
+- **Encrypted note offline hint** — Opening an encrypted note while offline (without a remembered passphrase) shows a dedicated explanation instead of the generic decrypt prompt alone.
+- **Offline category filter snackbar** — Selecting a category with no items on this device yet shows a snackbar prompting sync when online.
+
 ### Changed
 
+- **Dependencies** — Bumped Coil (2.7), Bouncy Castle (1.84), Activity Compose (1.13), reorderable (3.1.0), and AndroidX test runner (1.7.0). Kept core-ktx 1.18 (1.19 needs compileSdk 37), OkHttp 4.x, ktlint 12.x, and Kotlin 2.3.x until coordinated upgrades.
+- **Architecture** — Extracted `SettingsViewModel`, `SetupViewModel`, and `ChecklistDetailViewModel`; notes list passes per-note unlock state to avoid recomposition on every decrypt.
 - **Checklist auto-emoji** — Keyword emoji prefixes apply to simple checklists only; project/Kanban boards, list view, and task detail no longer show auto-emoji (manual emoji in item text still renders).
 
----
+### Fixed
 
+- **TalkBack** — Kanban card menu and item-detail delete actions expose content descriptions.
+
+---
 ## [1.6.0] - 2026-06-09
 
 ### Added

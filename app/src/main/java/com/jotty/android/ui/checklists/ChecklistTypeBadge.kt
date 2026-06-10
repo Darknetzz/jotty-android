@@ -20,6 +20,12 @@ fun isProjectChecklistType(type: String?): Boolean {
     }
 }
 
+/** Keyword auto-emoji applies to simple checklists only, not project/Kanban boards. */
+fun checklistAutoEmojiEnabled(
+    showChecklistEmojis: Boolean,
+    checklistType: String?,
+): Boolean = showChecklistEmojis && !isProjectChecklistType(checklistType)
+
 @Composable
 fun ChecklistTypeBadge(type: String?) {
     val isProjectType = isProjectChecklistType(type)

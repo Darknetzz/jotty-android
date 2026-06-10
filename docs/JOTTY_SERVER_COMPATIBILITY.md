@@ -9,7 +9,7 @@ This document describes how **jotty-android** behaves against different Jotty se
 | Keyword emoji on item labels | **Client-side display only** — not stored in `ChecklistItem.text` and not exposed by the REST API. Matches Jotty web “Show Emojis” using a bundled keyword dictionary. |
 | Manual emoji in `text` | Rendered as part of item text (e.g. `💊 Paracet`); no double prefix when auto-emoji is on. |
 | Server `config/emojis.json` | **Not fetched** — no stable public REST endpoint; custom server mappings are out of scope until upstream documents one. |
-| Toggle | Settings → Behavior → **Show emojis on checklists** (default on). |
+| Toggle | Settings → Behavior → **Show emojis on checklists** (default on). Applies to **simple checklists only** — not project/Kanban boards or task detail. |
 
 ## Checklist item rename (PATCH)
 

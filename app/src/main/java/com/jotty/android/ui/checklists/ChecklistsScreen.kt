@@ -476,6 +476,7 @@ private fun ChecklistDetailScreen(
     }
 
     val isProject = isProjectChecklistType(checklist.type)
+    val showItemEmojis = checklistAutoEmojiEnabled(showChecklistEmojis, checklist.type)
 
     fun refreshTaskStatuses() {
         if (!isProject) return
@@ -798,7 +799,7 @@ private fun ChecklistDetailScreen(
                     }
                 },
                 dragReorderEnabled = dragReorderEnabled,
-                showChecklistEmojis = showChecklistEmojis,
+                showChecklistEmojis = showItemEmojis,
             )
             selectedKanbanPath?.let { path ->
                 val detailItem = itemAtPath(items, path)
@@ -832,7 +833,7 @@ private fun ChecklistDetailScreen(
                         onDismiss = { selectedKanbanPath = null },
                         onDeleted = { selectedKanbanPath = null },
                         onError = onSaveFailed,
-                        showChecklistEmojis = showChecklistEmojis,
+                        showChecklistEmojis = showItemEmojis,
                     )
                 } else {
                     LaunchedEffect(path) { selectedKanbanPath = null }
@@ -866,7 +867,7 @@ private fun ChecklistDetailScreen(
                 reorderableScope = reorderableScope,
                 onDragStarted = onDragStarted,
                 onDragStopped = onDragStopped,
-                showChecklistEmojis = showChecklistEmojis,
+                showChecklistEmojis = showItemEmojis,
                     onCheck = {
                         scope.launch {
                             try {

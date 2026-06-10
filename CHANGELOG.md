@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Changed
+
+- **Checklist auto-emoji** — Keyword emoji prefixes apply to simple checklists only; project/Kanban boards, list view, and task detail no longer show auto-emoji (manual emoji in item text still renders).
+
 ---
 
 ## [1.6.0] - 2026-06-09

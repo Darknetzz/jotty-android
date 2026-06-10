@@ -632,6 +632,7 @@ private fun OfflineChecklistDetailContent(
         }
 
     val isProject = isProjectChecklistType(liveChecklist.type)
+    val showItemEmojis = checklistAutoEmojiEnabled(showChecklistEmojis, liveChecklist.type)
     val flatItems =
         remember(items, isProject) {
             if (isProject) {
@@ -964,7 +965,7 @@ private fun OfflineChecklistDetailContent(
                     }
                 },
                 dragReorderEnabled = dragReorderEnabled,
-                showChecklistEmojis = showChecklistEmojis,
+                showChecklistEmojis = showItemEmojis,
             )
             selectedKanbanPath?.let { path ->
                 val detailItem = itemAtPath(items, path)
@@ -1000,7 +1001,7 @@ private fun OfflineChecklistDetailContent(
                         onDismiss = { selectedKanbanPath = null },
                         onDeleted = { selectedKanbanPath = null },
                         onError = onSaveFailed,
-                        showChecklistEmojis = showChecklistEmojis,
+                        showChecklistEmojis = showItemEmojis,
                     )
                 } else {
                     LaunchedEffect(path) { selectedKanbanPath = null }
@@ -1038,7 +1039,7 @@ private fun OfflineChecklistDetailContent(
                 reorderableScope = reorderableScope,
                 onDragStarted = onDragStarted,
                 onDragStopped = onDragStopped,
-                showChecklistEmojis = showChecklistEmojis,
+                showChecklistEmojis = showItemEmojis,
                     onCheck = {
                         scope.launch {
                             handleResult(offlineRepository.checkItem(liveChecklist.id, flat.apiPath))

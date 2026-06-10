@@ -109,7 +109,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.reorderable)
 
-    implementation("androidx.core:core-ktx:1.18.0") // 1.19+ requires compileSdk 37 (see Dependabot PR #54)
+    implementation("androidx.core:core-ktx:1.19.0") // 1.19+ requires compileSdk 37 (see Dependabot PR #54)
     implementation("androidx.lifecycle:lifecycle-process:2.10.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.activity:activity-compose:1.13.0")

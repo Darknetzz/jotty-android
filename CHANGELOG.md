@@ -15,6 +15,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Changed
 
 - **Dependencies** — Bumped Coil (2.7), Bouncy Castle (1.84), Activity Compose (1.13), reorderable (3.1.0), and AndroidX test runner (1.7.0). Kept core-ktx 1.18 (1.19 needs compileSdk 37), OkHttp 4.x, ktlint 12.x, and Kotlin 2.3.x until coordinated upgrades.
+- **Dependabot** — Grouped weekly Gradle and GitHub Actions updates into one PR per ecosystem (plus a separate major-version group); ignore rules skip blocked core-ktx, ktlint 14+, OkHttp 5, and Kotlin 2.4+ until ready.
 - **Architecture** — Extracted `SettingsViewModel`, `SetupViewModel`, and `ChecklistDetailViewModel`; notes list passes per-note unlock state to avoid recomposition on every decrypt.
 - **Checklist auto-emoji** — Keyword emoji prefixes apply to simple checklists only; project/Kanban boards, list view, and task detail no longer show auto-emoji (manual emoji in item text still renders).
 

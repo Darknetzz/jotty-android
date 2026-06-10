@@ -120,7 +120,7 @@ dependencies {
     // Retrofit for REST API
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
     implementation("com.squareup.retrofit2:converter-gson:3.0.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // 5.x deferred — align with Retrofit OkHttp (Dependabot PR #58)
+    implementation("com.squareup.okhttp3:logging-interceptor:5.4.0") // 5.x deferred — align with Retrofit OkHttp (Dependabot PR #58)
 
     // Secure storage for API key
     implementation("androidx.security:security-crypto:1.1.0")

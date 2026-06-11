@@ -8,6 +8,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Local CI and builds** — Run tests, lint, ktlint, and APK builds on your machine instead of GitHub Actions: `scripts/ci-local.ps1`, `build-dev-apk`, `build-release-apk`, and `publish-dev-latest`. See [docs/LOCAL_CI.md](docs/LOCAL_CI.md). GitHub workflows are manual-only; use `publish-release.ps1 -LocalBuild` for stable releases without Actions.
+
 - **Pending sync badge** — Notes and checklists with unsynced local changes show a compact **Pending sync** badge on list cards.
 - **Encrypted note offline hint** — Opening an encrypted note while offline (without a remembered passphrase) shows a dedicated explanation instead of the generic decrypt prompt alone.
 - **Offline category filter snackbar** — Selecting a category with no items on this device yet shows a snackbar prompting sync when online.

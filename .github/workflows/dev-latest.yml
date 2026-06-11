@@ -1,8 +1,8 @@
 name: Dev Latest APK
 
+# Manual only — run locally: scripts/publish-dev-latest.ps1 (see docs/LOCAL_CI.md)
 on:
-  push:
-    branches: [dev]
+  workflow_dispatch:
 
 jobs:
   dev-latest-apk:

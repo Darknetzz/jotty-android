@@ -1,10 +1,8 @@
 # After a release merges to main, fast-forward dev so both branches point at the same commit.
-# main accumulates "Merge pull request" commits; dev does not until this runs.
+# Manual only — run locally: scripts/sync-dev-with-main.ps1 (see docs/LOCAL_CI.md)
 name: Sync dev with main
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:

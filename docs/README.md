@@ -2,6 +2,7 @@
 
 | Document | Description |
 |----------|-------------|
+| [LOCAL_CI.md](LOCAL_CI.md) | Run CI and APK builds locally instead of GitHub Actions |
 | [PRIVACY_POLICY.md](PRIVACY_POLICY.md) | Privacy policy for Google Play and users (data handling, permissions, third parties) |
 | [OFFLINE_NOTES.md](OFFLINE_NOTES.md) | Offline notes and checklists: sync, storage, connectivity |
 | [CONFLICT_RESOLUTION.md](CONFLICT_RESOLUTION.md) | How sync conflicts are detected and resolved |

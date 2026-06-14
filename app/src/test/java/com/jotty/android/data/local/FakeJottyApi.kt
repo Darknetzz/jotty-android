@@ -7,6 +7,7 @@ import com.jotty.android.data.api.ApiResponse
 import com.jotty.android.data.api.Categories
 import com.jotty.android.data.api.CategoriesResponse
 import com.jotty.android.data.api.Checklist
+import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.ChecklistsResponse
 import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.CreateNoteRequest
@@ -81,6 +82,12 @@ internal class FakeJottyApi(
         body: com.jotty.android.data.api.UpdateItemRequest,
     ): SuccessResponse = error("not used in OfflineNotesRepository tests")
 
+    override suspend fun updateItemPatch(
+        listId: String,
+        itemIndex: String,
+        body: okhttp3.RequestBody,
+    ): SuccessResponse = error("not used in OfflineNotesRepository tests")
+
     override suspend fun reorderItems(
         listId: String,
         body: com.jotty.android.data.api.ReorderItemsRequest,
@@ -148,6 +155,14 @@ internal class FakeJottyApi(
                 createdAt = "",
                 updatedAt = "",
             ),
+        )
+
+    override suspend fun getTaskItem(
+        taskId: String,
+        itemIndex: String,
+    ): com.jotty.android.data.api.TaskItemResponse =
+        com.jotty.android.data.api.TaskItemResponse(
+            ChecklistItem(index = 0, text = ""),
         )
 
     override suspend fun getTaskStatuses(taskId: String): TaskStatusesResponse =

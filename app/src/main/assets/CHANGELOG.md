@@ -8,6 +8,9 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Kanban item rich fields** — On Jotty servers with expanded item REST support (develop+), task detail lets you edit priority, score, start/target dates, estimated time, and view metadata (created/modified, status history). Description read-back works on supported servers. Older servers keep disabled placeholders ([#52](https://github.com/Darknetzz/jotty-android/issues/52)).
+- **Local CI and builds** — Run tests, lint, ktlint, and APK builds on your machine instead of GitHub Actions: `scripts/ci-local.ps1`, `build-dev-apk`, `build-release-apk`, and `publish-dev-latest`. See [docs/LOCAL_CI.md](docs/LOCAL_CI.md). GitHub workflows are manual-only; use `publish-release.ps1 -LocalBuild` for stable releases without Actions.
+
 - **Pending sync badge** — Notes and checklists with unsynced local changes show a compact **Pending sync** badge on list cards.
 - **Encrypted note offline hint** — Opening an encrypted note while offline (without a remembered passphrase) shows a dedicated explanation instead of the generic decrypt prompt alone.
 - **Offline category filter snackbar** — Selecting a category with no items on this device yet shows a snackbar prompting sync when online.
@@ -15,6 +18,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Changed
 
 - **Dependencies** — Bumped Coil (2.7), Bouncy Castle (1.84), Activity Compose (1.13), reorderable (3.1.0), and AndroidX test runner (1.7.0). Kept core-ktx 1.18 (1.19 needs compileSdk 37), OkHttp 4.x, ktlint 12.x, and Kotlin 2.3.x until coordinated upgrades.
+- **Dependabot** — Grouped weekly Gradle and GitHub Actions updates into one PR per ecosystem (plus a separate major-version group); ignore rules skip blocked core-ktx, ktlint 14+, OkHttp 5, and Kotlin 2.4+ until ready.
 - **Architecture** — Extracted `SettingsViewModel`, `SetupViewModel`, and `ChecklistDetailViewModel`; notes list passes per-note unlock state to avoid recomposition on every decrypt.
 - **Checklist auto-emoji** — Keyword emoji prefixes apply to simple checklists only; project/Kanban boards, list view, and task detail no longer show auto-emoji (manual emoji in item text still renders).
 

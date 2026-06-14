@@ -1020,6 +1020,12 @@ private class FakeChecklistApi(
         body: com.jotty.android.data.api.UpdateItemRequest,
     ): SuccessResponse = onUpdateItem(listId, itemIndex, body)
 
+    override suspend fun updateItemPatch(
+        listId: String,
+        itemIndex: String,
+        body: okhttp3.RequestBody,
+    ): SuccessResponse = SuccessResponse(true)
+
     override suspend fun reorderItems(
         listId: String,
         body: com.jotty.android.data.api.ReorderItemsRequest,
@@ -1059,6 +1065,14 @@ private class FakeChecklistApi(
                 createdAt = "",
                 updatedAt = "",
             ),
+        )
+
+    override suspend fun getTaskItem(
+        taskId: String,
+        itemIndex: String,
+    ): com.jotty.android.data.api.TaskItemResponse =
+        com.jotty.android.data.api.TaskItemResponse(
+            com.jotty.android.data.api.ChecklistItem(index = 0, text = ""),
         )
 
     override suspend fun getTaskStatuses(taskId: String): TaskStatusesResponse =

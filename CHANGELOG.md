@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Kanban item rich fields** — On Jotty servers with expanded item REST support (develop+), task detail lets you edit priority, score, start/target dates, estimated time, and view metadata (created/modified, status history). Description read-back works on supported servers. Older servers keep disabled placeholders ([#52](https://github.com/Darknetzz/jotty-android/issues/52)).
 - **Local CI and builds** — Run tests, lint, ktlint, and APK builds on your machine instead of GitHub Actions: `scripts/ci-local.ps1`, `build-dev-apk`, `build-release-apk`, and `publish-dev-latest`. See [docs/LOCAL_CI.md](docs/LOCAL_CI.md). GitHub workflows are manual-only; use `publish-release.ps1 -LocalBuild` for stable releases without Actions.
 
 - **Pending sync badge** — Notes and checklists with unsynced local changes show a compact **Pending sync** badge on list cards.

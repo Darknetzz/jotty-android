@@ -57,6 +57,7 @@ import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.util.KanbanItemFieldsProbe
 import com.jotty.android.util.ServerCapabilities
 import android.content.Intent
 import com.jotty.android.ui.common.ShareServerDialog
@@ -451,6 +452,7 @@ private fun ChecklistDetailScreen(
     val projectView by detailVm.projectView.collectAsStateWithLifecycle()
     val selectedKanbanPath by detailVm.selectedKanbanPath.collectAsStateWithLifecycle()
     val showShareDialog by detailVm.showShareDialog.collectAsStateWithLifecycle()
+    var richFieldsSupported by remember { mutableStateOf(false) }
     var newItemText by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -469,6 +471,27 @@ private fun ChecklistDetailScreen(
     LaunchedEffect(checklist.id, isProject) {
         detailVm.resetProjectState()
         if (isProject) detailVm.refreshTaskStatuses(isProject = true)
+    }
+
+    LaunchedEffect(serverCapabilitiesKey, checklist.id, items, selectedKanbanPath) {
+        val key = serverCapabilitiesKey ?: return@LaunchedEffect
+        KanbanItemFieldsProbe.markSupportedFromItems(key, items)
+        if (KanbanItemFieldsProbe.isKanbanItemRichFieldsSupported(key)) {
+            richFieldsSupported = true
+            return@LaunchedEffect
+        }
+        val path = selectedKanbanPath
+        if (path == null) {
+            richFieldsSupported = false
+            return@LaunchedEffect
+        }
+        richFieldsSupported =
+            KanbanItemFieldsProbe.probeKanbanItemFields(
+                api = api,
+                taskId = checklist.id,
+                itemPath = path,
+                capabilitiesKey = key,
+            )
     }
 
     if (showRenameDialog) {
@@ -769,6 +792,7 @@ private fun ChecklistDetailScreen(
                         itemPath = path,
                         taskStatuses = taskStatuses,
                         statusMoveEnabled = true,
+                        richFieldsSupported = richFieldsSupported,
                         actions =
                             apiKanbanItemActions(
                                 api = api,
@@ -779,6 +803,7 @@ private fun ChecklistDetailScreen(
                                     detailVm.pullItemsFromServer(onUpdated = onUpdate, onFailed = onSaveFailed)
                                 },
                                 serverCapabilitiesKey = serverCapabilitiesKey,
+                                richFieldsSupported = richFieldsSupported,
                                 performMoveToStatus = { statusId ->
                                     try {
                                         api.updateTaskItemStatus(

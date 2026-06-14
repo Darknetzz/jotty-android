@@ -31,7 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.R
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
-import com.jotty.android.data.api.isCompletedForApi
+import com.jotty.android.data.api.hasAnyRichField
 import com.jotty.android.data.api.DEFAULT_TASK_STATUSES
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
@@ -66,6 +66,7 @@ import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.exportChecklistAsPlainText
 import com.jotty.android.util.isArchived
+import com.jotty.android.util.KanbanItemFieldsProbe
 import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
 import com.jotty.android.util.defaultKanbanItemStatus
@@ -627,6 +628,7 @@ private fun OfflineChecklistDetailContent(
     var canUseKanbanBoard by remember(liveChecklist.id) { mutableStateOf(true) }
     var projectView by remember(liveChecklist.id) { mutableStateOf(KanbanProjectView.Board) }
     var selectedKanbanPath by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
+    var richFieldsSupported by remember(liveChecklist.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val exportShareTitle = stringResource(R.string.share_checklist)
@@ -649,6 +651,37 @@ private fun OfflineChecklistDetailContent(
         }
     val toDo = flatItems.filter { !it.item.isCompletedForApi() }
     val done = flatItems.filter { it.item.isCompletedForApi() }
+
+    LaunchedEffect(serverCapabilitiesKey, liveChecklist.id, items, selectedKanbanPath, isOnline) {
+        val key = serverCapabilitiesKey
+        if (!key.isNullOrBlank()) {
+            KanbanItemFieldsProbe.markSupportedFromItems(key, items)
+            if (KanbanItemFieldsProbe.isKanbanItemRichFieldsSupported(key)) {
+                richFieldsSupported = true
+                return@LaunchedEffect
+            }
+        }
+        if (items.any { it.hasAnyRichField() }) {
+            richFieldsSupported = true
+            return@LaunchedEffect
+        }
+        if (!isOnline || key.isNullOrBlank()) {
+            richFieldsSupported = false
+            return@LaunchedEffect
+        }
+        val path = selectedKanbanPath
+        if (path == null) {
+            richFieldsSupported = false
+            return@LaunchedEffect
+        }
+        richFieldsSupported =
+            KanbanItemFieldsProbe.probeKanbanItemFields(
+                api = api,
+                taskId = liveChecklist.id,
+                itemPath = path,
+                capabilitiesKey = key,
+            )
+    }
 
     fun handleResult(result: Result<Checklist>) {
         result.onSuccess { updated ->
@@ -981,6 +1014,7 @@ private fun OfflineChecklistDetailContent(
                         itemPath = path,
                         taskStatuses = taskStatuses,
                         statusMoveEnabled = isOnline,
+                        richFieldsSupported = richFieldsSupported,
                         actions =
                             OfflineKanbanItemActions(
                                 offlineRepository = offlineRepository,

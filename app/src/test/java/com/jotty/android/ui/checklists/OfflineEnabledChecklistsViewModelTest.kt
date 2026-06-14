@@ -166,6 +166,12 @@ private class MinimalChecklistApi : JottyApi {
         body: com.jotty.android.data.api.UpdateItemRequest,
     ): SuccessResponse = error("unused")
 
+    override suspend fun updateItemPatch(
+        listId: String,
+        itemIndex: String,
+        body: okhttp3.RequestBody,
+    ): SuccessResponse = error("unused")
+
     override suspend fun reorderItems(
         listId: String,
         body: com.jotty.android.data.api.ReorderItemsRequest,
@@ -206,6 +212,14 @@ private class MinimalChecklistApi : JottyApi {
                 createdAt = "",
                 updatedAt = "",
             ),
+        )
+
+    override suspend fun getTaskItem(
+        taskId: String,
+        itemIndex: String,
+    ): com.jotty.android.data.api.TaskItemResponse =
+        com.jotty.android.data.api.TaskItemResponse(
+            com.jotty.android.data.api.ChecklistItem(index = 0, text = ""),
         )
 
     override suspend fun getTaskStatuses(taskId: String): TaskStatusesResponse =

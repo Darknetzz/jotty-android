@@ -36,13 +36,14 @@ Older stable Jotty installs without PATCH still work for leaf renames; parent re
 | Field | REST GET | REST PATCH | Android behavior |
 |-------|----------|------------|------------------|
 | Title (`text`) | Yes | Yes | Editable in item detail |
-| Description | **No** (write-only PATCH) | Yes | Editable; banner when server does not return saved text |
+| Description | Yes on develop+ | Yes | Editable; full read-back when server exposes item fields |
 | Subtasks (`children`) | Yes | Via item CRUD + check/uncheck | Full CRUD in item detail |
 | Status (column) | Yes | `PUT /api/tasks/…/items/…/status` | Status picker in detail (online) |
-| Priority, score, target date, estimated time | **No** | **No** | Disabled placeholders until upstream ships ([proposal](upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md)) |
-| Item metadata (created/modified, status history) | **No** | **No** | Disabled placeholder until upstream ships |
+| Priority, score, start/target date, estimated time | Yes on develop+ | Yes on develop+ | Editable when `GET /api/tasks/{id}/items/{path}` probe succeeds or list GET returns rich fields |
+| Item metadata (created/modified, status history) | Yes on develop+ | Read-only | Shown when rich fields supported |
+| Older stable Jotty | Partial (no rich GET) | Description PATCH only | Disabled placeholders; description save without read-back |
 
-See [upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md](upstream/KANBAN_ITEM_FIELDS_API_PROPOSAL.md) for the requested Jotty server expansion.
+The app probes `GET /api/tasks/{taskId}/items/{itemIndex}` on first item detail open per instance (cached). If the route returns 404/405, legacy placeholders are shown. See [fccview/jotty develop](https://github.com/fccview/jotty) and [#52](https://github.com/Darknetzz/jotty-android/issues/52#issuecomment-4699477716).
 
 ## Notes
 

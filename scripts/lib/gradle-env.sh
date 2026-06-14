@@ -10,6 +10,9 @@ init_jotty_gradle_env() {
   if [[ -z "${JAVA_HOME:-}" ]] || ! "$JAVA_HOME/bin/java" -version 2>&1 | grep -qE '"1[7-9]|"[2-9][0-9]'; then
     for candidate in \
       "/Applications/Android Studio.app/Contents/jbr/Contents/Home" \
+      "${LOCALAPPDATA}/Programs/Android Studio/jbr" \
+      "/c/Program Files/Android/Android Studio/jbr" \
+      "/mnt/c/Program Files/Android/Android Studio/jbr" \
       "${HOME}/.local/share/JetBrains/Toolbox/apps/AndroidStudio/jbr" \
       "/usr/lib/jvm/java-17-openjdk" \
       "/usr/lib/jvm/java-21-openjdk"; do
@@ -29,12 +32,21 @@ init_jotty_gradle_env() {
   if [[ -f "$props" ]]; then
     local from_props
     from_props="$(sed -n 's/^[[:space:]]*sdk\.dir[[:space:]]*=[[:space:]]*//p' "$props" | head -n 1 | tr -d '\r')"
-    if [[ -n "$from_props" && -d "$from_props" ]]; then
-      sdk="$from_props"
+    if [[ -n "$from_props" ]]; then
+      # Gradle escapes Windows paths (C\:\\Users\\...); normalize for bash.
+      local unescaped="${from_props//\\:/:}"
+      unescaped="${unescaped//\\//}"
+      for try in "$from_props" "$unescaped"; do
+        if [[ -d "$try" ]]; then
+          sdk="$try"
+          break
+        fi
+      done
     fi
   fi
   if [[ -z "$sdk" ]]; then
-    for candidate in "${HOME}/Android/Sdk" "${HOME}/Library/Android/sdk"; do
+    local win_local="${LOCALAPPDATA:-${HOME}/AppData/Local}/Android/Sdk"
+    for candidate in "$win_local" "${HOME}/Android/Sdk" "${HOME}/Library/Android/sdk"; do
       if [[ -d "$candidate/platform-tools" || -d "$candidate/build-tools" ]]; then
         sdk="$candidate"
         break

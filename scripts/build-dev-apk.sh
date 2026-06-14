@@ -40,4 +40,5 @@ DEST_DIR="$OUTPUT_DIR"
 mkdir -p "$DEST_DIR"
 DEST="$DEST_DIR/$OUT_NAME"
 cp "$SRC" "$DEST"
-echo "APK: $DEST"
+echo "APK: $DEST" >&2
+printf '%s\n' "$DEST"

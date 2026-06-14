@@ -19,7 +19,10 @@ if (-not $SkipPublish) {
     }
 }
 
-$apkPath = & (Join-Path $PSScriptRoot "build-dev-apk.ps1") -OutputDir $repoRoot
+$apkPath = & (Join-Path $PSScriptRoot "build-dev-apk.ps1") -OutputDir $repoRoot | Select-Object -Last 1
+if (-not (Test-Path -LiteralPath $apkPath)) {
+    throw "Build did not produce APK at: $apkPath"
+}
 
 if ($DryRun) {
     Write-Host "[DryRun] Would publish dev-latest with asset: $apkPath"
@@ -52,11 +55,20 @@ gh release delete dev-latest --cleanup-tag --yes 2>$null
 gh api -X DELETE "repos/$repo/git/refs/tags/dev-latest" 2>$null
 
 Write-Host "Publishing dev-latest..."
-gh release create dev-latest `
-    --target (git branch --show-current) `
-    --title "Dev Latest" `
-    --notes $body `
-    --prerelease `
-    "$apkPath"
+$notesFile = [System.IO.Path]::GetTempFileName()
+try {
+    [System.IO.File]::WriteAllText($notesFile, $body)
+    gh release create dev-latest `
+        --target (git branch --show-current) `
+        --title "Dev Latest" `
+        --notes-file $notesFile `
+        --prerelease `
+        $apkPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "gh release create failed (exit $LASTEXITCODE)"
+    }
+} finally {
+    Remove-Item -LiteralPath $notesFile -Force -ErrorAction SilentlyContinue
+}
 
 Write-Host "Done: https://github.com/$repo/releases/tag/dev-latest"

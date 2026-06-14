@@ -41,3 +41,4 @@ New-Item -ItemType Directory -Force -Path $destDir | Out-Null
 $dest = Join-Path $destDir $outName
 Copy-Item -LiteralPath $src -Destination $dest -Force
 Write-Host "APK: $dest" -ForegroundColor Green
+Write-Output $dest

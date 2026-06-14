@@ -23,7 +23,11 @@ if [[ "$SKIP_PUBLISH" -eq 0 ]]; then
   gh auth status >/dev/null
 fi
 
-APK_PATH="$("$SCRIPT_DIR/build-dev-apk.sh" --output-dir "$REPO_ROOT")"
+APK_PATH="$("$SCRIPT_DIR/build-dev-apk.sh" --output-dir "$REPO_ROOT" | tail -n 1)"
+if [[ ! -f "$APK_PATH" ]]; then
+  echo "Build did not produce APK at: $APK_PATH" >&2
+  exit 1
+fi
 SHA="$(git rev-parse HEAD)"
 SHORT_SHA="$(git rev-parse --short=7 HEAD)"
 REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "OWNER/REPO")"
@@ -51,10 +55,14 @@ fi
 gh release delete dev-latest --cleanup-tag --yes 2>/dev/null || true
 gh api -X DELETE "repos/${REPO}/git/refs/tags/dev-latest" 2>/dev/null || true
 
+notes_file="$(mktemp)"
+trap 'rm -f "$notes_file"' EXIT
+printf '%s\n' "$BODY" >"$notes_file"
+
 gh release create dev-latest \
   --target "$(git branch --show-current)" \
   --title "Dev Latest" \
-  --notes "$BODY" \
+  --notes-file "$notes_file" \
   --prerelease \
   "$APK_PATH"
 

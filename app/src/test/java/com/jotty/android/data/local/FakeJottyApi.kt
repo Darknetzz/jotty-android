@@ -38,6 +38,7 @@ internal class FakeJottyApi(
     var createNoteResponse: (suspend (CreateNoteRequest) -> ApiResponse<Note>)? = null,
     var updateNoteHandler: (suspend (String, UpdateNoteRequest) -> ApiResponse<Note>)? = null,
     var deleteNoteResult: suspend (String) -> SuccessResponse = { SuccessResponse(true) },
+    var getTaskItemHandler: (suspend (String, String) -> com.jotty.android.data.api.TaskItemResponse)? = null,
 ) : JottyApi {
     override suspend fun health(): HealthResponse = HealthResponse("ok", "1", "")
 
@@ -160,10 +161,13 @@ internal class FakeJottyApi(
     override suspend fun getTaskItem(
         taskId: String,
         itemIndex: String,
-    ): com.jotty.android.data.api.TaskItemResponse =
-        com.jotty.android.data.api.TaskItemResponse(
+    ): com.jotty.android.data.api.TaskItemResponse {
+        val handler = getTaskItemHandler
+        if (handler != null) return handler(taskId, itemIndex)
+        return com.jotty.android.data.api.TaskItemResponse(
             ChecklistItem(index = 0, text = ""),
         )
+    }
 
     override suspend fun getTaskStatuses(taskId: String): TaskStatusesResponse =
         TaskStatusesResponse(DEFAULT_TASK_STATUSES)

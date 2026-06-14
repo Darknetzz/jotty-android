@@ -22,12 +22,11 @@ class KanbanItemFieldsProbeTest {
     fun probe_successMarksSupported() =
         runBlocking {
             val api =
-                object : FakeJottyApi() {
-                    override suspend fun getTaskItem(
-                        taskId: String,
-                        itemIndex: String,
-                    ): TaskItemResponse = TaskItemResponse(ChecklistItem(index = 0, text = "Task"))
-                }
+                FakeJottyApi(
+                    getTaskItemHandler = { _, _ ->
+                        TaskItemResponse(ChecklistItem(index = 0, text = "Task"))
+                    },
+                )
             assertTrue(
                 KanbanItemFieldsProbe.probeKanbanItemFields(api, "task-1", "0", "instance-a"),
             )
@@ -38,12 +37,9 @@ class KanbanItemFieldsProbeTest {
     fun probe_404MarksUnsupported() =
         runBlocking {
             val api =
-                object : FakeJottyApi() {
-                    override suspend fun getTaskItem(
-                        taskId: String,
-                        itemIndex: String,
-                    ): TaskItemResponse = throw httpError(404)
-                }
+                FakeJottyApi(
+                    getTaskItemHandler = { _, _ -> throw httpError(404) },
+                )
             assertFalse(
                 KanbanItemFieldsProbe.probeKanbanItemFields(api, "task-1", "0", "instance-b"),
             )

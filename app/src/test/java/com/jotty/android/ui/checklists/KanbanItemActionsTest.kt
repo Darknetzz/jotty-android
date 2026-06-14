@@ -7,6 +7,7 @@ import com.jotty.android.data.local.PendingItemOp
 import com.jotty.android.data.local.toPendingItemOp
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KanbanItemActionsTest {

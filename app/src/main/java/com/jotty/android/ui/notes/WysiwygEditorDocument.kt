@@ -78,6 +78,7 @@ internal fun buildWysiwygEditorDocument(
           function cmd(command, value) {
             document.execCommand(command, false, value || null);
             notifyChange();
+            scheduleFormatStateNotify();
           }
           function insertLink() {
             var url = prompt('URL');
@@ -109,6 +110,65 @@ internal fun buildWysiwygEditorDocument(
           function getContent() {
             return document.getElementById('editor').innerHTML;
           }
+          function getParentBlock() {
+            var sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return null;
+            var node = sel.anchorNode;
+            if (node && node.nodeType === 3) node = node.parentNode;
+            while (node && node.id !== 'editor') {
+              var tag = node.tagName;
+              if (tag && /^(P|DIV|H[1-6]|BLOCKQUOTE|LI|TD|TH)$/.test(tag)) return node;
+              node = node.parentNode;
+            }
+            return null;
+          }
+          function isHeadingBlock() {
+            var block = getParentBlock();
+            if (!block) return false;
+            var tag = block.tagName;
+            return tag === 'H1' || tag === 'H2' || tag === 'H3';
+          }
+          function isBlockquote() {
+            var block = getParentBlock();
+            return !!(block && block.tagName === 'BLOCKQUOTE');
+          }
+          function isInCode() {
+            var sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return false;
+            var node = sel.anchorNode;
+            while (node) {
+              if (node.nodeType === 1 && node.tagName === 'CODE') return true;
+              node = node.parentNode;
+            }
+            return false;
+          }
+          function getFormatState() {
+            return JSON.stringify({
+              bold: document.queryCommandState('bold'),
+              italic: document.queryCommandState('italic'),
+              underline: document.queryCommandState('underline'),
+              strikeThrough: document.queryCommandState('strikeThrough'),
+              unorderedList: document.queryCommandState('insertUnorderedList'),
+              orderedList: document.queryCommandState('insertOrderedList'),
+              heading: isHeadingBlock(),
+              blockquote: isBlockquote(),
+              code: isInCode(),
+              link: document.queryCommandState('createLink')
+            });
+          }
+          var formatStateTimer = null;
+          function notifyFormatState() {
+            if (window.AndroidBridge && AndroidBridge.onFormatStateChanged) {
+              AndroidBridge.onFormatStateChanged(getFormatState());
+            }
+          }
+          function scheduleFormatStateNotify() {
+            if (formatStateTimer) clearTimeout(formatStateTimer);
+            formatStateTimer = setTimeout(function() {
+              formatStateTimer = null;
+              notifyFormatState();
+            }, 50);
+          }
           function notifyChange() {
             if (suppressNotify) return;
             if (window.AndroidBridge && AndroidBridge.onContentChanged) {
@@ -116,9 +176,15 @@ internal fun buildWysiwygEditorDocument(
             }
           }
           document.getElementById('editor').addEventListener('input', notifyChange);
+          var editor = document.getElementById('editor');
+          editor.addEventListener('keyup', scheduleFormatStateNotify);
+          editor.addEventListener('mouseup', scheduleFormatStateNotify);
+          editor.addEventListener('touchend', scheduleFormatStateNotify);
+          document.addEventListener('selectionchange', scheduleFormatStateNotify);
           document.addEventListener('DOMContentLoaded', function() {
             setEditorTheme($backgroundColor, $textColor, $borderColor);
             setContent(INITIAL_CONTENT);
+            scheduleFormatStateNotify();
           });
         </script>
         </body>

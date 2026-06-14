@@ -5,6 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.TableChart
 import androidx.compose.material.icons.filled.Title
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -41,6 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -65,6 +70,7 @@ internal fun WysiwygNoteEditor(
     modifier: Modifier = Modifier,
 ) {
     var editorWebView by remember { mutableStateOf<WebView?>(null) }
+    var formatState by remember(contentReloadKey) { mutableStateOf(WysiwygFormatState()) }
     // Snapshot HTML when entering visual mode; do not recompute when WYSIWYG sync updates [content].
     val editorHtml = remember(contentReloadKey) { prepareNoteContentForWysiwyg(content) }
     val surfaceColor = MaterialTheme.colorScheme.surface.toArgb()
@@ -107,8 +113,11 @@ internal fun WysiwygNoteEditor(
             }
         }
         WysiwygFormatToolbar(
+            state = formatState,
             onCommand = { script ->
-                editorWebView?.evaluateJavascript(script, null)
+                editorWebView?.evaluateJavascript(script) {
+                    refreshWysiwygFormatState(editorWebView) { formatState = it }
+                }
             },
         )
         WysiwygWebEditor(
@@ -118,6 +127,7 @@ internal fun WysiwygNoteEditor(
             textColor = textColor,
             borderColor = borderColor,
             onContentChange = onContentChange,
+            onFormatStateChange = { formatState = it },
             onWebViewReady = { editorWebView = it },
             modifier =
                 Modifier
@@ -130,6 +140,7 @@ internal fun WysiwygNoteEditor(
 
 @Composable
 private fun WysiwygFormatToolbar(
+    state: WysiwygFormatState,
     onCommand: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -144,23 +155,30 @@ private fun WysiwygFormatToolbar(
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
         ) {
-            WysiwygToolbarButton("cmd('bold')", Icons.Default.FormatBold, R.string.md_bold, onCommand)
-            WysiwygToolbarButton("cmd('italic')", Icons.Default.FormatItalic, R.string.md_italic, onCommand)
-            WysiwygToolbarButton("cmd('underline')", Icons.Default.FormatUnderlined, R.string.md_underline, onCommand)
-            WysiwygToolbarButton("cmd('strikeThrough')", Icons.Default.StrikethroughS, R.string.md_strikethrough, onCommand)
-            WysiwygToolbarButton("insertCode()", Icons.Default.Code, R.string.md_code, onCommand)
-            WysiwygToolbarButton("cmd('formatBlock','H2')", Icons.Default.Title, R.string.md_heading, onCommand)
+            WysiwygToolbarButton("cmd('bold')", Icons.Default.FormatBold, R.string.md_bold, state.bold, onCommand)
+            WysiwygToolbarButton("cmd('italic')", Icons.Default.FormatItalic, R.string.md_italic, state.italic, onCommand)
+            WysiwygToolbarButton("cmd('underline')", Icons.Default.FormatUnderlined, R.string.md_underline, state.underline, onCommand)
+            WysiwygToolbarButton("cmd('strikeThrough')", Icons.Default.StrikethroughS, R.string.md_strikethrough, state.strikeThrough, onCommand)
+            WysiwygToolbarButton("insertCode()", Icons.Default.Code, R.string.md_code, state.code, onCommand)
+            WysiwygToolbarButton("cmd('formatBlock','H2')", Icons.Default.Title, R.string.md_heading, state.heading, onCommand)
             WysiwygToolbarButton(
                 "cmd('insertUnorderedList')",
                 Icons.AutoMirrored.Filled.FormatListBulleted,
                 R.string.md_list,
+                state.unorderedList,
                 onCommand,
             )
-            WysiwygToolbarButton("cmd('insertOrderedList')", Icons.Default.FormatListNumbered, R.string.md_numbered_list, onCommand)
-            WysiwygToolbarButton("cmd('formatBlock','blockquote')", Icons.Default.FormatQuote, R.string.md_quote, onCommand)
-            WysiwygToolbarButton("insertLink()", Icons.Default.Link, R.string.md_link, onCommand)
-            WysiwygToolbarButton("insertImage()", Icons.Default.Image, R.string.md_image, onCommand)
-            WysiwygToolbarButton("insertTable()", Icons.Default.TableChart, R.string.md_table, onCommand)
+            WysiwygToolbarButton(
+                "cmd('insertOrderedList')",
+                Icons.Default.FormatListNumbered,
+                R.string.md_numbered_list,
+                state.orderedList,
+                onCommand,
+            )
+            WysiwygToolbarButton("cmd('formatBlock','blockquote')", Icons.Default.FormatQuote, R.string.md_quote, state.blockquote, onCommand)
+            WysiwygToolbarButton("insertLink()", Icons.Default.Link, R.string.md_link, state.link, onCommand)
+            WysiwygToolbarButton("insertImage()", Icons.Default.Image, R.string.md_image, selected = false, onCommand)
+            WysiwygToolbarButton("insertTable()", Icons.Default.TableChart, R.string.md_table, selected = false, onCommand)
         }
     }
 }
@@ -170,10 +188,42 @@ private fun WysiwygToolbarButton(
     script: String,
     icon: ImageVector,
     contentDescriptionRes: Int,
+    selected: Boolean,
     onCommand: (String) -> Unit,
 ) {
-    IconButton(onClick = { onCommand(script) }) {
+    val backgroundColor =
+        if (selected) {
+            MaterialTheme.colorScheme.secondaryContainer
+        } else {
+            Color.Transparent
+        }
+    val contentColor =
+        if (selected) {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
+    IconButton(
+        onClick = { onCommand(script) },
+        modifier =
+            Modifier
+                .clip(CircleShape)
+                .background(backgroundColor),
+        colors = IconButtonDefaults.iconButtonColors(contentColor = contentColor),
+    ) {
         Icon(icon, contentDescription = stringResource(contentDescriptionRes))
+    }
+}
+
+private fun refreshWysiwygFormatState(
+    webView: WebView?,
+    onState: (WysiwygFormatState) -> Unit,
+) {
+    webView?.evaluateJavascript("getFormatState();") { result ->
+        val json = parseWebViewJsonResult(result)
+        if (json != null) {
+            onState(parseWysiwygFormatStateJson(json))
+        }
     }
 }
 
@@ -186,6 +236,7 @@ private fun WysiwygWebEditor(
     textColor: Int,
     borderColor: Int,
     onContentChange: (String) -> Unit,
+    onFormatStateChange: (WysiwygFormatState) -> Unit,
     onWebViewReady: (WebView) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -195,7 +246,17 @@ private fun WysiwygWebEditor(
         }
     val bridge =
         remember(contentReloadKey) {
-            WysiwygEditorBridge { html -> onContentChange(html) }
+            WysiwygEditorBridge(
+                object : WysiwygEditorBridge.Listener {
+                    override fun onContentChanged(html: String) {
+                        onContentChange(html)
+                    }
+
+                    override fun onFormatStateChanged(json: String) {
+                        onFormatStateChange(parseWysiwygFormatStateJson(json))
+                    }
+                },
+            )
         }
 
     key(contentReloadKey) {

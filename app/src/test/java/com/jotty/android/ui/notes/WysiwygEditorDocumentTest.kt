@@ -19,6 +19,8 @@ class WysiwygEditorDocumentTest {
         assertTrue(doc.contains("<table>"))
         assertTrue(doc.contains("contenteditable"))
         assertTrue(doc.contains("setEditorTheme"))
+        assertTrue(doc.contains("getFormatState"))
+        assertTrue(doc.contains("onFormatStateChanged"))
     }
 
     @Test

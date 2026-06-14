@@ -9,7 +9,7 @@ GitHub Actions workflows in `.github/workflows/` are set to **manual trigger onl
 | GitHub workflow | Local replacement |
 |-----------------|-------------------|
 | [ci.yml](../.github/workflows/ci.yml) | `.\scripts\ci-local.ps1` / `./scripts/ci-local.sh` |
-| [dev-latest.yml](../.github/workflows/dev-latest.yml) | `.\scripts\publish-dev-latest.ps1` / `./scripts/publish-dev-latest.sh` |
+| [dev-latest.yml](../.github/workflows/dev-latest.yml) | Auto: `setup-repo-git` + `git push origin dev` (pre-push hook). Manual: `publish-dev-latest.ps1` / `.sh` |
 | [release-apk.yml](../.github/workflows/release-apk.yml) | `.\scripts\build-release-apk.ps1` + `gh release upload`, or `publish-release.ps1 -LocalBuild` |
 | [sync-dev-with-main.yml](../.github/workflows/sync-dev-with-main.yml) | `.\scripts\sync-dev-with-main.ps1` / `./scripts/sync-dev-with-main.sh` |
 
@@ -52,10 +52,22 @@ Build and publish to the [dev-latest](https://github.com/Darknetzz/jotty-android
 .\scripts\publish-dev-latest.ps1
 ```
 
-Typical flow after pushing to `dev`:
+### Automatic dev-latest on push (local, no Actions)
 
-1. `git push origin dev`
-2. `.\scripts\publish-dev-latest.ps1`
+After **one-time** `.\scripts\setup-repo-git.ps1` (or `./scripts/setup-repo-git.sh`), the **pre-push** hook builds and publishes **dev-latest** in the background after every successful `git push` to `origin/dev` (same end result as the old Actions workflow, but on your machine).
+
+```powershell
+git push origin dev
+# or
+.\scripts\push-dev.ps1
+```
+
+- Log: `.git/jotty-dev-publish.log`
+- Skip once: `git push --no-verify origin dev` or `JOTTY_SKIP_DEV_PUBLISH=1 git push origin dev`
+- Disable: `git config jotty.autoPublishDev false`
+- Manual publish still works: `.\scripts\publish-dev-latest.ps1`
+
+Requires `gh auth login`, JDK/Android SDK, and `keystore.properties` for release-signed dev APKs (recommended for in-app updates).
 
 ## Stable release APK
 

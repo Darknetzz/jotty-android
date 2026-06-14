@@ -130,7 +130,7 @@ Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jott
 Maintainers: create one release keystore — see **`keystore.properties.example`**. CI and APK builds run **locally** by default ([docs/LOCAL_CI.md](docs/LOCAL_CI.md)); GitHub Actions workflows are manual-only to avoid runner costs.
 
 - **Stable release builds:** download **`jotty-android-*.apk`** from the release you want (or `*-debug.apk` if that is the only asset).
-- **Rolling dev build:** use the [Dev Latest pre-release](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest), which is updated automatically on every push to `dev`.
+- **Rolling dev build:** use the [Dev Latest pre-release](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest). After `setup-repo-git`, each push to `dev` auto-publishes locally (no GitHub Actions); see [docs/LOCAL_CI.md](docs/LOCAL_CI.md).
 
 Install on your device by enabling "Install from unknown sources" if needed.
 
@@ -175,7 +175,7 @@ Release scripts (two steps):
 3. `.\scripts\publish-release.ps1 -LocalBuild` (or `./scripts/publish-release.sh --local-build`).
 4. **`dev` is synced to `main`** via `.\scripts\sync-dev-with-main.ps1` (included when using `-LocalBuild`).
 
-**Dev builds:** after pushing to `dev`, run `.\scripts\publish-dev-latest.ps1` to build and update the [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release.
+**Dev builds:** run `.\scripts\setup-repo-git.ps1` once per clone, then `git push origin dev` (or `.\scripts\push-dev.ps1`) — a pre-push hook publishes [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) in the background. Manual fallback: `.\scripts\publish-dev-latest.ps1`.
 
 See [docs/LOCAL_CI.md](docs/LOCAL_CI.md) for all local workflow commands. GitHub Actions in `.github/workflows/` are **manual-only** (`workflow_dispatch`); disable Actions entirely in repo settings if you prefer.
 

@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Auto dev-latest on push** — After `setup-repo-git`, a pre-push hook builds and publishes the rolling [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) release locally when you push to `dev` (no GitHub Actions). Log: `.git/jotty-dev-publish.log`; skip with `git push --no-verify` or `git config jotty.autoPublishDev false`.
 - **Kanban item rich fields** — On Jotty servers with expanded item REST support (develop+), task detail lets you edit priority, score, start/target dates, estimated time, and view metadata (created/modified, status history). Description read-back works on supported servers. Older servers keep disabled placeholders ([#52](https://github.com/Darknetzz/jotty-android/issues/52)).
 - **Local CI and builds** — Run tests, lint, ktlint, and APK builds on your machine instead of GitHub Actions: `scripts/ci-local.ps1`, `build-dev-apk`, `build-release-apk`, and `publish-dev-latest`. See [docs/LOCAL_CI.md](docs/LOCAL_CI.md). GitHub workflows are manual-only; use `publish-release.ps1 -LocalBuild` for stable releases without Actions.
 

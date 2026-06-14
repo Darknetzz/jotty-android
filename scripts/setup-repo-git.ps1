@@ -15,7 +15,7 @@ if ($existing -contains $refspec) {
 $hooksDir = ".githooks"
 if (Test-Path $hooksDir) {
     git config core.hooksPath $hooksDir
-    Write-Host "Set core.hooksPath to $hooksDir (post-merge syncs dev-latest on dev)."
+    Write-Host "Set core.hooksPath to $hooksDir (pre-push publishes dev-latest on push to dev; post-merge syncs tag on pull)."
 }
 
 git fetch origin tag dev-latest --force

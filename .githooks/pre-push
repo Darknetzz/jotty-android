@@ -1,0 +1,34 @@
+#!/bin/sh
+# After a successful push to origin/dev, build and publish dev-latest locally (replaces Actions).
+# Requires: setup-repo-git (core.hooksPath), gh auth, JDK/Android SDK, optional keystore.properties.
+# Skip: git push --no-verify | git config jotty.autoPublishDev false | JOTTY_SKIP_DEV_PUBLISH=1
+
+if [ "$(git config --get jotty.autoPublishDev 2>/dev/null)" = "false" ]; then
+  exit 0
+fi
+
+if [ -n "${JOTTY_SKIP_DEV_PUBLISH:-}" ]; then
+  exit 0
+fi
+
+repo_root="$(git rev-parse --show-toplevel)"
+push_dev_sha=""
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_ref" ] && continue
+  case "$remote_ref" in
+    refs/heads/dev) push_dev_sha="$local_sha" ;;
+  esac
+done
+
+[ -z "$push_dev_sha" ] && exit 0
+
+log="$repo_root/.git/jotty-dev-publish.log"
+echo "→ dev-latest will publish after push completes (log: .git/jotty-dev-publish.log)." >&2
+echo "  Skip next time: git push --no-verify  or  git config jotty.autoPublishDev false" >&2
+
+(
+  bash "$repo_root/scripts/lib/wait-and-publish-dev.sh" "$push_dev_sha"
+) &
+
+exit 0

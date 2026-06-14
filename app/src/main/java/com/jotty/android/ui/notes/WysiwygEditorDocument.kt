@@ -43,6 +43,8 @@ internal fun buildWysiwygEditorDocument(
           img { max-width: 100%; height: auto; }
           h1, h2, h3 { margin: 0.6em 0 0.3em; line-height: 1.25; }
           p { margin: 0.4em 0; }
+          code { font-family: monospace; background: rgba(127,127,127,0.15); padding: 0.1em 0.25em; border-radius: 3px; }
+          blockquote { margin: 0.4em 0; padding-left: 12px; border-left: 3px solid var(--border-color, #ccc); }
         </style>
         </head>
         <body>
@@ -80,6 +82,20 @@ internal fun buildWysiwygEditorDocument(
           function insertLink() {
             var url = prompt('URL');
             if (url) { cmd('createLink', url); }
+          }
+          function insertImage() {
+            var url = prompt('Image URL');
+            if (url) { cmd('insertImage', url); }
+          }
+          function insertCode() {
+            var sel = window.getSelection();
+            var text = sel && sel.rangeCount > 0 ? sel.toString() : '';
+            if (text) {
+              var escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              cmd('insertHTML', '<code>' + escaped + '</code>');
+            } else {
+              cmd('insertHTML', '<code></code>');
+            }
           }
           function insertTable() {
             var html = '<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Cell</td></tr></tbody></table><p></p>';

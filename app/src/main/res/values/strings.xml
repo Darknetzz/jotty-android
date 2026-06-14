@@ -300,6 +300,8 @@
     <string name="switch_instance">Switch instance</string>
     <string name="md_bold">Bold</string>
     <string name="md_italic">Italic</string>
+    <string name="md_underline">Underline</string>
+    <string name="md_strikethrough">Strikethrough</string>
     <string name="md_code">Code</string>
     <string name="md_heading">Heading</string>
     <string name="md_list">Bullet list</string>
@@ -307,6 +309,8 @@
     <string name="md_task_list">Task list</string>
     <string name="md_quote">Quote</string>
     <string name="md_link">Link</string>
+    <string name="md_image">Image</string>
+    <string name="md_table">Table</string>
     <string name="widget_new_note">New note</string>
     <string name="widget_new_note_description">Quickly create a new Jotty note</string>
     <string name="start_screen">Start screen</string>

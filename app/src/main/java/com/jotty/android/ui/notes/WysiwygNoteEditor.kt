@@ -12,12 +12,25 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.FormatBold
+import androidx.compose.material.icons.filled.FormatItalic
+import androidx.compose.material.icons.filled.FormatListNumbered
+import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.FormatUnderlined
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.StrikethroughS
+import androidx.compose.material.icons.filled.TableChart
+import androidx.compose.material.icons.filled.Title
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -29,6 +42,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -119,36 +133,47 @@ private fun WysiwygFormatToolbar(
     onCommand: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scrollState = rememberScrollState()
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .horizontalScroll(scrollState),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHighest,
     ) {
-        ToolbarButton("cmd('bold')", "B", onCommand)
-        ToolbarButton("cmd('italic')", "I", onCommand)
-        ToolbarButton("cmd('insertUnorderedList')", "•", onCommand)
-        ToolbarButton("cmd('insertOrderedList')", "1.", onCommand)
-        ToolbarButton("insertLink()", stringResource(R.string.wysiwyg_link), onCommand)
-        ToolbarButton("insertTable()", stringResource(R.string.wysiwyg_table), onCommand)
-        ToolbarButton("cmd('formatBlock','H2')", "H2", onCommand)
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+        ) {
+            WysiwygToolbarButton("cmd('bold')", Icons.Default.FormatBold, R.string.md_bold, onCommand)
+            WysiwygToolbarButton("cmd('italic')", Icons.Default.FormatItalic, R.string.md_italic, onCommand)
+            WysiwygToolbarButton("cmd('underline')", Icons.Default.FormatUnderlined, R.string.md_underline, onCommand)
+            WysiwygToolbarButton("cmd('strikeThrough')", Icons.Default.StrikethroughS, R.string.md_strikethrough, onCommand)
+            WysiwygToolbarButton("insertCode()", Icons.Default.Code, R.string.md_code, onCommand)
+            WysiwygToolbarButton("cmd('formatBlock','H2')", Icons.Default.Title, R.string.md_heading, onCommand)
+            WysiwygToolbarButton(
+                "cmd('insertUnorderedList')",
+                Icons.AutoMirrored.Filled.FormatListBulleted,
+                R.string.md_list,
+                onCommand,
+            )
+            WysiwygToolbarButton("cmd('insertOrderedList')", Icons.Default.FormatListNumbered, R.string.md_numbered_list, onCommand)
+            WysiwygToolbarButton("cmd('formatBlock','blockquote')", Icons.Default.FormatQuote, R.string.md_quote, onCommand)
+            WysiwygToolbarButton("insertLink()", Icons.Default.Link, R.string.md_link, onCommand)
+            WysiwygToolbarButton("insertImage()", Icons.Default.Image, R.string.md_image, onCommand)
+            WysiwygToolbarButton("insertTable()", Icons.Default.TableChart, R.string.md_table, onCommand)
+        }
     }
 }
 
 @Composable
-private fun ToolbarButton(
+private fun WysiwygToolbarButton(
     script: String,
-    label: String,
+    icon: ImageVector,
+    contentDescriptionRes: Int,
     onCommand: (String) -> Unit,
 ) {
-    OutlinedButton(
-        onClick = { onCommand(script) },
-        modifier = Modifier.height(36.dp),
-        shape = RoundedCornerShape(8.dp),
-    ) {
-        Text(label, style = MaterialTheme.typography.labelLarge)
+    IconButton(onClick = { onCommand(script) }) {
+        Icon(icon, contentDescription = stringResource(contentDescriptionRes))
     }
 }
 

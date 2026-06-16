@@ -1,4 +1,5 @@
-# After release.ps1: push dev, open dev→main PR, merge, publish GitHub release (triggers release-apk.yml).
+# After release.ps1: push dev, open dev→main PR, merge, publish GitHub release.
+# Use -LocalBuild to build and upload the APK locally (no GitHub Actions).
 param(
     [string]$Version,
     [switch]$DryRun,
@@ -7,6 +8,7 @@ param(
     [switch]$SkipMerge,
     [switch]$SkipRelease,
     [switch]$WaitForChecks,
+    [switch]$LocalBuild,
     [int]$CheckTimeoutMinutes = 20
 )
 
@@ -138,7 +140,10 @@ if ($DryRun) {
     if (-not $SkipPush) { Write-Host "[DryRun] Would: git push origin dev" }
     if (-not $SkipPr) { Write-Host "[DryRun] Would: gh pr create --base main --head dev --title Release $Version" }
     if (-not $SkipMerge) { Write-Host "[DryRun] Would: gh pr merge (after checks)" }
-    if (-not $SkipRelease) { Write-Host "[DryRun] Would: gh release create $tag --target main" }
+    if (-not $SkipRelease) {
+        Write-Host "[DryRun] Would: gh release create $tag --target main"
+        if ($LocalBuild) { Write-Host "[DryRun] Would: build and upload APK locally" }
+    }
     exit 0
 }
 
@@ -180,8 +185,10 @@ See [CHANGELOG.md](https://github.com/Darknetzz/jotty-android/blob/dev/CHANGELOG
 }
 
 if (-not $SkipMerge -and $prNumber) {
-    if ($WaitForChecks) {
+    if ($WaitForChecks -and -not $LocalBuild) {
         Wait-PrChecks -PrNumber $prNumber -TimeoutMinutes $CheckTimeoutMinutes
+    } elseif ($WaitForChecks -and $LocalBuild) {
+        Write-Host "Skipping PR check wait (-LocalBuild). Run .\scripts\ci-local.ps1 before publish if needed."
     }
     Write-Host "Merging PR #$prNumber..."
     gh pr merge $prNumber --merge --delete-branch=false
@@ -204,10 +211,24 @@ if (-not $SkipRelease) {
             gh release create $tag --target main --title $tag --notes-file $releaseNotesPath
         }
         Write-Host "Release: https://github.com/Darknetzz/jotty-android/releases/tag/$tag"
-        Write-Host "APK workflow should attach jotty-android-$Version.apk when complete."
+        if ($LocalBuild) {
+            Write-Host "Building release APK locally..."
+            $apkPath = & (Join-Path $repoRoot "scripts/build-release-apk.ps1") -OutputDir $repoRoot
+            Write-Host "Uploading $apkPath to $tag..."
+            gh release upload $tag $apkPath --clobber
+            Write-Host "APK attached to release."
+        } else {
+            Write-Host "APK workflow should attach jotty-android-$Version.apk when complete."
+            Write-Host "Tip: use -LocalBuild to build and upload the APK without GitHub Actions."
+        }
     } finally {
         Remove-Item -LiteralPath $releaseNotesPath -ErrorAction SilentlyContinue
     }
 }
 
-Write-Host "Done. sync-dev-with-main.yml will fast-forward dev after main updates."
+if ($LocalBuild -and -not $SkipMerge) {
+    Write-Host "Syncing dev to main locally..."
+    & (Join-Path $repoRoot "scripts/sync-dev-with-main.ps1")
+} else {
+    Write-Host "Done. Run .\scripts\sync-dev-with-main.ps1 after main updates (or enable sync-dev-with-main workflow)."
+}

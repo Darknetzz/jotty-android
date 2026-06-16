@@ -27,6 +27,8 @@ import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
+import com.jotty.android.data.encryption.NoteDecryptionSession
+import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
@@ -79,6 +81,17 @@ fun NotesScreen(
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
     val sortedNotes = remember(notes, sortOption) { notes.sortedBy(sortOption) }
+    val sessionRevision by NoteDecryptionSession.revision.collectAsStateWithLifecycle()
+    val unlockedNoteIds =
+        remember(sortedNotes, sessionRevision) {
+            sortedNotes
+                .filter { note ->
+                    note.encrypted == true || NoteEncryption.isEncrypted(note.content)
+                }
+                .filter { NoteDecryptionSession.isUnlocked(it.id) }
+                .map { it.id }
+                .toSet()
+        }
 
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -300,6 +313,7 @@ fun NotesScreen(
                                             note = n,
                                             onClick = { vm.setSelectedNote(n) },
                                             showPreview = noteListPreviewEnabled,
+                                            isUnlockedInSession = n.id in unlockedNoteIds,
                                         )
                                     }
                                 }

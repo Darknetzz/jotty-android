@@ -60,6 +60,14 @@ interface JottyApi {
         @Body body: UpdateItemRequest,
     ): SuccessResponse
 
+    /** Partial PATCH body for rich Kanban fields (supports explicit null to clear). */
+    @PATCH("api/checklists/{listId}/items/{itemIndex}")
+    suspend fun updateItemPatch(
+        @Path("listId") listId: String,
+        @Path("itemIndex") itemIndex: String,
+        @Body body: okhttp3.RequestBody,
+    ): SuccessResponse
+
     @PUT("api/checklists/{listId}/items/reorder")
     suspend fun reorderItems(
         @Path("listId") listId: String,
@@ -70,6 +78,13 @@ interface JottyApi {
     suspend fun getTask(
         @Path("taskId") taskId: String,
     ): TaskResponse
+
+    /** Single Kanban item with expanded fields (404/405 on older Jotty servers). */
+    @GET("api/tasks/{taskId}/items/{itemIndex}")
+    suspend fun getTaskItem(
+        @Path("taskId") taskId: String,
+        @Path("itemIndex") itemIndex: String,
+    ): TaskItemResponse
 
     @GET("api/tasks/{taskId}/statuses")
     suspend fun getTaskStatuses(

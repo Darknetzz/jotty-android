@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# After release.sh: push dev, open dev→main PR, merge, publish GitHub release (triggers release-apk.yml).
+# After release.sh: push dev, open dev→main PR, merge, publish GitHub release.
+# Use --local-build to build and upload the APK locally (no GitHub Actions).
 set -euo pipefail
 
 VERSION=""
@@ -9,10 +10,11 @@ SKIP_PR=0
 SKIP_MERGE=0
 SKIP_RELEASE=0
 WAIT_FOR_CHECKS=0
+LOCAL_BUILD=0
 CHECK_TIMEOUT_MINUTES=20
 
 usage() {
-  echo "Usage: $0 [--version X.Y.Z] [--dry-run] [--skip-push] [--skip-pr] [--skip-merge] [--skip-release] [--wait-for-checks]"
+  echo "Usage: $0 [--version X.Y.Z] [--dry-run] [--skip-push] [--skip-pr] [--skip-merge] [--skip-release] [--wait-for-checks] [--local-build]"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -24,6 +26,7 @@ while [[ $# -gt 0 ]]; do
     --skip-merge) SKIP_MERGE=1; shift ;;
     --skip-release) SKIP_RELEASE=1; shift ;;
     --wait-for-checks) WAIT_FOR_CHECKS=1; shift ;;
+    --local-build) LOCAL_BUILD=1; shift ;;
     --check-timeout-minutes) CHECK_TIMEOUT_MINUTES="${2:-20}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
@@ -31,7 +34,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR/.."
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$REPO_ROOT"
 
 GRADLE_FILE="gradle.properties"
 CHANGELOG_FILE="CHANGELOG.md"
@@ -115,7 +119,7 @@ if [[ "$SKIP_PR" -eq 0 ]]; then
 fi
 
 if [[ "$SKIP_MERGE" -eq 0 && -n "$PR_NUMBER" ]]; then
-  if [[ "$WAIT_FOR_CHECKS" -eq 1 ]]; then
+  if [[ "$WAIT_FOR_CHECKS" -eq 1 && "$LOCAL_BUILD" -eq 0 ]]; then
     deadline=$((SECONDS + CHECK_TIMEOUT_MINUTES * 60))
     while [[ $SECONDS -lt $deadline ]]; do
       if gh pr checks "$PR_NUMBER" 2>/dev/null | grep -qE 'fail|cancel'; then
@@ -128,6 +132,8 @@ if [[ "$SKIP_MERGE" -eq 0 && -n "$PR_NUMBER" ]]; then
       fi
       break
     done
+  elif [[ "$WAIT_FOR_CHECKS" -eq 1 && "$LOCAL_BUILD" -eq 1 ]]; then
+    echo "Skipping PR check wait (--local-build). Run ./scripts/ci-local.sh before publish if needed."
   fi
   gh pr merge "$PR_NUMBER" --merge --delete-branch=false
   git fetch origin main
@@ -140,7 +146,20 @@ if [[ "$SKIP_RELEASE" -eq 0 ]]; then
     gh release create "$TAG" --target main --title "$TAG" --notes-file "$NOTES_FILE"
   fi
   echo "https://github.com/Darknetzz/jotty-android/releases/tag/${TAG}"
+  if [[ "$LOCAL_BUILD" -eq 1 ]]; then
+    echo "Building release APK locally..."
+    APK_PATH="$("$SCRIPT_DIR/build-release-apk.sh" --output-dir "$REPO_ROOT")"
+    echo "Uploading $APK_PATH to $TAG..."
+    gh release upload "$TAG" "$APK_PATH" --clobber
+    echo "APK attached to release."
+  else
+    echo "Tip: use --local-build to build and upload the APK without GitHub Actions."
+  fi
 fi
 
 rm -f "$NOTES_FILE"
-echo "Done."
+if [[ "$LOCAL_BUILD" -eq 1 && "$SKIP_MERGE" -eq 0 ]]; then
+  "$SCRIPT_DIR/sync-dev-with-main.sh"
+else
+  echo "Done. Run ./scripts/sync-dev-with-main.sh after main updates if needed."
+fi

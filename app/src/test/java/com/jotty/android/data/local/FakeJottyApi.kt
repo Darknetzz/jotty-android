@@ -7,6 +7,7 @@ import com.jotty.android.data.api.ApiResponse
 import com.jotty.android.data.api.Categories
 import com.jotty.android.data.api.CategoriesResponse
 import com.jotty.android.data.api.Checklist
+import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.ChecklistsResponse
 import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.CreateNoteRequest
@@ -37,6 +38,7 @@ internal class FakeJottyApi(
     var createNoteResponse: (suspend (CreateNoteRequest) -> ApiResponse<Note>)? = null,
     var updateNoteHandler: (suspend (String, UpdateNoteRequest) -> ApiResponse<Note>)? = null,
     var deleteNoteResult: suspend (String) -> SuccessResponse = { SuccessResponse(true) },
+    var getTaskItemHandler: (suspend (String, String) -> com.jotty.android.data.api.TaskItemResponse)? = null,
 ) : JottyApi {
     override suspend fun health(): HealthResponse = HealthResponse("ok", "1", "")
 
@@ -79,6 +81,12 @@ internal class FakeJottyApi(
         listId: String,
         itemIndex: String,
         body: com.jotty.android.data.api.UpdateItemRequest,
+    ): SuccessResponse = error("not used in OfflineNotesRepository tests")
+
+    override suspend fun updateItemPatch(
+        listId: String,
+        itemIndex: String,
+        body: okhttp3.RequestBody,
     ): SuccessResponse = error("not used in OfflineNotesRepository tests")
 
     override suspend fun reorderItems(
@@ -149,6 +157,17 @@ internal class FakeJottyApi(
                 updatedAt = "",
             ),
         )
+
+    override suspend fun getTaskItem(
+        taskId: String,
+        itemIndex: String,
+    ): com.jotty.android.data.api.TaskItemResponse {
+        val handler = getTaskItemHandler
+        if (handler != null) return handler(taskId, itemIndex)
+        return com.jotty.android.data.api.TaskItemResponse(
+            ChecklistItem(index = 0, text = ""),
+        )
+    }
 
     override suspend fun getTaskStatuses(taskId: String): TaskStatusesResponse =
         TaskStatusesResponse(DEFAULT_TASK_STATUSES)

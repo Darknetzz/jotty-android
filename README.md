@@ -2,9 +2,6 @@
 
 [![Stable APK](https://img.shields.io/badge/Stable%20APK-latest-2ea043)](https://github.com/Darknetzz/jotty-android/releases/latest)
 [![Dev latest](https://img.shields.io/badge/dev--latest-pre--release-f97316)](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
-[![CI](https://github.com/Darknetzz/jotty-android/actions/workflows/ci.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/ci.yml)
-[![Release APK](https://github.com/Darknetzz/jotty-android/actions/workflows/release-apk.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/release-apk.yml)
-[![Dev Latest APK](https://github.com/Darknetzz/jotty-android/actions/workflows/dev-latest.yml/badge.svg)](https://github.com/Darknetzz/jotty-android/actions/workflows/dev-latest.yml)
 
 An unofficial Android client for [Jotty](https://jotty.page/) — the self-hosted, file-based checklist and notes app.
 
@@ -127,13 +124,13 @@ Demo content from v1.5.0. **Dark** is left, **light** is right. All captures in 
 
 Pre-built APKs are published on the [Releases](https://github.com/Darknetzz/jotty-android/releases) page.
 
-- **With release signing configured** (recommended for this repo): CI attaches **`jotty-android-{version}.apk`** — minified and signed with the maintainer’s release keystore so updates install over the previous release without uninstalling.
-- **Without signing secrets** (e.g. forks): CI attaches **`jotty-android-{version}-debug.apk`** only (debug-signed).
+- **With release signing configured** (recommended): locally built or published APKs use **`jotty-android-{version}.apk`** from [Releases](https://github.com/Darknetzz/jotty-android/releases) when you run `scripts/publish-dev-latest` or `publish-release.ps1 -LocalBuild` with `keystore.properties`.
+- **Without signing** (e.g. forks): builds produce **`jotty-android-{version}-debug.apk`** only (debug-signed).
 
-Maintainers: create one release keystore and add GitHub Actions secrets — see **`keystore.properties.example`** (fixes [#9](https://github.com/Darknetzz/jotty-android/issues/9)).
+Maintainers: create one release keystore — see **`keystore.properties.example`**. CI and APK builds run **locally** by default ([docs/LOCAL_CI.md](docs/LOCAL_CI.md)); GitHub Actions workflows are manual-only to avoid runner costs.
 
 - **Stable release builds:** download **`jotty-android-*.apk`** from the release you want (or `*-debug.apk` if that is the only asset).
-- **Rolling dev build:** use the [Dev Latest pre-release](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest), which is updated automatically on every push to `dev`.
+- **Rolling dev build:** use the [Dev Latest pre-release](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest). After `setup-repo-git`, each push to `dev` auto-publishes locally (no GitHub Actions); see [docs/LOCAL_CI.md](docs/LOCAL_CI.md).
 
 Install on your device by enabling "Install from unknown sources" if needed.
 
@@ -165,21 +162,22 @@ Release scripts (two steps):
 | Step | Windows | Linux/macOS |
 |------|---------|-------------|
 | **1. Prep** (version + changelog) | `.\release.ps1` | `./release.sh` |
-| **2. Publish** (push, PR, merge, GitHub release) | `.\scripts\publish-release.ps1` | `./scripts/publish-release.sh` |
+| **2. Publish** (push, PR, merge, GitHub release + APK) | `.\scripts\publish-release.ps1 -LocalBuild` | `./scripts/publish-release.sh --local-build` |
 
 **Prep** prompts for a version (default: current patch + 1), increments `VERSION_CODE`, and promotes the top `CHANGELOG.md` `[dev-latest]` section to a dated stable entry, leaving a fresh `[dev-latest]` header for the rolling [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release.
 
-**Publish** requires a clean `dev` branch, `gh` CLI logged in, and committed prep. It pushes `dev`, opens (or reuses) **`dev` → `main`**, merges the PR, and runs **`gh release create vX.Y.Z`** on `main` (notes from the new changelog section). That publish step triggers [release-apk.yml](.github/workflows/release-apk.yml) to attach the APK.
+**Publish** requires a clean `dev` branch, `gh` CLI logged in, and committed prep. It pushes `dev`, opens (or reuses) **`dev` → `main`**, merges the PR, creates **`gh release create vX.Y.Z`** on `main`, and with **`-LocalBuild`** builds and uploads the APK locally (no GitHub Actions).
 
 **Typical stable release flow**
 
 1. `.\release.ps1` (or `./release.sh`), then commit `gradle.properties` + `CHANGELOG.md` on **`dev`**.
-2. `.\scripts\publish-release.ps1 -WaitForChecks` (or the `.sh` equivalent).
-3. **`dev` is synced to `main`** automatically by [sync-dev-with-main.yml](.github/workflows/sync-dev-with-main.yml) after the merge lands on `main`.
+2. `.\scripts\ci-local.ps1` — optional but recommended before publish.
+3. `.\scripts\publish-release.ps1 -LocalBuild` (or `./scripts/publish-release.sh --local-build`).
+4. **`dev` is synced to `main`** via `.\scripts\sync-dev-with-main.ps1` (included when using `-LocalBuild`).
 
-CI also runs without the publish script: [dev-latest.yml](.github/workflows/dev-latest.yml) on every push to `dev`; [release-apk.yml](.github/workflows/release-apk.yml) when a GitHub release is published.
+**Dev builds:** run `.\scripts\setup-repo-git.ps1` once per clone, then `git push origin dev` (or `.\scripts\push-dev.ps1`) — a pre-push hook publishes [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) in the background. Manual fallback: `.\scripts\publish-dev-latest.ps1`.
 
-Manual sync if needed: `.\scripts\sync-dev-with-main.ps1` or `./scripts/sync-dev-with-main.sh`.
+See [docs/LOCAL_CI.md](docs/LOCAL_CI.md) for all local workflow commands. GitHub Actions in `.github/workflows/` are **manual-only** (`workflow_dispatch`); disable Actions entirely in repo settings if you prefer.
 
 Manual fallback: update both values in `gradle.properties`, add an entry to **`CHANGELOG.md`**, then build and tag (e.g. `v1.0.1`).
 

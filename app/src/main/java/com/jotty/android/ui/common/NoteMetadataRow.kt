@@ -17,10 +17,10 @@ import androidx.compose.ui.unit.dp
 fun NoteMetadataRow(
     updatedAtText: String?,
     modifier: Modifier = Modifier,
-    syncStatusLabel: String? = null,
+    showPendingSync: Boolean = false,
     category: String? = null,
 ) {
-    if (updatedAtText.isNullOrBlank() && syncStatusLabel.isNullOrBlank() && category.isNullOrBlank()) {
+    if (updatedAtText.isNullOrBlank() && !showPendingSync && category.isNullOrBlank()) {
         return
     }
     Row(
@@ -32,14 +32,8 @@ fun NoteMetadataRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (!syncStatusLabel.isNullOrBlank()) {
-                Text(
-                    text = syncStatusLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            if (showPendingSync) {
+                PendingSyncBadge()
             }
             if (!category.isNullOrBlank()) {
                 Text(

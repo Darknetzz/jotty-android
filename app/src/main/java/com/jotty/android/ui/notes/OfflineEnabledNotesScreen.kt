@@ -23,6 +23,8 @@ import com.jotty.android.R
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
+import com.jotty.android.data.encryption.NoteDecryptionSession
+import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
@@ -102,6 +104,17 @@ fun OfflineEnabledNotesScreen(
     var pullRefreshing by remember { mutableStateOf(false) }
     val listRefreshing = screenState.loading || isSyncing
     val noteListDisplay = rememberStaleListWhileRefresh(sortedNotes, listRefreshing)
+    val sessionRevision by NoteDecryptionSession.revision.collectAsStateWithLifecycle()
+    val unlockedNoteIds =
+        remember(noteListDisplay.displayItems, sessionRevision) {
+            noteListDisplay.displayItems
+                .filter { note ->
+                    note.encrypted == true || NoteEncryption.isEncrypted(note.content)
+                }
+                .filter { NoteDecryptionSession.isUnlocked(it.id) }
+                .map { it.id }
+                .toSet()
+        }
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -114,7 +127,6 @@ fun OfflineEnabledNotesScreen(
     val undoActionLabel = stringResource(R.string.undo)
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
-    val pendingSyncLabel = stringResource(R.string.pending_sync)
 
     fun requestSync(
         showLoading: Boolean = true,
@@ -163,6 +175,14 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        vm.categoryFilterEmptyEvents.collect { category ->
+            snackbarHostState.showSnackbar(
+                message = context.getString(R.string.offline_category_filter_empty, category),
+            )
+        }
+    }
+
     // Load categories
     LaunchedEffect(isOnline, notes) {
         vm.loadCategories(isOnline, notes)
@@ -200,8 +220,13 @@ fun OfflineEnabledNotesScreen(
         settingsRepository.notesCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
         filterRestored = true
     }
-    LaunchedEffect(selectedCategory, filterRestored) {
-        if (filterRestored) settingsRepository.setNotesCategoryFilter(selectedCategory)
+    LaunchedEffect(selectedCategory, filterRestored, notes) {
+        if (filterRestored) {
+            settingsRepository.setNotesCategoryFilter(selectedCategory)
+            if (!isOnline) {
+                vm.notifyCategoryFilterEmptyIfNeeded(selectedCategory, notes)
+            }
+        }
     }
 
     BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
@@ -303,7 +328,7 @@ fun OfflineEnabledNotesScreen(
                             item {
                                 FilterChip(
                                     selected = selectedCategory == JOTTY_ARCHIVE_CATEGORY,
-                                    onClick = { vm.toggleCategoryChip(JOTTY_ARCHIVE_CATEGORY) },
+                                    onClick = { vm.toggleCategoryChip(JOTTY_ARCHIVE_CATEGORY, notes) },
                                     label = {
                                         Text(
                                             stringResource(R.string.category_archived),
@@ -316,7 +341,7 @@ fun OfflineEnabledNotesScreen(
                             items(noteCategories.filter { !it.equals(JOTTY_ARCHIVE_CATEGORY, true) }, key = { it }) { cat ->
                                 FilterChip(
                                     selected = selectedCategory == cat,
-                                    onClick = { vm.toggleCategoryChip(cat) },
+                                    onClick = { vm.toggleCategoryChip(cat, notes) },
                                     label = {
                                         Text(
                                             cat,
@@ -403,7 +428,8 @@ fun OfflineEnabledNotesScreen(
                                             note = n,
                                             onClick = { vm.setSelectedNote(n) },
                                             showPreview = noteListPreviewEnabled,
-                                            syncStatusLabel = if (n.id in dirtyNoteIds) pendingSyncLabel else null,
+                                            showPendingSync = n.id in dirtyNoteIds,
+                                            isUnlockedInSession = n.id in unlockedNoteIds,
                                         )
                                     }
                                 }

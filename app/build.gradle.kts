@@ -109,10 +109,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.reorderable)
 
-    implementation("androidx.core:core-ktx:1.18.0")
+    implementation("androidx.core:core-ktx:1.18.0") // 1.19+ requires compileSdk 37 (see Dependabot PR #54)
     implementation("androidx.lifecycle:lifecycle-process:2.10.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
-    implementation("androidx.activity:activity-compose:1.11.0")
+    implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.navigation:navigation-compose:2.9.8")
@@ -120,7 +120,7 @@ dependencies {
     // Retrofit for REST API
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
     implementation("com.squareup.retrofit2:converter-gson:3.0.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // 5.x deferred — align with Retrofit OkHttp (Dependabot PR #58)
 
     // Secure storage for API key
     implementation("androidx.security:security-crypto:1.1.0")
@@ -141,10 +141,10 @@ dependencies {
 
     // Markdown rendering for notes (images via Coil)
     implementation("com.github.jeziellago:compose-markdown:0.5.8")
-    implementation("io.coil-kt:coil:2.6.0")
+    implementation("io.coil-kt:coil:2.7.0")
 
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.79")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
 
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")
@@ -164,5 +164,5 @@ dependencies {
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
-    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:runner:1.7.0")
 }

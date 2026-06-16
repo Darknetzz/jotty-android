@@ -14,7 +14,7 @@ fi
 
 if [[ -d .githooks ]]; then
   git config core.hooksPath .githooks
-  echo "Set core.hooksPath to .githooks (post-merge syncs dev-latest on dev)."
+  echo "Set core.hooksPath to .githooks (pre-push publishes dev-latest on push to dev; post-merge syncs tag on pull)."
 fi
 
 git fetch origin tag dev-latest --force

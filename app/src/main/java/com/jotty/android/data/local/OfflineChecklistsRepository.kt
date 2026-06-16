@@ -18,6 +18,7 @@ import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.updateChecklistItemDescription
+import com.jotty.android.util.updateChecklistItemRichFields
 import com.jotty.android.util.updateChecklistItemText
 import kotlinx.coroutines.CancellationException
 import retrofit2.HttpException
@@ -444,6 +445,39 @@ class OfflineChecklistsRepository(
             }
         }
 
+    suspend fun updateItemRichFields(
+        checklistId: String,
+        path: String,
+        patch: Map<String, Any?>,
+    ): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                if (patch.isEmpty()) {
+                    val resolvedId = resolveChecklistId(checklistId)
+                    return@runCatching checklistDao.getById(resolvedId)?.toChecklist()
+                        ?: throw IllegalStateException("Checklist not found: $checklistId")
+                }
+                val resolvedId = resolveChecklistId(checklistId)
+                withItemMutation {
+                    if (isOnline.value && !needsLocalItemMutations(resolvedId)) {
+                        updateChecklistItemRichFields(
+                            api = api,
+                            listId = resolvedId,
+                            path = path,
+                            patch = patch,
+                            onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
+                        )
+                        return@withItemMutation refreshFromServer(resolvedId)
+                    } else {
+                        return@withItemMutation applyOpLocally(
+                            resolvedId,
+                            patch.toPendingItemOp(path),
+                        )
+                    }
+                }
+            }
+        }
+
     suspend fun reorderItems(
         checklistId: String,
         request: ReorderItemsRequest,
@@ -698,27 +732,39 @@ class OfflineChecklistsRepository(
                     ),
                 )
             "DELETE" -> api.deleteItem(entity.id, op.path!!)
-            "UPDATE" ->
-                runCatching {
-                    api.updateItem(
-                        entity.id,
-                        op.path!!,
-                        UpdateItemRequest(text = op.text, description = op.description),
+            "UPDATE" -> {
+                val richPatch = op.toRichFieldsPatch()
+                if (richPatch != null) {
+                    updateChecklistItemRichFields(
+                        api = api,
+                        listId = entity.id,
+                        path = op.path!!,
+                        patch = richPatch,
+                        onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
                     )
-                }.getOrElse { error ->
-                    if (error is retrofit2.HttpException && error.code() in setOf(404, 405)) {
-                        updateChecklistItemText(
-                            api = api,
-                            listId = entity.id,
-                            path = op.path!!,
-                            text = op.text ?: "",
-                            items = entity.items(),
-                            onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
+                } else {
+                    runCatching {
+                        api.updateItem(
+                            entity.id,
+                            op.path!!,
+                            UpdateItemRequest(text = op.text, description = op.description),
                         )
-                    } else {
-                        throw error
+                    }.getOrElse { error ->
+                        if (error is retrofit2.HttpException && error.code() in setOf(404, 405)) {
+                            updateChecklistItemText(
+                                api = api,
+                                listId = entity.id,
+                                path = op.path!!,
+                                text = op.text ?: "",
+                                items = entity.items(),
+                                onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
+                            )
+                        } else {
+                            throw error
+                        }
                     }
                 }
+            }
             "REORDER" ->
                 api.reorderItems(
                     entity.id,

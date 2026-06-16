@@ -30,8 +30,17 @@ data class PendingItemOp(
     val parentIndex: String? = null,
     /** ADD — Kanban column status */
     val status: String? = null,
-    /** UPDATE */
+    /** UPDATE — keys present in the rich-field PATCH (supports explicit null clears). */
+    val patchKeys: List<String>? = null,
     val description: String? = null,
+    val descriptionTouched: Boolean = false,
+    val priority: String? = null,
+    val score: Double? = null,
+    val startDate: String? = null,
+    val targetDate: String? = null,
+    val estimatedTime: Double? = null,
+    /** When true, [priority]/[score]/dates/[estimatedTime] were explicitly set (including clear). */
+    val richFieldsTouched: Boolean = false,
     /** REORDER */
     val activeItemId: String? = null,
     val overItemId: String? = null,
@@ -142,7 +151,37 @@ fun applyOpToItems(
                 updateAtPath(items, path) { item ->
                     item.copy(
                         text = op.text ?: item.text,
-                        description = op.description ?: item.description,
+                        description = if (op.descriptionTouched) op.description else item.description,
+                        priority =
+                            if (op.patchKeys?.contains("priority") == true) {
+                                op.priority
+                            } else {
+                                item.priority
+                            },
+                        score =
+                            if (op.patchKeys?.contains("score") == true) {
+                                op.score
+                            } else {
+                                item.score
+                            },
+                        startDate =
+                            if (op.patchKeys?.contains("startDate") == true) {
+                                op.startDate
+                            } else {
+                                item.startDate
+                            },
+                        targetDate =
+                            if (op.patchKeys?.contains("targetDate") == true) {
+                                op.targetDate
+                            } else {
+                                item.targetDate
+                            },
+                        estimatedTime =
+                            if (op.patchKeys?.contains("estimatedTime") == true) {
+                                op.estimatedTime
+                            } else {
+                                item.estimatedTime
+                            },
                     )
                 }
             } ?: items
@@ -169,6 +208,59 @@ fun applyOpToItems(
  * Callers treat null as a no-op (stale or malformed path).
  */
 private fun pathSegments(path: String): List<Int>? = path.split(".").map { it.toIntOrNull() ?: return null }
+
+/** Converts a rich-field PATCH map to a pending offline UPDATE op. */
+fun Map<String, Any?>.toPendingItemOp(path: String): PendingItemOp =
+    PendingItemOp(
+        type = "UPDATE",
+        path = path,
+        patchKeys = keys.toList(),
+        description = if (containsKey("description")) this["description"] as? String else null,
+        descriptionTouched = containsKey("description"),
+        priority = if (containsKey("priority")) this["priority"] as? String else null,
+        score = if (containsKey("score")) (this["score"] as? Number)?.toDouble() else null,
+        startDate = if (containsKey("startDate")) this["startDate"] as? String else null,
+        targetDate = if (containsKey("targetDate")) this["targetDate"] as? String else null,
+        estimatedTime = if (containsKey("estimatedTime")) (this["estimatedTime"] as? Number)?.toDouble() else null,
+        richFieldsTouched =
+            containsKey("priority") ||
+                containsKey("score") ||
+                containsKey("startDate") ||
+                containsKey("targetDate") ||
+                containsKey("estimatedTime"),
+    )
+
+/** Rich-field keys for replay; null when only legacy text update. */
+fun PendingItemOp.toRichFieldsPatch(): Map<String, Any?>? {
+    val keys = patchKeys.orEmpty()
+    if (keys.isEmpty()) {
+        if (!descriptionTouched && !richFieldsTouched) return null
+    }
+    val patch = linkedMapOf<String, Any?>()
+    val effectiveKeys = keys.ifEmpty {
+        buildList {
+            if (descriptionTouched) add("description")
+            if (richFieldsTouched) {
+                add("priority")
+                add("score")
+                add("startDate")
+                add("targetDate")
+                add("estimatedTime")
+            }
+        }
+    }
+    for (key in effectiveKeys) {
+        when (key) {
+            "description" -> patch["description"] = description
+            "priority" -> patch["priority"] = priority
+            "score" -> patch["score"] = score
+            "startDate" -> patch["startDate"] = startDate
+            "targetDate" -> patch["targetDate"] = targetDate
+            "estimatedTime" -> patch["estimatedTime"] = estimatedTime
+        }
+    }
+    return patch.takeIf { it.isNotEmpty() }
+}
 
 /** Item at a positional API path (e.g. `"0"`, `"0.1"`), or null if the path is invalid or out of range. */
 fun itemAtPath(

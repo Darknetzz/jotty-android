@@ -1,9 +1,8 @@
 name: CI
 
+# Manual only — run locally: scripts/ci-local.ps1 or scripts/ci-local.sh (see docs/LOCAL_CI.md)
 on:
-  push:
-    branches: [main, master]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   unit-tests:

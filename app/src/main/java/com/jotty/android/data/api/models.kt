@@ -31,6 +31,23 @@ data class Checklist(
     val updatedAt: String,
 )
 
+/** Kanban item priority values from the Jotty REST API. */
+object KanbanPriority {
+    const val CRITICAL = "critical"
+    const val HIGH = "high"
+    const val MEDIUM = "medium"
+    const val LOW = "low"
+    const val NONE = "none"
+
+    val ALL = listOf(CRITICAL, HIGH, MEDIUM, LOW, NONE)
+}
+
+data class ItemStatusChange(
+    val status: String? = null,
+    val timestamp: String? = null,
+    val user: String? = null,
+)
+
 data class ChecklistItem(
     val id: String? = null,
     val index: Int,
@@ -40,8 +57,33 @@ data class ChecklistItem(
     val time: Any? = null,
     /** Item body; may be absent on GET until upstream REST returns it. */
     val description: String? = null,
+    val priority: String? = null,
+    val score: Double? = null,
+    val startDate: String? = null,
+    val targetDate: String? = null,
+    val estimatedTime: Double? = null,
+    val createdBy: String? = null,
+    val createdAt: String? = null,
+    val lastModifiedBy: String? = null,
+    val lastModifiedAt: String? = null,
+    val history: List<ItemStatusChange>? = null,
     val children: List<ChecklistItem>? = null,
 )
+
+/** True when the server returned any expanded Kanban item field (writable or metadata). */
+fun ChecklistItem.hasAnyRichField(): Boolean =
+    !description.isNullOrBlank() ||
+        !priority.isNullOrBlank() ||
+        score != null ||
+        !startDate.isNullOrBlank() ||
+        !targetDate.isNullOrBlank() ||
+        estimatedTime != null ||
+        !createdBy.isNullOrBlank() ||
+        !createdAt.isNullOrBlank() ||
+        !lastModifiedBy.isNullOrBlank() ||
+        !lastModifiedAt.isNullOrBlank() ||
+        !history.isNullOrEmpty() ||
+        children.orEmpty().any { it.hasAnyRichField() }
 
 /** Jotty may mark completion via [status] (`completed`) or [completed]; treat either as done. */
 fun ChecklistItem.isCompletedForApi(): Boolean =
@@ -84,6 +126,11 @@ data class AddItemRequest(
 data class UpdateItemRequest(
     val text: String? = null,
     val description: String? = null,
+    val priority: String? = null,
+    val score: Double? = null,
+    val startDate: String? = null,
+    val targetDate: String? = null,
+    val estimatedTime: Double? = null,
 )
 
 data class ReorderItemsRequest(
@@ -124,6 +171,8 @@ data class UpdateTaskStatusRequest(
 data class UpdateTaskItemStatusRequest(val status: String)
 
 data class TaskResponse(val task: TaskChecklist)
+
+data class TaskItemResponse(val item: ChecklistItem)
 
 /** Task checklist as returned by `/api/tasks` (includes column definitions). */
 data class TaskChecklist(

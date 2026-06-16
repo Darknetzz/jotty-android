@@ -7,7 +7,9 @@ import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.local.itemAtPath
 import com.jotty.android.util.ServerCapabilities
+import com.jotty.android.util.buildKanbanRichFieldsPatch
 import com.jotty.android.util.updateChecklistItemDescription
+import com.jotty.android.util.updateChecklistItemRichFields
 import com.jotty.android.util.updateChecklistItemText
 
 /** Builds a nested item API path (e.g. parent `"0"` + child index `1` → `"0.1"`). */
@@ -22,6 +24,15 @@ interface KanbanItemActions {
     suspend fun updateTitle(text: String): Result<Unit>
 
     suspend fun updateDescription(description: String): Result<Unit>
+
+    suspend fun updateTaskDetails(
+        description: String,
+        priority: String?,
+        score: Double?,
+        startDate: String?,
+        targetDate: String?,
+        estimatedTime: Double?,
+    ): Result<Unit>
 
     suspend fun moveToStatus(statusId: String): Result<Unit>
 
@@ -46,8 +57,16 @@ class ApiKanbanItemActions(
     private val onRefresh: suspend () -> Unit,
     private val onPatchUnavailable: (() -> Unit)? = null,
     private val performMoveToStatus: suspend (String) -> Result<Unit>,
+    private val richFieldsSupported: Boolean = false,
 ) : KanbanItemActions {
-    override suspend fun currentItem(): ChecklistItem? = itemAtPath(items(), itemPath)
+    override suspend fun currentItem(): ChecklistItem? {
+        if (richFieldsSupported) {
+            runCatching { api.getTaskItem(checklistId, itemPath).item }
+                .getOrNull()
+                ?.let { return it }
+        }
+        return itemAtPath(items(), itemPath)
+    }
 
     override suspend fun updateTitle(text: String): Result<Unit> =
         runCatching {
@@ -69,6 +88,38 @@ class ApiKanbanItemActions(
                 listId = checklistId,
                 path = itemPath,
                 description = description,
+            )
+            onRefresh()
+        }
+
+    override suspend fun updateTaskDetails(
+        description: String,
+        priority: String?,
+        score: Double?,
+        startDate: String?,
+        targetDate: String?,
+        estimatedTime: Double?,
+    ): Result<Unit> =
+        runCatching {
+            val original =
+                itemAtPath(items(), itemPath)
+                    ?: throw IllegalArgumentException("Checklist item not found: $itemPath")
+            val patch =
+                buildKanbanRichFieldsPatch(
+                    original = original,
+                    description = description,
+                    priority = priority,
+                    score = score,
+                    startDate = startDate,
+                    targetDate = targetDate,
+                    estimatedTime = estimatedTime,
+                ) ?: return@runCatching
+            updateChecklistItemRichFields(
+                api = api,
+                listId = checklistId,
+                path = itemPath,
+                patch = patch,
+                onPatchUnavailable = onPatchUnavailable,
             )
             onRefresh()
         }
@@ -146,6 +197,28 @@ class OfflineKanbanItemActions(
     override suspend fun updateDescription(description: String): Result<Unit> =
         applyChecklistResult(offlineRepository.updateItemDescription(checklistId, itemPath, description))
 
+    override suspend fun updateTaskDetails(
+        description: String,
+        priority: String?,
+        score: Double?,
+        startDate: String?,
+        targetDate: String?,
+        estimatedTime: Double?,
+    ): Result<Unit> {
+        val original = itemAtPath(items(), itemPath) ?: return Result.failure(IllegalArgumentException("Item not found"))
+        val patch =
+            buildKanbanRichFieldsPatch(
+                original = original,
+                description = description,
+                priority = priority,
+                score = score,
+                startDate = startDate,
+                targetDate = targetDate,
+                estimatedTime = estimatedTime,
+            ) ?: return Result.success(Unit)
+        return applyChecklistResult(offlineRepository.updateItemRichFields(checklistId, itemPath, patch))
+    }
+
     override suspend fun moveToStatus(statusId: String): Result<Unit> {
         val mover = moveToStatusOnline ?: return Result.failure(Exception("offline"))
         return mover(statusId)
@@ -181,6 +254,7 @@ fun apiKanbanItemActions(
     onRefresh: suspend () -> Unit,
     serverCapabilitiesKey: String?,
     performMoveToStatus: suspend (String) -> Result<Unit>,
+    richFieldsSupported: Boolean = false,
 ): KanbanItemActions =
     ApiKanbanItemActions(
         api = api,
@@ -193,4 +267,5 @@ fun apiKanbanItemActions(
                 { ServerCapabilities.markItemPatchLimited(key) }
             },
         performMoveToStatus = performMoveToStatus,
+        richFieldsSupported = richFieldsSupported,
     )

@@ -72,4 +72,4 @@ The web UI updates items via **Next.js Server Actions** with browser session coo
 
 ## Android client impact
 
-Once shipped upstream, jotty-android will enable Priority, Score, Target date, Estimated time, Metadata, and description read-back in the Kanban item detail screen (currently placeholders or write-only for description).
+Shipped upstream on Jotty **develop** (see [fccview comment on jotty-android #52](https://github.com/Darknetzz/jotty-android/issues/52#issuecomment-4699477716)). jotty-android enables Priority, Score, Start/target dates, Estimated time, Metadata, and description read-back when the server probe succeeds.

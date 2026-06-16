@@ -88,6 +88,7 @@ fun OfflineNoteDetailScreen(
             categorySuggestions = categorySuggestions,
             richEditorEnabled = richEditorEnabled,
             api = api,
+            isOnline = isOnline,
         )
     }
 }

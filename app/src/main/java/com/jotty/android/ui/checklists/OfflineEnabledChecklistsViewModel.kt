@@ -5,7 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.local.OfflineChecklistsRepository
+import com.jotty.android.util.filterChecklistsForCategory
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -48,8 +52,30 @@ class OfflineEnabledChecklistsViewModel(
         _selectedCategory.value = category
     }
 
-    fun toggleCategoryChip(cat: String) {
-        _selectedCategory.value = if (_selectedCategory.value == cat) null else cat
+    fun toggleCategoryChip(
+        cat: String,
+        localLists: List<Checklist> = emptyList(),
+    ) {
+        val wasSelected = _selectedCategory.value == cat
+        _selectedCategory.value = if (wasSelected) null else cat
+        if (!wasSelected && _selectedCategory.value == cat &&
+            filterChecklistsForCategory(localLists, cat).isEmpty()
+        ) {
+            viewModelScope.launch { _categoryFilterEmptyEvents.emit(cat) }
+        }
+    }
+
+    private val _categoryFilterEmptyEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val categoryFilterEmptyEvents: SharedFlow<String> = _categoryFilterEmptyEvents.asSharedFlow()
+
+    fun notifyCategoryFilterEmptyIfNeeded(
+        category: String?,
+        localLists: List<Checklist>,
+    ) {
+        if (category == null) return
+        if (filterChecklistsForCategory(localLists, category).isEmpty()) {
+            viewModelScope.launch { _categoryFilterEmptyEvents.emit(category) }
+        }
     }
 
     fun applyConflictSearchFilter() {

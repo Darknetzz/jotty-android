@@ -8,6 +8,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 final class WysiwygEditorBridge {
     interface Listener {
         void onContentChanged(String html);
+
+        void onFormatStateChanged(String json);
     }
 
     private final AtomicBoolean acceptChanges = new AtomicBoolean(false);
@@ -42,5 +44,15 @@ final class WysiwygEditorBridge {
         }
         userEdited.set(true);
         listener.onContentChanged(html);
+    }
+
+    @JavascriptInterface
+    public void onFormatStateChanged(String json) {
+        if (!acceptChanges.get()) {
+            return;
+        }
+        if (json != null) {
+            listener.onFormatStateChanged(json);
+        }
     }
 }

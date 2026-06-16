@@ -1,8 +1,8 @@
 name: Dev Latest APK
 
+# Manual only — auto publish: setup-repo-git + git push origin dev (see docs/LOCAL_CI.md)
 on:
-  push:
-    branches: [dev]
+  workflow_dispatch:
 
 jobs:
   dev-latest-apk:

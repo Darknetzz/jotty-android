@@ -4,15 +4,16 @@ Prioritized backlog after v1.3.5. See also [CHANGELOG.md](../CHANGELOG.md).
 
 ## Quick polish
 
-- [ ] Per-note pending-sync badge on list cards (`NoteEntity.isDirty`)
-- [ ] Explicit offline message when opening an encrypted note that was never decrypted online
-- [ ] Snackbar when an offline category filter chip is unavailable until sync
+- [x] Per-note pending-sync badge on list cards (`NoteEntity.isDirty`)
+- [x] Explicit offline message when opening an encrypted note that was never decrypted online
+- [x] Snackbar when an offline category filter chip is unavailable until sync
 
 ## Quality / architecture
 
-- [ ] `SettingsViewModel` and `SetupViewModel` (detail/settings logic still in composables)
+- [x] `SettingsViewModel` and `SetupViewModel` (detail/settings logic still in composables)
 - [ ] Shared offline list scaffold to reduce duplication between notes and checklists screens
 - [ ] Extract shared conflict-detection helper in offline repositories
+- [x] `ChecklistDetailViewModel` for online checklist detail
 
 ## Features (blocked or larger)
 

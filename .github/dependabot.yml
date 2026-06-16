@@ -1,12 +1,52 @@
+# Dependabot version updates — grouped weekly PRs instead of one PR per dependency.
+# See: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/customizing-dependency-updates
 version: 2
 updates:
   - package-ecosystem: gradle
     directory: "/"
     schedule:
       interval: weekly
-    open-pull-requests-limit: 10
+      day: monday
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      # Patch + minor library bumps in a single PR (Coil, AndroidX, Bouncy Castle, etc.)
+      gradle-weekly:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+      # Major bumps reviewed separately (AGP, Room majors, etc.)
+      gradle-major:
+        update-types:
+          - "major"
+        patterns:
+          - "*"
+    ignore:
+      # Blocked until compileSdk 37 (see app/build.gradle.kts)
+      - dependency-name: "androidx.core:core-ktx"
+        versions: [">=1.19.0"]
+      # ktlint 14+ requires fixing test-source violations first
+      - dependency-name: "org.jlleitschuh.gradle.ktlint"
+        versions: [">=14.0.0"]
+      # OkHttp 5 must align with Retrofit's OkHttp; bump together deliberately
+      - dependency-name: "com.squareup.okhttp3:*"
+        update-types: ["version-update:semver-major"]
+      # Kotlin 2.4+ needs coordinated KSP / AGP check
+      - dependency-name: "org.jetbrains.kotlin:*"
+        versions: [">=2.4.0"]
 
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+      day: monday
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

@@ -102,6 +102,7 @@ internal fun NoteDetailScreen(
     categorySuggestions: List<String> = emptyList(),
     richEditorEnabled: Boolean = false,
     api: JottyApi? = null,
+    isOnline: Boolean = true,
 ) {
     val detailVm: NoteDetailViewModel =
         viewModel(
@@ -323,10 +324,11 @@ internal fun NoteDetailScreen(
     }
 
     val placeholderHint =
-        if (hasBiometricPassphrase) {
-            stringResource(R.string.enter_passphrase_or_biometric)
-        } else {
-            stringResource(R.string.enter_passphrase_to_view)
+        when {
+            !isOnline && isEncrypted && !isDecrypted && !hasBiometricPassphrase ->
+                stringResource(R.string.encrypted_note_offline_hint)
+            hasBiometricPassphrase -> stringResource(R.string.enter_passphrase_or_biometric)
+            else -> stringResource(R.string.enter_passphrase_to_view)
         }
 
     Scaffold(

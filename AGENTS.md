@@ -45,8 +45,9 @@ app/src/main/java/com/jotty/android/
 
 - **Single source of truth:** `gradle.properties` — `VERSION_NAME` and `VERSION_CODE`. The app reads these; `BuildConfig` is generated from them (`buildConfig = true` in `app/build.gradle.kts`).
 - **Changelog (required for code changes):** When you add, change, or fix user-visible behavior, **always update `CHANGELOG.md`** in the same work session. Add bullets under the top **`[dev-latest]`** section, using **Added** / **Changed** / **Fixed** / **Documentation** as in [Keep a Changelog](https://keepachangelog.com/). Write concise, user-facing lines (not commit diffs). Skip only trivial refactors with no behavioral impact. Stable releases promote that section via `release.ps1` / `release.sh`.
-- **Releasing:** `release.ps1` / `release.sh` bumps `gradle.properties` and promotes `CHANGELOG.md` `[dev-latest]` to a dated stable section, then resets an empty `[dev-latest]` header; commit on `dev`, then `scripts/publish-release.ps1` (or `.sh`) pushes `dev`, merges `dev`→`main` via PR, and `gh release create vX.Y.Z` (triggers APK workflow). `sync-dev-with-main.yml` fast-forwards `dev` after `main` updates. Dev APKs use `VERSION_NAME` + `-dev+<short-sha>` (`DEV_BUILD_SHA` in CI).
-- **GitHub release APK:** The `release-apk` workflow attaches **`jotty-android-{VERSION_NAME}.apk`** when signing secrets are set (`ANDROID_KEYSTORE_*` in `keystore.properties.example`); otherwise **`jotty-android-{VERSION_NAME}-debug.apk`**. Same release keystore is required for in-place updates (issue #9). Local release builds use `keystore.properties`.
+- **Stable releasing:** `release.ps1` / `release.sh` bumps `gradle.properties` and promotes `CHANGELOG.md` `[dev-latest]` to a dated stable section; commit on `dev`, then `scripts/publish-release.ps1 -LocalBuild` (or `.sh --local-build`) pushes, merges, creates the GitHub release, and uploads the APK locally. Branch sync: `scripts/sync-dev-with-main.ps1`. See [docs/LOCAL_CI.md](docs/LOCAL_CI.md). GitHub Actions workflows are **manual-only** (`workflow_dispatch`); day-to-day builds use local scripts.
+- **Dev builds (rolling [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)):** Built and published **locally** (no Actions). One-time per clone: `scripts/setup-repo-git.ps1` / `.sh` (sets `core.hooksPath` to `.githooks` and force-fetch for the moving `dev-latest` tag). After that, **`git push origin dev`** triggers `.githooks/pre-push`, which runs `scripts/lib/wait-and-publish-dev.sh` in the background → `scripts/publish-dev-latest.ps1` / `.sh` (build via `build-dev-apk`, upload with `gh`). Log: `.git/jotty-dev-publish.log`. Skip once: `git push --no-verify`; disable: `git config jotty.autoPublishDev false`; wrapper: `scripts/push-dev.ps1` / `.sh` (`-SkipPublish` / `--skip-publish`). Manual fallback: `publish-dev-latest` only. Dev APK `versionName` suffix `-dev+<7-char-sha>`; `versionCode` = `VERSION_CODE * 10000 + git rev-list count % 10000` (see `build-dev-apk` and `-PDEV_BUILD_SHA` in `app/build.gradle.kts`).
+- **GitHub release APK:** Local builds attach **`jotty-android-{VERSION_NAME}.apk`** when `keystore.properties` is present; otherwise **`*-debug.apk`**. Same release keystore is required for in-place updates (issue #9). The `release-apk` workflow (manual-only) mirrors this when Actions secrets are set.
 
 ## Build and run
 
@@ -104,11 +105,14 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 | App version in UI          | `gradle.properties` + BuildConfig      |
 | Strings / i18n             | `res/values/strings.xml`               |
 | Release history             | `CHANGELOG.md`                         |
+| Local CI / dev APK publish  | `scripts/ci-local.*`, `scripts/build-dev-apk.*`, `scripts/publish-dev-latest.*`, `scripts/push-dev.*`, `scripts/lib/wait-and-publish-dev.sh`, `.githooks/pre-push`, `scripts/setup-repo-git.*` — [docs/LOCAL_CI.md](docs/LOCAL_CI.md) |
+| Stable release publish      | `release.ps1` / `release.sh`, `scripts/publish-release.*`, `scripts/build-release-apk.*` |
 | Project documentation       | `docs/` — see [docs/README.md](docs/README.md) |
 
 ## Tips for agents
 
 - **Update `CHANGELOG.md`** whenever you ship meaningful app changes (see **Changelog** under Version and releases); do not leave this for the user to ask.
+- **Dev-latest publishing** runs on the pusher’s machine via the pre-push hook (not on GitHub). When changing release/build scripts or hook behaviour, keep `publish-dev-latest`, `build-dev-apk`, and `wait-and-publish-dev` in sync; document new skip flags or config keys in `docs/LOCAL_CI.md` and here.
 - Prefer suggesting better approaches instead of only following instructions literally.
 - Keep code DRY: extract reusable composables into `ui/common/` and helpers, reuse API and encryption logic.
 - When adding features that touch the API, check `JottyApi.kt` and `models.kt` for existing patterns and types.

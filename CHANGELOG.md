@@ -6,29 +6,37 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+---
+
+## [1.7.0] - 2026-06-17
+
 ### Added
 
-- **Auto dev-latest on push** — After `setup-repo-git`, a pre-push hook builds and publishes the rolling [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) release locally when you push to `dev` (no GitHub Actions). Log: `.git/jotty-dev-publish.log`; skip with `git push --no-verify` or `git config jotty.autoPublishDev false`.
-- **Kanban item rich fields** — On Jotty servers with expanded item REST support (develop+), task detail lets you edit priority, score, start/target dates, estimated time, and view metadata (created/modified, status history). Description read-back works on supported servers. Older servers keep disabled placeholders ([#52](https://github.com/Darknetzz/jotty-android/issues/52)).
-- **Local CI and builds** — Run tests, lint, ktlint, and APK builds on your machine instead of GitHub Actions: `scripts/ci-local.ps1`, `build-dev-apk`, `build-release-apk`, and `publish-dev-latest`. See [docs/LOCAL_CI.md](docs/LOCAL_CI.md). GitHub workflows are manual-only; use `publish-release.ps1 -LocalBuild` for stable releases without Actions.
-
+- **Kanban item rich fields** — On Jotty servers with expanded item REST support (develop+), task detail lets you edit priority, score, start/target dates, estimated time, and view metadata (created/modified, status history). Description read-back works on supported servers. Older servers keep disabled placeholders (see [server compatibility](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 - **Pending sync badge** — Notes and checklists with unsynced local changes show a compact **Pending sync** badge on list cards.
 - **Encrypted note offline hint** — Opening an encrypted note while offline (without a remembered passphrase) shows a dedicated explanation instead of the generic decrypt prompt alone.
 - **Offline category filter snackbar** — Selecting a category with no items on this device yet shows a snackbar prompting sync when online.
+- **WYSIWYG editor toolbar** — Formatting actions use compact icon buttons in a scrollable row (underline, strikethrough, code, quote, image, table); toolbar buttons highlight based on the current cursor/selection formatting.
 
-### Fixed
+### Changed
 
-- **Dev-latest publish scripts** — PowerShell `gh release create` now uses `--notes-file` (multiline notes no longer break the command) and reads the APK path from build script output; bash build script emits the path on stdout only. Git Bash hook builds now unescape Windows `sdk.dir` paths in `local.properties`. — Formatting actions use compact icon buttons (matching the markdown toolbar) in a scrollable row so controls no longer clip off-screen; added underline, strikethrough, code, quote, image, and table actions. Toolbar buttons now highlight based on the current cursor/selection formatting.
-- **Dependencies** — Bumped Coil (2.7), Bouncy Castle (1.84), Activity Compose (1.13), reorderable (3.1.0), and AndroidX test runner (1.7.0). Kept core-ktx 1.18 (1.19 needs compileSdk 37), OkHttp 4.x, ktlint 12.x, and Kotlin 2.3.x until coordinated upgrades.
-- **Dependabot** — Grouped weekly Gradle and GitHub Actions updates into one PR per ecosystem (plus a separate major-version group); ignore rules skip blocked core-ktx, ktlint 14+, OkHttp 5, and Kotlin 2.4+ until ready.
-- **Architecture** — Extracted `SettingsViewModel`, `SetupViewModel`, and `ChecklistDetailViewModel`; notes list passes per-note unlock state to avoid recomposition on every decrypt.
 - **Checklist auto-emoji** — Keyword emoji prefixes apply to simple checklists only; project/Kanban boards, list view, and task detail no longer show auto-emoji (manual emoji in item text still renders).
+- **Dependencies** — Bumped Coil (2.7), Bouncy Castle (1.84), Activity Compose (1.13), reorderable (3.1.0), and AndroidX test runner (1.7.0). Kept core-ktx 1.18 (1.19 needs compileSdk 37), OkHttp 4.x, ktlint 12.x, and Kotlin 2.3.x until coordinated upgrades.
 
 ### Fixed
 
 - **TalkBack** — Kanban card menu and item-detail delete actions expose content descriptions.
+- **Dev-latest publish scripts** — PowerShell `gh release create` now uses `--notes-file` (multiline notes no longer break the command) and reads the APK path from build script output; bash build script emits the path on stdout only. Git Bash hook builds now unescape Windows `sdk.dir` paths in `local.properties`.
+
+### Documentation
+
+- **Auto dev-latest on push** — After `setup-repo-git`, a pre-push hook builds and publishes the rolling [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) release locally when you push to `dev` (no GitHub Actions). Log: `.git/jotty-dev-publish.log`; skip with `git push --no-verify` or `git config jotty.autoPublishDev false`.
+- **Local CI and builds** — Run tests, lint, ktlint, and APK builds on your machine instead of GitHub Actions: `scripts/ci-local.ps1`, `build-dev-apk`, `build-release-apk`, and `publish-dev-latest`. See [docs/LOCAL_CI.md](docs/LOCAL_CI.md). GitHub workflows are manual-only; use `publish-release.ps1 -LocalBuild` for stable releases without Actions.
+- **Dependabot** — Grouped weekly Gradle and GitHub Actions updates into one PR per ecosystem (plus a separate major-version group); ignore rules skip blocked core-ktx, ktlint 14+, OkHttp 5, and Kotlin 2.4+ until ready.
+
 
 ---
+
 ## [1.6.0] - 2026-06-09
 
 ### Added
@@ -969,3 +977,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.5.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.2
 
 [1.6.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.6.0
+
+[1.7.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.0

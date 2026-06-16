@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Stable release publish** — `publish-release.ps1 -LocalBuild` reads the APK path from the last line of build script output so Gradle logs no longer break `gh release upload`.
+
 ---
 
 ## [1.7.0] - 2026-06-17

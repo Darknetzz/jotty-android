@@ -218,6 +218,42 @@ class NoteDetailViewModelTest {
     }
 
     @Test
+    fun resolvePlaintextForEncrypt_encryptedNote_usesDecryptedNotCiphertext() {
+        val ciphertext =
+            "---\nencrypted: true\nencryptionMethod: xchacha\n---\n" +
+                """{"alg":"xchacha20","salt":"aa","nonce":"bb","data":"cc"}"""
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Secrets",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = ciphertext,
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+            )
+        assertNull(vm.resolvePlaintextForEncrypt())
+        vm.onDecrypted("Edited body", passphrase = "my-long-passphrase".toCharArray())
+        assertEquals("Edited body", vm.resolvePlaintextForEncrypt())
+    }
+
+    @Test
     fun onDecrypted_storesPassphraseInSession() {
         val note =
             Note(

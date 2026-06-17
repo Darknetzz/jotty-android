@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Encrypted note save corrupting ciphertext** — Saving an edited encrypted note no longer re-encrypts the stored ciphertext when session plaintext is missing (e.g. visual editor not flushed, or unlock state lost). Re-encrypt now requires decrypted body text; frontmatter titles with `---` or colons are YAML-quoted so the encrypted JSON body is not truncated on parse.
 - **Stable release publish** — `publish-release.ps1 -LocalBuild` reads the APK path from the last line of build script output so Gradle logs no longer break `gh release upload`.
 
 ---

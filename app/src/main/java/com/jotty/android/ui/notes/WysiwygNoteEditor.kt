@@ -67,6 +67,7 @@ internal fun WysiwygNoteEditor(
     onCategoryChange: ((String) -> Unit)? = null,
     categorySuggestions: List<String> = emptyList(),
     showHtmlSaveHint: Boolean = false,
+    onEditorWebView: (android.webkit.WebView?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var editorWebView by remember { mutableStateOf<WebView?>(null) }
@@ -128,7 +129,10 @@ internal fun WysiwygNoteEditor(
             borderColor = borderColor,
             onContentChange = onContentChange,
             onFormatStateChange = { formatState = it },
-            onWebViewReady = { editorWebView = it },
+            onWebViewReady = {
+                editorWebView = it
+                onEditorWebView(it)
+            },
             modifier =
                 Modifier
                     .fillMaxWidth()

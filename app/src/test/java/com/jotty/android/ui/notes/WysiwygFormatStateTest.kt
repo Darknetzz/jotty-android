@@ -49,4 +49,10 @@ class WysiwygFormatStateTest {
         val raw = "\"{\\\"bold\\\":true,\\\"italic\\\":false}\""
         assertEquals("{\"bold\":true,\"italic\":false}", parseWebViewJsonResult(raw))
     }
+
+    @Test
+    fun parseWebViewJsonResult_decodesUnicodeEscapedHtml() {
+        val raw = "\"\\u003Ctable\\u003E\\u003Ctd\\u003E\""
+        assertEquals("<table><td>", parseWebViewJsonResult(raw))
+    }
 }

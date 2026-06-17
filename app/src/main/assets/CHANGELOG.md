@@ -8,6 +8,15 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ---
 
+## [1.7.2] - 2026-06-17
+
+### Fixed
+
+- **Visual editor save mangling HTML** — Saving an encrypted note from the WYSIWYG editor no longer stores literal `\u003C` / `\u003E` instead of `<` / `>`; `evaluateJavascript` results are fully JSON-decoded before encrypt. Notes already saved with escaped HTML display correctly after decrypt and can be re-saved to repair the server copy.
+
+
+---
+
 ## [1.7.1] - 2026-06-17
 
 ### Fixed
@@ -991,3 +1000,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.7.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.0
 
 [1.7.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.1
+
+[1.7.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.2

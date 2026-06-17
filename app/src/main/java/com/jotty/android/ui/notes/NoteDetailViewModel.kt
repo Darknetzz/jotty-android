@@ -13,6 +13,7 @@ import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.data.encryption.copyTrimmedOrNull
 import com.jotty.android.util.AppLog
+import com.jotty.android.util.decodeJsonUnicodeEscapes
 import com.jotty.android.util.stripInvisibleFromEdges
 import com.jotty.android.util.stripInvisibleUnicode
 import kotlinx.coroutines.Dispatchers
@@ -118,7 +119,11 @@ class NoteDetailViewModel(
     fun loadSessionDecryptedContent() {
         val cached =
             NoteDecryptionSession.get(activeNoteId)
-                ?.let { stripInvisibleUnicode(stripInvisibleFromEdges(it)) }
+                ?.let {
+                    decodeJsonUnicodeEscapes(
+                        stripInvisibleUnicode(stripInvisibleFromEdges(it)),
+                    )
+                }
                 ?.takeIf { it.isNotBlank() }
         _decryptedContent.value = cached
         if (cached == null) {
@@ -217,7 +222,10 @@ class NoteDetailViewModel(
         usedLegacyDataOrder: Boolean = false,
         passphrase: CharArray? = null,
     ) {
-        val cleaned = stripInvisibleUnicode(stripInvisibleFromEdges(plain))
+        val cleaned =
+            decodeJsonUnicodeEscapes(
+                stripInvisibleUnicode(stripInvisibleFromEdges(plain)),
+            )
         if (cleaned.isBlank()) {
             _decryptedContent.value = null
             NoteDecryptionSession.remove(activeNoteId)
@@ -431,7 +439,7 @@ class NoteDetailViewModel(
                 isEncrypted -> _decryptedContent.value
                 else -> displayContent ?: _content.value
             } ?: return null
-        return stripInvisibleUnicode(stripInvisibleFromEdges(raw))
+        return stripInvisibleUnicode(stripInvisibleFromEdges(decodeJsonUnicodeEscapes(raw)))
     }
 
     class Factory(

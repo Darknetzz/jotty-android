@@ -49,6 +49,20 @@ fun stripInvisibleFromEdges(s: String): String {
 }
 
 /**
+ * Decodes literal `\\uXXXX` sequences left in note text when [android.webkit.WebView.evaluateJavascript]
+ * results were not fully JSON-unescaped (e.g. HTML saved as `\u003Ctable` instead of `<table>`).
+ * No-op when the string contains no such escapes.
+ */
+fun decodeJsonUnicodeEscapes(s: String): String {
+    if (!s.contains("\\u")) return s
+    return JSON_UNICODE_ESCAPE.replace(s) { match ->
+        match.groupValues[1].toInt(16).toChar().toString()
+    }
+}
+
+private val JSON_UNICODE_ESCAPE = Regex("""\\u([0-9a-fA-F]{4})""")
+
+/**
  * Formats an ISO-style date string (e.g. from API) for display.
  * Returns date part only (YYYY-MM-DD) when possible, otherwise first 10 chars.
  */

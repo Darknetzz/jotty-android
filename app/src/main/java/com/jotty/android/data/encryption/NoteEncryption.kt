@@ -45,7 +45,7 @@ object NoteEncryption {
         // 1) Frontmatter format: --- ... encrypted: true ... --- \n body
         if (trimmed.startsWith(FRONTMATTER_START)) {
             val afterFirst = trimmed.substring(FRONTMATTER_START.length)
-            val endOfFront = afterFirst.indexOf(FRONTMATTER_END)
+            val endOfFront = findFrontmatterEnd(afterFirst)
             if (endOfFront != -1) {
                 val frontmatterStr = afterFirst.substring(0, endOfFront).trim().replace("\r\n", "\n").replace("\r", "\n")
                 val body = afterFirst.substring(endOfFront + FRONTMATTER_END.length).trim()
@@ -81,4 +81,14 @@ object NoteEncryption {
      * Returns true if [content] is an encrypted note (frontmatter or encrypted JSON body).
      */
     fun isEncrypted(content: String): Boolean = parse(content) is ParsedNoteContent.Encrypted
+
+    /**
+     * Closing `---` must be on its own line so titles/values containing `---` do not truncate the body.
+     */
+    private fun findFrontmatterEnd(afterOpeningDelimiter: String): Int {
+        val normalized = afterOpeningDelimiter.replace("\r\n", "\n").replace("\r", "\n")
+        val regex = Regex("""\n---(?:\n|$)""")
+        val match = regex.find(normalized) ?: return -1
+        return match.range.first + 1 // skip leading newline; points at closing ---
+    }
 }

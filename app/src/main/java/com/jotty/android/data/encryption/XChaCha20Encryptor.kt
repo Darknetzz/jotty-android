@@ -89,6 +89,7 @@ object XChaCha20Encryptor {
 
     /**
      * Builds full note content with YAML frontmatter for Jotty (encrypted: true, encryptionMethod: xchacha).
+     * Title and uuid are quoted when needed so values containing `---` or colons do not break parsing.
      */
     fun wrapWithFrontmatter(
         noteId: String,
@@ -96,15 +97,32 @@ object XChaCha20Encryptor {
         category: String,
         encryptedBodyJson: String,
     ): String {
+        val safeUuid = yamlScalar(noteId)
+        val safeTitle = yamlScalar(noteTitle)
         return """
             |---
-            |uuid: $noteId
-            |title: $noteTitle
+            |uuid: $safeUuid
+            |title: $safeTitle
             |encrypted: true
             |encryptionMethod: xchacha
             |---
             |$encryptedBodyJson
             """.trimMargin()
+    }
+
+    /** YAML scalar for frontmatter; double-quoted when special characters would confuse [NoteEncryption.parse]. */
+    internal fun yamlScalar(value: String): String {
+        if (value.isEmpty()) return "\"\""
+        val needsQuotes =
+            value.any { it == '\n' || it == '\r' || it == ':' || it == '#' } ||
+                value.contains("---") ||
+                value != value.trim() ||
+                value.any { it == '"' || it == '\\' }
+        return if (needsQuotes) {
+            "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+        } else {
+            value
+        }
     }
 
     /**

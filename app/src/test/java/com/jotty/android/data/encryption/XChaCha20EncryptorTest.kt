@@ -11,6 +11,33 @@ import java.util.Base64
 @Config(sdk = [34])
 class XChaCha20EncryptorTest {
     @Test
+    fun `wrapWithFrontmatter quotes title containing frontmatter delimiter`() {
+        val body = """{"alg":"xchacha20","salt":"abc","nonce":"def","data":"ghi"}"""
+        val wrapped =
+            XChaCha20Encryptor.wrapWithFrontmatter(
+                "note-1",
+                "Section --- notes",
+                "Work",
+                body,
+            )
+        val parsed = NoteEncryption.parse(wrapped)
+        assertTrue(parsed is ParsedNoteContent.Encrypted)
+        val enc = parsed as ParsedNoteContent.Encrypted
+        assertEquals(body, enc.encryptedBody)
+        assertEquals("Section --- notes", enc.frontmatter.title)
+    }
+
+    @Test
+    fun `yamlScalar leaves simple titles unquoted`() {
+        assertEquals("My Title", XChaCha20Encryptor.yamlScalar("My Title"))
+    }
+
+    @Test
+    fun `yamlScalar quotes titles with colons`() {
+        assertEquals("\"My: Title\"", XChaCha20Encryptor.yamlScalar("My: Title"))
+    }
+
+    @Test
     fun `wrapWithFrontmatter produces valid YAML frontmatter`() {
         val body = """{"alg":"xchacha20","salt":"abc","nonce":"def","data":"ghi"}"""
         val result = XChaCha20Encryptor.wrapWithFrontmatter("note-1", "My Title", "Work", body)

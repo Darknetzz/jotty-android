@@ -138,6 +138,7 @@ internal fun NoteDetailScreen(
     var noteEditMode by rememberSaveable(note.id) { mutableStateOf(NoteEditMode.Markdown) }
     var editorReloadNonce by rememberSaveable(note.id) { mutableIntStateOf(0) }
     var wysiwygWebView by remember(note.id) { mutableStateOf<WebView?>(null) }
+    var wysiwygBridge by remember(note.id) { mutableStateOf<WysiwygEditorBridge?>(null) }
 
     fun currentEditBody(): String = if (isEncrypted) decryptedContent.orEmpty() else content
 
@@ -149,9 +150,9 @@ internal fun NoteDetailScreen(
         }
     }
 
-    fun initiateEncryptedSave() {
-        if (noteEditMode == NoteEditMode.Visual) {
-            getWysiwygContent(wysiwygWebView) { html ->
+    fun initiateEncryptedSave(flushVisualEditor: Boolean = true) {
+        if (flushVisualEditor && noteEditMode == NoteEditMode.Visual) {
+            flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
                 setEditBody(html)
                 detailVm.showEncryptDialog()
             }
@@ -417,6 +418,11 @@ internal fun NoteDetailScreen(
                             }
                         }
                     } else if (isEncrypted && isDecrypted) {
+                        if (!saving && !isEncrypting) {
+                            IconButton(onClick = { initiateEncryptedSave(flushVisualEditor = false) }) {
+                                Icon(Icons.Default.Save, contentDescription = stringResource(R.string.cd_save))
+                            }
+                        }
                         IconButton(
                             onClick = {
                                 detailVm.lockNote()
@@ -503,7 +509,7 @@ internal fun NoteDetailScreen(
                                     text = { Text(stringResource(R.string.reencrypt)) },
                                     onClick = {
                                         menuExpanded = false
-                                        detailVm.showEncryptDialog()
+                                        initiateEncryptedSave(flushVisualEditor = false)
                                     },
                                     leadingIcon = {
                                         Icon(Icons.Default.Lock, contentDescription = null)
@@ -583,6 +589,7 @@ internal fun NoteDetailScreen(
                                     categorySuggestions = categorySuggestions,
                                     showHtmlSaveHint = noteContentContainsRawHtml(editBody),
                                     onEditorWebView = { wysiwygWebView = it },
+                                    onEditorBridge = { wysiwygBridge = it },
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             NoteEditMode.Markdown ->

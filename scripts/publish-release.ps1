@@ -213,7 +213,10 @@ if (-not $SkipRelease) {
         Write-Host "Release: https://github.com/Darknetzz/jotty-android/releases/tag/$tag"
         if ($LocalBuild) {
             Write-Host "Building release APK locally..."
-            $apkPath = & (Join-Path $repoRoot "scripts/build-release-apk.ps1") -OutputDir $repoRoot
+            $apkPath = & (Join-Path $repoRoot "scripts/build-release-apk.ps1") -OutputDir $repoRoot | Select-Object -Last 1
+            if (-not (Test-Path -LiteralPath $apkPath)) {
+                throw "Build did not produce APK at: $apkPath"
+            }
             Write-Host "Uploading $apkPath to $tag..."
             gh release upload $tag $apkPath --clobber
             Write-Host "APK attached to release."

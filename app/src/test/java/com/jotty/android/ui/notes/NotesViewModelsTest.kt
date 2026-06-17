@@ -6,7 +6,11 @@ import androidx.test.core.app.ApplicationProvider
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteDecryptionSession
+import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.NotePassphraseSession
+import com.jotty.android.data.encryption.ParsedNoteContent
+import com.jotty.android.data.encryption.XChaCha20Decryptor
+import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.data.local.FakeJottyApi
 import com.jotty.android.data.local.JottyDatabase
@@ -15,6 +19,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -215,6 +220,100 @@ class NoteDetailViewModelTest {
         assertNull(vm.decryptedContent.value)
         assertNull(NoteDecryptionSession.get(note.id))
         assertNull(NotePassphraseSession.get(note.id))
+    }
+
+    private fun encryptedNoteViewModel(content: String): NoteDetailViewModel {
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Secret --- note",
+                category = "Work",
+                content = content,
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        return NoteDetailViewModel(
+            note,
+            object : NoteDetailActions {
+                override suspend fun updateNote(
+                    noteId: String,
+                    title: String,
+                    content: String,
+                    category: String,
+                    originalCategory: String,
+                ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                override suspend fun deleteNote(noteId: String): Result<Unit> =
+                    Result.failure(UnsupportedOperationException())
+            },
+        )
+    }
+
+    @Test
+    fun verifyEncryptRoundTrip_acceptsFreshlyEncryptedBodyWithDelimiterTitle() {
+        val passphrase = "my secure passphrase 123"
+        val plaintext = "Edited body with a title containing --- delimiters"
+        val body = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val wrapped = XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret --- note", "Work", body)
+        val vm = encryptedNoteViewModel(wrapped)
+
+        assertTrue(
+            "freshly encrypted body must round-trip decrypt to the same plaintext",
+            vm.verifyEncryptRoundTrip(body, wrapped, plaintext, passphrase.toCharArray()),
+        )
+        // Sanity: the wrapped form still parses as encrypted and decrypts independently.
+        val parsed = NoteEncryption.parse(wrapped)
+        assertTrue(parsed is ParsedNoteContent.Encrypted)
+        assertEquals(plaintext, XChaCha20Decryptor.decrypt((parsed as ParsedNoteContent.Encrypted).encryptedBody, passphrase))
+    }
+
+    @Test
+    fun verifyEncryptRoundTrip_rejectsTamperedBody() {
+        val passphrase = "my secure passphrase 123"
+        val plaintext = "Edited body"
+        val body = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val wrapped = XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", body)
+        val vm = encryptedNoteViewModel(wrapped)
+
+        // Wrong expected plaintext simulates a body that does not match what we intended to save.
+        assertFalse(vm.verifyEncryptRoundTrip(body, wrapped, "different plaintext", passphrase.toCharArray()))
+    }
+
+    @Test
+    fun resolvePlaintextForEncrypt_encryptedNote_usesDecryptedNotCiphertext() {
+        val ciphertext =
+            "---\nencrypted: true\nencryptionMethod: xchacha\n---\n" +
+                """{"alg":"xchacha20","salt":"aa","nonce":"bb","data":"cc"}"""
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Secrets",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = ciphertext,
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+            )
+        assertNull(vm.resolvePlaintextForEncrypt())
+        vm.onDecrypted("Edited body", passphrase = "my-long-passphrase".toCharArray())
+        assertEquals("Edited body", vm.resolvePlaintextForEncrypt())
     }
 
     @Test

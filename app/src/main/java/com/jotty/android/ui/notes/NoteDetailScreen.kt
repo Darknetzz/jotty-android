@@ -1,6 +1,7 @@
 package com.jotty.android.ui.notes
 
 import android.content.ClipData
+import android.webkit.WebView
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -136,6 +137,7 @@ internal fun NoteDetailScreen(
 
     var noteEditMode by rememberSaveable(note.id) { mutableStateOf(NoteEditMode.Markdown) }
     var editorReloadNonce by rememberSaveable(note.id) { mutableIntStateOf(0) }
+    var wysiwygWebView by remember(note.id) { mutableStateOf<WebView?>(null) }
 
     fun currentEditBody(): String = if (isEncrypted) decryptedContent.orEmpty() else content
 
@@ -144,6 +146,17 @@ internal fun NoteDetailScreen(
             detailVm.setDecryptedContent(value)
         } else {
             detailVm.setContent(value)
+        }
+    }
+
+    fun initiateEncryptedSave() {
+        if (noteEditMode == NoteEditMode.Visual) {
+            getWysiwygContent(wysiwygWebView) { html ->
+                setEditBody(html)
+                detailVm.showEncryptDialog()
+            }
+        } else {
+            detailVm.showEncryptDialog()
         }
     }
 
@@ -391,7 +404,7 @@ internal fun NoteDetailScreen(
                             IconButton(
                                 onClick = {
                                     if (isEncrypted) {
-                                        detailVm.showEncryptDialog()
+                                        initiateEncryptedSave()
                                     } else {
                                         detailVm.saveEdit(
                                             onSuccess = onUpdate,
@@ -569,6 +582,7 @@ internal fun NoteDetailScreen(
                                     onCategoryChange = { detailVm.setCategory(it) },
                                     categorySuggestions = categorySuggestions,
                                     showHtmlSaveHint = noteContentContainsRawHtml(editBody),
+                                    onEditorWebView = { wysiwygWebView = it },
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             NoteEditMode.Markdown ->
@@ -653,6 +667,7 @@ internal fun NoteDetailScreen(
 
     if (showEncryptDialog) {
         val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
+        val encryptNoPlaintextMsg = stringResource(R.string.error_encrypt_no_plaintext)
         val reEncryptMode = isEncrypted && detailVm.hasSessionPassphrase()
         EncryptNoteDialog(
             onDismiss = { detailVm.dismissEncryptDialog() },
@@ -664,6 +679,7 @@ internal fun NoteDetailScreen(
                     encryptFailedMsg,
                     onSuccess = onUpdate,
                     onFailure = onSaveFailed,
+                    encryptNoPlaintextMsg = encryptNoPlaintextMsg,
                 )
             },
             onEncrypt = { passChars ->
@@ -672,6 +688,7 @@ internal fun NoteDetailScreen(
                     encryptFailedMsg,
                     onSuccess = onUpdate,
                     onFailure = onSaveFailed,
+                    encryptNoPlaintextMsg = encryptNoPlaintextMsg,
                 )
             },
         )

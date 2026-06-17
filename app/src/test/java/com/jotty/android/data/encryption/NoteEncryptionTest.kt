@@ -106,6 +106,26 @@ class NoteEncryptionTest {
         assertTrue(result is ParsedNoteContent.Encrypted)
     }
 
+    @Test
+    fun `parse handles title containing frontmatter delimiter`() {
+        val body = """{"alg":"xchacha20","salt":"abc","nonce":"def","data":"ghi"}"""
+        val content =
+            """
+            |---
+            |uuid: note-1
+            |title: "Section --- notes"
+            |encrypted: true
+            |encryptionMethod: xchacha
+            |---
+            |$body
+            """.trimMargin()
+        val result = NoteEncryption.parse(content)
+        assertTrue(result is ParsedNoteContent.Encrypted)
+        val enc = result as ParsedNoteContent.Encrypted
+        assertEquals(body, enc.encryptedBody)
+        assertEquals("Section --- notes", enc.frontmatter.title)
+    }
+
     // ── parse: body-only xchacha JSON ───────────────────────────────────────
 
     @Test

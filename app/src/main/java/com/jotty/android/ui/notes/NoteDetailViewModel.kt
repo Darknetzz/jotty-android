@@ -8,8 +8,10 @@ import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NotePassphraseSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
+import com.jotty.android.data.encryption.XChaCha20Decryptor
 import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.data.encryption.clearPassphrase
+import com.jotty.android.data.encryption.copyTrimmedOrNull
 import com.jotty.android.util.AppLog
 import com.jotty.android.util.stripInvisibleFromEdges
 import com.jotty.android.util.stripInvisibleUnicode
@@ -156,13 +158,14 @@ class NoteDetailViewModel(
         encryptFailedMsg: String,
         onSuccess: (Note) -> Unit,
         onFailure: () -> Unit,
+        encryptNoPlaintextMsg: String? = null,
     ) {
         val passChars = NotePassphraseSession.get(activeNoteId)
         if (passChars == null) {
             showEncryptDialog()
             return
         }
-        encrypt(passChars, encryptFailedMsg, onSuccess, onFailure)
+        encrypt(passChars, encryptFailedMsg, onSuccess, onFailure, encryptNoPlaintextMsg)
     }
 
     fun setTitle(value: String) {
@@ -227,8 +230,10 @@ class NoteDetailViewModel(
         _legacyEncryptionDetected.value = usedLegacyDataOrder
         sessionSourceFingerprint = contentFingerprint(_content.value)
         NoteDecryptionSession.put(activeNoteId, cleaned)
-        passphrase?.let { NotePassphraseSession.put(activeNoteId, it) }
-        passphrase?.clearPassphrase()
+        passphrase?.copyTrimmedOrNull()?.let { trimmed ->
+            NotePassphraseSession.put(activeNoteId, trimmed)
+            passphrase.clearPassphrase()
+        } ?: passphrase?.clearPassphrase()
         dismissDecryptDialog()
     }
 
@@ -272,14 +277,28 @@ class NoteDetailViewModel(
         encryptFailedMsg: String,
         onSuccess: (Note) -> Unit,
         onFailure: () -> Unit,
+        encryptNoPlaintextMsg: String? = null,
     ) {
         viewModelScope.launch {
             _encryptError.value = null
             _isEncrypting.value = true
-            val plainToEncrypt =
-                stripInvisibleUnicode(
-                    stripInvisibleFromEdges(displayContent ?: _content.value),
+            val plainToEncrypt = resolvePlaintextForEncrypt()
+            if (plainToEncrypt == null) {
+                _encryptError.value = encryptNoPlaintextMsg ?: encryptFailedMsg
+                passChars.clearPassphrase()
+                _isEncrypting.value = false
+                return@launch
+            }
+            if (isEncrypted && NoteEncryption.isEncrypted(plainToEncrypt)) {
+                AppLog.e(
+                    "encryption",
+                    "Refusing to re-encrypt ciphertext as plaintext for note $activeNoteId",
                 )
+                _encryptError.value = encryptNoPlaintextMsg ?: encryptFailedMsg
+                passChars.clearPassphrase()
+                _isEncrypting.value = false
+                return@launch
+            }
             try {
                 val body =
                     withContext(Dispatchers.Default) {
@@ -293,6 +312,21 @@ class NoteDetailViewModel(
                             _category.value,
                             body,
                         )
+                    // Safety net (issue #67): never push ciphertext we cannot read back.
+                    // Round-trip decrypt the freshly produced body (and the wrapped form) with the
+                    // same passphrase before saving; abort if it does not match the plaintext.
+                    val roundTripsOk =
+                        withContext(Dispatchers.Default) {
+                            verifyEncryptRoundTrip(body, fullContent, plainToEncrypt, passChars)
+                        }
+                    if (!roundTripsOk) {
+                        AppLog.e(
+                            "encryption",
+                            "Aborting save: re-encrypted note $activeNoteId failed local round-trip decrypt",
+                        )
+                        _encryptError.value = encryptFailedMsg
+                        return@launch
+                    }
                     val result =
                         actions.updateNote(
                             noteId = activeNoteId,
@@ -368,6 +402,37 @@ class NoteDetailViewModel(
 
     internal fun contentFingerprint(content: String): String =
         stripInvisibleFromEdges(content).hashCode().toString()
+
+    /**
+     * Decrypts the freshly produced [body] (and the frontmatter-wrapped [fullContent]) with [passChars]
+     * and confirms the result matches [expectedPlaintext]. Guards against pushing undecryptable ciphertext
+     * (issue #67). Uses passphrase copies so the caller's buffer survives for the session store.
+     */
+    internal fun verifyEncryptRoundTrip(
+        body: String,
+        fullContent: String,
+        expectedPlaintext: String,
+        passChars: CharArray,
+    ): Boolean {
+        val fromBody = XChaCha20Decryptor.decrypt(body, passChars.copyOf())
+        if (fromBody != expectedPlaintext) return false
+        val parsed = NoteEncryption.parse(fullContent) as? ParsedNoteContent.Encrypted ?: return false
+        val fromWrapped = XChaCha20Decryptor.decrypt(parsed.encryptedBody, passChars.copyOf())
+        return fromWrapped == expectedPlaintext
+    }
+
+    /**
+     * Plaintext to encrypt. Re-encrypting an already encrypted note must use session plaintext only —
+     * never [content] (ciphertext), which would produce an undecryptable note with the real passphrase.
+     */
+    internal fun resolvePlaintextForEncrypt(): String? {
+        val raw =
+            when {
+                isEncrypted -> _decryptedContent.value
+                else -> displayContent ?: _content.value
+            } ?: return null
+        return stripInvisibleUnicode(stripInvisibleFromEdges(raw))
+    }
 
     class Factory(
         private val note: Note,

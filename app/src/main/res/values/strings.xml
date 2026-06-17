@@ -333,7 +333,11 @@
     <string name="wysiwyg_table">Table</string>
     <string name="note_edit_mode_visual">Visual</string>
     <string name="note_edit_mode_markdown">Markdown</string>
-    <string name="rich_note_editor_description">Default to the visual editor when editing notes. You can always switch to markdown source while editing. HTML notes (tables, images from the web app) open in visual mode automatically.</string>
+    <string name="rich_note_editor_description">Experimental visual editor (WebView). Default for plain notes when enabled; encrypted and HTML-heavy notes open in Markdown source for safer editing.</string>
+    <string name="encrypted_note_visual_editor_warning">Encrypted note — visual editing is risky. Tables and HTML can be mangled when saving. Use Markdown source, or save from view mode (tap Save without Edit) to re-encrypt without opening the visual editor.</string>
+    <string name="encrypted_note_visual_editor_confirm_title">Use visual editor on this encrypted note?</string>
+    <string name="encrypted_note_visual_editor_confirm_message">The visual editor has corrupted encrypted notes that contain tables or HTML. Markdown source is strongly recommended. Only continue if you accept that risk.</string>
+    <string name="encrypted_note_visual_editor_confirm_continue">Use visual editor anyway</string>
     <string name="content_padding">Content padding</string>
     <string name="content_padding_description">Vertical spacing at top and bottom of screens</string>
     <string name="content_padding_comfortable">Comfortable</string>

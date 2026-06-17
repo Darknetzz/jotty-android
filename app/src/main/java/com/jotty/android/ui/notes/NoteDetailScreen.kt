@@ -139,6 +139,8 @@ internal fun NoteDetailScreen(
     var editorReloadNonce by rememberSaveable(note.id) { mutableIntStateOf(0) }
     var wysiwygWebView by remember(note.id) { mutableStateOf<WebView?>(null) }
     var wysiwygBridge by remember(note.id) { mutableStateOf<WysiwygEditorBridge?>(null) }
+    var encryptedVisualAcknowledged by rememberSaveable(note.id) { mutableStateOf(false) }
+    var showEncryptedVisualConfirm by remember { mutableStateOf(false) }
 
     fun currentEditBody(): String = if (isEncrypted) decryptedContent.orEmpty() else content
 
@@ -161,13 +163,21 @@ internal fun NoteDetailScreen(
         }
     }
 
-    fun onNoteEditModeChange(mode: NoteEditMode) {
-        if (mode == noteEditMode) return
-        if (mode == NoteEditMode.Markdown) {
+    fun applyNoteEditModeChange(mode: NoteEditMode) {
+        if (mode == NoteEditMode.Markdown && noteEditMode == NoteEditMode.Visual) {
             setEditBody(prepareWysiwygHtmlForMarkdown(currentEditBody()))
         }
         noteEditMode = mode
         editorReloadNonce++
+    }
+
+    fun onNoteEditModeChange(mode: NoteEditMode) {
+        if (mode == noteEditMode) return
+        if (mode == NoteEditMode.Visual && isEncrypted && isDecrypted && !encryptedVisualAcknowledged) {
+            showEncryptedVisualConfirm = true
+            return
+        }
+        applyNoteEditModeChange(mode)
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -250,6 +260,37 @@ internal fun NoteDetailScreen(
 
     LaunchedEffect(note.encrypted, content) {
         detailVm.logEncryptionState()
+    }
+
+    LaunchedEffect(isEditing, isEncrypted, encryptedVisualAcknowledged, noteEditMode) {
+        if (isEditing && isEncrypted && noteEditMode == NoteEditMode.Visual && !encryptedVisualAcknowledged) {
+            noteEditMode = NoteEditMode.Markdown
+            editorReloadNonce++
+        }
+    }
+
+    if (showEncryptedVisualConfirm) {
+        AlertDialog(
+            onDismissRequest = { showEncryptedVisualConfirm = false },
+            title = { Text(stringResource(R.string.encrypted_note_visual_editor_confirm_title)) },
+            text = { Text(stringResource(R.string.encrypted_note_visual_editor_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showEncryptedVisualConfirm = false
+                        encryptedVisualAcknowledged = true
+                        applyNoteEditModeChange(NoteEditMode.Visual)
+                    },
+                ) {
+                    Text(stringResource(R.string.encrypted_note_visual_editor_confirm_continue))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEncryptedVisualConfirm = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 
     if (showDeleteConfirm) {
@@ -426,6 +467,7 @@ internal fun NoteDetailScreen(
                         IconButton(
                             onClick = {
                                 detailVm.lockNote()
+                                encryptedVisualAcknowledged = false
                                 hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
                             },
                         ) {
@@ -439,13 +481,18 @@ internal fun NoteDetailScreen(
                     if (!isEditing && canEdit) {
                         IconButton(
                             onClick = {
-                                val body = currentEditBody()
-                                noteEditMode =
-                                    if (richEditorEnabled || noteNeedsRichEditor(body)) {
-                                        NoteEditMode.Visual
-                                    } else {
-                                        NoteEditMode.Markdown
-                                    }
+                                if (isEncrypted) {
+                                    encryptedVisualAcknowledged = false
+                                    noteEditMode = NoteEditMode.Markdown
+                                } else {
+                                    val body = currentEditBody()
+                                    noteEditMode =
+                                        if (richEditorEnabled || noteNeedsRichEditor(body)) {
+                                            NoteEditMode.Visual
+                                        } else {
+                                            NoteEditMode.Markdown
+                                        }
+                                }
                                 editorReloadNonce++
                                 detailVm.startEditing()
                             },
@@ -499,6 +546,7 @@ internal fun NoteDetailScreen(
                                     onClick = {
                                         menuExpanded = false
                                         detailVm.lockNote()
+                                        encryptedVisualAcknowledged = false
                                         hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
                                     },
                                     leadingIcon = {
@@ -575,6 +623,24 @@ internal fun NoteDetailScreen(
                             mode = noteEditMode,
                             onModeChange = ::onNoteEditModeChange,
                         )
+                        if (isEncrypted && noteEditMode == NoteEditMode.Visual) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                shape = MaterialTheme.shapes.small,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp),
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.encrypted_note_visual_editor_warning),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(4.dp))
                         when (noteEditMode) {
                             NoteEditMode.Visual ->

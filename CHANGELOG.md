@@ -8,6 +8,24 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ---
 
+## [1.7.4] - 2026-06-17
+
+### Apology
+
+We are sincerely sorry for the encrypted-note problems in v1.7.1–v1.7.3. Some of you lost access to notes you trusted us to keep safe, and that is on us. These hotfixes address undecryptable ciphertext, mangled HTML, unsafe visual-editor saves, and table display issues — but **notes already corrupted on your server cannot be repaired by a passphrase alone**; you may need a Jotty server backup. We should have been far more careful changing how encrypted notes are saved and tested before shipping multiple stable releases. This version adds stronger safeguards, defaults encrypted edits to Markdown, and warns before using the experimental visual editor on encrypted notes. Thank you for reporting the issues and for your patience.
+
+### Fixed
+
+- **HTML tables rendering as headers** — Jotty web HTML tables (including those wrapped in `<p>` or with `<p>` inside cells) now convert to GFM before other HTML→markdown processing, so cells no longer appear as stacked bold header text in the app reader.
+
+### Changed
+
+- **Stable release notes** — GitHub release descriptions no longer include the legacy debug-APK / mixed-signing install warning; in-app update messaging still covers that edge case.
+- **Visual editor on encrypted notes** — Encrypted notes always open in Markdown when editing; switching to Visual requires an explicit risk confirmation and shows a persistent warning banner. Settings copy marks the visual editor as experimental.
+
+
+---
+
 ## [1.7.3] - 2026-06-17
 
 ### Fixed
@@ -1013,3 +1031,5 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 [1.7.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.2
 
 [1.7.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.3
+
+[1.7.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.4

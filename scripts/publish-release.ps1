@@ -123,9 +123,7 @@ $releaseNotesPath = Join-Path $repoRoot ".gh-release-$Version.md"
 $installBlurb = @"
 ## Install
 
-Download **`jotty-android-$Version.apk`** from this release (release-signed when CI secrets are configured).
-
-**Updating from an older `*-debug.apk` or mixed signing?** Android may show "App not installed" — uninstall once, then install this APK. Your Jotty server data is unchanged.
+Download **`jotty-android-$Version.apk`** from this release.
 
 **Full changelog:** https://github.com/Darknetzz/jotty-android/blob/v$Version/CHANGELOG.md
 

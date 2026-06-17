@@ -6,13 +6,17 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Dev update check** — Dev channel no longer offers an in-app update when your installed dev build already has a higher version code than the published `dev-latest` APK (e.g. after a local build). Dev release notes include `VersionCode` for this check. Downgrade errors on the dev channel no longer say “stable APK”.
+
 ---
 
 ## [1.7.4] - 2026-06-17
 
 ### Apology
 
-We are sincerely sorry for the encrypted-note problems in v1.7.1–v1.7.3. Some of you lost access to notes you trusted us to keep safe, and that is on us. These hotfixes address undecryptable ciphertext, mangled HTML, unsafe visual-editor saves, and table display issues — but **notes already corrupted on your server cannot be repaired by a passphrase alone**; you may need a Jotty server backup. We should have been far more careful changing how encrypted notes are saved and tested before shipping multiple stable releases. This version adds stronger safeguards, defaults encrypted edits to Markdown, and warns before using the experimental visual editor on encrypted notes. Thank you for reporting the issues and for your patience.
+Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes undecryptable ciphertext, mangled HTML, unsafe visual-editor saves, and table display. **Notes already corrupted on your server cannot be repaired by passphrase alone** — you may need a Jotty server backup. Encrypted edits now default to Markdown, with a warning before the experimental visual editor.
 
 ### Fixed
 

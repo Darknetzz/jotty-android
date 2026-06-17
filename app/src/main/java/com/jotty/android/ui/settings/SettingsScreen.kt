@@ -855,7 +855,11 @@ private fun AboutDialog(
                                             downloadProgress = null
                                             when (
                                                 val result =
-                                                    UpdateChecker.downloadAndInstall(context, r.downloadUrl) { p ->
+                                                    UpdateChecker.downloadAndInstall(
+                                                        context,
+                                                        r.downloadUrl,
+                                                        parsedChannel,
+                                                    ) { p ->
                                                         downloadProgress = p
                                                     }
                                             ) {
@@ -932,7 +936,11 @@ private fun AboutDialog(
                                     downloadProgress = null
                                     when (
                                         val result =
-                                            UpdateChecker.downloadAndInstall(context, state.downloadUrl) { p ->
+                                            UpdateChecker.downloadAndInstall(
+                                                context,
+                                                state.downloadUrl,
+                                                parsedChannel,
+                                            ) { p ->
                                                 downloadProgress = p
                                             }
                                     ) {

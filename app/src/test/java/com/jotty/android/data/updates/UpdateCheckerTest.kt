@@ -103,6 +103,40 @@ class UpdateCheckerTest {
     }
 
     @Test
+    fun `versionCodeFromDevReleaseBody parses VersionCode line and table row`() {
+        val body =
+            """
+            Commit: abcdef0123456789abcdef0123456789abcdef01
+            VersionCode: 390431
+
+            | Item | Link |
+            | --- | --- |
+            | Version code | 390432 |
+            """.trimIndent()
+        assertEquals(390431, UpdateChecker.versionCodeFromDevReleaseBody(body))
+    }
+
+    @Test
+    fun `versionCodeFromDevReleaseBody returns null when missing`() {
+        assertNull(UpdateChecker.versionCodeFromDevReleaseBody(null))
+        assertNull(UpdateChecker.versionCodeFromDevReleaseBody("Commit: abcdef0"))
+    }
+
+    @Test
+    fun `isDevReleaseDownloadUrl detects dev-latest and dev apk names`() {
+        assertTrue(
+            UpdateChecker.isDevReleaseDownloadUrl(
+                "https://github.com/Darknetzz/jotty-android/releases/download/dev-latest/jotty-android-1.7.4-dev.apk",
+            ),
+        )
+        assertFalse(
+            UpdateChecker.isDevReleaseDownloadUrl(
+                "https://github.com/Darknetzz/jotty-android/releases/download/v1.7.4/jotty-android-1.7.4.apk",
+            ),
+        )
+    }
+
+    @Test
     fun `localDevBuildMatchesRemote matches when local short SHA prefixes remote full SHA`() {
         assertTrue(
             UpdateChecker.localDevBuildMatchesRemote(

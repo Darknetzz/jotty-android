@@ -30,16 +30,21 @@ if [[ ! -f "$APK_PATH" ]]; then
 fi
 SHA="$(git rev-parse HEAD)"
 SHORT_SHA="$(git rev-parse --short=7 HEAD)"
+BASE_CODE="$(grep -E '^VERSION_CODE=' gradle.properties | cut -d= -f2)"
+RUN_NUM="$(git rev-list --count HEAD)"
+DEV_CODE=$((BASE_CODE * 10000 + RUN_NUM % 10000))
 REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "OWNER/REPO")"
 
 BODY="Rolling pre-release build from \`dev\` (built locally).
 ⚠️ This preview build may contain unstable or breaking bugs.
 
 Commit: ${SHA}
+VersionCode: ${DEV_CODE}
 
 | Item | Link |
 | --- | --- |
 | Commit | [\`${SHORT_SHA}\`](https://github.com/${REPO}/commit/${SHA}) |
+| Version code | ${DEV_CODE} |
 | Changelog | [CHANGELOG.md](https://github.com/${REPO}/blob/dev/CHANGELOG.md) |"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then

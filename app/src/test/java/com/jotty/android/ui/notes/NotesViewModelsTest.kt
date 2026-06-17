@@ -281,6 +281,21 @@ class NoteDetailViewModelTest {
     }
 
     @Test
+    fun isUnsafePlaintextForEncrypt_detectsJsonEscapedHtmlAndCiphertext() {
+        val vm = encryptedNoteViewModel("cipher")
+        assertTrue(vm.isUnsafePlaintextForEncrypt("""\u003Ctable\u003E"""))
+        assertTrue(vm.isUnsafePlaintextForEncrypt("---\nencrypted: true\n---\n{}"))
+        assertFalse(vm.isUnsafePlaintextForEncrypt("<table><td>ok</td></table>"))
+    }
+
+    @Test
+    fun resolvePlaintextForEncrypt_decodesJsonEscapedHtmlBeforeEncrypt() {
+        val vm = encryptedNoteViewModel("cipher")
+        vm.onDecrypted("""\u003Ctable\u003E\u003Ctd\u003Ecell\u003C/td\u003E""")
+        assertEquals("<table><td>cell</td>", vm.resolvePlaintextForEncrypt())
+    }
+
+    @Test
     fun resolvePlaintextForEncrypt_encryptedNote_usesDecryptedNotCiphertext() {
         val ciphertext =
             "---\nencrypted: true\nencryptionMethod: xchacha\n---\n" +

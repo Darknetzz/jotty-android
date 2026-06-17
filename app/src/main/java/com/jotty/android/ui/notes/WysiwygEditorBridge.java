@@ -1,8 +1,11 @@
 package com.jotty.android.ui.notes;
 
+import android.os.Handler;
+import android.os.Looper;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 /** Notifies Kotlin when the user edits the WYSIWYG body. */
 final class WysiwygEditorBridge {
@@ -12,9 +15,11 @@ final class WysiwygEditorBridge {
         void onFormatStateChanged(String json);
     }
 
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final AtomicBoolean acceptChanges = new AtomicBoolean(false);
     private final AtomicBoolean userEdited = new AtomicBoolean(false);
     private final Listener listener;
+    private volatile Consumer<String> pendingSnapshot;
 
     WysiwygEditorBridge(Listener listener) {
         this.listener = listener;
@@ -32,6 +37,28 @@ final class WysiwygEditorBridge {
 
     void endLoad() {
         acceptChanges.set(true);
+    }
+
+    boolean wasEditedByUser() {
+        return userEdited.get();
+    }
+
+    /**
+     * Requests editor HTML via [deliverContentSnapshot] (no JSON return from evaluateJavascript).
+     * [callback] runs on the main thread.
+     */
+    void requestContentSnapshot(Consumer<String> callback) {
+        pendingSnapshot = callback;
+    }
+
+    @JavascriptInterface
+    public void deliverContentSnapshot(String html) {
+        Consumer<String> callback = pendingSnapshot;
+        pendingSnapshot = null;
+        if (callback != null) {
+            String safe = html != null ? html : "";
+            mainHandler.post(() -> callback.accept(safe));
+        }
     }
 
     @JavascriptInterface

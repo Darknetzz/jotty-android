@@ -68,9 +68,11 @@ internal fun WysiwygNoteEditor(
     categorySuggestions: List<String> = emptyList(),
     showHtmlSaveHint: Boolean = false,
     onEditorWebView: (android.webkit.WebView?) -> Unit = {},
+    onEditorBridge: (WysiwygEditorBridge?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var editorWebView by remember { mutableStateOf<WebView?>(null) }
+    var editorBridge by remember { mutableStateOf<WysiwygEditorBridge?>(null) }
     var formatState by remember(contentReloadKey) { mutableStateOf(WysiwygFormatState()) }
     // Snapshot HTML when entering visual mode; do not recompute when WYSIWYG sync updates [content].
     val editorHtml = remember(contentReloadKey) { prepareNoteContentForWysiwyg(content) }
@@ -132,6 +134,10 @@ internal fun WysiwygNoteEditor(
             onWebViewReady = {
                 editorWebView = it
                 onEditorWebView(it)
+            },
+            onBridgeReady = {
+                editorBridge = it
+                onEditorBridge(it)
             },
             modifier =
                 Modifier
@@ -242,6 +248,7 @@ private fun WysiwygWebEditor(
     onContentChange: (String) -> Unit,
     onFormatStateChange: (WysiwygFormatState) -> Unit,
     onWebViewReady: (WebView) -> Unit,
+    onBridgeReady: (WysiwygEditorBridge) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val documentHtml =
@@ -282,6 +289,7 @@ private fun WysiwygWebEditor(
                     settings.domStorageEnabled = false
                     settings.allowFileAccess = true
                     bridge.attachTo(this)
+                    onBridgeReady(bridge)
                     webViewClient =
                         object : WebViewClient() {
                             override fun onPageFinished(
@@ -310,8 +318,23 @@ private fun WysiwygWebEditor(
     }
 }
 
-fun getWysiwygContent(webView: WebView?, callback: (String) -> Unit) {
-    webView?.evaluateJavascript("getContent();") { result ->
-        callback(parseWebViewJsonResult(result).orEmpty())
+/**
+ * Reads WYSIWYG HTML for save. Uses [WysiwygEditorBridge.deliverContentSnapshot] so large bodies
+ * are not returned through evaluateJavascript JSON (which can mangle or truncate HTML).
+ * When the user did not edit in the visual editor, [sessionContent] is returned unchanged.
+ */
+internal fun flushWysiwygContentForSave(
+    webView: WebView?,
+    bridge: WysiwygEditorBridge?,
+    sessionContent: String,
+    callback: (String) -> Unit,
+) {
+    if (webView == null || bridge == null || !bridge.wasEditedByUser()) {
+        callback(sessionContent)
+        return
     }
+    bridge.requestContentSnapshot { html ->
+        callback(html)
+    }
+    webView.evaluateJavascript("AndroidBridge.deliverContentSnapshot(getContent());", null)
 }

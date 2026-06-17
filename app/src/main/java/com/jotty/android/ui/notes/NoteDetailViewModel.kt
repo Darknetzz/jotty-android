@@ -297,10 +297,11 @@ class NoteDetailViewModel(
                 _isEncrypting.value = false
                 return@launch
             }
-            if (isEncrypted && NoteEncryption.isEncrypted(plainToEncrypt)) {
+            if (isUnsafePlaintextForEncrypt(plainToEncrypt)) {
                 AppLog.e(
                     "encryption",
-                    "Refusing to re-encrypt ciphertext as plaintext for note $activeNoteId",
+                    "Refusing to encrypt unsafe plaintext for note $activeNoteId " +
+                        "(ciphertext or unresolved JSON unicode escapes)",
                 )
                 _encryptError.value = encryptNoPlaintextMsg ?: encryptFailedMsg
                 passChars.clearPassphrase()
@@ -439,8 +440,19 @@ class NoteDetailViewModel(
                 isEncrypted -> _decryptedContent.value
                 else -> displayContent ?: _content.value
             } ?: return null
-        return stripInvisibleUnicode(stripInvisibleFromEdges(decodeJsonUnicodeEscapes(raw)))
+        val cleaned = stripInvisibleUnicode(stripInvisibleFromEdges(decodeJsonUnicodeEscapes(raw)))
+        if (isUnsafePlaintextForEncrypt(cleaned)) return null
+        return cleaned
     }
+
+    /**
+     * Blocks encrypting ciphertext, evaluateJavascript JSON artifacts, or other unsafe bodies.
+     * See issue #67 — re-encrypting ciphertext or mangled HTML produces undecryptable notes.
+     */
+    internal fun isUnsafePlaintextForEncrypt(plain: String): Boolean =
+        NoteEncryption.isEncrypted(plain) ||
+            plain.contains("""\u003C""") ||
+            plain.contains("""\u003E""")
 
     class Factory(
         private val note: Note,

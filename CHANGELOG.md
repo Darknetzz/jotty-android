@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Encrypted note repair save** — Saving a decrypted note no longer re-reads HTML through `evaluateJavascript` JSON (which could still mangle large tables and produce undecryptable ciphertext). Visual-editor saves use a direct WebView bridge snapshot only when you actually edited; view-mode **Save** re-encrypts session plaintext without opening the editor. Encrypt refuses bodies that still contain `\u003C` / ciphertext.
+
 ---
 
 ## [1.7.2] - 2026-06-17

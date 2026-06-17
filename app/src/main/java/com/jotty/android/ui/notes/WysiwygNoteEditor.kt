@@ -312,7 +312,6 @@ private fun WysiwygWebEditor(
 
 fun getWysiwygContent(webView: WebView?, callback: (String) -> Unit) {
     webView?.evaluateJavascript("getContent();") { result ->
-        val unquoted = result?.trim()?.removeSurrounding("\"")?.replace("\\n", "\n")?.replace("\\\"", "\"")
-        callback(unquoted.orEmpty())
+        callback(parseWebViewJsonResult(result).orEmpty())
     }
 }

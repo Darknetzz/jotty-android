@@ -42,4 +42,15 @@ class FormatTest {
         assertEquals("unchanged", stripInvisibleFromEdges("unchanged"))
         assertEquals("", stripInvisibleFromEdges("\uFEFF\u200B"))
     }
+
+    @Test
+    fun `decodeJsonUnicodeEscapes repairs evaluateJavascript html artifacts`() {
+        val corrupted = """\u003Ctable style="width: 100%;"\u003E\u003Ctd\u003Ecell\u003C/td\u003E"""
+        assertEquals("""<table style="width: 100%;"><td>cell</td>""", decodeJsonUnicodeEscapes(corrupted))
+    }
+
+    @Test
+    fun `decodeJsonUnicodeEscapes no-op without escapes`() {
+        assertEquals("<table><td>ok</td></table>", decodeJsonUnicodeEscapes("<table><td>ok</td></table>"))
+    }
 }

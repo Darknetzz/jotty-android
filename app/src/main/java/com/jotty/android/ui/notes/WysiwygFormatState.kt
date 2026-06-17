@@ -1,6 +1,7 @@
 package com.jotty.android.ui.notes
 
 import com.google.gson.Gson
+import com.jotty.android.util.decodeJsonUnicodeEscapes
 
 internal data class WysiwygFormatState(
     val bold: Boolean = false,
@@ -30,9 +31,14 @@ internal fun parseWebViewJsonResult(result: String?): String? {
     if (result.isNullOrBlank() || result == "null") return null
     val trimmed = result.trim()
     if (trimmed.length < 2 || trimmed.first() != '"') return trimmed
-    return trimmed
-        .removeSurrounding("\"")
-        .replace("\\\"", "\"")
-        .replace("\\\\", "\\")
-        .replace("\\n", "\n")
+    return try {
+        wysiwygFormatStateGson.fromJson(trimmed, String::class.java)
+    } catch (_: Exception) {
+        trimmed
+            .removeSurrounding("\"")
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\")
+            .replace("\\n", "\n")
+            .let(::decodeJsonUnicodeEscapes)
+    }
 }

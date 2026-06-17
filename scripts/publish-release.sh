@@ -81,9 +81,7 @@ NOTES_FILE=".gh-release-${VERSION}.md"
 cat > "$NOTES_FILE" <<EOF
 ## Install
 
-Download **\`jotty-android-${VERSION}.apk\`** from this release (release-signed when CI secrets are configured).
-
-**Updating from an older \`*-debug.apk\` or mixed signing?** Android may show "App not installed" — uninstall once, then install this APK. Your Jotty server data is unchanged.
+Download **\`jotty-android-${VERSION}.apk\`** from this release.
 
 **Full changelog:** https://github.com/Darknetzz/jotty-android/blob/v${VERSION}/CHANGELOG.md
 

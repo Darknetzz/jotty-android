@@ -10,6 +10,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **HTML tables rendering as headers** — Jotty web HTML tables (including those wrapped in `<p>` or with `<p>` inside cells) now convert to GFM before other HTML→markdown processing, so cells no longer appear as stacked bold header text in the app reader.
 
+### Changed
+
+- **Stable release notes** — GitHub release descriptions no longer include the legacy debug-APK / mixed-signing install warning; in-app update messaging still covers that edge case.
+
 ---
 
 ## [1.7.3] - 2026-06-17

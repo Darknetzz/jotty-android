@@ -165,6 +165,61 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
+    fun `prepareNoteContentForDisplay converts table wrapped in paragraph`() {
+        val html =
+            """
+            <p>
+            <table>
+              <tbody>
+                <tr>
+                  <th><p>Hvem</p></th>
+                  <th><p>Beløp</p></th>
+                </tr>
+                <tr>
+                  <td><p>Nuqq</p></td>
+                  <td><p>1000kr</p></td>
+                </tr>
+              </tbody>
+            </table>
+            </p>
+            """.trimIndent()
+        val displayed = prepareNoteContentForDisplay(html, null)
+        assertFalse("raw th should not reach Markwon", displayed.contains("<th"))
+        assertTrue(displayed.contains("| Hvem | Beløp |"))
+        assertTrue(displayed.contains("| Nuqq | 1000kr |"))
+    }
+
+    @Test
+    fun `prepareNoteContentForDisplay converts jotty colgroup table with th header row`() {
+        val html =
+            """
+            <table style="width: 100%;">
+              <colgroup>
+                <col style="width: 25%;">
+                <col style="width: 25%;">
+                <col style="width: 50%;">
+              </colgroup>
+              <tbody>
+                <tr>
+                  <th colspan="1" rowspan="1"><p>Hvem</p></th>
+                  <th colspan="1" rowspan="1"><p>Beløp</p></th>
+                  <th colspan="1" rowspan="1"><p>Kommentar</p></th>
+                </tr>
+                <tr>
+                  <td colspan="1" rowspan="1"><p>Nuqq</p></td>
+                  <td colspan="1" rowspan="1"><p>1000kr</p></td>
+                  <td colspan="1" rowspan="1"><p>2026-05-15 - Vipps</p></td>
+                </tr>
+              </tbody>
+            </table>
+            """.trimIndent()
+        val displayed = prepareNoteContentForDisplay(html, null)
+        assertFalse(displayed.contains("<th"))
+        assertTrue(displayed.contains("| Hvem | Beløp | Kommentar |"))
+        assertTrue(displayed.contains("| Nuqq | 1000kr | 2026-05-15 - Vipps |"))
+    }
+
+    @Test
     fun `prepareNoteContentForDisplay renders html heading before gfm table`() {
         val html = "<p># test</p><table><tr><th>Navn</th><th>asd</th></tr><tr><td>sada</td><td>123</td></tr></table>"
         val displayed = prepareNoteContentForDisplay(html, null)

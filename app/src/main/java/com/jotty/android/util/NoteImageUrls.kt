@@ -122,9 +122,11 @@ internal fun prepareNoteContentForDisplay(
     val withFonts = convertHtmlFontFamilySpans(stripped)
     val withColors = convertHtmlColorSpans(withFonts)
     val withResolvedHtmlSrc = resolveNoteImageUrlsInHtml(withColors, jottyServerUrl)
-    val htmlAsMarkdown = convertHtmlImagesToMarkdown(withResolvedHtmlSrc)
-    val withStructure = convertHtmlStructuralElementsToMarkdown(htmlAsMarkdown)
-    val withTables = convertHtmlTablesToGfm(withStructure)
-    val separated = separateMarkdownHeadingsFromTables(withTables)
+    val withImages = convertHtmlImagesToMarkdown(withResolvedHtmlSrc)
+    // HTML tables must become GFM before structural HTML→markdown: the paragraph regex
+    // stops at the first </p> and breaks layout when cells (or a wrapper <p>) contain tables.
+    val withTables = convertHtmlTablesToGfm(withImages)
+    val withStructure = convertHtmlStructuralElementsToMarkdown(withTables)
+    val separated = separateMarkdownHeadingsFromTables(withStructure)
     return resolveNoteImageUrlsInMarkdown(separated, jottyServerUrl)
 }

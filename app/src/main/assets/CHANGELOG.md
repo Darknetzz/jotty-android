@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **HTML tables rendering as headers** — Jotty web HTML tables (including those wrapped in `<p>` or with `<p>` inside cells) now convert to GFM before other HTML→markdown processing, so cells no longer appear as stacked bold header text in the app reader.
+
 ---
 
 ## [1.7.3] - 2026-06-17

@@ -8,6 +8,7 @@ import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NotePassphraseSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
+import com.jotty.android.data.encryption.XChaCha20Decryptor
 import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.data.encryption.copyTrimmedOrNull
@@ -311,6 +312,21 @@ class NoteDetailViewModel(
                             _category.value,
                             body,
                         )
+                    // Safety net (issue #67): never push ciphertext we cannot read back.
+                    // Round-trip decrypt the freshly produced body (and the wrapped form) with the
+                    // same passphrase before saving; abort if it does not match the plaintext.
+                    val roundTripsOk =
+                        withContext(Dispatchers.Default) {
+                            verifyEncryptRoundTrip(body, fullContent, plainToEncrypt, passChars)
+                        }
+                    if (!roundTripsOk) {
+                        AppLog.e(
+                            "encryption",
+                            "Aborting save: re-encrypted note $activeNoteId failed local round-trip decrypt",
+                        )
+                        _encryptError.value = encryptFailedMsg
+                        return@launch
+                    }
                     val result =
                         actions.updateNote(
                             noteId = activeNoteId,
@@ -386,6 +402,24 @@ class NoteDetailViewModel(
 
     internal fun contentFingerprint(content: String): String =
         stripInvisibleFromEdges(content).hashCode().toString()
+
+    /**
+     * Decrypts the freshly produced [body] (and the frontmatter-wrapped [fullContent]) with [passChars]
+     * and confirms the result matches [expectedPlaintext]. Guards against pushing undecryptable ciphertext
+     * (issue #67). Uses passphrase copies so the caller's buffer survives for the session store.
+     */
+    internal fun verifyEncryptRoundTrip(
+        body: String,
+        fullContent: String,
+        expectedPlaintext: String,
+        passChars: CharArray,
+    ): Boolean {
+        val fromBody = XChaCha20Decryptor.decrypt(body, passChars.copyOf())
+        if (fromBody != expectedPlaintext) return false
+        val parsed = NoteEncryption.parse(fullContent) as? ParsedNoteContent.Encrypted ?: return false
+        val fromWrapped = XChaCha20Decryptor.decrypt(parsed.encryptedBody, passChars.copyOf())
+        return fromWrapped == expectedPlaintext
+    }
 
     /**
      * Plaintext to encrypt. Re-encrypting an already encrypted note must use session plaintext only —

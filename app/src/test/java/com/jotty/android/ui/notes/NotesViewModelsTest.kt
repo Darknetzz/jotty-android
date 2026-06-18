@@ -15,6 +15,7 @@ import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.data.local.FakeJottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineNotesRepository
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
@@ -254,6 +255,36 @@ class NoteDetailViewModelTest {
         assertEquals("", vm.decryptedContent.value)
         assertEquals("", NoteDecryptionSession.get(note.id))
     }
+
+    @Test
+    fun contentFingerprint_matchesFrontmatterWrappedAndBodyOnly() {
+        val passphrase = "my secure passphrase 123"
+        val body = XChaCha20Encryptor.encrypt("table note", passphrase)!!
+        val wrapped = XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Title", "Work", body)
+        val vm = encryptedNoteViewModel(wrapped)
+        assertEquals(vm.contentFingerprint(wrapped), vm.contentFingerprint(body))
+    }
+
+    @Test
+    fun encrypt_refusesWhenServerCiphertextChangedSinceUnlock() =
+        runTest {
+            val passphrase = "my secure passphrase 123"
+            val plain = "version one"
+            val bodyV1 = XChaCha20Encryptor.encrypt(plain, passphrase)!!
+            val wrappedV1 = XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Title", "Work", bodyV1)
+            val bodyV2 = XChaCha20Encryptor.encrypt("version two from web", passphrase)!!
+            val vm = encryptedNoteViewModel(wrappedV1)
+            vm.onDecrypted(plain, passphrase = passphrase.toCharArray())
+            vm.setContent(bodyV2)
+            vm.encryptWithSessionPassphrase(
+                encryptFailedMsg = "failed",
+                onSuccess = { },
+                onFailure = { },
+                encryptStaleSessionMsg = "stale session",
+            )
+            advanceUntilIdle()
+            assertEquals("stale session", vm.encryptError.value)
+        }
 
     private fun encryptedNoteViewModel(content: String): NoteDetailViewModel {
         val note =

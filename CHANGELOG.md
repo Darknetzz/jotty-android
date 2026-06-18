@@ -10,6 +10,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Empty encrypted notes unlock in the app** — Decrypting or unlocking with biometric no longer treats an empty note body as “still locked.” Empty plaintext is valid (matches the Jotty web app); passphrase and fingerprint unlock now succeed and the note stays unlocked.
 
+- **Encrypted saves with local storage** — Offline/online note updates now return the **server-stored** copy (not just the locally built payload), so post-save server verification actually checks what Jotty persisted. Failed server sync no longer reports success.
+
+- **Concurrent app/web encrypted edits** — Re-encrypt refuses to save when the server ciphertext changed since you unlocked (e.g. you edited on the web while the app still had an old unlocked copy). Fingerprinting now compares the encrypted JSON body only, so frontmatter stripping on the server no longer spuriously re-locks notes after a successful save.
+
 - **Encrypted note save verifies the server copy** — After saving an encrypted note, the app now decrypts the copy the **server actually stored and returned** (the Jotty server re-serializes note frontmatter on save, so it can differ from what the app built). If that copy does not decrypt, the app keeps your note unlocked with your text intact, shows a clear warning, and no longer silently locks the note (which previously surfaced as “Auth failed” when reopening). Debug logs now record any server-side change to the encrypted body to aid diagnosis.
 
 - **Dev update check** — Dev channel no longer offers an in-app update when your installed dev build already has a higher version code than the published `dev-latest` APK (e.g. after a local build). Dev release notes include `VersionCode` for this check. Downgrade errors on the dev channel no longer say “stable APK”.

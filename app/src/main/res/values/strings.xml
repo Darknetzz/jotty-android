@@ -204,6 +204,7 @@
     <string name="decrypt_error_hide_details">Hide details</string>
     <string name="error_encrypt_failed">Encryption failed. Please try again.</string>
     <string name="error_encrypt_no_plaintext">Could not read the note text to encrypt. Unlock the note again and retry.</string>
+    <string name="error_encrypt_stale_session">This note changed on the server since you unlocked it (for example from the web app). Unlock it again, then save your edits.</string>
     <string name="error_encrypt_server_verify_failed">Saved, but the server\'s stored copy could not be decrypted. Your text is still shown here — copy it before closing, then try saving again or contact your server admin.</string>
     <string name="note_is_encrypted">This note is encrypted</string>
     <string name="pgp_not_supported">PGP decryption is not supported in the app. Use the Jotty web app to decrypt.</string>

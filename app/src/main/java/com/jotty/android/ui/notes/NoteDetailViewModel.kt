@@ -163,13 +163,14 @@ class NoteDetailViewModel(
         onFailure: () -> Unit,
         encryptNoPlaintextMsg: String? = null,
         encryptServerVerifyFailedMsg: String? = null,
+        encryptStaleSessionMsg: String? = null,
     ) {
         val passChars = NotePassphraseSession.get(activeNoteId)
         if (passChars == null) {
             showEncryptDialog()
             return
         }
-        encrypt(passChars, encryptFailedMsg, onSuccess, onFailure, encryptNoPlaintextMsg, encryptServerVerifyFailedMsg)
+        encrypt(passChars, encryptFailedMsg, onSuccess, onFailure, encryptNoPlaintextMsg, encryptServerVerifyFailedMsg, encryptStaleSessionMsg)
     }
 
     fun setTitle(value: String) {
@@ -278,10 +279,25 @@ class NoteDetailViewModel(
         onFailure: () -> Unit,
         encryptNoPlaintextMsg: String? = null,
         encryptServerVerifyFailedMsg: String? = null,
+        encryptStaleSessionMsg: String? = null,
     ) {
         viewModelScope.launch {
             _encryptError.value = null
             _isEncrypting.value = true
+            if (_decryptedContent.value != null && sessionSourceFingerprint != null) {
+                val currentFp = contentFingerprint(_content.value)
+                if (sessionSourceFingerprint != currentFp) {
+                    AppLog.e(
+                        "encryption",
+                        "Refusing to re-encrypt note $activeNoteId: server ciphertext changed since unlock " +
+                            "(sessionFp=$sessionSourceFingerprint, currentFp=$currentFp)",
+                    )
+                    _encryptError.value = encryptStaleSessionMsg ?: encryptNoPlaintextMsg ?: encryptFailedMsg
+                    passChars.clearPassphrase()
+                    _isEncrypting.value = false
+                    return@launch
+                }
+            }
             val plainToEncrypt = resolvePlaintextForEncrypt()
             if (plainToEncrypt == null) {
                 _encryptError.value = encryptNoPlaintextMsg ?: encryptFailedMsg
@@ -423,8 +439,14 @@ class NoteDetailViewModel(
         }
     }
 
-    internal fun contentFingerprint(content: String): String =
-        stripInvisibleFromEdges(content).hashCode().toString()
+    internal fun contentFingerprint(content: String): String {
+        val body =
+            when (val parsed = NoteEncryption.parse(content)) {
+                is ParsedNoteContent.Encrypted -> parsed.encryptedBody
+                else -> stripInvisibleFromEdges(content)
+            }
+        return body.hashCode().toString()
+    }
 
     /**
      * Decrypts the freshly produced [body] (and the frontmatter-wrapped [fullContent]) with [passChars]

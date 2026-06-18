@@ -11,7 +11,7 @@ if ($main -eq $dev) {
 }
 git merge-base --is-ancestor origin/dev origin/main 2>$null
 if ($LASTEXITCODE -ne 0) {
-    throw "dev is not an ancestor of main — merge main into dev manually before syncing."
+    throw "dev is not an ancestor of main - merge main into dev manually before syncing."
 }
 git push origin "origin/main:refs/heads/dev"
 Write-Host "dev fast-forwarded to main ($($main.Substring(0,7)))."

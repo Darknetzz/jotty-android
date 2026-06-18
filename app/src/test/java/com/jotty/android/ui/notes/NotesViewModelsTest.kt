@@ -189,7 +189,41 @@ class NoteDetailViewModelTest {
     }
 
     @Test
-    fun onDecrypted_ignoresBlankPlaintext() {
+    fun onDecrypted_acceptsEmptyPlaintext() {
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Empty",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "---\nencrypted: true\nencryptionMethod: xchacha\n---\n{}",
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+            )
+        vm.onDecrypted("")
+        assertEquals("", vm.decryptedContent.value)
+        assertEquals("", vm.displayContent)
+        assertEquals("", NoteDecryptionSession.get(note.id))
+    }
+
+    @Test
+    fun onDecrypted_normalizesWhitespaceOnlyToEmpty() {
         val note =
             Note(
                 id = "n-enc",
@@ -217,9 +251,8 @@ class NoteDetailViewModelTest {
                 },
             )
         vm.onDecrypted("   ")
-        assertNull(vm.decryptedContent.value)
-        assertNull(NoteDecryptionSession.get(note.id))
-        assertNull(NotePassphraseSession.get(note.id))
+        assertEquals("", vm.decryptedContent.value)
+        assertEquals("", NoteDecryptionSession.get(note.id))
     }
 
     private fun encryptedNoteViewModel(content: String): NoteDetailViewModel {
@@ -415,7 +448,7 @@ class NoteDetailViewModelTest {
     }
 
     @Test
-    fun loadSessionDecryptedContent_ignoresBlankCache() {
+    fun loadSessionDecryptedContent_restoresEmptyCache() {
         val note =
             Note(
                 id = "n-enc",
@@ -426,7 +459,7 @@ class NoteDetailViewModelTest {
                 updatedAt = "u",
                 encrypted = true,
             )
-        NoteDecryptionSession.put(note.id, "  ")
+        NoteDecryptionSession.put(note.id, "")
         val vm =
             NoteDetailViewModel(
                 note,
@@ -444,8 +477,8 @@ class NoteDetailViewModelTest {
                 },
             )
         vm.loadSessionDecryptedContent()
-        assertNull(vm.decryptedContent.value)
-        assertNull(NoteDecryptionSession.get(note.id))
+        assertEquals("", vm.decryptedContent.value)
+        assertEquals("", NoteDecryptionSession.get(note.id))
     }
 
     @Test

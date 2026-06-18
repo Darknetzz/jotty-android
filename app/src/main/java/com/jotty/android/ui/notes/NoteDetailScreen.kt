@@ -129,7 +129,7 @@ internal fun NoteDetailScreen(
     val isEncryptedByContent = detailVm.isEncryptedByContent
     val isEncrypted = detailVm.isEncrypted
     val displayContent = detailVm.displayContent
-    val isDecrypted = !decryptedContent.isNullOrBlank()
+    val isDecrypted = decryptedContent != null
     val encryptedBodyForBiometric =
         remember(content) {
             (NoteEncryption.parse(content) as? ParsedNoteContent.Encrypted)?.encryptedBody
@@ -247,7 +247,7 @@ internal fun NoteDetailScreen(
             }
         if (
             biometricAutoUnlockEnabled &&
-            detailVm.decryptedContent.value.isNullOrBlank() &&
+            detailVm.decryptedContent.value == null &&
             hasBiometricPassphrase &&
             !encryptedBodyForBiometric.isNullOrBlank() &&
             !biometricAutoTriggered

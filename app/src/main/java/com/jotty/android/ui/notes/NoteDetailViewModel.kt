@@ -94,7 +94,7 @@ class NoteDetailViewModel(
 
     val displayContent: String?
         get() {
-            val decrypted = _decryptedContent.value?.takeIf { it.isNotBlank() }
+            val decrypted = _decryptedContent.value
             return when {
                 isEncrypted && decrypted != null -> decrypted
                 isEncrypted -> null
@@ -118,13 +118,11 @@ class NoteDetailViewModel(
 
     fun loadSessionDecryptedContent() {
         val cached =
-            NoteDecryptionSession.get(activeNoteId)
-                ?.let {
-                    decodeJsonUnicodeEscapes(
-                        stripInvisibleUnicode(stripInvisibleFromEdges(it)),
-                    )
-                }
-                ?.takeIf { it.isNotBlank() }
+            NoteDecryptionSession.get(activeNoteId)?.let {
+                decodeJsonUnicodeEscapes(
+                    stripInvisibleUnicode(stripInvisibleFromEdges(it)),
+                )
+            }
         _decryptedContent.value = cached
         if (cached == null) {
             NoteDecryptionSession.remove(activeNoteId)
@@ -141,7 +139,7 @@ class NoteDetailViewModel(
     }
 
     fun invalidateDecryptedIfServerContentChanged(serverContent: String) {
-        if (_decryptedContent.value.isNullOrBlank()) return
+        if (_decryptedContent.value == null) return
         val fp = contentFingerprint(serverContent)
         if (sessionSourceFingerprint != null && sessionSourceFingerprint != fp) {
             lockNote()
@@ -227,14 +225,6 @@ class NoteDetailViewModel(
             decodeJsonUnicodeEscapes(
                 stripInvisibleUnicode(stripInvisibleFromEdges(plain)),
             )
-        if (cleaned.isBlank()) {
-            _decryptedContent.value = null
-            NoteDecryptionSession.remove(activeNoteId)
-            NotePassphraseSession.remove(activeNoteId)
-            passphrase?.clearPassphrase()
-            dismissDecryptDialog()
-            return
-        }
         _decryptedContent.value = cleaned
         _legacyEncryptionDetected.value = usedLegacyDataOrder
         sessionSourceFingerprint = contentFingerprint(_content.value)
@@ -351,11 +341,9 @@ class NoteDetailViewModel(
                         val saved = result.getOrThrow()
                         // Always keep the freshly-encrypted plaintext available so the note stays
                         // readable, and never lose the user's text — even if the save did not verify.
-                        _decryptedContent.value = plainToEncrypt.takeIf { it.isNotBlank() }
+                        _decryptedContent.value = plainToEncrypt
                         _legacyEncryptionDetected.value = false
-                        if (plainToEncrypt.isNotBlank()) {
-                            NoteDecryptionSession.put(activeNoteId, plainToEncrypt)
-                        }
+                        NoteDecryptionSession.put(activeNoteId, plainToEncrypt)
                         NotePassphraseSession.put(activeNoteId, passChars)
 
                         // Authoritative safety net: the Jotty server re-serializes note frontmatter
@@ -383,9 +371,7 @@ class NoteDetailViewModel(
                         completePersist(saved, onSuccess)
                         // Anchor the session fingerprint to the SERVER copy so a follow-up snapshot
                         // refresh does not spuriously re-lock the note (#67 follow-up).
-                        if (plainToEncrypt.isNotBlank()) {
-                            sessionSourceFingerprint = contentFingerprint(_content.value)
-                        }
+                        sessionSourceFingerprint = contentFingerprint(_content.value)
                         dismissEncryptDialog()
                     } else {
                         _saveFailed.value = true

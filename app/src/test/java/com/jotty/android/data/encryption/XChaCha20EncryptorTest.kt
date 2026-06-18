@@ -64,6 +64,14 @@ class XChaCha20EncryptorTest {
     }
 
     @Test
+    fun `encrypt then decrypt round-trip accepts empty plaintext`() {
+        val passphrase = "my secure passphrase 123"
+        val encrypted = XChaCha20Encryptor.encrypt("", passphrase)
+        assertNotNull(encrypted)
+        assertEquals("", XChaCha20Decryptor.decrypt(encrypted!!, passphrase))
+    }
+
+    @Test
     fun `encrypt then decrypt round-trip returns original plaintext`() {
         val plaintext = "Hello, secret note with unicode: 日本語 🎉"
         val passphrase = "my secure passphrase 123"

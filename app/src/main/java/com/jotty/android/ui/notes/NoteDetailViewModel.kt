@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.local.NoteSnapshotRepository
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NotePassphraseSession
 import com.jotty.android.data.encryption.NoteEncryption
@@ -26,6 +27,7 @@ import kotlinx.coroutines.withContext
 class NoteDetailViewModel(
     private val note: Note,
     private val actions: NoteDetailActions,
+    private val snapshotRepository: NoteSnapshotRepository? = null,
 ) : ViewModel() {
     /** Tracks server id after a local-only note syncs; [note.id] may still be the temporary UUID. */
     private var activeNoteId = note.id
@@ -94,7 +96,7 @@ class NoteDetailViewModel(
 
     val displayContent: String?
         get() {
-            val decrypted = _decryptedContent.value?.takeIf { it.isNotBlank() }
+            val decrypted = _decryptedContent.value
             return when {
                 isEncrypted && decrypted != null -> decrypted
                 isEncrypted -> null
@@ -118,30 +120,41 @@ class NoteDetailViewModel(
 
     fun loadSessionDecryptedContent() {
         val cached =
-            NoteDecryptionSession.get(activeNoteId)
-                ?.let {
-                    decodeJsonUnicodeEscapes(
-                        stripInvisibleUnicode(stripInvisibleFromEdges(it)),
-                    )
-                }
-                ?.takeIf { it.isNotBlank() }
-        _decryptedContent.value = cached
+            NoteDecryptionSession.get(activeNoteId)?.let {
+                decodeJsonUnicodeEscapes(
+                    stripInvisibleUnicode(stripInvisibleFromEdges(it)),
+                )
+            }
         if (cached == null) {
+            _decryptedContent.value = null
+            return
+        }
+        val currentFp = contentFingerprint(_content.value)
+        // Never restore cached plaintext without a fingerprint, or when the server ciphertext changed
+        // (e.g. edited on the web while the app still held an old unlocked copy).
+        if (sessionSourceFingerprint == null || sessionSourceFingerprint != currentFp) {
+            AppLog.d(
+                "encryption",
+                "Discarding stale decryption session for $activeNoteId " +
+                    "(sessionFp=$sessionSourceFingerprint, currentFp=$currentFp)",
+            )
             NoteDecryptionSession.remove(activeNoteId)
             NotePassphraseSession.remove(activeNoteId)
+            _decryptedContent.value = null
             sessionSourceFingerprint = null
-        } else if (sessionSourceFingerprint == null) {
-            sessionSourceFingerprint = contentFingerprint(_content.value)
+            return
         }
+        _decryptedContent.value = cached
     }
 
     fun onNoteSnapshotUpdated(updated: Note) {
         invalidateDecryptedIfServerContentChanged(updated.content)
         resetFromNote(updated)
+        loadSessionDecryptedContent()
     }
 
     fun invalidateDecryptedIfServerContentChanged(serverContent: String) {
-        if (_decryptedContent.value.isNullOrBlank()) return
+        if (_decryptedContent.value == null) return
         val fp = contentFingerprint(serverContent)
         if (sessionSourceFingerprint != null && sessionSourceFingerprint != fp) {
             lockNote()
@@ -164,13 +177,25 @@ class NoteDetailViewModel(
         onSuccess: (Note) -> Unit,
         onFailure: () -> Unit,
         encryptNoPlaintextMsg: String? = null,
+        encryptServerVerifyFailedMsg: String? = null,
+        encryptStaleSessionMsg: String? = null,
+        snapshotsEnabled: Boolean = true,
     ) {
         val passChars = NotePassphraseSession.get(activeNoteId)
         if (passChars == null) {
             showEncryptDialog()
             return
         }
-        encrypt(passChars, encryptFailedMsg, onSuccess, onFailure, encryptNoPlaintextMsg)
+        encrypt(
+            passChars,
+            encryptFailedMsg,
+            onSuccess,
+            onFailure,
+            encryptNoPlaintextMsg,
+            encryptServerVerifyFailedMsg,
+            encryptStaleSessionMsg,
+            snapshotsEnabled,
+        )
     }
 
     fun setTitle(value: String) {
@@ -225,15 +250,7 @@ class NoteDetailViewModel(
         val cleaned =
             decodeJsonUnicodeEscapes(
                 stripInvisibleUnicode(stripInvisibleFromEdges(plain)),
-            )
-        if (cleaned.isBlank()) {
-            _decryptedContent.value = null
-            NoteDecryptionSession.remove(activeNoteId)
-            NotePassphraseSession.remove(activeNoteId)
-            passphrase?.clearPassphrase()
-            dismissDecryptDialog()
-            return
-        }
+            ).ifBlank { "" }
         _decryptedContent.value = cleaned
         _legacyEncryptionDetected.value = usedLegacyDataOrder
         sessionSourceFingerprint = contentFingerprint(_content.value)
@@ -256,10 +273,12 @@ class NoteDetailViewModel(
     fun saveEdit(
         onSuccess: (Note) -> Unit,
         onFailure: () -> Unit,
+        snapshotsEnabled: Boolean = true,
     ) {
         viewModelScope.launch {
             _saving.value = true
             _saveFailed.value = false
+            snapshotBeforeSave(snapshotsEnabled)
             val result =
                 actions.updateNote(
                     noteId = activeNoteId,
@@ -280,16 +299,79 @@ class NoteDetailViewModel(
         }
     }
 
+    fun restoreSnapshot(
+        snapshotId: Long,
+        onSuccess: (Note) -> Unit,
+        onFailure: () -> Unit,
+    ) {
+        viewModelScope.launch {
+            val snapshot =
+                snapshotRepository?.getById(snapshotId)
+                    ?: run {
+                        onFailure()
+                        return@launch
+                    }
+            if (NoteEncryption.isEncrypted(snapshot.content)) {
+                lockNote()
+            }
+            _saveFailed.value = false
+            val result =
+                actions.updateNote(
+                    noteId = activeNoteId,
+                    title = snapshot.title.ifBlank { _title.value },
+                    content = snapshot.content,
+                    category = _category.value,
+                    originalCategory = persistedCategory,
+                )
+            if (result.isSuccess) {
+                persistedCategory = _category.value
+                completePersist(result.getOrThrow(), onSuccess)
+                if (NoteEncryption.isEncrypted(_content.value)) {
+                    sessionSourceFingerprint = contentFingerprint(_content.value)
+                }
+            } else {
+                _saveFailed.value = true
+                onFailure()
+            }
+        }
+    }
+
+    private suspend fun snapshotBeforeSave(enabled: Boolean) {
+        snapshotRepository?.saveBeforeUpdate(
+            noteId = activeNoteId,
+            title = _title.value,
+            content = _content.value,
+            enabled = enabled,
+        )
+    }
+
     fun encrypt(
         passChars: CharArray,
         encryptFailedMsg: String,
         onSuccess: (Note) -> Unit,
         onFailure: () -> Unit,
         encryptNoPlaintextMsg: String? = null,
+        encryptServerVerifyFailedMsg: String? = null,
+        encryptStaleSessionMsg: String? = null,
+        snapshotsEnabled: Boolean = true,
     ) {
         viewModelScope.launch {
             _encryptError.value = null
             _isEncrypting.value = true
+            if (_decryptedContent.value != null && sessionSourceFingerprint != null) {
+                val currentFp = contentFingerprint(_content.value)
+                if (sessionSourceFingerprint != currentFp) {
+                    AppLog.e(
+                        "encryption",
+                        "Refusing to re-encrypt note $activeNoteId: server ciphertext changed since unlock " +
+                            "(sessionFp=$sessionSourceFingerprint, currentFp=$currentFp)",
+                    )
+                    _encryptError.value = encryptStaleSessionMsg ?: encryptNoPlaintextMsg ?: encryptFailedMsg
+                    passChars.clearPassphrase()
+                    _isEncrypting.value = false
+                    return@launch
+                }
+            }
             val plainToEncrypt = resolvePlaintextForEncrypt()
             if (plainToEncrypt == null) {
                 _encryptError.value = encryptNoPlaintextMsg ?: encryptFailedMsg
@@ -336,6 +418,7 @@ class NoteDetailViewModel(
                         _encryptError.value = encryptFailedMsg
                         return@launch
                     }
+                    snapshotBeforeSave(snapshotsEnabled)
                     val result =
                         actions.updateNote(
                             noteId = activeNoteId,
@@ -347,17 +430,39 @@ class NoteDetailViewModel(
                     if (result.isSuccess) {
                         persistedCategory = _category.value
                         val saved = result.getOrThrow()
-                        // Keep the freshly-encrypted plaintext available so the note stays
-                        // readable (and editable) without re-decrypting after save.
-                        _decryptedContent.value = plainToEncrypt.takeIf { it.isNotBlank() }
+                        // Always keep the freshly-encrypted plaintext available so the note stays
+                        // readable, and never lose the user's text — even if the save did not verify.
+                        _decryptedContent.value = plainToEncrypt
                         _legacyEncryptionDetected.value = false
-                        if (plainToEncrypt.isNotBlank()) {
-                            sessionSourceFingerprint = contentFingerprint(fullContent)
-                            NoteDecryptionSession.put(activeNoteId, plainToEncrypt)
-                        }
+                        NoteDecryptionSession.put(activeNoteId, plainToEncrypt)
                         NotePassphraseSession.put(activeNoteId, passChars)
+
+                        // Authoritative safety net: the Jotty server re-serializes note frontmatter
+                        // on save, so the stored copy can differ from the locally built content.
+                        // Verify the SERVER-RETURNED copy decrypts to our plaintext; if not, keep the
+                        // note unlocked with the plaintext intact and report the failure instead of
+                        // locking (which would force a re-decrypt of an unreadable server copy).
+                        val serverDecryptsOk =
+                            withContext(Dispatchers.Default) {
+                                verifyServerContentDecrypts(saved.content, body, plainToEncrypt, passChars)
+                            }
+                        if (!serverDecryptsOk) {
+                            AppLog.e(
+                                "encryption",
+                                "Server-stored note $activeNoteId did not decrypt after save " +
+                                    "(serverContentLength=${saved.content.length}); keeping local plaintext unlocked",
+                            )
+                            _encryptError.value = encryptServerVerifyFailedMsg ?: encryptFailedMsg
+                            _saveFailed.value = true
+                            onFailure()
+                            return@launch
+                        }
+
                         _isEditing.value = false
                         completePersist(saved, onSuccess)
+                        // Anchor the session fingerprint to the SERVER copy so a follow-up snapshot
+                        // refresh does not spuriously re-lock the note (#67 follow-up).
+                        sessionSourceFingerprint = contentFingerprint(_content.value)
                         dismissEncryptDialog()
                     } else {
                         _saveFailed.value = true
@@ -409,8 +514,14 @@ class NoteDetailViewModel(
         }
     }
 
-    internal fun contentFingerprint(content: String): String =
-        stripInvisibleFromEdges(content).hashCode().toString()
+    internal fun contentFingerprint(content: String): String {
+        val body =
+            when (val parsed = NoteEncryption.parse(content)) {
+                is ParsedNoteContent.Encrypted -> parsed.encryptedBody
+                else -> stripInvisibleFromEdges(content)
+            }
+        return body.hashCode().toString()
+    }
 
     /**
      * Decrypts the freshly produced [body] (and the frontmatter-wrapped [fullContent]) with [passChars]
@@ -428,6 +539,41 @@ class NoteDetailViewModel(
         val parsed = NoteEncryption.parse(fullContent) as? ParsedNoteContent.Encrypted ?: return false
         val fromWrapped = XChaCha20Decryptor.decrypt(parsed.encryptedBody, passChars.copyOf())
         return fromWrapped == expectedPlaintext
+    }
+
+    /**
+     * Verifies the content the **server actually stored and returned** still decrypts to
+     * [expectedPlaintext]. The Jotty server manages/re-serializes note frontmatter on save, so the
+     * persisted copy can differ from the locally built content. This is the authoritative post-save
+     * guard against undecryptable server copies (#67). Logs a structural diff of the encrypted body
+     * (no secrets beyond the algorithm header prefix) to aid diagnosis in exported debug logs.
+     */
+    internal fun verifyServerContentDecrypts(
+        serverContent: String,
+        sentBody: String,
+        expectedPlaintext: String,
+        passChars: CharArray,
+    ): Boolean {
+        val parsed = NoteEncryption.parse(serverContent) as? ParsedNoteContent.Encrypted
+        if (parsed == null) {
+            AppLog.e(
+                "encryption",
+                "Server copy of note $activeNoteId not recognized as encrypted after save " +
+                    "(serverContentLength=${serverContent.length})",
+            )
+            return false
+        }
+        val serverBody = parsed.encryptedBody
+        if (serverBody != sentBody) {
+            AppLog.e(
+                "encryption",
+                "Server altered encrypted body on save for note $activeNoteId: " +
+                    "sentLen=${sentBody.length}, serverLen=${serverBody.length}, " +
+                    "sentPrefix=${sentBody.take(40)}, serverPrefix=${serverBody.take(40)}",
+            )
+        }
+        val decrypted = XChaCha20Decryptor.decrypt(serverBody, passChars.copyOf())
+        return decrypted == expectedPlaintext
     }
 
     /**
@@ -457,9 +603,10 @@ class NoteDetailViewModel(
     class Factory(
         private val note: Note,
         private val actions: NoteDetailActions,
+        private val snapshotRepository: NoteSnapshotRepository? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-            NoteDetailViewModel(note, actions) as T
+            NoteDetailViewModel(note, actions, snapshotRepository) as T
     }
 }

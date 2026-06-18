@@ -5,6 +5,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.encryption.NoteEncryption
 
 /**
  * Room entity for storing notes locally.
@@ -44,6 +45,12 @@ fun Note.toEntity(
     instanceId: String,
     isDirty: Boolean = false,
 ): NoteEntity {
+    val encryptedFlag =
+        when {
+            encrypted == true -> true
+            NoteEncryption.isEncrypted(content) -> true
+            else -> encrypted
+        }
     return NoteEntity(
         id = id,
         title = title,
@@ -51,7 +58,7 @@ fun Note.toEntity(
         content = content,
         createdAt = createdAt,
         updatedAt = updatedAt,
-        encrypted = encrypted,
+        encrypted = encryptedFlag,
         isDirty = isDirty,
         isDeleted = false,
         instanceId = instanceId,

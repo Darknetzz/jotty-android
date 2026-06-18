@@ -9,22 +9,26 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Room database for offline storage.
- * Database version: 5
+ * Database version: 7
  *
  * v1 → v2: add isLocalOnly column to notes.
  * v2 → v3: add checklists table for offline checklist support.
  * v3 → v4: add index on notes.instanceId for list queries.
  * v4 → v5: add originalCategory column to notes (for category moves on sync).
+ * v5 → v6: encrypted_note_snapshots table for local note backups before save.
+ * v6 → v7: rename encrypted_note_snapshots → note_snapshots (all note types).
  */
 @Database(
-    entities = [NoteEntity::class, ChecklistEntity::class],
-    version = 5,
+    entities = [NoteEntity::class, ChecklistEntity::class, NoteSnapshotEntity::class],
+    version = 7,
     exportSchema = false,
 )
 abstract class JottyDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
 
     abstract fun checklistDao(): ChecklistDao
+
+    abstract fun noteSnapshotDao(): NoteSnapshotDao
 
     companion object {
         @Volatile
@@ -86,6 +90,39 @@ abstract class JottyDatabase : RoomDatabase() {
                 }
             }
 
+        private val MIGRATION_5_6 =
+            object : Migration(5, 6) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS encrypted_note_snapshots (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            noteId TEXT NOT NULL,
+                            instanceId TEXT NOT NULL,
+                            title TEXT NOT NULL,
+                            content TEXT NOT NULL,
+                            savedAtEpochMs INTEGER NOT NULL
+                        )
+                        """.trimIndent(),
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_encrypted_note_snapshots_noteId ON encrypted_note_snapshots (noteId)",
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_encrypted_note_snapshots_instanceId ON encrypted_note_snapshots (instanceId)",
+                    )
+                }
+            }
+
+        private val MIGRATION_6_7 =
+            object : Migration(6, 7) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "ALTER TABLE encrypted_note_snapshots RENAME TO note_snapshots",
+                    )
+                }
+            }
+
         fun getDatabase(context: Context): JottyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance =
@@ -94,7 +131,14 @@ abstract class JottyDatabase : RoomDatabase() {
                         JottyDatabase::class.java,
                         "jotty_database",
                     )
-                        .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                        .addMigrations(
+                            MIGRATION_1_2,
+                            MIGRATION_2_3,
+                            MIGRATION_3_4,
+                            MIGRATION_4_5,
+                            MIGRATION_5_6,
+                            MIGRATION_6_7,
+                        )
                         .build()
                 INSTANCE = instance
                 instance

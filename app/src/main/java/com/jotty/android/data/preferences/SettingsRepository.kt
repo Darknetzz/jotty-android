@@ -112,6 +112,12 @@ class SettingsRepository(
             prefs[KEY_SHOW_CHECKLIST_EMOJIS] ?: true
         }.catch { emit(true) }
 
+    /** Local note backups before save (encrypted and plaintext). Default true. */
+    val noteSnapshotsEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_NOTE_SNAPSHOTS] ?: true
+        }.catch { emit(true) }
+
     /** Rich WYSIWYG note editor (WebView) instead of markdown source. Default false. */
     val richNoteEditorEnabled: Flow<Boolean> =
         context.jottySettingsDataStore.data.map { prefs ->
@@ -313,6 +319,12 @@ class SettingsRepository(
     suspend fun setShowChecklistEmojis(value: Boolean) {
         context.jottySettingsDataStore.edit {
             if (value) it.remove(KEY_SHOW_CHECKLIST_EMOJIS) else it[KEY_SHOW_CHECKLIST_EMOJIS] = false
+        }
+    }
+
+    suspend fun setNoteSnapshotsEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it.remove(KEY_NOTE_SNAPSHOTS) else it[KEY_NOTE_SNAPSHOTS] = false
         }
     }
 
@@ -528,6 +540,7 @@ class SettingsRepository(
 
         private val KEY_START_TAB = stringPreferencesKey("start_tab")
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
+        private val KEY_NOTE_SNAPSHOTS = booleanPreferencesKey("note_snapshots_enabled")
         private val KEY_RICH_NOTE_EDITOR = booleanPreferencesKey("rich_note_editor_enabled")
         private val KEY_CHECKLIST_DRAG_REORDER = booleanPreferencesKey("checklist_drag_reorder_enabled")
         private val KEY_SHOW_CHECKLIST_EMOJIS = booleanPreferencesKey("show_checklist_emojis")

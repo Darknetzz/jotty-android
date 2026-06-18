@@ -10,6 +10,7 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $repoRoot
+. (Join-Path $PSScriptRoot "lib/gradle-env.ps1")
 
 if (-not $SkipPublish) {
     $null = Get-Command gh -ErrorAction Stop
@@ -36,6 +37,9 @@ if ($SkipPublish) {
 
 $sha = git rev-parse HEAD
 $shortSha = $sha.Substring(0, 7)
+$baseCode = [int](Get-GradleProperty -RepoRoot $repoRoot -Name "VERSION_CODE")
+$runNum = [int](git rev-list --count HEAD)
+$devCode = $baseCode * 10000 + ($runNum % 10000)
 $repo = gh repo view --json nameWithOwner -q .nameWithOwner
 
 $body = @"
@@ -43,10 +47,12 @@ Rolling pre-release build from ``dev`` (built locally).
 ⚠️ This preview build may contain unstable or breaking bugs.
 
 Commit: $sha
+VersionCode: $devCode
 
 | Item | Link |
 | --- | --- |
 | Commit | [``$shortSha``](https://github.com/$repo/commit/$sha) |
+| Version code | $devCode |
 | Changelog | [CHANGELOG.md](https://github.com/$repo/blob/dev/CHANGELOG.md) |
 "@
 

@@ -71,6 +71,7 @@ fun OfflineEnabledNotesScreen(
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -460,6 +461,7 @@ fun OfflineEnabledNotesScreen(
                         biometricSaveOfferEnabled = biometricSaveOfferEnabled,
                         categorySuggestions = noteCategories,
                         richEditorEnabled = richNoteEditorEnabled,
+                        noteSnapshotsEnabled = noteSnapshotsEnabled,
                         api = api,
                     )
                 }

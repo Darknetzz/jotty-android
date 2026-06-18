@@ -6,13 +6,31 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Local note backups** — Before each note save (encrypted or plaintext), the app keeps up to five on-device copies per note. If a save goes wrong, open the note menu (**⋮ → Restore backup**) to push a previous copy back to the server. Disable under **Settings → Behavior → Local note backups**.
+
+### Fixed
+
+- **Stale unlock after web edits** — Reopening an encrypted note no longer restores an old in-memory plaintext when the server ciphertext changed (e.g. you edited on the web while the app still had a cached unlock). The app now requires a fresh decrypt before editing, which avoids saving the wrong content over a good server copy.
+
+- **Empty encrypted notes unlock in the app** — Decrypting or unlocking with biometric no longer treats an empty note body as “still locked.” Empty plaintext is valid (matches the Jotty web app); passphrase and fingerprint unlock now succeed and the note stays unlocked.
+
+- **Encrypted saves with local storage** — Offline/online note updates now return the **server-stored** copy (not just the locally built payload), so post-save server verification actually checks what Jotty persisted. Failed server sync no longer reports success.
+
+- **Concurrent app/web encrypted edits** — Re-encrypt refuses to save when the server ciphertext changed since you unlocked (e.g. you edited on the web while the app still had an old unlocked copy). Fingerprinting now compares the encrypted JSON body only, so frontmatter stripping on the server no longer spuriously re-locks notes after a successful save.
+
+- **Encrypted note save verifies the server copy** — After saving an encrypted note, the app now decrypts the copy the **server actually stored and returned** (the Jotty server re-serializes note frontmatter on save, so it can differ from what the app built). If that copy does not decrypt, the app keeps your note unlocked with your text intact, shows a clear warning, and no longer silently locks the note (which previously surfaced as “Auth failed” when reopening). Debug logs now record any server-side change to the encrypted body to aid diagnosis.
+
+- **Dev update check** — Dev channel no longer offers an in-app update when your installed dev build already has a higher version code than the published `dev-latest` APK (e.g. after a local build). Dev release notes include `VersionCode` for this check. Downgrade errors on the dev channel no longer say “stable APK”.
+
 ---
 
 ## [1.7.4] - 2026-06-17
 
 ### Apology
 
-We are sincerely sorry for the encrypted-note problems in v1.7.1–v1.7.3. Some of you lost access to notes you trusted us to keep safe, and that is on us. These hotfixes address undecryptable ciphertext, mangled HTML, unsafe visual-editor saves, and table display issues — but **notes already corrupted on your server cannot be repaired by a passphrase alone**; you may need a Jotty server backup. We should have been far more careful changing how encrypted notes are saved and tested before shipping multiple stable releases. This version adds stronger safeguards, defaults encrypted edits to Markdown, and warns before using the experimental visual editor on encrypted notes. Thank you for reporting the issues and for your patience.
+Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes undecryptable ciphertext, mangled HTML, unsafe visual-editor saves, and table display. **Notes already corrupted on your server cannot be repaired by passphrase alone** — you may need a Jotty server backup. Encrypted edits now default to Markdown, with a warning before the experimental visual editor.
 
 ### Fixed
 

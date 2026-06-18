@@ -15,6 +15,7 @@ import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.data.local.FakeJottyApi
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineNotesRepository
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
@@ -189,7 +190,41 @@ class NoteDetailViewModelTest {
     }
 
     @Test
-    fun onDecrypted_ignoresBlankPlaintext() {
+    fun onDecrypted_acceptsEmptyPlaintext() {
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Empty",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "---\nencrypted: true\nencryptionMethod: xchacha\n---\n{}",
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+            )
+        vm.onDecrypted("")
+        assertEquals("", vm.decryptedContent.value)
+        assertEquals("", vm.displayContent)
+        assertEquals("", NoteDecryptionSession.get(note.id))
+    }
+
+    @Test
+    fun onDecrypted_normalizesWhitespaceOnlyToEmpty() {
         val note =
             Note(
                 id = "n-enc",
@@ -217,10 +252,39 @@ class NoteDetailViewModelTest {
                 },
             )
         vm.onDecrypted("   ")
-        assertNull(vm.decryptedContent.value)
-        assertNull(NoteDecryptionSession.get(note.id))
-        assertNull(NotePassphraseSession.get(note.id))
+        assertEquals("", vm.decryptedContent.value)
+        assertEquals("", NoteDecryptionSession.get(note.id))
     }
+
+    @Test
+    fun contentFingerprint_matchesFrontmatterWrappedAndBodyOnly() {
+        val passphrase = "my secure passphrase 123"
+        val body = XChaCha20Encryptor.encrypt("table note", passphrase)!!
+        val wrapped = XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Title", "Work", body)
+        val vm = encryptedNoteViewModel(wrapped)
+        assertEquals(vm.contentFingerprint(wrapped), vm.contentFingerprint(body))
+    }
+
+    @Test
+    fun encrypt_refusesWhenServerCiphertextChangedSinceUnlock() =
+        runTest {
+            val passphrase = "my secure passphrase 123"
+            val plain = "version one"
+            val bodyV1 = XChaCha20Encryptor.encrypt(plain, passphrase)!!
+            val wrappedV1 = XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Title", "Work", bodyV1)
+            val bodyV2 = XChaCha20Encryptor.encrypt("version two from web", passphrase)!!
+            val vm = encryptedNoteViewModel(wrappedV1)
+            vm.onDecrypted(plain, passphrase = passphrase.toCharArray())
+            vm.setContent(bodyV2)
+            vm.encryptWithSessionPassphrase(
+                encryptFailedMsg = "failed",
+                onSuccess = { },
+                onFailure = { },
+                encryptStaleSessionMsg = "stale session",
+            )
+            advanceUntilIdle()
+            assertEquals("stale session", vm.encryptError.value)
+        }
 
     private fun encryptedNoteViewModel(content: String): NoteDetailViewModel {
         val note =
@@ -278,6 +342,53 @@ class NoteDetailViewModelTest {
 
         // Wrong expected plaintext simulates a body that does not match what we intended to save.
         assertFalse(vm.verifyEncryptRoundTrip(body, wrapped, "different plaintext", passphrase.toCharArray()))
+    }
+
+    @Test
+    fun verifyServerContentDecrypts_acceptsServerReserializedFrontmatter() {
+        val passphrase = "my secure passphrase 123"
+        val plaintext = "Edited body that survives a server frontmatter rewrite"
+        val body = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val vm = encryptedNoteViewModel(XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", body))
+
+        // Server stores its own frontmatter but keeps the encrypted body intact.
+        val serverContent =
+            "---\ntitle: Secret\nuuid: server-uuid\nencrypted: true\nencryptionMethod: xchacha\n---\n$body"
+
+        assertTrue(
+            "server copy with re-serialized frontmatter but identical body must verify",
+            vm.verifyServerContentDecrypts(serverContent, body, plaintext, passphrase.toCharArray()),
+        )
+    }
+
+    @Test
+    fun verifyServerContentDecrypts_rejectsServerCopyWithCorruptedBody() {
+        val passphrase = "my secure passphrase 123"
+        val plaintext = "Edited body"
+        val body = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val vm = encryptedNoteViewModel(XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", body))
+
+        // Simulate the server mangling the encrypted JSON body (e.g. altering the hex data field).
+        val corruptedBody = body.replace("\"data\":\"", "\"data\":\"00")
+        val serverContent = "---\ntitle: Secret\nencrypted: true\nencryptionMethod: xchacha\n---\n$corruptedBody"
+
+        assertFalse(
+            "server copy whose body no longer decrypts must be rejected",
+            vm.verifyServerContentDecrypts(serverContent, body, plaintext, passphrase.toCharArray()),
+        )
+    }
+
+    @Test
+    fun verifyServerContentDecrypts_rejectsServerCopyNotRecognizedAsEncrypted() {
+        val passphrase = "my secure passphrase 123"
+        val plaintext = "Edited body"
+        val body = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val vm = encryptedNoteViewModel(XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", body))
+
+        // Server returned plaintext (lost the encrypted body entirely).
+        assertFalse(
+            vm.verifyServerContentDecrypts("just some plain text", body, plaintext, passphrase.toCharArray()),
+        )
     }
 
     @Test
@@ -368,7 +479,7 @@ class NoteDetailViewModelTest {
     }
 
     @Test
-    fun loadSessionDecryptedContent_ignoresBlankCache() {
+    fun loadSessionDecryptedContent_restoresEmptyCache() {
         val note =
             Note(
                 id = "n-enc",
@@ -379,7 +490,7 @@ class NoteDetailViewModelTest {
                 updatedAt = "u",
                 encrypted = true,
             )
-        NoteDecryptionSession.put(note.id, "  ")
+        NoteDecryptionSession.put(note.id, "")
         val vm =
             NoteDetailViewModel(
                 note,
@@ -396,7 +507,42 @@ class NoteDetailViewModelTest {
                         Result.failure(UnsupportedOperationException())
                 },
             )
+        vm.onDecrypted("")
         vm.loadSessionDecryptedContent()
+        assertEquals("", vm.decryptedContent.value)
+        assertEquals("", NoteDecryptionSession.get(note.id))
+    }
+
+    @Test
+    fun loadSessionDecryptedContent_discardsCacheWhenCiphertextChanged() {
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Secrets",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "cipher-a",
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+            )
+        vm.onDecrypted("Secret body")
+        vm.onNoteSnapshotUpdated(note.copy(content = "cipher-b"))
         assertNull(vm.decryptedContent.value)
         assertNull(NoteDecryptionSession.get(note.id))
     }

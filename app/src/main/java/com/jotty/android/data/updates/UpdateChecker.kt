@@ -192,6 +192,10 @@ object UpdateChecker {
         if (localDevBuildMatchesRemote(current, remoteCommit)) {
             return UpdateCheckResult.UpToDate
         }
+        val remoteVersionCode = versionCodeFromDevReleaseBody(release.body)
+        if (remoteVersionCode != null && BuildConfig.VERSION_CODE >= remoteVersionCode) {
+            return UpdateCheckResult.UpToDate
+        }
         val short = remoteCommit.take(7)
         val releaseNotes = release.body?.trim()?.takeIf { it.isNotBlank() }
         return buildUpdateAvailable(
@@ -307,6 +311,24 @@ object UpdateChecker {
         return null
     }
 
+    internal fun versionCodeFromDevReleaseBody(body: String?): Int? {
+        if (body.isNullOrBlank()) return null
+        val patterns =
+            listOf(
+                Regex("""(?m)^VersionCode:\s*(\d+)\b"""),
+                Regex("""(?i)<!--\s*VersionCode:\s*(\d+)\s*-->"""),
+                Regex("""(?mi)^\|\s*Version\s*code\s*\|\s*(\d+)\s*\|"""),
+            )
+        for (pattern in patterns) {
+            pattern.find(body)?.groupValues?.get(1)?.toIntOrNull()?.let { return it }
+        }
+        return null
+    }
+
+    internal fun isDevReleaseDownloadUrl(downloadUrl: String): Boolean =
+        downloadUrl.contains("/dev-latest/", ignoreCase = true) ||
+            downloadUrl.contains("-dev.apk", ignoreCase = true)
+
     internal fun localDevBuildMatchesRemote(
         versionName: String,
         remoteCommitFull: String,
@@ -351,6 +373,7 @@ object UpdateChecker {
     suspend fun downloadAndInstall(
         context: Context,
         downloadUrl: String,
+        channel: UpdateChannel = UpdateChannel.Stable,
         onProgress: ((Float) -> Unit)? = null,
     ): InstallResult =
         withContext(Dispatchers.IO) {
@@ -391,7 +414,7 @@ object UpdateChecker {
                     }
                 }
                 withContext(Dispatchers.Main) {
-                    installApk(context, apkFile)
+                    installApk(context, apkFile, channel, downloadUrl)
                 }
             } catch (e: Exception) {
                 AppLog.e(TAG, "Download or install failed", e)
@@ -402,6 +425,8 @@ object UpdateChecker {
     private fun installApk(
         context: Context,
         apkFile: File,
+        channel: UpdateChannel,
+        downloadUrl: String,
     ): InstallResult {
         if (!ApkInstallHelper.canInstallOverExisting(context, apkFile)) {
             AppLog.w(TAG, "Update APK signing does not match installed app")
@@ -410,13 +435,18 @@ object UpdateChecker {
         if (!ApkInstallHelper.isVersionCodeAllowedForUpdate(context, apkFile)) {
             AppLog.w(TAG, "Update APK versionCode is lower than installed app")
             val message =
-                if (isDevBuild()) {
-                    context.getString(
-                        R.string.update_dev_to_stable_downgrade_blocked,
-                        BuildConfig.VERSION_CODE,
-                    )
-                } else {
-                    context.getString(R.string.update_version_downgrade_blocked)
+                when {
+                    isDevBuild() && channel == UpdateChannel.Stable ->
+                        context.getString(
+                            R.string.update_dev_to_stable_downgrade_blocked,
+                            BuildConfig.VERSION_CODE,
+                        )
+                    isDevBuild() && isDevReleaseDownloadUrl(downloadUrl) ->
+                        context.getString(
+                            R.string.update_dev_downgrade_blocked,
+                            BuildConfig.VERSION_CODE,
+                        )
+                    else -> context.getString(R.string.update_version_downgrade_blocked)
                 }
             return InstallResult.Failed(message)
         }

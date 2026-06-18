@@ -85,7 +85,7 @@ fun rememberBiometricNoteUnlock(
                                         XChaCha20Decryptor.decrypt(encBody, passChars)
                                     }
                                 withContext(Dispatchers.Main) {
-                                    if (!plain.isNullOrBlank()) {
+                                    if (plain != null) {
                                         currentOnDecrypted.value(plain, passChars)
                                     } else {
                                         passChars.clearPassphrase()

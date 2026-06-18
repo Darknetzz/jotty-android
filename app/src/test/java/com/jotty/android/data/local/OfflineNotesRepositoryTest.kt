@@ -307,7 +307,14 @@ class OfflineNotesRepositoryTest {
                         updateCalled = true
                         ApiResponse(
                             true,
-                            Note(noteId, req.title.orEmpty(), req.category ?: API_CATEGORY_UNCATEGORIZED, req.content.orEmpty(), "c", "u"),
+                            Note(
+                                noteId,
+                                req.title.orEmpty(),
+                                req.category ?: API_CATEGORY_UNCATEGORIZED,
+                                "server-returned-body",
+                                "c",
+                                "u",
+                            ),
                         )
                     },
                 )
@@ -340,6 +347,7 @@ class OfflineNotesRepositoryTest {
             val result = repo.updateNote("existing-server-id", "New Title", "new body", API_CATEGORY_UNCATEGORIZED)
 
             assertTrue(result.isSuccess)
+            assertEquals("server-returned-body", result.getOrNull()?.content)
             assertFalse("createNote must not be called for an existing note", createCalled)
             assertTrue("updateNote should have been called", updateCalled)
         }

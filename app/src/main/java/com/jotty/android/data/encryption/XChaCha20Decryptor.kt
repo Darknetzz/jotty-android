@@ -176,7 +176,10 @@ object XChaCha20Decryptor {
                 }
             }
             Log.w(LOG_TAG, "Decrypt: auth failed (wrong passphrase or corrupted data — Poly1305 tag mismatch)")
-            AppLog.d("encryption", "Decrypt: auth failed")
+            AppLog.d(
+                "encryption",
+                "Decrypt: auth failed (jsonLength=${json.length}, bodyPrefix=${json.take(48).replace("\n", " ")})",
+            )
             return DecryptResult(null, FAILURE_AUTH)
         } finally {
             variants.forEach { it.clearPassphrase() }

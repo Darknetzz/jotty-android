@@ -20,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Save
@@ -62,6 +63,9 @@ import com.jotty.android.R
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
+import com.jotty.android.data.local.EncryptedNoteSnapshot
+import com.jotty.android.data.local.EncryptedNoteSnapshotRepository
+import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import androidx.compose.material.icons.filled.Share
@@ -79,6 +83,9 @@ import com.jotty.android.util.formatNoteDate
 import com.jotty.android.util.noteContentContainsRawHtml
 import com.jotty.android.util.noteNeedsRichEditor
 import com.jotty.android.util.prepareWysiwygHtmlForMarkdown
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -105,10 +112,20 @@ internal fun NoteDetailScreen(
     api: JottyApi? = null,
     isOnline: Boolean = true,
 ) {
+    val context = LocalContext.current
+    val snapshotRepository =
+        remember(serverCapabilitiesKey) {
+            serverCapabilitiesKey?.let { instanceId ->
+                EncryptedNoteSnapshotRepository(
+                    JottyDatabase.getDatabase(context.applicationContext),
+                    instanceId,
+                )
+            }
+        }
     val detailVm: NoteDetailViewModel =
         viewModel(
             key = note.id,
-            factory = NoteDetailViewModel.Factory(note, actions),
+            factory = NoteDetailViewModel.Factory(note, actions, snapshotRepository),
         )
 
     val title by detailVm.title.collectAsStateWithLifecycle()
@@ -191,11 +208,15 @@ internal fun NoteDetailScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showShareServerDialog by remember { mutableStateOf(false) }
     var showArchiveConfirm by remember { mutableStateOf(false) }
+    var showRestoreSnapshots by remember { mutableStateOf(false) }
+    var pendingRestoreSnapshot by remember { mutableStateOf<EncryptedNoteSnapshot?>(null) }
+    var encryptedSnapshots by remember { mutableStateOf<List<EncryptedNoteSnapshot>>(emptyList()) }
 
     val displayTitle = title.ifBlank { stringResource(R.string.untitled) }
     val deleteConfirmMessage = stringResource(R.string.delete_note_confirm, displayTitle)
     val exportNoteTitle = stringResource(R.string.export_note)
-    val context = LocalContext.current
+    val restoreSnapshotSuccessMsg = stringResource(R.string.restore_encrypted_snapshot_success)
+    val ctx = context
 
     val activity = LocalActivity.current as? FragmentActivity
     val biometricTitle = stringResource(R.string.biometric_prompt_title)
@@ -260,6 +281,32 @@ internal fun NoteDetailScreen(
 
     LaunchedEffect(note.encrypted, content) {
         detailVm.logEncryptionState()
+    }
+
+    LaunchedEffect(note.id, note.content, snapshotRepository) {
+        encryptedSnapshots =
+            if (snapshotRepository != null) {
+                withContext(Dispatchers.IO) {
+                    snapshotRepository.listForNote(note.id)
+                }
+            } else {
+                emptyList()
+            }
+    }
+
+    fun refreshEncryptedSnapshots() {
+        val repo = snapshotRepository ?: return
+        scope.launch {
+            encryptedSnapshots =
+                withContext(Dispatchers.IO) {
+                    repo.listForNote(note.id)
+                }
+        }
+    }
+
+    fun formatSnapshotLabel(epochMs: Long): String {
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+        return Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(formatter)
     }
 
     LaunchedEffect(isEditing, isEncrypted, encryptedVisualAcknowledged, noteEditMode) {
@@ -372,7 +419,7 @@ internal fun NoteDetailScreen(
                         putExtra(Intent.EXTRA_TITLE, title)
                         putExtra(Intent.EXTRA_TEXT, shareText)
                     }
-                context.startActivity(Intent.createChooser(intent, exportNoteTitle))
+                ctx.startActivity(Intent.createChooser(intent, exportNoteTitle))
                 showShareServerDialog = false
             },
         )
@@ -537,6 +584,19 @@ internal fun NoteDetailScreen(
                                         scope.launch {
                                             snackbarHostState.showSnackbar(noteCopiedMessage)
                                         }
+                                    },
+                                )
+                            }
+                            if (isEncrypted && encryptedSnapshots.isNotEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.restore_encrypted_snapshot)) },
+                                    leadingIcon = {
+                                        Icon(Icons.Default.History, contentDescription = null)
+                                    },
+                                    onClick = {
+                                        menuExpanded = false
+                                        refreshEncryptedSnapshots()
+                                        showRestoreSnapshots = true
                                     },
                                 )
                             }
@@ -736,6 +796,79 @@ internal fun NoteDetailScreen(
                 }
             }
         }
+    }
+
+    if (showRestoreSnapshots) {
+        AlertDialog(
+            onDismissRequest = { showRestoreSnapshots = false },
+            title = { Text(stringResource(R.string.restore_encrypted_snapshot_title)) },
+            text = {
+                Column {
+                    encryptedSnapshots.forEach { snapshot ->
+                        TextButton(
+                            onClick = {
+                                showRestoreSnapshots = false
+                                pendingRestoreSnapshot = snapshot
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.restore_encrypted_snapshot_item,
+                                    formatSnapshotLabel(snapshot.savedAtEpochMs),
+                                ),
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showRestoreSnapshots = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    pendingRestoreSnapshot?.let { snapshot ->
+        AlertDialog(
+            onDismissRequest = { pendingRestoreSnapshot = null },
+            title = { Text(stringResource(R.string.restore_encrypted_snapshot)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.restore_encrypted_snapshot_confirm,
+                        formatSnapshotLabel(snapshot.savedAtEpochMs),
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingRestoreSnapshot = null
+                        detailVm.restoreEncryptedSnapshot(
+                            snapshotId = snapshot.id,
+                            onSuccess = {
+                                refreshEncryptedSnapshots()
+                                onUpdate(it)
+                                scope.launch {
+                                    snackbarHostState.showSnackbar(restoreSnapshotSuccessMsg)
+                                }
+                            },
+                            onFailure = onSaveFailed,
+                        )
+                    },
+                ) {
+                    Text(stringResource(R.string.restore))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRestoreSnapshot = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
     }
 
     if (showEncryptDialog) {

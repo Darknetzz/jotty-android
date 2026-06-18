@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.local.EncryptedNoteSnapshotRepository
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NotePassphraseSession
 import com.jotty.android.data.encryption.NoteEncryption
@@ -26,6 +27,7 @@ import kotlinx.coroutines.withContext
 class NoteDetailViewModel(
     private val note: Note,
     private val actions: NoteDetailActions,
+    private val snapshotRepository: EncryptedNoteSnapshotRepository? = null,
 ) : ViewModel() {
     /** Tracks server id after a local-only note syncs; [note.id] may still be the temporary UUID. */
     private var activeNoteId = note.id
@@ -225,7 +227,7 @@ class NoteDetailViewModel(
         val cleaned =
             decodeJsonUnicodeEscapes(
                 stripInvisibleUnicode(stripInvisibleFromEdges(plain)),
-            )
+            ).ifBlank { "" }
         _decryptedContent.value = cleaned
         _legacyEncryptionDetected.value = usedLegacyDataOrder
         sessionSourceFingerprint = contentFingerprint(_content.value)
@@ -269,6 +271,39 @@ class NoteDetailViewModel(
                 onFailure()
             }
             _saving.value = false
+        }
+    }
+
+    fun restoreEncryptedSnapshot(
+        snapshotId: Long,
+        onSuccess: (Note) -> Unit,
+        onFailure: () -> Unit,
+    ) {
+        viewModelScope.launch {
+            val snapshot =
+                snapshotRepository?.getById(snapshotId)
+                    ?: run {
+                        onFailure()
+                        return@launch
+                    }
+            lockNote()
+            _saveFailed.value = false
+            val result =
+                actions.updateNote(
+                    noteId = activeNoteId,
+                    title = snapshot.title.ifBlank { _title.value },
+                    content = snapshot.content,
+                    category = _category.value,
+                    originalCategory = persistedCategory,
+                )
+            if (result.isSuccess) {
+                persistedCategory = _category.value
+                completePersist(result.getOrThrow(), onSuccess)
+                sessionSourceFingerprint = contentFingerprint(_content.value)
+            } else {
+                _saveFailed.value = true
+                onFailure()
+            }
         }
     }
 
@@ -344,6 +379,11 @@ class NoteDetailViewModel(
                         _encryptError.value = encryptFailedMsg
                         return@launch
                     }
+                    snapshotRepository?.saveBeforeEncrypt(
+                        noteId = activeNoteId,
+                        title = _title.value,
+                        content = _content.value,
+                    )
                     val result =
                         actions.updateNote(
                             noteId = activeNoteId,
@@ -528,9 +568,10 @@ class NoteDetailViewModel(
     class Factory(
         private val note: Note,
         private val actions: NoteDetailActions,
+        private val snapshotRepository: EncryptedNoteSnapshotRepository? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-            NoteDetailViewModel(note, actions) as T
+            NoteDetailViewModel(note, actions, snapshotRepository) as T
     }
 }

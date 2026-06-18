@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Local encrypted-note backups** — Before each re-encrypt/save, the app keeps up to five on-device ciphertext copies per note. If a save produces unreadable ciphertext, open the note menu (**⋮ → Restore encrypted backup**) to push a previous backup back to the server and try decrypting again.
+
 ### Fixed
 
 - **Empty encrypted notes unlock in the app** — Decrypting or unlocking with biometric no longer treats an empty note body as “still locked.” Empty plaintext is valid (matches the Jotty web app); passphrase and fingerprint unlock now succeed and the note stays unlocked.

@@ -8,6 +8,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Encrypted note save verifies the server copy** — After saving an encrypted note, the app now decrypts the copy the **server actually stored and returned** (the Jotty server re-serializes note frontmatter on save, so it can differ from what the app built). If that copy does not decrypt, the app keeps your note unlocked with your text intact, shows a clear warning, and no longer silently locks the note (which previously surfaced as “Auth failed” when reopening). Debug logs now record any server-side change to the encrypted body to aid diagnosis.
+
 - **Dev update check** — Dev channel no longer offers an in-app update when your installed dev build already has a higher version code than the published `dev-latest` APK (e.g. after a local build). Dev release notes include `VersionCode` for this check. Downgrade errors on the dev channel no longer say “stable APK”.
 
 ---

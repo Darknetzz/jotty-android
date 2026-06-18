@@ -240,6 +240,23 @@ class XChaCha20EncryptorTest {
     }
 
     @Test
+    fun `app decrypts a note encrypted by Jotty web libsodium`() {
+        // Cross-library vector produced by libsodium (pynacl) — the exact stack the Jotty web app
+        // uses (Argon2id t=2/m=64MiB/p=1, XChaCha20-Poly1305 IETF, hex fields, ciphertext||tag).
+        // Deterministic salt (00..0f) and nonce (0x64..0x7b). Guards web→app compatibility.
+        val webBody =
+            """{"alg":"xchacha20","t":2,"m":65536,"p":1,""" +
+                """"salt":"000102030405060708090a0b0c0d0e0f",""" +
+                """"nonce":"6465666768696a6b6c6d6e6f707172737475767778797a7b",""" +
+                """"data":"bccbbac58782d14e991c46d57e169ae1a874024f1e3949fd8c21c80c2598be6a""" +
+                """ab71587a15275e7ba11fb565e0b3e923b0eb0ef45e47d215e82821a8700e2f76cba479710216b7dcbf8a4d25ce"}"""
+        val expected = "Jotty web encrypted this\nLine2 unicode cafe \u00e9 \u65e5\u672c\u8a9e \uD83C\uDF89"
+        val result = XChaCha20Decryptor.decryptWithReason(webBody, "web passphrase 123")
+        assertEquals(expected, result.plaintext)
+        assertFalse("Web/libsodium note must decrypt in IETF order, not legacy", result.usedLegacyDataOrder)
+    }
+
+    @Test
     fun `decrypt parses hex-encoded JSON from Jotty web and fails at auth not parse`() {
         // Web app stores salt/nonce/data as hex. Minimal valid-length hex payload (wrong key → auth fail, not parse).
         val hexJson =

@@ -741,6 +741,7 @@ internal fun NoteDetailScreen(
     if (showEncryptDialog) {
         val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
         val encryptNoPlaintextMsg = stringResource(R.string.error_encrypt_no_plaintext)
+        val encryptServerVerifyFailedMsg = stringResource(R.string.error_encrypt_server_verify_failed)
         val reEncryptMode = isEncrypted && detailVm.hasSessionPassphrase()
         EncryptNoteDialog(
             onDismiss = { detailVm.dismissEncryptDialog() },
@@ -753,6 +754,7 @@ internal fun NoteDetailScreen(
                     onSuccess = onUpdate,
                     onFailure = onSaveFailed,
                     encryptNoPlaintextMsg = encryptNoPlaintextMsg,
+                    encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
                 )
             },
             onEncrypt = { passChars ->
@@ -762,6 +764,7 @@ internal fun NoteDetailScreen(
                     onSuccess = onUpdate,
                     onFailure = onSaveFailed,
                     encryptNoPlaintextMsg = encryptNoPlaintextMsg,
+                    encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
                 )
             },
         )

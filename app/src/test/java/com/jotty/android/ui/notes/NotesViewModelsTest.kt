@@ -281,6 +281,53 @@ class NoteDetailViewModelTest {
     }
 
     @Test
+    fun verifyServerContentDecrypts_acceptsServerReserializedFrontmatter() {
+        val passphrase = "my secure passphrase 123"
+        val plaintext = "Edited body that survives a server frontmatter rewrite"
+        val body = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val vm = encryptedNoteViewModel(XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", body))
+
+        // Server stores its own frontmatter but keeps the encrypted body intact.
+        val serverContent =
+            "---\ntitle: Secret\nuuid: server-uuid\nencrypted: true\nencryptionMethod: xchacha\n---\n$body"
+
+        assertTrue(
+            "server copy with re-serialized frontmatter but identical body must verify",
+            vm.verifyServerContentDecrypts(serverContent, body, plaintext, passphrase.toCharArray()),
+        )
+    }
+
+    @Test
+    fun verifyServerContentDecrypts_rejectsServerCopyWithCorruptedBody() {
+        val passphrase = "my secure passphrase 123"
+        val plaintext = "Edited body"
+        val body = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val vm = encryptedNoteViewModel(XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", body))
+
+        // Simulate the server mangling the encrypted JSON body (e.g. altering the hex data field).
+        val corruptedBody = body.replace("\"data\":\"", "\"data\":\"00")
+        val serverContent = "---\ntitle: Secret\nencrypted: true\nencryptionMethod: xchacha\n---\n$corruptedBody"
+
+        assertFalse(
+            "server copy whose body no longer decrypts must be rejected",
+            vm.verifyServerContentDecrypts(serverContent, body, plaintext, passphrase.toCharArray()),
+        )
+    }
+
+    @Test
+    fun verifyServerContentDecrypts_rejectsServerCopyNotRecognizedAsEncrypted() {
+        val passphrase = "my secure passphrase 123"
+        val plaintext = "Edited body"
+        val body = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
+        val vm = encryptedNoteViewModel(XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", body))
+
+        // Server returned plaintext (lost the encrypted body entirely).
+        assertFalse(
+            vm.verifyServerContentDecrypts("just some plain text", body, plaintext, passphrase.toCharArray()),
+        )
+    }
+
+    @Test
     fun isUnsafePlaintextForEncrypt_detectsJsonEscapedHtmlAndCiphertext() {
         val vm = encryptedNoteViewModel("cipher")
         assertTrue(vm.isUnsafePlaintextForEncrypt("""\u003Ctable\u003E"""))

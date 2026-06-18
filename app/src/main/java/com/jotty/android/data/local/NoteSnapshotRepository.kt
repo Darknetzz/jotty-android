@@ -6,40 +6,40 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Stores the last few encrypted ciphertext copies per note on this device before the app
- * overwrites them during re-encrypt/save.
+ * Stores the last few note copies per note on this device before the app overwrites them on save.
  */
-class EncryptedNoteSnapshotRepository(
+class NoteSnapshotRepository(
     database: JottyDatabase,
     private val instanceId: String,
 ) {
-    private val dao = database.encryptedNoteSnapshotDao()
+    private val dao = database.noteSnapshotDao()
 
-    suspend fun listForNote(noteId: String): List<EncryptedNoteSnapshot> =
+    suspend fun listForNote(noteId: String): List<NoteSnapshot> =
         withContext(Dispatchers.IO) {
             dao.listForNote(noteId, instanceId).map { it.toSnapshot() }
         }
 
-    suspend fun getById(id: Long): EncryptedNoteSnapshot? =
+    suspend fun getById(id: Long): NoteSnapshot? =
         withContext(Dispatchers.IO) {
             dao.getById(id)?.toSnapshot()
         }
 
     /**
-     * Saves [content] when it is encrypted ciphertext and differs from the latest local backup.
-     * No-op for plaintext or duplicate consecutive ciphertext.
+     * Saves [content] when it differs from the latest local backup. No-op when [enabled] is false
+     * or the consecutive content is unchanged.
      */
-    suspend fun saveBeforeEncrypt(
+    suspend fun saveBeforeUpdate(
         noteId: String,
         title: String,
         content: String,
+        enabled: Boolean = true,
     ) = withContext(Dispatchers.IO) {
-        if (NoteEncryption.parse(content) !is ParsedNoteContent.Encrypted) return@withContext
-        val key = encryptedContentKey(content)
+        if (!enabled) return@withContext
+        val key = contentSnapshotKey(content)
         val latest = dao.getLatestForNote(noteId, instanceId)
-        if (latest != null && encryptedContentKey(latest.content) == key) return@withContext
+        if (latest != null && contentSnapshotKey(latest.content) == key) return@withContext
         dao.insert(
-            EncryptedNoteSnapshotEntity(
+            NoteSnapshotEntity(
                 noteId = noteId,
                 instanceId = instanceId,
                 title = title,
@@ -53,7 +53,7 @@ class EncryptedNoteSnapshotRepository(
         }
     }
 
-    internal fun encryptedContentKey(content: String): String =
+    internal fun contentSnapshotKey(content: String): String =
         when (val parsed = NoteEncryption.parse(content)) {
             is ParsedNoteContent.Encrypted -> parsed.encryptedBody
             else -> content

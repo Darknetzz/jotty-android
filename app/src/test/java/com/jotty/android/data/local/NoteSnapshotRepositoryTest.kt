@@ -15,10 +15,10 @@ import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
-class EncryptedNoteSnapshotRepositoryTest {
+class NoteSnapshotRepositoryTest {
     private lateinit var context: Context
     private lateinit var database: JottyDatabase
-    private lateinit var repository: EncryptedNoteSnapshotRepository
+    private lateinit var repository: NoteSnapshotRepository
     private val instanceId = "test-instance"
     private val noteId = "note-1"
 
@@ -51,7 +51,7 @@ class EncryptedNoteSnapshotRepositoryTest {
             Room.inMemoryDatabaseBuilder(context, JottyDatabase::class.java)
                 .allowMainThreadQueries()
                 .build()
-        repository = EncryptedNoteSnapshotRepository(database, instanceId)
+        repository = NoteSnapshotRepository(database, instanceId)
     }
 
     @After
@@ -60,24 +60,32 @@ class EncryptedNoteSnapshotRepositoryTest {
     }
 
     @Test
-    fun saveBeforeEncrypt_skipsPlaintext() =
+    fun saveBeforeUpdate_skipsWhenDisabled() =
         runTest {
-            repository.saveBeforeEncrypt(noteId, "Title", "Hello world")
+            repository.saveBeforeUpdate(noteId, "Title", "Hello world", enabled = false)
             assertTrue(repository.listForNote(noteId).isEmpty())
         }
 
     @Test
-    fun saveBeforeEncrypt_skipsDuplicateConsecutiveCiphertext() =
+    fun saveBeforeUpdate_storesPlaintext() =
         runTest {
-            repository.saveBeforeEncrypt(noteId, "Title", encryptedV1)
-            repository.saveBeforeEncrypt(noteId, "Title", encryptedV1)
+            repository.saveBeforeUpdate(noteId, "Title", "Hello world")
+            assertEquals(1, repository.listForNote(noteId).size)
+            assertEquals("Hello world", repository.listForNote(noteId).first().content)
+        }
+
+    @Test
+    fun saveBeforeUpdate_skipsDuplicateConsecutiveContent() =
+        runTest {
+            repository.saveBeforeUpdate(noteId, "Title", encryptedV1)
+            repository.saveBeforeUpdate(noteId, "Title", encryptedV1)
             assertEquals(1, repository.listForNote(noteId).size)
         }
 
     @Test
-    fun saveBeforeEncrypt_keepsDistinctVersionsAndPrunesOldest() =
+    fun saveBeforeUpdate_keepsDistinctVersionsAndPrunesOldest() =
         runTest {
-            repeat(EncryptedNoteSnapshotRepository.MAX_SNAPSHOTS_PER_NOTE + 2) { i ->
+            repeat(NoteSnapshotRepository.MAX_SNAPSHOTS_PER_NOTE + 2) { i ->
                 val body =
                     """{"alg":"xchacha20","salt":"dGVzdA==","nonce":"dGVzdA==","data":"data$i"}"""
                 val content =
@@ -88,17 +96,17 @@ class EncryptedNoteSnapshotRepositoryTest {
                     |---
                     |$body
                     """.trimMargin()
-                repository.saveBeforeEncrypt(noteId, "Title", content)
+                repository.saveBeforeUpdate(noteId, "Title", content)
             }
             val snapshots = repository.listForNote(noteId)
-            assertEquals(EncryptedNoteSnapshotRepository.MAX_SNAPSHOTS_PER_NOTE, snapshots.size)
+            assertEquals(NoteSnapshotRepository.MAX_SNAPSHOTS_PER_NOTE, snapshots.size)
         }
 
     @Test
-    fun saveBeforeEncrypt_storesDistinctCiphertextVersions() =
+    fun saveBeforeUpdate_storesDistinctCiphertextVersions() =
         runTest {
-            repository.saveBeforeEncrypt(noteId, "Title", encryptedV1)
-            repository.saveBeforeEncrypt(noteId, "Title", encryptedV2)
+            repository.saveBeforeUpdate(noteId, "Title", encryptedV1)
+            repository.saveBeforeUpdate(noteId, "Title", encryptedV2)
             val snapshots = repository.listForNote(noteId)
             assertEquals(2, snapshots.size)
             assertEquals(encryptedV2, snapshots.first().content)

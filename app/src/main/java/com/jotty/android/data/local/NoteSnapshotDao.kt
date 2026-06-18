@@ -5,13 +5,13 @@ import androidx.room.Insert
 import androidx.room.Query
 
 @Dao
-interface EncryptedNoteSnapshotDao {
+interface NoteSnapshotDao {
     @Insert
-    suspend fun insert(snapshot: EncryptedNoteSnapshotEntity): Long
+    suspend fun insert(snapshot: NoteSnapshotEntity): Long
 
     @Query(
         """
-        SELECT * FROM encrypted_note_snapshots
+        SELECT * FROM note_snapshots
         WHERE noteId = :noteId AND instanceId = :instanceId
         ORDER BY savedAtEpochMs DESC
         """,
@@ -19,11 +19,11 @@ interface EncryptedNoteSnapshotDao {
     suspend fun listForNote(
         noteId: String,
         instanceId: String,
-    ): List<EncryptedNoteSnapshotEntity>
+    ): List<NoteSnapshotEntity>
 
     @Query(
         """
-        SELECT * FROM encrypted_note_snapshots
+        SELECT * FROM note_snapshots
         WHERE noteId = :noteId AND instanceId = :instanceId
         ORDER BY savedAtEpochMs DESC
         LIMIT 1
@@ -32,11 +32,11 @@ interface EncryptedNoteSnapshotDao {
     suspend fun getLatestForNote(
         noteId: String,
         instanceId: String,
-    ): EncryptedNoteSnapshotEntity?
+    ): NoteSnapshotEntity?
 
-    @Query("SELECT * FROM encrypted_note_snapshots WHERE id = :id LIMIT 1")
-    suspend fun getById(id: Long): EncryptedNoteSnapshotEntity?
+    @Query("SELECT * FROM note_snapshots WHERE id = :id LIMIT 1")
+    suspend fun getById(id: Long): NoteSnapshotEntity?
 
-    @Query("DELETE FROM encrypted_note_snapshots WHERE id = :id")
+    @Query("DELETE FROM note_snapshots WHERE id = :id")
     suspend fun deleteById(id: Long)
 }

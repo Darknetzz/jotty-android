@@ -8,7 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
-- **Local encrypted-note backups** — Before each re-encrypt/save, the app keeps up to five on-device ciphertext copies per note. If a save produces unreadable ciphertext, open the note menu (**⋮ → Restore encrypted backup**) to push a previous backup back to the server and try decrypting again.
+- **Local note backups** — Before each note save (encrypted or plaintext), the app keeps up to five on-device copies per note. If a save goes wrong, open the note menu (**⋮ → Restore backup**) to push a previous copy back to the server. Disable under **Settings → Behavior → Local note backups**.
 
 ### Fixed
 

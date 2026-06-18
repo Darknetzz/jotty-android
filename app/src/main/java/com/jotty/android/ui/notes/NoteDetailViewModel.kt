@@ -4,7 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.Note
-import com.jotty.android.data.local.EncryptedNoteSnapshotRepository
+import com.jotty.android.data.local.NoteSnapshotRepository
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NotePassphraseSession
 import com.jotty.android.data.encryption.NoteEncryption
@@ -27,7 +27,7 @@ import kotlinx.coroutines.withContext
 class NoteDetailViewModel(
     private val note: Note,
     private val actions: NoteDetailActions,
-    private val snapshotRepository: EncryptedNoteSnapshotRepository? = null,
+    private val snapshotRepository: NoteSnapshotRepository? = null,
 ) : ViewModel() {
     /** Tracks server id after a local-only note syncs; [note.id] may still be the temporary UUID. */
     private var activeNoteId = note.id
@@ -166,13 +166,23 @@ class NoteDetailViewModel(
         encryptNoPlaintextMsg: String? = null,
         encryptServerVerifyFailedMsg: String? = null,
         encryptStaleSessionMsg: String? = null,
+        snapshotsEnabled: Boolean = true,
     ) {
         val passChars = NotePassphraseSession.get(activeNoteId)
         if (passChars == null) {
             showEncryptDialog()
             return
         }
-        encrypt(passChars, encryptFailedMsg, onSuccess, onFailure, encryptNoPlaintextMsg, encryptServerVerifyFailedMsg, encryptStaleSessionMsg)
+        encrypt(
+            passChars,
+            encryptFailedMsg,
+            onSuccess,
+            onFailure,
+            encryptNoPlaintextMsg,
+            encryptServerVerifyFailedMsg,
+            encryptStaleSessionMsg,
+            snapshotsEnabled,
+        )
     }
 
     fun setTitle(value: String) {
@@ -250,10 +260,12 @@ class NoteDetailViewModel(
     fun saveEdit(
         onSuccess: (Note) -> Unit,
         onFailure: () -> Unit,
+        snapshotsEnabled: Boolean = true,
     ) {
         viewModelScope.launch {
             _saving.value = true
             _saveFailed.value = false
+            snapshotBeforeSave(snapshotsEnabled)
             val result =
                 actions.updateNote(
                     noteId = activeNoteId,
@@ -274,7 +286,7 @@ class NoteDetailViewModel(
         }
     }
 
-    fun restoreEncryptedSnapshot(
+    fun restoreSnapshot(
         snapshotId: Long,
         onSuccess: (Note) -> Unit,
         onFailure: () -> Unit,
@@ -286,7 +298,9 @@ class NoteDetailViewModel(
                         onFailure()
                         return@launch
                     }
-            lockNote()
+            if (NoteEncryption.isEncrypted(snapshot.content)) {
+                lockNote()
+            }
             _saveFailed.value = false
             val result =
                 actions.updateNote(
@@ -299,12 +313,23 @@ class NoteDetailViewModel(
             if (result.isSuccess) {
                 persistedCategory = _category.value
                 completePersist(result.getOrThrow(), onSuccess)
-                sessionSourceFingerprint = contentFingerprint(_content.value)
+                if (NoteEncryption.isEncrypted(_content.value)) {
+                    sessionSourceFingerprint = contentFingerprint(_content.value)
+                }
             } else {
                 _saveFailed.value = true
                 onFailure()
             }
         }
+    }
+
+    private suspend fun snapshotBeforeSave(enabled: Boolean) {
+        snapshotRepository?.saveBeforeUpdate(
+            noteId = activeNoteId,
+            title = _title.value,
+            content = _content.value,
+            enabled = enabled,
+        )
     }
 
     fun encrypt(
@@ -315,6 +340,7 @@ class NoteDetailViewModel(
         encryptNoPlaintextMsg: String? = null,
         encryptServerVerifyFailedMsg: String? = null,
         encryptStaleSessionMsg: String? = null,
+        snapshotsEnabled: Boolean = true,
     ) {
         viewModelScope.launch {
             _encryptError.value = null
@@ -379,11 +405,7 @@ class NoteDetailViewModel(
                         _encryptError.value = encryptFailedMsg
                         return@launch
                     }
-                    snapshotRepository?.saveBeforeEncrypt(
-                        noteId = activeNoteId,
-                        title = _title.value,
-                        content = _content.value,
-                    )
+                    snapshotBeforeSave(snapshotsEnabled)
                     val result =
                         actions.updateNote(
                             noteId = activeNoteId,
@@ -568,7 +590,7 @@ class NoteDetailViewModel(
     class Factory(
         private val note: Note,
         private val actions: NoteDetailActions,
-        private val snapshotRepository: EncryptedNoteSnapshotRepository? = null,
+        private val snapshotRepository: NoteSnapshotRepository? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =

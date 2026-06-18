@@ -5,24 +5,23 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Local ciphertext backup taken immediately before the app replaces an encrypted note on the server.
- * Lets users restore the previous encrypted copy if a save produces unreadable ciphertext.
+ * Local note backup taken immediately before the app replaces a note on the server.
+ * Lets users restore a prior copy if a save goes wrong (encrypted or plaintext).
  */
 @Entity(
-    tableName = "encrypted_note_snapshots",
+    tableName = "note_snapshots",
     indices = [Index("noteId"), Index("instanceId")],
 )
-data class EncryptedNoteSnapshotEntity(
+data class NoteSnapshotEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val noteId: String,
     val instanceId: String,
     val title: String,
-    /** Encrypted note content as stored (body-only JSON or frontmatter-wrapped). */
     val content: String,
     val savedAtEpochMs: Long,
 )
 
-data class EncryptedNoteSnapshot(
+data class NoteSnapshot(
     val id: Long,
     val noteId: String,
     val title: String,
@@ -30,8 +29,8 @@ data class EncryptedNoteSnapshot(
     val savedAtEpochMs: Long,
 )
 
-fun EncryptedNoteSnapshotEntity.toSnapshot(): EncryptedNoteSnapshot =
-    EncryptedNoteSnapshot(
+fun NoteSnapshotEntity.toSnapshot(): NoteSnapshot =
+    NoteSnapshot(
         id = id,
         noteId = noteId,
         title = title,

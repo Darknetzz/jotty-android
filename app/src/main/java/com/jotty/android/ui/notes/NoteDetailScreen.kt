@@ -63,8 +63,8 @@ import com.jotty.android.R
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
-import com.jotty.android.data.local.EncryptedNoteSnapshot
-import com.jotty.android.data.local.EncryptedNoteSnapshotRepository
+import com.jotty.android.data.local.NoteSnapshot
+import com.jotty.android.data.local.NoteSnapshotRepository
 import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
@@ -109,6 +109,7 @@ internal fun NoteDetailScreen(
     biometricSaveOfferEnabled: Boolean = true,
     categorySuggestions: List<String> = emptyList(),
     richEditorEnabled: Boolean = false,
+    noteSnapshotsEnabled: Boolean = true,
     api: JottyApi? = null,
     isOnline: Boolean = true,
 ) {
@@ -116,7 +117,7 @@ internal fun NoteDetailScreen(
     val snapshotRepository =
         remember(serverCapabilitiesKey) {
             serverCapabilitiesKey?.let { instanceId ->
-                EncryptedNoteSnapshotRepository(
+                NoteSnapshotRepository(
                     JottyDatabase.getDatabase(context.applicationContext),
                     instanceId,
                 )
@@ -209,13 +210,14 @@ internal fun NoteDetailScreen(
     var showShareServerDialog by remember { mutableStateOf(false) }
     var showArchiveConfirm by remember { mutableStateOf(false) }
     var showRestoreSnapshots by remember { mutableStateOf(false) }
-    var pendingRestoreSnapshot by remember { mutableStateOf<EncryptedNoteSnapshot?>(null) }
-    var encryptedSnapshots by remember { mutableStateOf<List<EncryptedNoteSnapshot>>(emptyList()) }
+    var pendingRestoreSnapshot by remember { mutableStateOf<NoteSnapshot?>(null) }
+    var noteSnapshots by remember { mutableStateOf<List<NoteSnapshot>>(emptyList()) }
 
     val displayTitle = title.ifBlank { stringResource(R.string.untitled) }
     val deleteConfirmMessage = stringResource(R.string.delete_note_confirm, displayTitle)
     val exportNoteTitle = stringResource(R.string.export_note)
-    val restoreSnapshotSuccessMsg = stringResource(R.string.restore_encrypted_snapshot_success)
+    val restoreSnapshotSuccessPlain = stringResource(R.string.restore_note_snapshot_success)
+    val restoreSnapshotSuccessEncrypted = stringResource(R.string.restore_note_snapshot_success_encrypted)
     val ctx = context
 
     val activity = LocalActivity.current as? FragmentActivity
@@ -284,7 +286,7 @@ internal fun NoteDetailScreen(
     }
 
     LaunchedEffect(note.id, note.content, snapshotRepository) {
-        encryptedSnapshots =
+        noteSnapshots =
             if (snapshotRepository != null) {
                 withContext(Dispatchers.IO) {
                     snapshotRepository.listForNote(note.id)
@@ -294,10 +296,10 @@ internal fun NoteDetailScreen(
             }
     }
 
-    fun refreshEncryptedSnapshots() {
+    fun refreshNoteSnapshots() {
         val repo = snapshotRepository ?: return
         scope.launch {
-            encryptedSnapshots =
+            noteSnapshots =
                 withContext(Dispatchers.IO) {
                     repo.listForNote(note.id)
                 }
@@ -498,6 +500,7 @@ internal fun NoteDetailScreen(
                                         detailVm.saveEdit(
                                             onSuccess = onUpdate,
                                             onFailure = onSaveFailed,
+                                            snapshotsEnabled = noteSnapshotsEnabled,
                                         )
                                     }
                                 },
@@ -587,15 +590,15 @@ internal fun NoteDetailScreen(
                                     },
                                 )
                             }
-                            if (isEncrypted && encryptedSnapshots.isNotEmpty()) {
+                            if (noteSnapshots.isNotEmpty()) {
                                 DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.restore_encrypted_snapshot)) },
+                                    text = { Text(stringResource(R.string.restore_note_snapshot)) },
                                     leadingIcon = {
                                         Icon(Icons.Default.History, contentDescription = null)
                                     },
                                     onClick = {
                                         menuExpanded = false
-                                        refreshEncryptedSnapshots()
+                                        refreshNoteSnapshots()
                                         showRestoreSnapshots = true
                                     },
                                 )
@@ -801,10 +804,10 @@ internal fun NoteDetailScreen(
     if (showRestoreSnapshots) {
         AlertDialog(
             onDismissRequest = { showRestoreSnapshots = false },
-            title = { Text(stringResource(R.string.restore_encrypted_snapshot_title)) },
+            title = { Text(stringResource(R.string.restore_note_snapshot_title)) },
             text = {
                 Column {
-                    encryptedSnapshots.forEach { snapshot ->
+                    noteSnapshots.forEach { snapshot ->
                         TextButton(
                             onClick = {
                                 showRestoreSnapshots = false
@@ -814,7 +817,7 @@ internal fun NoteDetailScreen(
                         ) {
                             Text(
                                 stringResource(
-                                    R.string.restore_encrypted_snapshot_item,
+                                    R.string.restore_note_snapshot_item,
                                     formatSnapshotLabel(snapshot.savedAtEpochMs),
                                 ),
                             )
@@ -832,13 +835,18 @@ internal fun NoteDetailScreen(
     }
 
     pendingRestoreSnapshot?.let { snapshot ->
+        val snapshotEncrypted = NoteEncryption.isEncrypted(snapshot.content)
         AlertDialog(
             onDismissRequest = { pendingRestoreSnapshot = null },
-            title = { Text(stringResource(R.string.restore_encrypted_snapshot)) },
+            title = { Text(stringResource(R.string.restore_note_snapshot)) },
             text = {
                 Text(
                     stringResource(
-                        R.string.restore_encrypted_snapshot_confirm,
+                        if (snapshotEncrypted) {
+                            R.string.restore_note_snapshot_confirm_encrypted
+                        } else {
+                            R.string.restore_note_snapshot_confirm
+                        },
                         formatSnapshotLabel(snapshot.savedAtEpochMs),
                     ),
                 )
@@ -847,13 +855,19 @@ internal fun NoteDetailScreen(
                 TextButton(
                     onClick = {
                         pendingRestoreSnapshot = null
-                        detailVm.restoreEncryptedSnapshot(
+                        detailVm.restoreSnapshot(
                             snapshotId = snapshot.id,
                             onSuccess = {
-                                refreshEncryptedSnapshots()
+                                refreshNoteSnapshots()
                                 onUpdate(it)
                                 scope.launch {
-                                    snackbarHostState.showSnackbar(restoreSnapshotSuccessMsg)
+                                    snackbarHostState.showSnackbar(
+                                        if (snapshotEncrypted) {
+                                            restoreSnapshotSuccessEncrypted
+                                        } else {
+                                            restoreSnapshotSuccessPlain
+                                        },
+                                    )
                                 }
                             },
                             onFailure = onSaveFailed,
@@ -890,6 +904,7 @@ internal fun NoteDetailScreen(
                     encryptNoPlaintextMsg = encryptNoPlaintextMsg,
                     encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
                     encryptStaleSessionMsg = encryptStaleSessionMsg,
+                    snapshotsEnabled = noteSnapshotsEnabled,
                 )
             },
             onEncrypt = { passChars ->
@@ -901,6 +916,7 @@ internal fun NoteDetailScreen(
                     encryptNoPlaintextMsg = encryptNoPlaintextMsg,
                     encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
                     encryptStaleSessionMsg = encryptStaleSessionMsg,
+                    snapshotsEnabled = noteSnapshotsEnabled,
                 )
             },
         )

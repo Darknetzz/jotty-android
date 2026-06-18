@@ -41,6 +41,7 @@ fun OfflineNoteDetailScreen(
     biometricSaveOfferEnabled: Boolean = true,
     categorySuggestions: List<String> = emptyList(),
     richEditorEnabled: Boolean = false,
+    noteSnapshotsEnabled: Boolean = true,
     api: JottyApi? = null,
 ) {
     val scope = rememberCoroutineScope()
@@ -87,6 +88,7 @@ fun OfflineNoteDetailScreen(
             biometricSaveOfferEnabled = biometricSaveOfferEnabled,
             categorySuggestions = categorySuggestions,
             richEditorEnabled = richEditorEnabled,
+            noteSnapshotsEnabled = noteSnapshotsEnabled,
             api = api,
             isOnline = isOnline,
         )

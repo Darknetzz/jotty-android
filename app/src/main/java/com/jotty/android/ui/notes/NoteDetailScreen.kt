@@ -263,7 +263,6 @@ internal fun NoteDetailScreen(
     }
 
     LaunchedEffect(note.id, biometricStore) {
-        detailVm.loadSessionDecryptedContent()
         hasBiometricPassphrase =
             withContext(Dispatchers.IO) {
                 biometricStore?.ensurePassphraseValid(note.id) == true

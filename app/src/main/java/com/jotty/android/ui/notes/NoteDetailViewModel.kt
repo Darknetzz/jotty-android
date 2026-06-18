@@ -125,19 +125,32 @@ class NoteDetailViewModel(
                     stripInvisibleUnicode(stripInvisibleFromEdges(it)),
                 )
             }
-        _decryptedContent.value = cached
         if (cached == null) {
+            _decryptedContent.value = null
+            return
+        }
+        val currentFp = contentFingerprint(_content.value)
+        // Never restore cached plaintext without a fingerprint, or when the server ciphertext changed
+        // (e.g. edited on the web while the app still held an old unlocked copy).
+        if (sessionSourceFingerprint == null || sessionSourceFingerprint != currentFp) {
+            AppLog.d(
+                "encryption",
+                "Discarding stale decryption session for $activeNoteId " +
+                    "(sessionFp=$sessionSourceFingerprint, currentFp=$currentFp)",
+            )
             NoteDecryptionSession.remove(activeNoteId)
             NotePassphraseSession.remove(activeNoteId)
+            _decryptedContent.value = null
             sessionSourceFingerprint = null
-        } else if (sessionSourceFingerprint == null) {
-            sessionSourceFingerprint = contentFingerprint(_content.value)
+            return
         }
+        _decryptedContent.value = cached
     }
 
     fun onNoteSnapshotUpdated(updated: Note) {
         invalidateDecryptedIfServerContentChanged(updated.content)
         resetFromNote(updated)
+        loadSessionDecryptedContent()
     }
 
     fun invalidateDecryptedIfServerContentChanged(serverContent: String) {

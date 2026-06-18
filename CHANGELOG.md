@@ -12,6 +12,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
+- **Stale unlock after web edits** — Reopening an encrypted note no longer restores an old in-memory plaintext when the server ciphertext changed (e.g. you edited on the web while the app still had a cached unlock). The app now requires a fresh decrypt before editing, which avoids saving the wrong content over a good server copy.
+
 - **Empty encrypted notes unlock in the app** — Decrypting or unlocking with biometric no longer treats an empty note body as “still locked.” Empty plaintext is valid (matches the Jotty web app); passphrase and fingerprint unlock now succeed and the note stays unlocked.
 
 - **Encrypted saves with local storage** — Offline/online note updates now return the **server-stored** copy (not just the locally built payload), so post-save server verification actually checks what Jotty persisted. Failed server sync no longer reports success.

@@ -507,9 +507,44 @@ class NoteDetailViewModelTest {
                         Result.failure(UnsupportedOperationException())
                 },
             )
+        vm.onDecrypted("")
         vm.loadSessionDecryptedContent()
         assertEquals("", vm.decryptedContent.value)
         assertEquals("", NoteDecryptionSession.get(note.id))
+    }
+
+    @Test
+    fun loadSessionDecryptedContent_discardsCacheWhenCiphertextChanged() {
+        val note =
+            Note(
+                id = "n-enc",
+                title = "Secrets",
+                category = API_CATEGORY_UNCATEGORIZED,
+                content = "cipher-a",
+                createdAt = "c",
+                updatedAt = "u",
+                encrypted = true,
+            )
+        val vm =
+            NoteDetailViewModel(
+                note,
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> = Result.failure(UnsupportedOperationException())
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> =
+                        Result.failure(UnsupportedOperationException())
+                },
+            )
+        vm.onDecrypted("Secret body")
+        vm.onNoteSnapshotUpdated(note.copy(content = "cipher-b"))
+        assertNull(vm.decryptedContent.value)
+        assertNull(NoteDecryptionSession.get(note.id))
     }
 
     @Test

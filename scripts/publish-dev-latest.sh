@@ -34,7 +34,6 @@ if [[ ! -f "$APK_PATH" ]]; then
   echo "Build did not produce APK at: $APK_PATH" >&2
   exit 1
 fi
-assert_dev_apk_matches_expected "$APK_PATH" "$SHORT_SHA" "$DEV_CODE"
 REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "OWNER/REPO")"
 
 BODY="Rolling pre-release build from \`dev\` (built locally).

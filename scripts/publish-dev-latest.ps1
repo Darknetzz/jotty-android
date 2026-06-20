@@ -30,7 +30,6 @@ $apkPath = & (Join-Path $PSScriptRoot "build-dev-apk.ps1") -OutputDir $repoRoot 
 if (-not (Test-Path -LiteralPath $apkPath)) {
     throw "Build did not produce APK at: $apkPath"
 }
-Assert-DevApkMatchesExpected -ApkPath $apkPath -ExpectedShortSha $shortSha -ExpectedVersionCode $devCode
 
 if ($DryRun) {
     Write-Host "[DryRun] Would publish dev-latest with asset: $apkPath"

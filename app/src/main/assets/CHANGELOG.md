@@ -6,6 +6,14 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Dev-latest publish** — Dev APK builds now run `:app:clean` before assemble and verify embedded commit/version code match release notes before upload, preventing stale APKs that loop the in-app updater.
+
+---
+
+## [1.7.5] - 2026-06-18
+
 ### Added
 
 - **Local note backups** — Before each note save (encrypted or plaintext), the app keeps up to five on-device copies per note. If a save goes wrong, open the note menu (**⋮ → Restore backup**) to push a previous copy back to the server. Disable under **Settings → Behavior → Local note backups**.
@@ -23,6 +31,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Encrypted note save verifies the server copy** — After saving an encrypted note, the app now decrypts the copy the **server actually stored and returned** (the Jotty server re-serializes note frontmatter on save, so it can differ from what the app built). If that copy does not decrypt, the app keeps your note unlocked with your text intact, shows a clear warning, and no longer silently locks the note (which previously surfaced as “Auth failed” when reopening). Debug logs now record any server-side change to the encrypted body to aid diagnosis.
 
 - **Dev update check** — Dev channel no longer offers an in-app update when your installed dev build already has a higher version code than the published `dev-latest` APK (e.g. after a local build). Dev release notes include `VersionCode` for this check. Downgrade errors on the dev channel no longer say “stable APK”.
+
 
 ---
 
@@ -1051,3 +1060,5 @@ Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes 
 [1.7.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.3
 
 [1.7.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.4
+
+[1.7.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.5

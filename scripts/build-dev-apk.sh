@@ -25,12 +25,12 @@ SHA="$(git -C "$REPO_ROOT" rev-parse --short=7 HEAD)"
 echo "Dev build: VERSION_NAME=$VERSION_NAME VERSION_CODE=$DEV_CODE SHA=$SHA"
 
 if has_release_keystore "$REPO_ROOT"; then
-  invoke_jotty_gradlew "$REPO_ROOT" assembleRelease -PDEV_BUILD_SHA="$SHA" -PVERSION_CODE="$DEV_CODE"
+  invoke_jotty_gradlew "$REPO_ROOT" :app:clean assembleRelease -PDEV_BUILD_SHA="$SHA" -PVERSION_CODE="$DEV_CODE"
   SRC="$REPO_ROOT/app/build/outputs/apk/release/app-release.apk"
   OUT_NAME="jotty-android-${VERSION_NAME}-dev.apk"
 else
   echo "No keystore.properties — building debug-signed dev APK."
-  invoke_jotty_gradlew "$REPO_ROOT" assembleDebug -PDEV_BUILD_SHA="$SHA" -PVERSION_CODE="$DEV_CODE"
+  invoke_jotty_gradlew "$REPO_ROOT" :app:clean assembleDebug -PDEV_BUILD_SHA="$SHA" -PVERSION_CODE="$DEV_CODE"
   SRC="$REPO_ROOT/app/build/outputs/apk/debug/app-debug.apk"
   OUT_NAME="jotty-android-${VERSION_NAME}-dev-debug.apk"
 fi
@@ -40,5 +40,6 @@ DEST_DIR="$OUTPUT_DIR"
 mkdir -p "$DEST_DIR"
 DEST="$DEST_DIR/$OUT_NAME"
 cp "$SRC" "$DEST"
+assert_dev_apk_matches_expected "$DEST" "$SHA" "$DEV_CODE"
 echo "APK: $DEST" >&2
 printf '%s\n' "$DEST"

@@ -20,10 +20,17 @@ if (-not $SkipPublish) {
     }
 }
 
+$sha = git rev-parse HEAD
+$shortSha = $sha.Substring(0, 7)
+$baseCode = [int](Get-GradleProperty -RepoRoot $repoRoot -Name "VERSION_CODE")
+$runNum = [int](git rev-list --count HEAD)
+$devCode = $baseCode * 10000 + ($runNum % 10000)
+
 $apkPath = & (Join-Path $PSScriptRoot "build-dev-apk.ps1") -OutputDir $repoRoot | Select-Object -Last 1
 if (-not (Test-Path -LiteralPath $apkPath)) {
     throw "Build did not produce APK at: $apkPath"
 }
+Assert-DevApkMatchesExpected -ApkPath $apkPath -ExpectedShortSha $shortSha -ExpectedVersionCode $devCode
 
 if ($DryRun) {
     Write-Host "[DryRun] Would publish dev-latest with asset: $apkPath"
@@ -35,11 +42,6 @@ if ($SkipPublish) {
     exit 0
 }
 
-$sha = git rev-parse HEAD
-$shortSha = $sha.Substring(0, 7)
-$baseCode = [int](Get-GradleProperty -RepoRoot $repoRoot -Name "VERSION_CODE")
-$runNum = [int](git rev-list --count HEAD)
-$devCode = $baseCode * 10000 + ($runNum % 10000)
 $repo = gh repo view --json nameWithOwner -q .nameWithOwner
 
 $body = @"

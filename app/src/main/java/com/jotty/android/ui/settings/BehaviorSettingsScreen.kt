@@ -28,6 +28,7 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
+    val cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
 
     Column(
         modifier =
@@ -37,10 +38,9 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                 .verticalScroll(rememberScrollState()),
     ) {
         Spacer(modifier = Modifier.height(8.dp))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        ) {
+
+        SettingsSectionTitle(stringResource(R.string.settings_category_general))
+        Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.start_screen)) },
                 supportingContent = {
@@ -69,6 +69,31 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
             )
             HorizontalDivider()
             ListItem(
+                headlineContent = { Text(stringResource(R.string.offline_mode)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.offline_mode_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = offlineModeEnabled,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setOfflineModeEnabled(it)
+                            }
+                        },
+                    )
+                },
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SettingsSectionTitle(stringResource(R.string.behavior_category_lists))
+        Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
+            ListItem(
                 headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
                 supportingContent = {
                     Text(
@@ -87,7 +112,12 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                     )
                 },
             )
-            HorizontalDivider()
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SettingsSectionTitle(stringResource(R.string.nav_checklists))
+        Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.checklist_drag_reorder)) },
                 supportingContent = {
@@ -147,7 +177,12 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                     )
                 },
             )
-            HorizontalDivider()
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SettingsSectionTitle(stringResource(R.string.nav_notes))
+        Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.rich_note_editor)) },
                 supportingContent = {
@@ -207,27 +242,8 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                     )
                 },
             )
-            HorizontalDivider()
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.offline_mode)) },
-                supportingContent = {
-                    Text(
-                        stringResource(R.string.offline_mode_description),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = offlineModeEnabled,
-                        onCheckedChange = {
-                            scope.launch {
-                                settingsRepository.setOfflineModeEnabled(it)
-                            }
-                        },
-                    )
-                },
-            )
         }
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }

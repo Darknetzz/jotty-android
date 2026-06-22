@@ -599,26 +599,6 @@ private sealed class UpdateUiState {
     ) : UpdateUiState()
 }
 
-@Composable
-private fun SettingsSectionTitle(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(bottom = 8.dp),
-    )
-}
-
-@Composable
-private fun SettingsSectionSubtitle(title: String) {
-    Text(
-        title,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(bottom = 6.dp),
-    )
-}
-
 private const val GITHUB_REPO_URL = "https://github.com/Darknetzz/jotty-android"
 private const val GITHUB_ISSUES_URL = "$GITHUB_REPO_URL/issues"
 private const val GITHUB_RELEASES_URL = "$GITHUB_REPO_URL/releases"

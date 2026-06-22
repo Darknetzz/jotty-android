@@ -9,6 +9,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Added
 
 - **Settings → Report an issue** — Troubleshooting section links to GitHub Issues so users can report bugs or suggest features (mentions debug logs for easier diagnosis).
+- **Settings → Behavior categories** — Options are grouped under General, Lists, Checklists, and Notes for easier scanning.
 
 ### Fixed
 

@@ -267,6 +267,7 @@
     <string name="settings_category_general">General</string>
     <string name="settings_category_behavior">Behavior</string>
     <string name="behavior_description">Start screen, swipe to delete, checklist reorder, note previews, and offline sync</string>
+    <string name="behavior_category_lists">Lists</string>
     <string name="connection">Connection</string>
     <string name="instance_label">Instance</string>
     <string name="connected">Connected</string>

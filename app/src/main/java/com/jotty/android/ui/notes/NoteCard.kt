@@ -1,6 +1,7 @@
 package com.jotty.android.ui.notes
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,11 +37,11 @@ import com.jotty.android.util.stripInvisibleFromEdges
 internal fun NoteCard(
     note: Note,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     showPreview: Boolean = true,
     showPendingSync: Boolean = false,
     isUnlockedInSession: Boolean = false,
-    cardModifier: Modifier = Modifier,
-    suppressCardOnClick: Boolean = false,
+    modifier: Modifier = Modifier,
 ) {
     val titleText = remember(note.title) { stripInvisibleFromEdges(note.title) }
     val strippedContent = remember(note.content) { stripInvisibleFromEdges(note.content) }
@@ -57,73 +58,126 @@ internal fun NoteCard(
             }
         }
     val updatedAtText = remember(note.updatedAt) { formatNoteDate(note.updatedAt) }
-    Card(
-        onClick = if (suppressCardOnClick) ({}) else onClick,
-        modifier = cardModifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-        ) {
-            Text(
-                text = titleText,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            if (isEncrypted) {
-                Row(
-                    modifier = Modifier.padding(top = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (isUnlockedInSession) {
-                        Icon(
-                            Icons.Default.LockOpen,
-                            contentDescription = stringResource(R.string.unlocked),
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = stringResource(R.string.unlocked),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = stringResource(R.string.encrypted),
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = stringResource(R.string.encrypted),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            } else if (showPreview && contentPreview != null) {
-                Text(
-                    text = contentPreview,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                    maxLines = 2,
+    val cardModifier =
+        modifier.fillMaxWidth().then(
+            if (onLongClick != null) {
+                Modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClick = onLongClick,
                 )
-            }
-            NoteMetadataRow(
-                modifier = Modifier.padding(top = 6.dp),
+            } else {
+                Modifier
+            },
+        )
+
+    if (onLongClick != null) {
+        Card(
+            modifier = cardModifier,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            NoteCardContent(
+                titleText = titleText,
+                isEncrypted = isEncrypted,
+                isUnlockedInSession = isUnlockedInSession,
+                showPreview = showPreview,
+                contentPreview = contentPreview,
                 showPendingSync = showPendingSync,
-                category =
-                    note.category.takeIf {
-                        it.isNotBlank() && it != API_CATEGORY_UNCATEGORIZED
-                    },
-                updatedAtText = note.updatedAt.takeIf { it.isNotBlank() }?.let { updatedAtText },
+                note = note,
+                updatedAtText = updatedAtText,
             )
         }
+    } else {
+        Card(
+            onClick = onClick,
+            modifier = cardModifier,
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            NoteCardContent(
+                titleText = titleText,
+                isEncrypted = isEncrypted,
+                isUnlockedInSession = isUnlockedInSession,
+                showPreview = showPreview,
+                contentPreview = contentPreview,
+                showPendingSync = showPendingSync,
+                note = note,
+                updatedAtText = updatedAtText,
+            )
+        }
+    }
+}
+
+@Composable
+private fun NoteCardContent(
+    titleText: String,
+    isEncrypted: Boolean,
+    isUnlockedInSession: Boolean,
+    showPreview: Boolean,
+    contentPreview: String?,
+    showPendingSync: Boolean,
+    note: Note,
+    updatedAtText: String,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+    ) {
+        Text(
+            text = titleText,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        if (isEncrypted) {
+            Row(
+                modifier = Modifier.padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isUnlockedInSession) {
+                    Icon(
+                        Icons.Default.LockOpen,
+                        contentDescription = stringResource(R.string.unlocked),
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.unlocked),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.Lock,
+                        contentDescription = stringResource(R.string.encrypted),
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.encrypted),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        } else if (showPreview && contentPreview != null) {
+            Text(
+                text = contentPreview,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+                maxLines = 2,
+            )
+        }
+        NoteMetadataRow(
+            modifier = Modifier.padding(top = 6.dp),
+            showPendingSync = showPendingSync,
+            category =
+                note.category.takeIf {
+                    it.isNotBlank() && it != API_CATEGORY_UNCATEGORIZED
+                },
+            updatedAtText = note.updatedAt.takeIf { it.isNotBlank() }?.let { updatedAtText },
+        )
     }
 }

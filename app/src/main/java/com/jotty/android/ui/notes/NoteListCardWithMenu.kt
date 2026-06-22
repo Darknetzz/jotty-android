@@ -54,15 +54,10 @@ internal fun NoteListCardWithMenu(
         NoteCard(
             note = note,
             onClick = onClick,
+            onLongClick = { menuExpanded = true },
             showPreview = showPreview,
             showPendingSync = showPendingSync,
             isUnlockedInSession = isUnlockedInSession,
-            suppressCardOnClick = true,
-            cardModifier =
-                Modifier.combinedClickable(
-                    onClick = onClick,
-                    onLongClick = { menuExpanded = true },
-                ),
         )
         DropdownMenu(
             expanded = menuExpanded,

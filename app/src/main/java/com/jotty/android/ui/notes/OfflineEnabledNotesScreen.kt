@@ -198,25 +198,34 @@ fun OfflineEnabledNotesScreen(
         vm.loadCategories(isOnline, notes)
     }
 
-    // Handle deep link
+    // Handle deep link (unfiltered local lookup, then sync when online)
     var deepLinkSyncAttempted by remember(initialNoteId) { mutableStateOf(false) }
     var deepLinkResolved by remember(initialNoteId) { mutableStateOf(false) }
     val noteNotSyncedYetMsg = stringResource(R.string.note_not_synced_yet)
+    val shareEncryptedLockedMsg = stringResource(R.string.share_encrypted_note_locked)
 
-    LaunchedEffect(filteredNotes, initialNoteId, deepLinkResolved) {
+    LaunchedEffect(
+        initialNoteId,
+        notes,
+        listRefreshing,
+        isOnline,
+        deepLinkSyncAttempted,
+        deepLinkResolved,
+    ) {
         val id = initialNoteId ?: return@LaunchedEffect
         if (deepLinkResolved) return@LaunchedEffect
-        filteredNotes.find { it.id == id }?.let { note ->
-            vm.setSelectedNote(note)
-            onDeepLinkConsumed()
-            deepLinkResolved = true
+
+        suspend fun openIfFound(note: Note?) {
+            if (note != null) {
+                vm.setSelectedNote(note)
+                onDeepLinkConsumed()
+                deepLinkResolved = true
+            }
         }
-    }
 
-    LaunchedEffect(initialNoteId, filteredNotes, listRefreshing, isOnline, deepLinkSyncAttempted, deepLinkResolved) {
-        val id = initialNoteId ?: return@LaunchedEffect
+        openIfFound(offlineRepository.getNoteById(id))
         if (deepLinkResolved) return@LaunchedEffect
-        if (filteredNotes.any { it.id == id }) return@LaunchedEffect
+
         if (listRefreshing) return@LaunchedEffect
 
         if (isOnline && !deepLinkSyncAttempted) {
@@ -226,17 +235,19 @@ fun OfflineEnabledNotesScreen(
         }
 
         if (!isOnline && !deepLinkSyncAttempted) {
-            scope.launch {
-                snackbarHostState.showSnackbar(noteNotSyncedYetMsg)
-                onDeepLinkConsumed()
-                deepLinkResolved = true
-            }
+            deepLinkSyncAttempted = true
+            snackbarHostState.showSnackbar(noteNotSyncedYetMsg)
+            onDeepLinkConsumed()
+            deepLinkResolved = true
             return@LaunchedEffect
         }
 
         if (deepLinkSyncAttempted && !listRefreshing) {
-            scope.launch {
-                snackbarHostState.showSnackbar(noteNotFoundMsg)
+            openIfFound(offlineRepository.getNoteById(id))
+            if (!deepLinkResolved) {
+                snackbarHostState.showSnackbar(
+                    if (isOnline) noteNotFoundMsg else noteNotSyncedYetMsg,
+                )
                 onDeepLinkConsumed()
                 deepLinkResolved = true
             }
@@ -375,32 +386,20 @@ fun OfflineEnabledNotesScreen(
                                         deleteConfirmMessage = noteDeleteConfirm,
                                         onDelete = {
                                             scope.launch {
-                                                val result = offlineRepository.deleteNote(n.id)
-                                                if (result.isFailure) {
-                                                    snackbarHostState.showSnackbar(deleteFailedMsg)
-                                                } else {
-                                                    val snackbarResult =
-                                                        snackbarHostState.showSnackbar(
-                                                            message = noteDeletedMsg,
-                                                            actionLabel = undoActionLabel,
-                                                        )
-                                                    if (snackbarResult == SnackbarResult.ActionPerformed) {
-                                                        val undoResult =
-                                                            offlineRepository.createNote(
-                                                                title = n.title,
-                                                                content = n.content,
-                                                                category = n.category,
-                                                            )
-                                                        if (undoResult.isFailure) {
-                                                            snackbarHostState.showSnackbar(saveFailedMsg)
-                                                        } else if (!isOnline) {
-                                                            snackbarHostState.showSnackbar(savedLocallyMsg)
-                                                        }
-                                                    } else if (!isOnline) {
-                                                        snackbarHostState.showSnackbar(savedLocallyMsg)
-                                                    }
-                                                }
-                                                if (selectedNote?.id == n.id) vm.setSelectedNote(null)
+                                                deleteOfflineNoteWithUndo(
+                                                    note = n,
+                                                    offlineRepository = offlineRepository,
+                                                    snackbarHostState = snackbarHostState,
+                                                    noteDeletedMsg = noteDeletedMsg,
+                                                    undoActionLabel = undoActionLabel,
+                                                    deleteFailedMsg = deleteFailedMsg,
+                                                    saveFailedMsg = saveFailedMsg,
+                                                    savedLocallyMsg = savedLocallyMsg,
+                                                    isOnline = isOnline,
+                                                    onClearSelectionIfNeeded = {
+                                                        if (selectedNote?.id == n.id) vm.setSelectedNote(null)
+                                                    },
+                                                )
                                             }
                                         },
                                     ) {
@@ -409,32 +408,20 @@ fun OfflineEnabledNotesScreen(
                                             onClick = { vm.setSelectedNote(n) },
                                             onDelete = {
                                                 scope.launch {
-                                                    val result = offlineRepository.deleteNote(n.id)
-                                                    if (result.isFailure) {
-                                                        snackbarHostState.showSnackbar(deleteFailedMsg)
-                                                    } else {
-                                                        val snackbarResult =
-                                                            snackbarHostState.showSnackbar(
-                                                                message = noteDeletedMsg,
-                                                                actionLabel = undoActionLabel,
-                                                            )
-                                                        if (snackbarResult == SnackbarResult.ActionPerformed) {
-                                                            val undoResult =
-                                                                offlineRepository.createNote(
-                                                                    title = n.title,
-                                                                    content = n.content,
-                                                                    category = n.category,
-                                                                )
-                                                            if (undoResult.isFailure) {
-                                                                snackbarHostState.showSnackbar(saveFailedMsg)
-                                                            } else if (!isOnline) {
-                                                                snackbarHostState.showSnackbar(savedLocallyMsg)
-                                                            }
-                                                        } else if (!isOnline) {
-                                                            snackbarHostState.showSnackbar(savedLocallyMsg)
-                                                        }
-                                                    }
-                                                    if (selectedNote?.id == n.id) vm.setSelectedNote(null)
+                                                    deleteOfflineNoteWithUndo(
+                                                        note = n,
+                                                        offlineRepository = offlineRepository,
+                                                        snackbarHostState = snackbarHostState,
+                                                        noteDeletedMsg = noteDeletedMsg,
+                                                        undoActionLabel = undoActionLabel,
+                                                        deleteFailedMsg = deleteFailedMsg,
+                                                        saveFailedMsg = saveFailedMsg,
+                                                        savedLocallyMsg = savedLocallyMsg,
+                                                        isOnline = isOnline,
+                                                        onClearSelectionIfNeeded = {
+                                                            if (selectedNote?.id == n.id) vm.setSelectedNote(null)
+                                                        },
+                                                    )
                                                 }
                                             },
                                             onArchive = { pendingArchiveNote = n },
@@ -537,15 +524,15 @@ fun OfflineEnabledNotesScreen(
                 capabilitiesKey = serverCapabilitiesKey,
                 onDismiss = { shareServerNote = null },
                 onExportText = {
-                    val text = shareNote.content.trim()
-                    val shareText = if (text.isNotBlank()) "# ${shareNote.title}\n\n$text" else shareNote.title
-                    val intent =
-                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_TITLE, shareNote.title)
-                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                        }
-                    ctx.startActivity(android.content.Intent.createChooser(intent, exportTitle))
+                    val exported =
+                        shareNoteTextExport(
+                            context = ctx,
+                            note = shareNote,
+                            chooserTitle = exportTitle,
+                        )
+                    if (!exported) {
+                        scope.launch { snackbarHostState.showSnackbar(shareEncryptedLockedMsg) }
+                    }
                     shareServerNote = null
                 },
             )

@@ -25,12 +25,18 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Failed note save** — When local backups exist, the save-failure snackbar offers **Restore backup** instead of only a generic error.
 - **Deep links (offline)** — Opening a note link triggers sync first when online; shows a clearer message when the note is not on the device yet.
 - **List/detail transition** — A short cross-fade when switching between list and detail if motion effects are enabled.
+- **Settings → Behavior → Lists** — Notes where list sort lives (toolbar sort icon).
 
 ### Fixed
 
 - **Release rich editor** — ProGuard keep rules for the WYSIWYG JavaScript bridge so release builds do not strip `@JavascriptInterface` methods.
 - **Corrupted visual saves** — Plain-note saves refuse bodies containing JSON-escaped HTML (`\u003C`) that would corrupt content on the server.
 - **Instance switcher accessibility** — Instance dropdown icons now have TalkBack labels.
+- **List/detail crossfade** — Transition animation now correctly fades between list and detail instead of showing the same pane twice.
+- **Note deep links** — Links resolve notes even when a category filter is active; online mode retries an unfiltered fetch before “not found”.
+- **List share (encrypted)** — Text export from the notes list uses decrypted session content or prompts to unlock instead of sharing ciphertext.
+- **Note card long-press** — Single combined click target (matches checklist cards) without duplicate ripples.
+- **Visual save guard scope** — JSON-escaped HTML check applies only to visual-editor saves, not Markdown source edits.
 - **Dev-latest publish** — Dev APK builds now run `:app:clean` before assemble and verify embedded commit/version code match release notes before upload, preventing stale APKs that loop the in-app updater.
 
 ---

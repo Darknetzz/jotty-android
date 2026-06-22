@@ -169,6 +169,7 @@
     <string name="archive_checklist_confirm">Move this checklist to Archive? You can find it under the Archived filter.</string>
     <string name="share_checklist">Share checklist</string>
     <string name="share_note">Share note</string>
+    <string name="share_encrypted_note_locked">Unlock this note first to export its text.</string>
     <string name="export_note">Export note</string>
     <string name="copy_note">Copy note</string>
     <string name="note_copied">Note copied to clipboard</string>
@@ -195,6 +196,8 @@
     <string name="sort_updated">Last updated</string>
     <string name="sort_created">Date created</string>
     <string name="sort_title">Title (A–Z)</string>
+    <string name="list_sort">List sort</string>
+    <string name="list_sort_location_description">Sort notes and checklists from the sort icon in each list toolbar (last updated, date created, or title).</string>
 
     <!-- Encrypt / Decrypt dialogs -->
     <string name="encrypt_note">Encrypt note</string>

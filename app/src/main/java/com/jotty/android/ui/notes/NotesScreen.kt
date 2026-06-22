@@ -44,7 +44,6 @@ import com.jotty.android.ui.common.MainTabTopBarState
 import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
-import com.jotty.android.util.AppLog
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -111,19 +110,35 @@ fun NotesScreen(
 
     var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
     var shareServerNote by remember { mutableStateOf<Note?>(null) }
+    val shareEncryptedLockedMsg = stringResource(R.string.share_encrypted_note_locked)
 
-    LaunchedEffect(notes, initialNoteId) {
+    var deepLinkResolved by remember(initialNoteId) { mutableStateOf(false) }
+    var deepLinkUnfilteredAttempted by remember(initialNoteId) { mutableStateOf(false) }
+
+    LaunchedEffect(initialNoteId, notes, loading, deepLinkResolved, deepLinkUnfilteredAttempted) {
         val id = initialNoteId ?: return@LaunchedEffect
-        notes.find { it.id == id }?.let { note ->
+        if (deepLinkResolved) return@LaunchedEffect
+
+        fun openNote(note: Note) {
             vm.setSelectedNote(note)
             onDeepLinkConsumed()
+            deepLinkResolved = true
         }
-    }
-    LaunchedEffect(notes, loading, initialNoteId) {
-        if (!loading && initialNoteId != null && notes.none { it.id == initialNoteId }) {
-            scope.launch { snackbarHostState.showSnackbar(noteNotFoundMsg) }
-            onDeepLinkConsumed()
+
+        notes.find { it.id == id }?.let { openNote(it); return@LaunchedEffect }
+        if (loading) return@LaunchedEffect
+
+        if (!deepLinkUnfilteredAttempted) {
+            deepLinkUnfilteredAttempted = true
+            vm.resolveNoteForDeepLink(id)?.let { openNote(it); return@LaunchedEffect }
+            vm.loadNotes()
+            return@LaunchedEffect
         }
+
+        vm.resolveNoteForDeepLink(id)?.let { openNote(it); return@LaunchedEffect }
+        snackbarHostState.showSnackbar(noteNotFoundMsg)
+        onDeepLinkConsumed()
+        deepLinkResolved = true
     }
 
     var pendingSharedText by remember { mutableStateOf<String?>(null) }
@@ -228,41 +243,18 @@ fun NotesScreen(
                                         enabled = swipeToDeleteEnabled,
                                         deleteConfirmMessage = noteDeleteConfirm,
                                         onDelete = {
-                                            val snapshot = n
-                                            try {
-                                                api.deleteNote(n.id)
-                                                vm.removeNoteFromList(n.id)
-                                                scope.launch {
-                                                    val result =
-                                                        snackbarHostState.showSnackbar(
-                                                            message = noteDeletedMsg,
-                                                            actionLabel = undoActionLabel,
-                                                            duration = SnackbarDuration.Short,
-                                                        )
-                                                    if (result == SnackbarResult.ActionPerformed) {
-                                                        try {
-                                                            val resp =
-                                                                api.createNote(
-                                                                    CreateNoteRequest(
-                                                                        title = snapshot.title,
-                                                                        content = snapshot.content,
-                                                                        category = snapshot.category,
-                                                                    ),
-                                                                )
-                                                            if (resp.success) {
-                                                                vm.loadNotes()
-                                                            } else {
-                                                                snackbarHostState.showSnackbar(saveFailedMsg)
-                                                            }
-                                                        } catch (e: Exception) {
-                                                            AppLog.e("notes", "Undo delete failed", e)
-                                                            snackbarHostState.showSnackbar(saveFailedMsg)
-                                                        }
-                                                    }
-                                                }
-                                            } catch (e: Exception) {
-                                                AppLog.e("notes", "Delete note failed", e)
-                                                scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) }
+                                            scope.launch {
+                                                deleteOnlineNoteWithUndo(
+                                                    note = n,
+                                                    api = api,
+                                                    snackbarHostState = snackbarHostState,
+                                                    noteDeletedMsg = noteDeletedMsg,
+                                                    undoActionLabel = undoActionLabel,
+                                                    deleteFailedMsg = deleteFailedMsg,
+                                                    saveFailedMsg = saveFailedMsg,
+                                                    onRemovedFromList = { vm.removeNoteFromList(n.id) },
+                                                    onReload = { vm.loadNotes() },
+                                                )
                                             }
                                         },
                                     ) {
@@ -270,41 +262,18 @@ fun NotesScreen(
                                             note = n,
                                             onClick = { vm.setSelectedNote(n) },
                                             onDelete = {
-                                                val snapshot = n
                                                 scope.launch {
-                                                    try {
-                                                        api.deleteNote(n.id)
-                                                        vm.removeNoteFromList(n.id)
-                                                        val result =
-                                                            snackbarHostState.showSnackbar(
-                                                                message = noteDeletedMsg,
-                                                                actionLabel = undoActionLabel,
-                                                                duration = SnackbarDuration.Short,
-                                                            )
-                                                        if (result == SnackbarResult.ActionPerformed) {
-                                                            try {
-                                                                val resp =
-                                                                    api.createNote(
-                                                                        CreateNoteRequest(
-                                                                            title = snapshot.title,
-                                                                            content = snapshot.content,
-                                                                            category = snapshot.category,
-                                                                        ),
-                                                                    )
-                                                                if (resp.success) {
-                                                                    vm.loadNotes()
-                                                                } else {
-                                                                    snackbarHostState.showSnackbar(saveFailedMsg)
-                                                                }
-                                                            } catch (e: Exception) {
-                                                                AppLog.e("notes", "Undo delete failed", e)
-                                                                snackbarHostState.showSnackbar(saveFailedMsg)
-                                                            }
-                                                        }
-                                                    } catch (e: Exception) {
-                                                        AppLog.e("notes", "Delete note failed", e)
-                                                        snackbarHostState.showSnackbar(deleteFailedMsg)
-                                                    }
+                                                    deleteOnlineNoteWithUndo(
+                                                        note = n,
+                                                        api = api,
+                                                        snackbarHostState = snackbarHostState,
+                                                        noteDeletedMsg = noteDeletedMsg,
+                                                        undoActionLabel = undoActionLabel,
+                                                        deleteFailedMsg = deleteFailedMsg,
+                                                        saveFailedMsg = saveFailedMsg,
+                                                        onRemovedFromList = { vm.removeNoteFromList(n.id) },
+                                                        onReload = { vm.loadNotes() },
+                                                    )
                                                 }
                                             },
                                             onArchive = { pendingArchiveNote = n },
@@ -413,15 +382,15 @@ fun NotesScreen(
             capabilitiesKey = serverCapabilitiesKey,
             onDismiss = { shareServerNote = null },
             onExportText = {
-                val text = shareNote.content.trim()
-                val shareText = if (text.isNotBlank()) "# ${shareNote.title}\n\n$text" else shareNote.title
-                val intent =
-                    android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(android.content.Intent.EXTRA_TITLE, shareNote.title)
-                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                    }
-                context.startActivity(android.content.Intent.createChooser(intent, exportTitle))
+                val exported =
+                    shareNoteTextExport(
+                        context = context,
+                        note = shareNote,
+                        chooserTitle = exportTitle,
+                    )
+                if (!exported) {
+                    scope.launch { snackbarHostState.showSnackbar(shareEncryptedLockedMsg) }
+                }
                 shareServerNote = null
             },
         )

@@ -124,6 +124,15 @@ class NotesViewModel(
         }
     }
 
+    /** Lookup by id ignoring the active list category/search filter (for deep links). */
+    suspend fun resolveNoteForDeepLink(noteId: String): Note? {
+        _notes.value.find { it.id == noteId }?.let { return it }
+        return runCatching {
+            loadNotesWithSearch(api = api, query = "", category = null)
+                .find { it.id == noteId }
+        }.getOrNull()
+    }
+
     class Factory(
         private val application: Application,
         private val api: JottyApi,

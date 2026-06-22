@@ -39,6 +39,26 @@ class WysiwygFormatStateTest {
     }
 
     @Test
+    fun parseWysiwygFormatStateJson_readsHeadingLevels() {
+        val json =
+            """
+            {
+              "heading1": true,
+              "heading2": false,
+              "heading3": true,
+              "heading": false
+            }
+            """.trimIndent()
+
+        val state = parseWysiwygFormatStateJson(json)
+
+        assertTrue(state.heading1)
+        assertFalse(state.heading2)
+        assertTrue(state.heading3)
+        assertFalse(state.heading)
+    }
+
+    @Test
     fun parseWysiwygFormatStateJson_invalidJson_returnsDefaults() {
         val state = parseWysiwygFormatStateJson("not-json")
         assertEquals(WysiwygFormatState(), state)

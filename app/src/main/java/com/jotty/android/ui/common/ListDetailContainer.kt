@@ -28,11 +28,11 @@ fun <T> ListDetailContainer(
         }
     } else {
         Crossfade(
-            targetState = contentKey(target),
+            targetState = target,
             modifier = modifier,
             label = "listDetailCrossfade",
-        ) {
-            content(target)
+        ) { current ->
+            content(current)
         }
     }
 }

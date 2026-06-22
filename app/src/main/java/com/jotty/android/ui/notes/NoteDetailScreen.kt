@@ -293,7 +293,7 @@ internal fun NoteDetailScreen(
             html
         }
 
-    fun isBodySafeToSave(body: String): Boolean = !detailVm.isUnsafePlaintextForSave(body)
+    fun isVisualBodySafeToSave(body: String): Boolean = !detailVm.isUnsafePlaintextForSave(body)
 
     fun handleSaveFailed() {
         scope.launch {
@@ -337,7 +337,7 @@ internal fun NoteDetailScreen(
         if (noteEditMode == NoteEditMode.Visual) {
             flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
                 val body = bodyAfterVisualSave(html)
-                if (!isBodySafeToSave(body)) {
+                if (!isVisualBodySafeToSave(body)) {
                     scope.launch { snackbarHostState.showSnackbar(saveUnsafeMsg) }
                     return@flushWysiwygContentForSave
                 }
@@ -345,11 +345,6 @@ internal fun NoteDetailScreen(
                 persistPlainEdit(onComplete)
             }
         } else {
-            val body = currentEditBody()
-            if (!isBodySafeToSave(body)) {
-                scope.launch { snackbarHostState.showSnackbar(saveUnsafeMsg) }
-                return
-            }
             persistPlainEdit(onComplete)
         }
     }
@@ -358,7 +353,7 @@ internal fun NoteDetailScreen(
         if (flushVisualEditor && noteEditMode == NoteEditMode.Visual) {
             flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
                 val body = bodyAfterVisualSave(html)
-                if (!isBodySafeToSave(body)) {
+                if (!isVisualBodySafeToSave(body)) {
                     scope.launch { snackbarHostState.showSnackbar(saveUnsafeMsg) }
                     return@flushWysiwygContentForSave
                 }

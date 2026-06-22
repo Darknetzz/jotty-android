@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -141,6 +142,60 @@ class SettingsRepository(
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_NOTE_LIST_PREVIEW] ?: true
         }.catch { emit(true) }
+
+    /** Max preview lines on note list cards when [noteListPreviewEnabled]; 0 = title only. Default 2. */
+    val notePreviewMaxLines: Flow<Int> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            normalizeNotePreviewMaxLines(prefs[KEY_NOTE_PREVIEW_MAX_LINES])
+        }.catch { emit(DEFAULT_NOTE_PREVIEW_MAX_LINES) }
+
+    /** Show updated date on note list cards. Default true. */
+    val showNoteListDates: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_SHOW_NOTE_LIST_DATES] ?: true
+        }.catch { emit(true) }
+
+    /** Show category on note list cards. Default true. */
+    val showNoteListCategories: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_SHOW_NOTE_LIST_CATEGORIES] ?: true
+        }.catch { emit(true) }
+
+    /** Note list date format: "date" (YYYY-MM-DD) or "relative". Default "date". */
+    val listDateFormat: Flow<String> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_LIST_DATE_FORMAT].takeIf { it in LIST_DATE_FORMATS } ?: "date"
+        }.catch { emit("date") }
+
+    /** Monospace font for the markdown note editor. Default false. */
+    val markdownEditorMonospace: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_MARKDOWN_EDITOR_MONOSPACE] ?: false
+        }.catch { emit(false) }
+
+    /** Bottom nav labels: "show" or "icons_only". Default "show". */
+    val bottomNavLabels: Flow<String> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_BOTTOM_NAV_LABELS].takeIf { it in BOTTOM_NAV_LABEL_MODES } ?: "show"
+        }.catch { emit("show") }
+
+    /** Open existing notes directly in edit mode. Default false. */
+    val openNotesInEditMode: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_OPEN_NOTES_IN_EDIT_MODE] ?: false
+        }.catch { emit(false) }
+
+    /** Default editor when rich editor is on: "markdown" or "visual". Default "markdown". */
+    val defaultNoteEditMode: Flow<String> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_DEFAULT_NOTE_EDIT_MODE].takeIf { it in DEFAULT_NOTE_EDIT_MODES } ?: "markdown"
+        }.catch { emit("markdown") }
+
+    /** Default category for new notes; blank = uncategorized. */
+    val defaultNoteCategory: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_DEFAULT_NOTE_CATEGORY].takeIf { !it.isNullOrBlank() }
+        }.catch { emit(null) }
 
     /** Content padding: "compact" (8dp vertical) or "comfortable" (16dp vertical). Default "comfortable". */
     val contentPaddingMode: Flow<String> =
@@ -362,6 +417,73 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setNotePreviewMaxLines(value: Int) {
+        val normalized = normalizeNotePreviewMaxLines(value)
+        context.jottySettingsDataStore.edit {
+            if (normalized == DEFAULT_NOTE_PREVIEW_MAX_LINES) {
+                it.remove(KEY_NOTE_PREVIEW_MAX_LINES)
+            } else {
+                it[KEY_NOTE_PREVIEW_MAX_LINES] = normalized
+            }
+        }
+    }
+
+    suspend fun setShowNoteListDates(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it.remove(KEY_SHOW_NOTE_LIST_DATES) else it[KEY_SHOW_NOTE_LIST_DATES] = false
+        }
+    }
+
+    suspend fun setShowNoteListCategories(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it.remove(KEY_SHOW_NOTE_LIST_CATEGORIES) else it[KEY_SHOW_NOTE_LIST_CATEGORIES] = false
+        }
+    }
+
+    suspend fun setListDateFormat(value: String) {
+        context.jottySettingsDataStore.edit {
+            val v = value.lowercase().trim()
+            if (v == "date" || v.isBlank()) it.remove(KEY_LIST_DATE_FORMAT) else it[KEY_LIST_DATE_FORMAT] = v
+        }
+    }
+
+    suspend fun setMarkdownEditorMonospace(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it[KEY_MARKDOWN_EDITOR_MONOSPACE] = true else it.remove(KEY_MARKDOWN_EDITOR_MONOSPACE)
+        }
+    }
+
+    suspend fun setBottomNavLabels(value: String) {
+        context.jottySettingsDataStore.edit {
+            val v = value.lowercase().trim()
+            if (v == "show" || v.isBlank()) it.remove(KEY_BOTTOM_NAV_LABELS) else it[KEY_BOTTOM_NAV_LABELS] = v
+        }
+    }
+
+    suspend fun setOpenNotesInEditMode(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it[KEY_OPEN_NOTES_IN_EDIT_MODE] = true else it.remove(KEY_OPEN_NOTES_IN_EDIT_MODE)
+        }
+    }
+
+    suspend fun setDefaultNoteEditMode(value: String) {
+        context.jottySettingsDataStore.edit {
+            val v = value.lowercase().trim()
+            if (v == "markdown" || v.isBlank()) {
+                it.remove(KEY_DEFAULT_NOTE_EDIT_MODE)
+            } else {
+                it[KEY_DEFAULT_NOTE_EDIT_MODE] = v
+            }
+        }
+    }
+
+    suspend fun setDefaultNoteCategory(value: String?) {
+        context.jottySettingsDataStore.edit {
+            val trimmed = value?.trim().orEmpty()
+            if (trimmed.isBlank()) it.remove(KEY_DEFAULT_NOTE_CATEGORY) else it[KEY_DEFAULT_NOTE_CATEGORY] = trimmed
+        }
+    }
+
     suspend fun setContentPaddingMode(value: String) {
         context.jottySettingsDataStore.edit {
             if (value == "comfortable") it.remove(KEY_CONTENT_PADDING) else it[KEY_CONTENT_PADDING] = value
@@ -564,6 +686,25 @@ class SettingsRepository(
         private val KEY_SHOW_CHECKLIST_EMOJIS = booleanPreferencesKey("show_checklist_emojis")
         private val KEY_KANBAN_HIDE_EMPTY_COLUMNS = booleanPreferencesKey("kanban_hide_empty_columns")
         private val KEY_NOTE_LIST_PREVIEW = booleanPreferencesKey("note_list_preview_enabled")
+        private val KEY_NOTE_PREVIEW_MAX_LINES = intPreferencesKey("note_preview_max_lines")
+        private val KEY_SHOW_NOTE_LIST_DATES = booleanPreferencesKey("show_note_list_dates")
+        private val KEY_SHOW_NOTE_LIST_CATEGORIES = booleanPreferencesKey("show_note_list_categories")
+        private val KEY_LIST_DATE_FORMAT = stringPreferencesKey("list_date_format")
+        private val KEY_MARKDOWN_EDITOR_MONOSPACE = booleanPreferencesKey("markdown_editor_monospace")
+        private val KEY_BOTTOM_NAV_LABELS = stringPreferencesKey("bottom_nav_labels")
+        private val KEY_OPEN_NOTES_IN_EDIT_MODE = booleanPreferencesKey("open_notes_in_edit_mode")
+        private val KEY_DEFAULT_NOTE_EDIT_MODE = stringPreferencesKey("default_note_edit_mode")
+        private val KEY_DEFAULT_NOTE_CATEGORY = stringPreferencesKey("default_note_category")
+
+        const val DEFAULT_NOTE_PREVIEW_MAX_LINES = 2
+        private val NOTE_PREVIEW_MAX_LINES_OPTIONS = setOf(0, 1, 2, 4)
+        private val LIST_DATE_FORMATS = setOf("date", "relative")
+        private val BOTTOM_NAV_LABEL_MODES = setOf("show", "icons_only")
+        private val DEFAULT_NOTE_EDIT_MODES = setOf("markdown", "visual")
+
+        private fun normalizeNotePreviewMaxLines(value: Int?): Int =
+            value?.takeIf { it in NOTE_PREVIEW_MAX_LINES_OPTIONS } ?: DEFAULT_NOTE_PREVIEW_MAX_LINES
+
         private val KEY_CONTENT_PADDING = stringPreferencesKey("content_padding")
         private val KEY_LIST_SORT = stringPreferencesKey("list_sort_option")
         private val KEY_NOTES_CATEGORY_FILTER = stringPreferencesKey("notes_category_filter")

@@ -26,7 +26,13 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
     val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val notePreviewMaxLines by settingsRepository.notePreviewMaxLines.collectAsStateWithLifecycle(
+        initialValue = SettingsRepository.DEFAULT_NOTE_PREVIEW_MAX_LINES,
+    )
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val openNotesInEditMode by settingsRepository.openNotesInEditMode.collectAsStateWithLifecycle(initialValue = false)
+    val defaultNoteEditMode by settingsRepository.defaultNoteEditMode.collectAsStateWithLifecycle(initialValue = "markdown")
+    val defaultNoteCategory by settingsRepository.defaultNoteCategory.collectAsStateWithLifecycle(initialValue = null)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     val cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -252,6 +258,119 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                             }
                         },
                     )
+                },
+            )
+            if (noteListPreviewEnabled) {
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.note_preview_lines)) },
+                    supportingContent = {
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                            Text(
+                                stringResource(R.string.note_preview_lines_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    0 to R.string.note_preview_lines_none,
+                                    1 to R.string.note_preview_lines_1,
+                                    2 to R.string.note_preview_lines_2,
+                                    4 to R.string.note_preview_lines_4,
+                                ).forEach { (value, labelRes) ->
+                                    FilterChip(
+                                        selected = notePreviewMaxLines == value,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setNotePreviewMaxLines(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.open_notes_in_edit_mode)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.open_notes_in_edit_mode_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = openNotesInEditMode,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setOpenNotesInEditMode(it)
+                            }
+                        },
+                    )
+                },
+            )
+            if (richNoteEditorEnabled) {
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.default_note_edit_mode)) },
+                    supportingContent = {
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                            Text(
+                                stringResource(R.string.default_note_edit_mode_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    "markdown" to R.string.note_edit_mode_markdown,
+                                    "visual" to R.string.note_edit_mode_visual,
+                                ).forEach { (value, labelRes) ->
+                                    FilterChip(
+                                        selected = defaultNoteEditMode == value,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setDefaultNoteEditMode(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.default_note_category)) },
+                supportingContent = {
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                        Text(
+                            stringResource(R.string.default_note_category_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        OutlinedTextField(
+                            value = defaultNoteCategory.orEmpty(),
+                            onValueChange = { newValue ->
+                                scope.launch {
+                                    settingsRepository.setDefaultNoteCategory(newValue)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            singleLine = true,
+                            placeholder = { Text(stringResource(R.string.category)) },
+                        )
+                    }
                 },
             )
             HorizontalDivider()

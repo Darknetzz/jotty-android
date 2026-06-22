@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,7 +30,8 @@ import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.ui.common.NoteMetadataRow
-import com.jotty.android.util.formatNoteDate
+import com.jotty.android.util.ListDateFormat
+import com.jotty.android.util.formatNoteListDate
 import com.jotty.android.util.stripInvisibleFromEdges
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -39,25 +41,36 @@ internal fun NoteCard(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     showPreview: Boolean = true,
+    previewMaxLines: Int = 2,
+    showDates: Boolean = true,
+    showCategories: Boolean = true,
+    listDateFormat: ListDateFormat = ListDateFormat.DATE,
     showPendingSync: Boolean = false,
     isUnlockedInSession: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
     val titleText = remember(note.title) { stripInvisibleFromEdges(note.title) }
     val strippedContent = remember(note.content) { stripInvisibleFromEdges(note.content) }
     val isEncrypted =
         remember(note.encrypted, note.content) {
             note.encrypted == true || NoteEncryption.isEncrypted(note.content)
         }
+    val effectivePreviewLines = previewMaxLines.coerceIn(0, 4)
+    val previewCharLimit = (effectivePreviewLines * 50).coerceAtLeast(if (effectivePreviewLines > 0) 50 else 0)
     val contentPreview =
-        remember(strippedContent, isEncrypted) {
-            if (isEncrypted || strippedContent.isBlank()) {
+        remember(strippedContent, isEncrypted, previewCharLimit, effectivePreviewLines) {
+            if (effectivePreviewLines <= 0 || isEncrypted || strippedContent.isBlank()) {
                 null
             } else {
-                strippedContent.take(100) + if (strippedContent.length > 100) "\u2026" else ""
+                strippedContent.take(previewCharLimit) +
+                    if (strippedContent.length > previewCharLimit) "\u2026" else ""
             }
         }
-    val updatedAtText = remember(note.updatedAt) { formatNoteDate(note.updatedAt) }
+    val updatedAtText =
+        remember(note.updatedAt, listDateFormat) {
+            formatNoteListDate(context, note.updatedAt, listDateFormat)
+        }
     val cardModifier =
         modifier.fillMaxWidth().then(
             if (onLongClick != null) {
@@ -80,10 +93,13 @@ internal fun NoteCard(
                 isEncrypted = isEncrypted,
                 isUnlockedInSession = isUnlockedInSession,
                 showPreview = showPreview,
+                previewMaxLines = effectivePreviewLines,
                 contentPreview = contentPreview,
                 showPendingSync = showPendingSync,
                 note = note,
                 updatedAtText = updatedAtText,
+                showDates = showDates,
+                showCategories = showCategories,
             )
         }
     } else {
@@ -97,10 +113,13 @@ internal fun NoteCard(
                 isEncrypted = isEncrypted,
                 isUnlockedInSession = isUnlockedInSession,
                 showPreview = showPreview,
+                previewMaxLines = effectivePreviewLines,
                 contentPreview = contentPreview,
                 showPendingSync = showPendingSync,
                 note = note,
                 updatedAtText = updatedAtText,
+                showDates = showDates,
+                showCategories = showCategories,
             )
         }
     }
@@ -112,10 +131,13 @@ private fun NoteCardContent(
     isEncrypted: Boolean,
     isUnlockedInSession: Boolean,
     showPreview: Boolean,
+    previewMaxLines: Int,
     contentPreview: String?,
     showPendingSync: Boolean,
     note: Note,
     updatedAtText: String,
+    showDates: Boolean,
+    showCategories: Boolean,
 ) {
     Column(
         modifier =
@@ -161,23 +183,33 @@ private fun NoteCardContent(
                     )
                 }
             }
-        } else if (showPreview && contentPreview != null) {
+        } else if (showPreview && previewMaxLines > 0 && contentPreview != null) {
             Text(
                 text = contentPreview,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
-                maxLines = 2,
+                maxLines = previewMaxLines,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         NoteMetadataRow(
             modifier = Modifier.padding(top = 6.dp),
             showPendingSync = showPendingSync,
             category =
-                note.category.takeIf {
-                    it.isNotBlank() && it != API_CATEGORY_UNCATEGORIZED
+                if (showCategories) {
+                    note.category.takeIf {
+                        it.isNotBlank() && it != API_CATEGORY_UNCATEGORIZED
+                    }
+                } else {
+                    null
                 },
-            updatedAtText = note.updatedAt.takeIf { it.isNotBlank() }?.let { updatedAtText },
+            updatedAtText =
+                if (showDates && note.updatedAt.isNotBlank()) {
+                    updatedAtText
+                } else {
+                    null
+                },
         )
     }
 }

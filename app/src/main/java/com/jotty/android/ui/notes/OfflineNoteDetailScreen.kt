@@ -44,6 +44,9 @@ fun OfflineNoteDetailScreen(
     richEditorEnabled: Boolean = false,
     visualEditorSaveAsMarkdown: Boolean = false,
     noteSnapshotsEnabled: Boolean = true,
+    openNotesInEditMode: Boolean = false,
+    defaultNoteEditMode: String = "markdown",
+    markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
 ) {
     val scope = rememberCoroutineScope()
@@ -93,6 +96,9 @@ fun OfflineNoteDetailScreen(
             richEditorEnabled = richEditorEnabled,
             visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
             noteSnapshotsEnabled = noteSnapshotsEnabled,
+            openNotesInEditMode = openNotesInEditMode,
+            defaultNoteEditMode = defaultNoteEditMode,
+            markdownEditorMonospace = markdownEditorMonospace,
             api = api,
             isOnline = isOnline,
         )

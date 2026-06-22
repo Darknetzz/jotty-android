@@ -1,5 +1,11 @@
 package com.jotty.android.util
 
+import android.content.Context
+import android.text.format.DateUtils
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.format.DateTimeParseException
+
 /**
  * Invisible/special Unicode that often render as "?" or cause layout issues.
  * BOM (U+FEFF) and zero-width characters are common when pasting from web/Word.
@@ -74,3 +80,49 @@ fun formatNoteDate(updatedAt: String): String =
     } catch (_: Exception) {
         updatedAt.take(10)
     }
+
+/** List date display modes for note cards. */
+enum class ListDateFormat(val key: String) {
+    DATE("date"),
+    RELATIVE("relative"),
+    ;
+
+    companion object {
+        fun fromKey(key: String?): ListDateFormat = entries.firstOrNull { it.key == key } ?: DATE
+    }
+}
+
+private fun parseNoteInstant(updatedAt: String): Instant? {
+    if (updatedAt.isBlank()) return null
+    return try {
+        Instant.parse(updatedAt.replace("+00:00", "Z"))
+    } catch (_: DateTimeParseException) {
+        try {
+            OffsetDateTime.parse(updatedAt).toInstant()
+        } catch (_: DateTimeParseException) {
+            null
+        }
+    }
+}
+
+/** Formats a note timestamp for list cards using [format] (absolute date or relative). */
+fun formatNoteListDate(
+    context: Context,
+    updatedAt: String,
+    format: ListDateFormat,
+): String {
+    if (updatedAt.isBlank()) return ""
+    return when (format) {
+        ListDateFormat.DATE -> formatNoteDate(updatedAt)
+        ListDateFormat.RELATIVE -> {
+            val instant = parseNoteInstant(updatedAt) ?: return formatNoteDate(updatedAt)
+            val millis = instant.toEpochMilli()
+            DateUtils.getRelativeTimeSpanString(
+                millis,
+                System.currentTimeMillis(),
+                DateUtils.MINUTE_IN_MILLIS,
+                DateUtils.FORMAT_ABBREV_RELATIVE,
+            ).toString()
+        }
+    }
+}

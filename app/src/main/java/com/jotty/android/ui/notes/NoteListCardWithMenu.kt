@@ -19,6 +19,7 @@ import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.ShareDropdownMenuItem
 import com.jotty.android.util.isArchivedCategory
+import com.jotty.android.util.ListDateFormat
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -30,6 +31,10 @@ internal fun NoteListCardWithMenu(
     showShare: Boolean = false,
     onShare: () -> Unit = {},
     showPreview: Boolean = true,
+    previewMaxLines: Int = 2,
+    showDates: Boolean = true,
+    showCategories: Boolean = true,
+    listDateFormat: ListDateFormat = ListDateFormat.DATE,
     showPendingSync: Boolean = false,
     isUnlockedInSession: Boolean = false,
     modifier: Modifier = Modifier,
@@ -56,6 +61,10 @@ internal fun NoteListCardWithMenu(
             onClick = onClick,
             onLongClick = { menuExpanded = true },
             showPreview = showPreview,
+            previewMaxLines = previewMaxLines,
+            showDates = showDates,
+            showCategories = showCategories,
+            listDateFormat = listDateFormat,
             showPendingSync = showPendingSync,
             isUnlockedInSession = isUnlockedInSession,
         )

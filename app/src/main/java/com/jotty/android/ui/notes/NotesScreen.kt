@@ -25,6 +25,7 @@ import com.jotty.android.R
 import com.jotty.android.data.api.CreateNoteRequest
 import com.jotty.android.ui.common.ShareServerDialog
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
+import com.jotty.android.util.ListDateFormat
 import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.isArchivedCategory
 import com.jotty.android.data.api.JottyApi
@@ -70,6 +71,17 @@ fun NotesScreen(
 
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val notePreviewMaxLines by settingsRepository.notePreviewMaxLines.collectAsStateWithLifecycle(
+        initialValue = SettingsRepository.DEFAULT_NOTE_PREVIEW_MAX_LINES,
+    )
+    val showNoteListDates by settingsRepository.showNoteListDates.collectAsStateWithLifecycle(initialValue = true)
+    val showNoteListCategories by settingsRepository.showNoteListCategories.collectAsStateWithLifecycle(initialValue = true)
+    val listDateFormatKey by settingsRepository.listDateFormat.collectAsStateWithLifecycle(initialValue = "date")
+    val listDateFormat = remember(listDateFormatKey) { ListDateFormat.fromKey(listDateFormatKey) }
+    val openNotesInEditMode by settingsRepository.openNotesInEditMode.collectAsStateWithLifecycle(initialValue = false)
+    val defaultNoteEditMode by settingsRepository.defaultNoteEditMode.collectAsStateWithLifecycle(initialValue = "markdown")
+    val markdownEditorMonospace by settingsRepository.markdownEditorMonospace.collectAsStateWithLifecycle(initialValue = false)
+    val defaultNoteCategory by settingsRepository.defaultNoteCategory.collectAsStateWithLifecycle(initialValue = null)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
     val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -280,6 +292,10 @@ fun NotesScreen(
                                             showShare = true,
                                             onShare = { shareServerNote = n },
                                             showPreview = noteListPreviewEnabled,
+                                            previewMaxLines = notePreviewMaxLines,
+                                            showDates = showNoteListDates,
+                                            showCategories = showNoteListCategories,
+                                            listDateFormat = listDateFormat,
                                             isUnlockedInSession = n.id in unlockedNoteIds,
                                         )
                                     }
@@ -318,6 +334,9 @@ fun NotesScreen(
                         richEditorEnabled = richNoteEditorEnabled,
                         visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
                         noteSnapshotsEnabled = noteSnapshotsEnabled,
+                        openNotesInEditMode = openNotesInEditMode,
+                        defaultNoteEditMode = defaultNoteEditMode,
+                        markdownEditorMonospace = markdownEditorMonospace,
                         api = api,
                     )
                 }
@@ -404,6 +423,7 @@ fun NotesScreen(
             },
             categorySuggestions = noteCategories,
             initialContent = pendingSharedText.orEmpty(),
+            initialCategory = defaultNoteCategory.orEmpty(),
             onCreate = { title, content, category ->
                 scope.launch {
                     try {

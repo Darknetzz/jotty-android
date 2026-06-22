@@ -115,6 +115,9 @@ internal fun NoteDetailScreen(
     richEditorEnabled: Boolean = false,
     visualEditorSaveAsMarkdown: Boolean = false,
     noteSnapshotsEnabled: Boolean = true,
+    openNotesInEditMode: Boolean = false,
+    defaultNoteEditMode: String = "markdown",
+    markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
     isOnline: Boolean = true,
 ) {
@@ -158,7 +161,10 @@ internal fun NoteDetailScreen(
             (NoteEncryption.parse(content) as? ParsedNoteContent.Encrypted)?.encryptedBody
         }
 
-    var noteEditMode by rememberSaveable(note.id) { mutableStateOf(NoteEditMode.Markdown) }
+    var noteEditMode by rememberSaveable(note.id) {
+        mutableStateOf(resolveInitialNoteEditMode(richEditorEnabled, defaultNoteEditMode))
+    }
+    var autoEditTriggered by rememberSaveable(note.id) { mutableStateOf(false) }
     var editorReloadNonce by rememberSaveable(note.id) { mutableIntStateOf(0) }
     var wysiwygWebView by remember(note.id) { mutableStateOf<WebView?>(null) }
     var wysiwygBridge by remember(note.id) { mutableStateOf<WysiwygEditorBridge?>(null) }
@@ -406,6 +412,14 @@ internal fun NoteDetailScreen(
         if (isEditing && isEncrypted && noteEditMode == NoteEditMode.Visual && !encryptedVisualAcknowledged) {
             noteEditMode = NoteEditMode.Markdown
             editorReloadNonce++
+        }
+    }
+
+    LaunchedEffect(note.id, openNotesInEditMode, isEncrypted, isDecrypted, autoEditTriggered) {
+        if (autoEditTriggered || !openNotesInEditMode || isEditing) return@LaunchedEffect
+        if (!isEncrypted || isDecrypted) {
+            detailVm.startEditing()
+            autoEditTriggered = true
         }
     }
 
@@ -832,6 +846,7 @@ internal fun NoteDetailScreen(
                                     category = category,
                                     onCategoryChange = { detailVm.setCategory(it) },
                                     categorySuggestions = categorySuggestions,
+                                    monospaceFont = markdownEditorMonospace,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                         }

@@ -107,6 +107,8 @@ fun MainScreen(
     val serverUrl by settingsRepository.serverUrl.collectAsStateWithLifecycle(initialValue = null)
     val apiKey by settingsRepository.apiKey.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val bottomNavLabels by settingsRepository.bottomNavLabels.collectAsStateWithLifecycle(initialValue = "show")
+    val showBottomNavLabels = bottomNavLabels != "icons_only"
     val reducedMotion = LocalReducedMotionEnabled.current
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -237,11 +239,13 @@ fun MainScreen(
                                             contentDescription = stringResource(route.titleRes),
                                             tint = color,
                                         )
-                                        Text(
-                                            text = stringResource(route.titleRes),
-                                            color = color,
-                                            style = MaterialTheme.typography.labelSmall,
-                                        )
+                                        if (showBottomNavLabels) {
+                                            Text(
+                                                text = stringResource(route.titleRes),
+                                                color = color,
+                                                style = MaterialTheme.typography.labelSmall,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -255,6 +259,7 @@ fun MainScreen(
                                 onClick = { onMainRouteClick(route) },
                                 icon = { Icon(route.icon, contentDescription = stringResource(route.titleRes)) },
                                 label = { Text(stringResource(route.titleRes)) },
+                                alwaysShowLabel = showBottomNavLabels,
                             )
                         }
                     }

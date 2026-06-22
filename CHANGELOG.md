@@ -8,6 +8,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Settings → Appearance (notes list)** — Control note list metadata (dates and categories), date format (absolute or relative), bottom navigation labels (icons only), and monospace Markdown editor font.
+- **Settings → Behavior (notes)** — Preview length (title-only through 4 lines), open notes in edit mode, default visual/Markdown editor when the rich editor is on, and default category for new notes.
 - **Settings → Report an issue** — Troubleshooting section links to GitHub Issues so users can report bugs or suggest features (mentions debug logs for easier diagnosis).
 - **Settings → Behavior categories** — Options are grouped under General, Lists, Checklists, and Notes for easier scanning.
 - **Shared list filter header** — Notes and checklists use the same search, sort, and category chip row; tap a category again to clear the filter.

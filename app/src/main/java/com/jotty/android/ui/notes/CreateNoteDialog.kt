@@ -31,9 +31,10 @@ fun CreateNoteDialog(
     categorySuggestions: List<String> = emptyList(),
     initialTitle: String = "",
     initialContent: String = "",
+    initialCategory: String = "",
 ) {
     var title by remember { mutableStateOf(initialTitle) }
-    var category by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf(initialCategory) }
     val untitled = stringResource(R.string.untitled)
 
     AlertDialog(

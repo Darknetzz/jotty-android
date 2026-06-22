@@ -29,7 +29,10 @@ import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConflictCopiesBanner
+import com.jotty.android.ui.common.ShareServerDialog
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
+import com.jotty.android.util.defaultUnarchiveCategory
+import com.jotty.android.util.isArchivedCategory
 import com.jotty.android.ui.common.ListFilterHeader
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
@@ -65,6 +68,7 @@ fun OfflineEnabledNotesScreen(
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
+    apiKey: String? = null,
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
@@ -131,6 +135,9 @@ fun OfflineEnabledNotesScreen(
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
 
+    var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
+    var shareServerNote by remember { mutableStateOf<Note?>(null) }
+
     fun requestSync(
         showLoading: Boolean = true,
         fromPull: Boolean = false,
@@ -192,18 +199,47 @@ fun OfflineEnabledNotesScreen(
     }
 
     // Handle deep link
-    LaunchedEffect(filteredNotes, initialNoteId) {
+    var deepLinkSyncAttempted by remember(initialNoteId) { mutableStateOf(false) }
+    var deepLinkResolved by remember(initialNoteId) { mutableStateOf(false) }
+    val noteNotSyncedYetMsg = stringResource(R.string.note_not_synced_yet)
+
+    LaunchedEffect(filteredNotes, initialNoteId, deepLinkResolved) {
         val id = initialNoteId ?: return@LaunchedEffect
+        if (deepLinkResolved) return@LaunchedEffect
         filteredNotes.find { it.id == id }?.let { note ->
             vm.setSelectedNote(note)
             onDeepLinkConsumed()
+            deepLinkResolved = true
         }
     }
 
-    LaunchedEffect(filteredNotes, screenState.loading, initialNoteId) {
-        if (!screenState.loading && initialNoteId != null && filteredNotes.isNotEmpty() && filteredNotes.none { it.id == initialNoteId }) {
-            scope.launch { snackbarHostState.showSnackbar(noteNotFoundMsg) }
-            onDeepLinkConsumed()
+    LaunchedEffect(initialNoteId, filteredNotes, listRefreshing, isOnline, deepLinkSyncAttempted, deepLinkResolved) {
+        val id = initialNoteId ?: return@LaunchedEffect
+        if (deepLinkResolved) return@LaunchedEffect
+        if (filteredNotes.any { it.id == id }) return@LaunchedEffect
+        if (listRefreshing) return@LaunchedEffect
+
+        if (isOnline && !deepLinkSyncAttempted) {
+            deepLinkSyncAttempted = true
+            requestSync(showLoading = true)
+            return@LaunchedEffect
+        }
+
+        if (!isOnline && !deepLinkSyncAttempted) {
+            scope.launch {
+                snackbarHostState.showSnackbar(noteNotSyncedYetMsg)
+                onDeepLinkConsumed()
+                deepLinkResolved = true
+            }
+            return@LaunchedEffect
+        }
+
+        if (deepLinkSyncAttempted && !listRefreshing) {
+            scope.launch {
+                snackbarHostState.showSnackbar(noteNotFoundMsg)
+                onDeepLinkConsumed()
+                deepLinkResolved = true
+            }
         }
     }
 
@@ -368,9 +404,42 @@ fun OfflineEnabledNotesScreen(
                                             }
                                         },
                                     ) {
-                                        NoteCard(
+                                        NoteListCardWithMenu(
                                             note = n,
                                             onClick = { vm.setSelectedNote(n) },
+                                            onDelete = {
+                                                scope.launch {
+                                                    val result = offlineRepository.deleteNote(n.id)
+                                                    if (result.isFailure) {
+                                                        snackbarHostState.showSnackbar(deleteFailedMsg)
+                                                    } else {
+                                                        val snackbarResult =
+                                                            snackbarHostState.showSnackbar(
+                                                                message = noteDeletedMsg,
+                                                                actionLabel = undoActionLabel,
+                                                            )
+                                                        if (snackbarResult == SnackbarResult.ActionPerformed) {
+                                                            val undoResult =
+                                                                offlineRepository.createNote(
+                                                                    title = n.title,
+                                                                    content = n.content,
+                                                                    category = n.category,
+                                                                )
+                                                            if (undoResult.isFailure) {
+                                                                snackbarHostState.showSnackbar(saveFailedMsg)
+                                                            } else if (!isOnline) {
+                                                                snackbarHostState.showSnackbar(savedLocallyMsg)
+                                                            }
+                                                        } else if (!isOnline) {
+                                                            snackbarHostState.showSnackbar(savedLocallyMsg)
+                                                        }
+                                                    }
+                                                    if (selectedNote?.id == n.id) vm.setSelectedNote(null)
+                                                }
+                                            },
+                                            onArchive = { pendingArchiveNote = n },
+                                            showShare = api != null,
+                                            onShare = { shareServerNote = n },
                                             showPreview = noteListPreviewEnabled,
                                             showPendingSync = n.id in dirtyNoteIds,
                                             isUnlockedInSession = n.id in unlockedNoteIds,
@@ -396,6 +465,7 @@ fun OfflineEnabledNotesScreen(
                         onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
                         imageLoader = imageLoader,
                         jottyServerUrl = jottyServerUrl,
+                        apiKey = apiKey,
                         serverCapabilitiesKey = serverCapabilitiesKey,
                         isOnline = isOnline,
                         onRetrySync = { requestSync(showLoading = true) },
@@ -410,6 +480,75 @@ fun OfflineEnabledNotesScreen(
                     )
                 }
             }
+        }
+    }
+
+    pendingArchiveNote?.let { archiveNote ->
+        val archived = isArchivedCategory(archiveNote.category)
+        AlertDialog(
+            onDismissRequest = { pendingArchiveNote = null },
+            title = { Text(stringResource(if (archived) R.string.unarchive else R.string.archive)) },
+            text = { Text(stringResource(R.string.archive_note_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val target = archiveNote
+                        pendingArchiveNote = null
+                        scope.launch {
+                            val newCategory =
+                                if (archived) {
+                                    defaultUnarchiveCategory()
+                                } else {
+                                    JOTTY_ARCHIVE_CATEGORY
+                                }
+                            offlineRepository
+                                .updateNote(
+                                    noteId = target.id,
+                                    title = target.title,
+                                    content = target.content,
+                                    category = newCategory,
+                                ).onFailure {
+                                    snackbarHostState.showSnackbar(saveFailedMsg)
+                                }
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingArchiveNote = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    shareServerNote?.let { shareNote ->
+        if (api != null) {
+            val displayTitle = shareNote.title.ifBlank { stringResource(R.string.untitled) }
+            val exportTitle = stringResource(R.string.export_note)
+            val ctx = LocalContext.current
+            ShareServerDialog(
+                itemType = "note",
+                itemId = shareNote.id,
+                itemTitle = displayTitle,
+                api = api,
+                capabilitiesKey = serverCapabilitiesKey,
+                onDismiss = { shareServerNote = null },
+                onExportText = {
+                    val text = shareNote.content.trim()
+                    val shareText = if (text.isNotBlank()) "# ${shareNote.title}\n\n$text" else shareNote.title
+                    val intent =
+                        android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_TITLE, shareNote.title)
+                            putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                        }
+                    ctx.startActivity(android.content.Intent.createChooser(intent, exportTitle))
+                    shareServerNote = null
+                },
+            )
         }
     }
 

@@ -36,6 +36,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -104,6 +106,7 @@ internal fun NoteDetailScreen(
     modifier: Modifier = Modifier,
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
+    apiKey: String? = null,
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
@@ -173,74 +176,6 @@ internal fun NoteDetailScreen(
         }
     }
 
-    fun bodyAfterVisualSave(html: String): String =
-        if (visualEditorSaveAsMarkdown) {
-            prepareWysiwygHtmlForMarkdown(html)
-        } else {
-            html
-        }
-
-    fun persistPlainEdit(onComplete: () -> Unit = {}) {
-        detailVm.saveEdit(
-            onSuccess = {
-                onUpdate(it)
-                onComplete()
-            },
-            onFailure = onSaveFailed,
-            snapshotsEnabled = noteSnapshotsEnabled,
-        )
-    }
-
-    fun initiatePlainSave(onComplete: () -> Unit = {}) {
-        if (noteEditMode == NoteEditMode.Visual) {
-            flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
-                setEditBody(bodyAfterVisualSave(html))
-                persistPlainEdit(onComplete)
-            }
-        } else {
-            persistPlainEdit(onComplete)
-        }
-    }
-
-    fun initiateEncryptedSave(flushVisualEditor: Boolean = true) {
-        if (flushVisualEditor && noteEditMode == NoteEditMode.Visual) {
-            flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
-                setEditBody(bodyAfterVisualSave(html))
-                detailVm.showEncryptDialog()
-            }
-        } else {
-            detailVm.showEncryptDialog()
-        }
-    }
-
-    fun requestNavigateBack() {
-        if (isEditing && detailVm.hasUnsavedChanges()) {
-            showUnsavedChangesConfirm = true
-        } else {
-            if (isEditing) {
-                detailVm.cancelEditing()
-            }
-            onBack()
-        }
-    }
-
-    fun applyNoteEditModeChange(mode: NoteEditMode) {
-        if (mode == NoteEditMode.Markdown && noteEditMode == NoteEditMode.Visual) {
-            setEditBody(prepareWysiwygHtmlForMarkdown(currentEditBody()))
-        }
-        noteEditMode = mode
-        editorReloadNonce++
-    }
-
-    fun onNoteEditModeChange(mode: NoteEditMode) {
-        if (mode == noteEditMode) return
-        if (mode == NoteEditMode.Visual && isEncrypted && isDecrypted && !encryptedVisualAcknowledged) {
-            showEncryptedVisualConfirm = true
-            return
-        }
-        applyNoteEditModeChange(mode)
-    }
-
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -261,6 +196,9 @@ internal fun NoteDetailScreen(
     val exportNoteTitle = stringResource(R.string.export_note)
     val restoreSnapshotSuccessPlain = stringResource(R.string.restore_note_snapshot_success)
     val restoreSnapshotSuccessEncrypted = stringResource(R.string.restore_note_snapshot_success_encrypted)
+    val saveFailedRestoreMsg = stringResource(R.string.save_failed_restore_backup)
+    val restoreBackupAction = stringResource(R.string.restore_backup_action)
+    val saveUnsafeMsg = stringResource(R.string.error_unsafe_html_save)
     val ctx = context
 
     val activity = LocalActivity.current as? FragmentActivity
@@ -270,10 +208,6 @@ internal fun NoteDetailScreen(
     val biometricErrorMsg = stringResource(R.string.biometric_error)
     val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
     val biometricSavedMsg = stringResource(R.string.biometric_passphrase_saved)
-
-    BackHandler(enabled = isEditing) {
-        requestNavigateBack()
-    }
 
     val biometricUnlock =
         rememberBiometricNoteUnlock(
@@ -350,6 +284,122 @@ internal fun NoteDetailScreen(
                     repo.listForNote(note.id)
                 }
         }
+    }
+
+    fun bodyAfterVisualSave(html: String): String =
+        if (visualEditorSaveAsMarkdown) {
+            prepareWysiwygHtmlForMarkdown(html)
+        } else {
+            html
+        }
+
+    fun isBodySafeToSave(body: String): Boolean = !detailVm.isUnsafePlaintextForSave(body)
+
+    fun handleSaveFailed() {
+        scope.launch {
+            val snapshots =
+                if (snapshotRepository != null) {
+                    withContext(Dispatchers.IO) {
+                        snapshotRepository.listForNote(note.id)
+                    }
+                } else {
+                    emptyList()
+                }
+            noteSnapshots = snapshots
+            if (snapshots.isNotEmpty()) {
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message = saveFailedRestoreMsg,
+                        actionLabel = restoreBackupAction,
+                        duration = SnackbarDuration.Long,
+                    )
+                if (result == SnackbarResult.ActionPerformed) {
+                    showRestoreSnapshots = true
+                }
+            } else {
+                onSaveFailed()
+            }
+        }
+    }
+
+    fun persistPlainEdit(onComplete: () -> Unit = {}) {
+        detailVm.saveEdit(
+            onSuccess = {
+                onUpdate(it)
+                onComplete()
+            },
+            onFailure = { handleSaveFailed() },
+            snapshotsEnabled = noteSnapshotsEnabled,
+        )
+    }
+
+    fun initiatePlainSave(onComplete: () -> Unit = {}) {
+        if (noteEditMode == NoteEditMode.Visual) {
+            flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
+                val body = bodyAfterVisualSave(html)
+                if (!isBodySafeToSave(body)) {
+                    scope.launch { snackbarHostState.showSnackbar(saveUnsafeMsg) }
+                    return@flushWysiwygContentForSave
+                }
+                setEditBody(body)
+                persistPlainEdit(onComplete)
+            }
+        } else {
+            val body = currentEditBody()
+            if (!isBodySafeToSave(body)) {
+                scope.launch { snackbarHostState.showSnackbar(saveUnsafeMsg) }
+                return
+            }
+            persistPlainEdit(onComplete)
+        }
+    }
+
+    fun initiateEncryptedSave(flushVisualEditor: Boolean = true) {
+        if (flushVisualEditor && noteEditMode == NoteEditMode.Visual) {
+            flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
+                val body = bodyAfterVisualSave(html)
+                if (!isBodySafeToSave(body)) {
+                    scope.launch { snackbarHostState.showSnackbar(saveUnsafeMsg) }
+                    return@flushWysiwygContentForSave
+                }
+                setEditBody(body)
+                detailVm.showEncryptDialog()
+            }
+        } else {
+            detailVm.showEncryptDialog()
+        }
+    }
+
+    fun requestNavigateBack() {
+        if (isEditing && detailVm.hasUnsavedChanges()) {
+            showUnsavedChangesConfirm = true
+        } else {
+            if (isEditing) {
+                detailVm.cancelEditing()
+            }
+            onBack()
+        }
+    }
+
+    fun applyNoteEditModeChange(mode: NoteEditMode) {
+        if (mode == NoteEditMode.Markdown && noteEditMode == NoteEditMode.Visual) {
+            setEditBody(prepareWysiwygHtmlForMarkdown(currentEditBody()))
+        }
+        noteEditMode = mode
+        editorReloadNonce++
+    }
+
+    fun onNoteEditModeChange(mode: NoteEditMode) {
+        if (mode == noteEditMode) return
+        if (mode == NoteEditMode.Visual && isEncrypted && isDecrypted && !encryptedVisualAcknowledged) {
+            showEncryptedVisualConfirm = true
+            return
+        }
+        applyNoteEditModeChange(mode)
+    }
+
+    BackHandler(enabled = isEditing) {
+        requestNavigateBack()
     }
 
     fun formatSnapshotLabel(epochMs: Long): String {
@@ -773,6 +823,9 @@ internal fun NoteDetailScreen(
                                     showHtmlSaveHint = noteContentContainsRawHtml(editBody),
                                     onEditorWebView = { wysiwygWebView = it },
                                     onEditorBridge = { wysiwygBridge = it },
+                                    jottyServerUrl = jottyServerUrl,
+                                    apiKey = apiKey,
+                                    serverCapabilitiesKey = serverCapabilitiesKey,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             NoteEditMode.Markdown ->
@@ -924,7 +977,7 @@ internal fun NoteDetailScreen(
                                     )
                                 }
                             },
-                            onFailure = onSaveFailed,
+                            onFailure = { handleSaveFailed() },
                         )
                     },
                 ) {
@@ -954,7 +1007,7 @@ internal fun NoteDetailScreen(
                 detailVm.encryptWithSessionPassphrase(
                     encryptFailedMsg,
                     onSuccess = onUpdate,
-                    onFailure = onSaveFailed,
+                    onFailure = { handleSaveFailed() },
                     encryptNoPlaintextMsg = encryptNoPlaintextMsg,
                     encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
                     encryptStaleSessionMsg = encryptStaleSessionMsg,
@@ -966,7 +1019,7 @@ internal fun NoteDetailScreen(
                     passChars,
                     encryptFailedMsg,
                     onSuccess = onUpdate,
-                    onFailure = onSaveFailed,
+                    onFailure = { handleSaveFailed() },
                     encryptNoPlaintextMsg = encryptNoPlaintextMsg,
                     encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
                     encryptStaleSessionMsg = encryptStaleSessionMsg,

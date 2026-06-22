@@ -23,7 +23,10 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import com.jotty.android.R
 import com.jotty.android.data.api.CreateNoteRequest
+import com.jotty.android.ui.common.ShareServerDialog
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
+import com.jotty.android.util.defaultUnarchiveCategory
+import com.jotty.android.util.isArchivedCategory
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
@@ -57,11 +60,13 @@ fun NotesScreen(
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
+    apiKey: String? = null,
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
 ) {
     val application = LocalContext.current.applicationContext as Application
+    val context = LocalContext.current
     val vm: NotesViewModel = viewModel(factory = NotesViewModel.Factory(application, api))
 
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
@@ -103,6 +108,9 @@ fun NotesScreen(
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
     val noteDeletedMsg = stringResource(R.string.note_deleted)
     val undoActionLabel = stringResource(R.string.undo)
+
+    var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
+    var shareServerNote by remember { mutableStateOf<Note?>(null) }
 
     LaunchedEffect(notes, initialNoteId) {
         val id = initialNoteId ?: return@LaunchedEffect
@@ -258,9 +266,50 @@ fun NotesScreen(
                                             }
                                         },
                                     ) {
-                                        NoteCard(
+                                        NoteListCardWithMenu(
                                             note = n,
                                             onClick = { vm.setSelectedNote(n) },
+                                            onDelete = {
+                                                val snapshot = n
+                                                scope.launch {
+                                                    try {
+                                                        api.deleteNote(n.id)
+                                                        vm.removeNoteFromList(n.id)
+                                                        val result =
+                                                            snackbarHostState.showSnackbar(
+                                                                message = noteDeletedMsg,
+                                                                actionLabel = undoActionLabel,
+                                                                duration = SnackbarDuration.Short,
+                                                            )
+                                                        if (result == SnackbarResult.ActionPerformed) {
+                                                            try {
+                                                                val resp =
+                                                                    api.createNote(
+                                                                        CreateNoteRequest(
+                                                                            title = snapshot.title,
+                                                                            content = snapshot.content,
+                                                                            category = snapshot.category,
+                                                                        ),
+                                                                    )
+                                                                if (resp.success) {
+                                                                    vm.loadNotes()
+                                                                } else {
+                                                                    snackbarHostState.showSnackbar(saveFailedMsg)
+                                                                }
+                                                            } catch (e: Exception) {
+                                                                AppLog.e("notes", "Undo delete failed", e)
+                                                                snackbarHostState.showSnackbar(saveFailedMsg)
+                                                            }
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        AppLog.e("notes", "Delete note failed", e)
+                                                        snackbarHostState.showSnackbar(deleteFailedMsg)
+                                                    }
+                                                }
+                                            },
+                                            onArchive = { pendingArchiveNote = n },
+                                            showShare = true,
+                                            onShare = { shareServerNote = n },
                                             showPreview = noteListPreviewEnabled,
                                             isUnlockedInSession = n.id in unlockedNoteIds,
                                         )
@@ -291,6 +340,7 @@ fun NotesScreen(
                         onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                         imageLoader = imageLoader,
                         jottyServerUrl = jottyServerUrl,
+                        apiKey = apiKey,
                         serverCapabilitiesKey = serverCapabilitiesKey,
                         biometricStore = biometricStore,
                         biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
@@ -304,6 +354,77 @@ fun NotesScreen(
                 }
             }
         }
+    }
+
+    val listNoteActions = remember(api) { ApiNoteDetailActions(api) }
+
+    pendingArchiveNote?.let { archiveNote ->
+        val archived = isArchivedCategory(archiveNote.category)
+        AlertDialog(
+            onDismissRequest = { pendingArchiveNote = null },
+            title = { Text(stringResource(if (archived) R.string.unarchive else R.string.archive)) },
+            text = { Text(stringResource(R.string.archive_note_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val target = archiveNote
+                        pendingArchiveNote = null
+                        scope.launch {
+                            val newCategory =
+                                if (archived) {
+                                    defaultUnarchiveCategory()
+                                } else {
+                                    JOTTY_ARCHIVE_CATEGORY
+                                }
+                            listNoteActions
+                                .updateNote(
+                                    noteId = target.id,
+                                    title = target.title,
+                                    content = target.content,
+                                    category = newCategory,
+                                    originalCategory = target.category,
+                                ).onSuccess {
+                                    vm.loadNotes()
+                                }.onFailure {
+                                    snackbarHostState.showSnackbar(saveFailedMsg)
+                                }
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingArchiveNote = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    shareServerNote?.let { shareNote ->
+        val displayTitle = shareNote.title.ifBlank { stringResource(R.string.untitled) }
+        val exportTitle = stringResource(R.string.export_note)
+        ShareServerDialog(
+            itemType = "note",
+            itemId = shareNote.id,
+            itemTitle = displayTitle,
+            api = api,
+            capabilitiesKey = serverCapabilitiesKey,
+            onDismiss = { shareServerNote = null },
+            onExportText = {
+                val text = shareNote.content.trim()
+                val shareText = if (text.isNotBlank()) "# ${shareNote.title}\n\n$text" else shareNote.title
+                val intent =
+                    android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TITLE, shareNote.title)
+                        putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                    }
+                context.startActivity(android.content.Intent.createChooser(intent, exportTitle))
+                shareServerNote = null
+            },
+        )
     }
 
     if (showCreateDialog) {

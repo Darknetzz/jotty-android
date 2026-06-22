@@ -1,5 +1,6 @@
 package com.jotty.android.ui.notes
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,6 +31,7 @@ import com.jotty.android.ui.common.NoteMetadataRow
 import com.jotty.android.util.formatNoteDate
 import com.jotty.android.util.stripInvisibleFromEdges
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun NoteCard(
     note: Note,
@@ -37,6 +39,8 @@ internal fun NoteCard(
     showPreview: Boolean = true,
     showPendingSync: Boolean = false,
     isUnlockedInSession: Boolean = false,
+    cardModifier: Modifier = Modifier,
+    suppressCardOnClick: Boolean = false,
 ) {
     val titleText = remember(note.title) { stripInvisibleFromEdges(note.title) }
     val strippedContent = remember(note.content) { stripInvisibleFromEdges(note.content) }
@@ -54,8 +58,8 @@ internal fun NoteCard(
         }
     val updatedAtText = remember(note.updatedAt) { formatNoteDate(note.updatedAt) }
     Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
+        onClick = if (suppressCardOnClick) ({}) else onClick,
+        modifier = cardModifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
         Column(

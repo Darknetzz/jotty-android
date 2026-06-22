@@ -13,6 +13,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Shared list filter header** — Notes and checklists use the same search, sort, and category chip row; tap a category again to clear the filter.
 - **Settings → Save visual edits as Markdown** — Optional toggle under Notes to convert WYSIWYG HTML back to GFM when saving for better Jotty web compatibility.
 - **Note unsaved-changes prompt** — Leaving note edit with changes shows Save / Discard (matches Kanban item detail).
+- **Note list long-press menu** — Share, archive, and delete from the notes list without enabling swipe-to-delete.
+- **WYSIWYG toolbar** — Undo/redo, H1/H3 headings, task lists, and configurable table size; same-host images load with API auth in the visual editor.
 
 ### Changed
 
@@ -20,10 +22,15 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Rich editor link/image insert** — Compose dialogs replace hardcoded English browser prompts.
 - **Online list sync indicator** — Notes and checklists show refresh/sync status in the top bar when not using offline-only fetch.
 - **Rich text editor settings copy** — Description now matches behavior (HTML/table notes open in Visual; encrypted notes default to Markdown).
+- **Failed note save** — When local backups exist, the save-failure snackbar offers **Restore backup** instead of only a generic error.
+- **Deep links (offline)** — Opening a note link triggers sync first when online; shows a clearer message when the note is not on the device yet.
+- **List/detail transition** — A short cross-fade when switching between list and detail if motion effects are enabled.
 
 ### Fixed
 
 - **Release rich editor** — ProGuard keep rules for the WYSIWYG JavaScript bridge so release builds do not strip `@JavascriptInterface` methods.
+- **Corrupted visual saves** — Plain-note saves refuse bodies containing JSON-escaped HTML (`\u003C`) that would corrupt content on the server.
+- **Instance switcher accessibility** — Instance dropdown icons now have TalkBack labels.
 - **Dev-latest publish** — Dev APK builds now run `:app:clean` before assemble and verify embedded commit/version code match release notes before upload, preventing stale APKs that loop the in-app updater.
 
 ---

@@ -141,6 +141,10 @@
     <string name="no_notes_yet">No notes yet</string>
     <string name="tap_add_note">Tap + to add a note</string>
     <string name="note_not_found">Note not found</string>
+    <string name="note_not_synced_yet">This note is not on this device yet. Connect and sync to download it.</string>
+    <string name="save_failed_restore_backup">Couldn\'t save. Restore a local backup?</string>
+    <string name="restore_backup_action">Restore backup</string>
+    <string name="error_unsafe_html_save">Save blocked: note content looks corrupted (escaped HTML). Switch to Markdown source and fix, or restore a backup.</string>
     <string name="note_deleted">Note deleted</string>
     <string name="checklist_deleted">Checklist deleted</string>
     <string name="encrypted">Encrypted</string>
@@ -325,6 +329,13 @@
     <string name="md_strikethrough">Strikethrough</string>
     <string name="md_code">Code</string>
     <string name="md_heading">Heading</string>
+    <string name="md_heading_h1">Heading 1</string>
+    <string name="md_heading_h3">Heading 3</string>
+    <string name="wysiwyg_undo">Undo</string>
+    <string name="wysiwyg_redo">Redo</string>
+    <string name="wysiwyg_insert_table_title">Insert table</string>
+    <string name="wysiwyg_table_rows">Rows</string>
+    <string name="wysiwyg_table_cols">Columns</string>
     <string name="md_list">Bullet list</string>
     <string name="md_numbered_list">Numbered list</string>
     <string name="md_task_list">Task list</string>

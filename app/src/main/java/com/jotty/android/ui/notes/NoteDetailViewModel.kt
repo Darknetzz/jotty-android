@@ -638,6 +638,9 @@ class NoteDetailViewModel(
             plain.contains("""\u003C""") ||
             plain.contains("""\u003E""")
 
+    /** Refuses persisting evaluateJavascript JSON artifacts in plain note bodies. */
+    fun isUnsafePlaintextForSave(plain: String): Boolean = isUnsafePlaintextForEncrypt(plain)
+
     class Factory(
         private val note: Note,
         private val actions: NoteDetailActions,

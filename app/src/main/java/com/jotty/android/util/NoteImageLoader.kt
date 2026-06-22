@@ -40,50 +40,9 @@ fun createNoteImageLoader(
     val normalizedBase = ApiClient.normalizeBaseUrl(baseUrl)
     val key = "$normalizedBase|$apiKey|${capabilitiesKey.orEmpty()}"
     loaderCache[key]?.let { return it }
-    val instanceKey = capabilitiesKey
-    val jottyOrigin =
-        try {
-            URI(normalizedBase)
-        } catch (_: Exception) {
-            return ImageLoader.Builder(context.applicationContext).build()
-        }
     val client =
-        OkHttpClient.Builder()
-            .addInterceptor { chain ->
-                val request = chain.request()
-                val requestUrl = request.url
-                val newRequest =
-                    if (shouldAttachApiKey(requestUrl, jottyOrigin)) {
-                        request.newBuilder().addHeader(HEADER_API_KEY, apiKey).build()
-                    } else {
-                        request
-                    }
-                val response = chain.proceed(newRequest)
-                if (isJottyMediaPath(requestUrl.encodedPath)) {
-                    if (response.isSuccessful) {
-                        if (!instanceKey.isNullOrBlank()) {
-                            ServerCapabilities.clearPrivateImagesAuthBlocked(instanceKey)
-                        }
-                    } else {
-                        if (
-                            !instanceKey.isNullOrBlank() &&
-                                ServerCapabilities.isPrivateImagesAuthBlockedHttpCode(response.code)
-                        ) {
-                            ServerCapabilities.markPrivateImagesAuthBlocked(instanceKey)
-                        }
-                        AppLog.w(
-                            "notes",
-                            "Note image HTTP ${response.code} for ${requestUrl.redactApiKey()}" +
-                                " (Jotty media routes may require a server with API-key image auth or SERVE_PUBLIC_IMAGES)",
-                        )
-                    }
-                }
-                response
-            }
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .build()
+        createNoteImageAuthClient(baseUrl, apiKey, capabilitiesKey)
+            ?: return ImageLoader.Builder(context.applicationContext).build()
     val appCtx = context.applicationContext
     val loader =
         ImageLoader.Builder(appCtx)
@@ -105,6 +64,52 @@ fun createNoteImageLoader(
             .build()
     loaderCache[key] = loader
     return loader
+}
+
+/** OkHttp client that attaches [x-api-key] for Jotty-hosted note images. */
+fun createNoteImageAuthClient(
+    baseUrl: String?,
+    apiKey: String?,
+    capabilitiesKey: String? = null,
+): OkHttpClient? {
+    if (baseUrl.isNullOrBlank() || apiKey.isNullOrBlank()) return null
+    val normalizedBase = ApiClient.normalizeBaseUrl(baseUrl)
+    val instanceKey = capabilitiesKey
+    val jottyOrigin =
+        try {
+            URI(normalizedBase)
+        } catch (_: Exception) {
+            return null
+        }
+    return OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            val request = chain.request()
+            val requestUrl = request.url
+            val newRequest =
+                if (shouldAttachApiKey(requestUrl, jottyOrigin)) {
+                    request.newBuilder().addHeader(HEADER_API_KEY, apiKey).build()
+                } else {
+                    request
+                }
+            val response = chain.proceed(newRequest)
+            if (isJottyMediaPath(requestUrl.encodedPath)) {
+                if (response.isSuccessful) {
+                    if (!instanceKey.isNullOrBlank()) {
+                        ServerCapabilities.clearPrivateImagesAuthBlocked(instanceKey)
+                    }
+                } else if (
+                    !instanceKey.isNullOrBlank() &&
+                    ServerCapabilities.isPrivateImagesAuthBlockedHttpCode(response.code)
+                ) {
+                    ServerCapabilities.markPrivateImagesAuthBlocked(instanceKey)
+                }
+            }
+            response
+        }
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
 }
 
 private fun shouldAttachApiKey(

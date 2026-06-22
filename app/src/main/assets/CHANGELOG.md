@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Settings → Report an issue** — Troubleshooting section links to GitHub Issues so users can report bugs or suggest features (mentions debug logs for easier diagnosis).
+
 ### Fixed
 
 - **Dev-latest publish** — Dev APK builds now run `:app:clean` before assemble and verify embedded commit/version code match release notes before upload, preventing stale APKs that loop the in-app updater.

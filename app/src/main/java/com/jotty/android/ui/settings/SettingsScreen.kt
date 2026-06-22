@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
@@ -74,6 +75,7 @@ fun SettingsScreen(
     val settingsVm: SettingsViewModel = viewModel { SettingsViewModel() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     val biometricStore = remember { BiometricPassphraseStore(context.applicationContext) }
     val biometricAvailability = remember { biometricStore.availabilityStatus() }
     val storedPassphraseCount by settingsVm.storedPassphraseCount.collectAsStateWithLifecycle()
@@ -407,104 +409,126 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.export_debug_logs)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.export_debug_logs_description),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        },
-                        leadingContent = {
-                            Icon(
-                                Icons.Default.BugReport,
-                                contentDescription = stringResource(R.string.export_debug_logs),
-                            )
-                        },
-                        trailingContent = {
-                            if (isExportingLogs) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                            } else {
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    TextButton(
-                                        onClick = {
-                                            scope.launch {
-                                                settingsVm.setExportingLogs(true)
-                                                val instance = currentInstance
-                                                val writeResult =
-                                                    withContext(Dispatchers.IO) {
-                                                        DebugLogExporter.writeReport(context, instance)
+                    Column {
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.export_debug_logs)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.export_debug_logs_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.BugReport,
+                                    contentDescription = stringResource(R.string.export_debug_logs),
+                                )
+                            },
+                            trailingContent = {
+                                if (isExportingLogs) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                } else {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        TextButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    settingsVm.setExportingLogs(true)
+                                                    val instance = currentInstance
+                                                    val writeResult =
+                                                        withContext(Dispatchers.IO) {
+                                                            DebugLogExporter.writeReport(context, instance)
+                                                        }
+                                                    settingsVm.setExportingLogs(false)
+                                                    when (writeResult) {
+                                                        is DebugLogExporter.WriteResult.Failed ->
+                                                            snackbarHostState.showSnackbar(writeResult.message)
+                                                        is DebugLogExporter.WriteResult.Ok ->
+                                                            when (
+                                                                val saveResult =
+                                                                    withContext(Dispatchers.IO) {
+                                                                        DebugLogExporter.saveToDownloads(
+                                                                            context,
+                                                                            writeResult.file,
+                                                                        )
+                                                                    }
+                                                            ) {
+                                                                is DebugLogExporter.SaveResult.Saved ->
+                                                                    snackbarHostState.showSnackbar(
+                                                                        String.format(
+                                                                            Locale.getDefault(),
+                                                                            logSavedDownloadsFormat,
+                                                                            saveResult.displayName,
+                                                                        ),
+                                                                    )
+                                                                is DebugLogExporter.SaveResult.NeedsPicker -> {
+                                                                    settingsVm.setPendingLogFile(saveResult.file)
+                                                                    saveLogLauncher.launch(saveResult.suggestedName)
+                                                                }
+                                                                is DebugLogExporter.SaveResult.Failed ->
+                                                                    snackbarHostState.showSnackbar(saveResult.message)
+                                                            }
                                                     }
-                                                settingsVm.setExportingLogs(false)
-                                                when (writeResult) {
-                                                    is DebugLogExporter.WriteResult.Failed ->
-                                                        snackbarHostState.showSnackbar(writeResult.message)
-                                                    is DebugLogExporter.WriteResult.Ok ->
-                                                        when (
-                                                            val saveResult =
-                                                                withContext(Dispatchers.IO) {
-                                                                    DebugLogExporter.saveToDownloads(
+                                                }
+                                            },
+                                        ) {
+                                            Text(stringResource(R.string.export_debug_logs_save))
+                                        }
+                                        TextButton(
+                                            onClick = {
+                                                scope.launch {
+                                                    settingsVm.setExportingLogs(true)
+                                                    val instance = currentInstance
+                                                    val writeResult =
+                                                        withContext(Dispatchers.IO) {
+                                                            DebugLogExporter.writeReport(context, instance)
+                                                        }
+                                                    settingsVm.setExportingLogs(false)
+                                                    when (writeResult) {
+                                                        is DebugLogExporter.WriteResult.Failed ->
+                                                            snackbarHostState.showSnackbar(writeResult.message)
+                                                        is DebugLogExporter.WriteResult.Ok ->
+                                                            when (
+                                                                val shareResult =
+                                                                    DebugLogExporter.shareReport(
                                                                         context,
                                                                         writeResult.file,
                                                                     )
-                                                                }
-                                                        ) {
-                                                            is DebugLogExporter.SaveResult.Saved ->
-                                                                snackbarHostState.showSnackbar(
-                                                                    String.format(
-                                                                        Locale.getDefault(),
-                                                                        logSavedDownloadsFormat,
-                                                                        saveResult.displayName,
-                                                                    ),
-                                                                )
-                                                            is DebugLogExporter.SaveResult.NeedsPicker -> {
-                                                                settingsVm.setPendingLogFile(saveResult.file)
-                                                                saveLogLauncher.launch(saveResult.suggestedName)
+                                                            ) {
+                                                                is DebugLogExporter.ShareResult.Failed ->
+                                                                    snackbarHostState.showSnackbar(shareResult.message)
+                                                                is DebugLogExporter.ShareResult.Started -> Unit
                                                             }
-                                                            is DebugLogExporter.SaveResult.Failed ->
-                                                                snackbarHostState.showSnackbar(saveResult.message)
-                                                        }
-                                                }
-                                            }
-                                        },
-                                    ) {
-                                        Text(stringResource(R.string.export_debug_logs_save))
-                                    }
-                                    TextButton(
-                                        onClick = {
-                                            scope.launch {
-                                                settingsVm.setExportingLogs(true)
-                                                val instance = currentInstance
-                                                val writeResult =
-                                                    withContext(Dispatchers.IO) {
-                                                        DebugLogExporter.writeReport(context, instance)
                                                     }
-                                                settingsVm.setExportingLogs(false)
-                                                when (writeResult) {
-                                                    is DebugLogExporter.WriteResult.Failed ->
-                                                        snackbarHostState.showSnackbar(writeResult.message)
-                                                    is DebugLogExporter.WriteResult.Ok ->
-                                                        when (
-                                                            val shareResult =
-                                                                DebugLogExporter.shareReport(
-                                                                    context,
-                                                                    writeResult.file,
-                                                                )
-                                                        ) {
-                                                            is DebugLogExporter.ShareResult.Failed ->
-                                                                snackbarHostState.showSnackbar(shareResult.message)
-                                                            is DebugLogExporter.ShareResult.Started -> Unit
-                                                        }
                                                 }
-                                            }
-                                        },
-                                    ) {
-                                        Text(stringResource(R.string.export_debug_logs_action))
+                                            },
+                                        ) {
+                                            Text(stringResource(R.string.export_debug_logs_action))
+                                        }
                                     }
                                 }
-                            }
-                        },
-                    )
+                            },
+                        )
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.report_github_issue)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.report_github_issue_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.ReportProblem,
+                                    contentDescription = stringResource(R.string.report_github_issue),
+                                )
+                            },
+                            modifier =
+                                Modifier.clickable {
+                                    runCatching { uriHandler.openUri(GITHUB_ISSUES_URL) }
+                                },
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -596,6 +620,7 @@ private fun SettingsSectionSubtitle(title: String) {
 }
 
 private const val GITHUB_REPO_URL = "https://github.com/Darknetzz/jotty-android"
+private const val GITHUB_ISSUES_URL = "$GITHUB_REPO_URL/issues"
 private const val GITHUB_RELEASES_URL = "$GITHUB_REPO_URL/releases"
 private const val GITHUB_DEV_RELEASE_URL = "$GITHUB_REPO_URL/releases/tag/dev-latest"
 private const val ABOUT_EASTER_EGG_TAPS = 7

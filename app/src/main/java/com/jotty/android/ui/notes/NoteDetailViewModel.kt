@@ -46,6 +46,11 @@ class NoteDetailViewModel(
     // Category currently stored on the server (used as originalCategory on the next save).
     private var persistedCategory = note.category
 
+    private var editBaselineTitle: String? = null
+    private var editBaselineContent: String? = null
+    private var editBaselineDecryptedContent: String? = null
+    private var editBaselineCategory: String? = null
+
     private val _isEditing = MutableStateFlow(false)
     val isEditing: StateFlow<Boolean> = _isEditing.asStateFlow()
 
@@ -216,11 +221,43 @@ class NoteDetailViewModel(
     }
 
     fun startEditing() {
+        editBaselineTitle = _title.value
+        editBaselineContent = _content.value
+        editBaselineDecryptedContent = _decryptedContent.value
+        editBaselineCategory = _category.value
         _isEditing.value = true
     }
 
-    fun cancelEditing() {
+    fun hasUnsavedChanges(): Boolean {
+        if (!_isEditing.value) return false
+        if (_title.value != editBaselineTitle) return true
+        if (_category.value != editBaselineCategory) return true
+        return if (isEncrypted && _decryptedContent.value != null) {
+            _decryptedContent.value != editBaselineDecryptedContent
+        } else {
+            _content.value != editBaselineContent
+        }
+    }
+
+    fun discardEditing() {
+        editBaselineTitle?.let { _title.value = it }
+        editBaselineContent?.let { _content.value = it }
+        editBaselineDecryptedContent?.let { _decryptedContent.value = it }
+        editBaselineCategory?.let { _category.value = it }
+        clearEditBaseline()
         _isEditing.value = false
+    }
+
+    fun cancelEditing() {
+        clearEditBaseline()
+        _isEditing.value = false
+    }
+
+    private fun clearEditBaseline() {
+        editBaselineTitle = null
+        editBaselineContent = null
+        editBaselineDecryptedContent = null
+        editBaselineCategory = null
     }
 
     fun showDecryptDialog() {
@@ -290,6 +327,7 @@ class NoteDetailViewModel(
             if (result.isSuccess) {
                 persistedCategory = _category.value
                 completePersist(result.getOrThrow(), onSuccess)
+                clearEditBaseline()
                 _isEditing.value = false
             } else {
                 _saveFailed.value = true

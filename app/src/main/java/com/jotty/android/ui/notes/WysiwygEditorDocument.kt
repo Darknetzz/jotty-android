@@ -81,11 +81,19 @@ internal fun buildWysiwygEditorDocument(
             scheduleFormatStateNotify();
           }
           function insertLink() {
-            var url = prompt('URL');
+            if (window.AndroidBridge && AndroidBridge.onInsertLinkRequested) {
+              AndroidBridge.onInsertLinkRequested();
+            }
+          }
+          function insertLinkWithUrl(url) {
             if (url) { cmd('createLink', url); }
           }
           function insertImage() {
-            var url = prompt('Image URL');
+            if (window.AndroidBridge && AndroidBridge.onInsertImageRequested) {
+              AndroidBridge.onInsertImageRequested();
+            }
+          }
+          function insertImageWithUrl(url) {
             if (url) { cmd('insertImage', url); }
           }
           function insertCode() {

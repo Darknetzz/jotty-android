@@ -24,6 +24,7 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
     val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
@@ -199,6 +200,27 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                                 settingsRepository.setRichNoteEditorEnabled(it)
                             }
                         },
+                    )
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.visual_editor_save_as_markdown)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.visual_editor_save_as_markdown_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = visualEditorSaveAsMarkdown,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setVisualEditorSaveAsMarkdownEnabled(it)
+                            }
+                        },
+                        enabled = richNoteEditorEnabled,
                     )
                 },
             )

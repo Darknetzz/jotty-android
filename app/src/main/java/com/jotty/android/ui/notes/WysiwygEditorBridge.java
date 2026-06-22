@@ -13,6 +13,10 @@ final class WysiwygEditorBridge {
         void onContentChanged(String html);
 
         void onFormatStateChanged(String json);
+
+        void onInsertLinkRequested();
+
+        void onInsertImageRequested();
     }
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -81,5 +85,21 @@ final class WysiwygEditorBridge {
         if (json != null) {
             listener.onFormatStateChanged(json);
         }
+    }
+
+    @JavascriptInterface
+    public void onInsertLinkRequested() {
+        if (!acceptChanges.get()) {
+            return;
+        }
+        mainHandler.post(listener::onInsertLinkRequested);
+    }
+
+    @JavascriptInterface
+    public void onInsertImageRequested() {
+        if (!acceptChanges.get()) {
+            return;
+        }
+        mainHandler.post(listener::onInsertImageRequested);
     }
 }

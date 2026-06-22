@@ -5,6 +5,7 @@ import android.webkit.WebView
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -109,6 +110,7 @@ internal fun NoteDetailScreen(
     biometricSaveOfferEnabled: Boolean = true,
     categorySuggestions: List<String> = emptyList(),
     richEditorEnabled: Boolean = false,
+    visualEditorSaveAsMarkdown: Boolean = false,
     noteSnapshotsEnabled: Boolean = true,
     api: JottyApi? = null,
     isOnline: Boolean = true,
@@ -159,6 +161,7 @@ internal fun NoteDetailScreen(
     var wysiwygBridge by remember(note.id) { mutableStateOf<WysiwygEditorBridge?>(null) }
     var encryptedVisualAcknowledged by rememberSaveable(note.id) { mutableStateOf(false) }
     var showEncryptedVisualConfirm by remember { mutableStateOf(false) }
+    var showUnsavedChangesConfirm by remember { mutableStateOf(false) }
 
     fun currentEditBody(): String = if (isEncrypted) decryptedContent.orEmpty() else content
 
@@ -170,14 +173,54 @@ internal fun NoteDetailScreen(
         }
     }
 
+    fun bodyAfterVisualSave(html: String): String =
+        if (visualEditorSaveAsMarkdown) {
+            prepareWysiwygHtmlForMarkdown(html)
+        } else {
+            html
+        }
+
+    fun persistPlainEdit(onComplete: () -> Unit = {}) {
+        detailVm.saveEdit(
+            onSuccess = {
+                onUpdate(it)
+                onComplete()
+            },
+            onFailure = onSaveFailed,
+            snapshotsEnabled = noteSnapshotsEnabled,
+        )
+    }
+
+    fun initiatePlainSave(onComplete: () -> Unit = {}) {
+        if (noteEditMode == NoteEditMode.Visual) {
+            flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
+                setEditBody(bodyAfterVisualSave(html))
+                persistPlainEdit(onComplete)
+            }
+        } else {
+            persistPlainEdit(onComplete)
+        }
+    }
+
     fun initiateEncryptedSave(flushVisualEditor: Boolean = true) {
         if (flushVisualEditor && noteEditMode == NoteEditMode.Visual) {
             flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
-                setEditBody(html)
+                setEditBody(bodyAfterVisualSave(html))
                 detailVm.showEncryptDialog()
             }
         } else {
             detailVm.showEncryptDialog()
+        }
+    }
+
+    fun requestNavigateBack() {
+        if (isEditing && detailVm.hasUnsavedChanges()) {
+            showUnsavedChangesConfirm = true
+        } else {
+            if (isEditing) {
+                detailVm.cancelEditing()
+            }
+            onBack()
         }
     }
 
@@ -227,6 +270,10 @@ internal fun NoteDetailScreen(
     val biometricErrorMsg = stringResource(R.string.biometric_error)
     val decryptFailedMsg = stringResource(R.string.error_decrypt_failed)
     val biometricSavedMsg = stringResource(R.string.biometric_passphrase_saved)
+
+    BackHandler(enabled = isEditing) {
+        requestNavigateBack()
+    }
 
     val biometricUnlock =
         rememberBiometricNoteUnlock(
@@ -449,7 +496,7 @@ internal fun NoteDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { requestNavigateBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
@@ -496,11 +543,7 @@ internal fun NoteDetailScreen(
                                     if (isEncrypted) {
                                         initiateEncryptedSave()
                                     } else {
-                                        detailVm.saveEdit(
-                                            onSuccess = onUpdate,
-                                            onFailure = onSaveFailed,
-                                            snapshotsEnabled = noteSnapshotsEnabled,
-                                        )
+                                        initiatePlainSave()
                                     }
                                 },
                             ) {
@@ -568,7 +611,10 @@ internal fun NoteDetailScreen(
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.copy_note)) },
                                     leadingIcon = {
-                                        Icon(Icons.Default.ContentCopy, contentDescription = null)
+                                        Icon(
+                                            Icons.Default.ContentCopy,
+                                            contentDescription = stringResource(R.string.copy_note),
+                                        )
                                     },
                                     onClick = {
                                         menuExpanded = false
@@ -593,7 +639,10 @@ internal fun NoteDetailScreen(
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.restore_note_snapshot)) },
                                     leadingIcon = {
-                                        Icon(Icons.Default.History, contentDescription = null)
+                                        Icon(
+                                            Icons.Default.History,
+                                            contentDescription = stringResource(R.string.restore_note_snapshot),
+                                        )
                                     },
                                     onClick = {
                                         menuExpanded = false
@@ -612,8 +661,11 @@ internal fun NoteDetailScreen(
                                         hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Default.Lock, contentDescription = null)
-                                    },
+                                        Icon(
+                                            Icons.Default.Lock,
+                                            contentDescription = stringResource(R.string.lock_note),
+                                        )
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.reencrypt)) },
@@ -622,7 +674,10 @@ internal fun NoteDetailScreen(
                                         initiateEncryptedSave(flushVisualEditor = false)
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Default.Lock, contentDescription = null)
+                                        Icon(
+                                            Icons.Default.Lock,
+                                            contentDescription = stringResource(R.string.reencrypt),
+                                        )
                                     },
                                 )
                             }
@@ -938,6 +993,39 @@ internal fun NoteDetailScreen(
             decryptError = decryptError,
             decryptErrorDetail = decryptErrorDetail,
             onDecryptError = { main, detail -> detailVm.onDecryptError(main, detail) },
+        )
+    }
+
+    if (showUnsavedChangesConfirm) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedChangesConfirm = false },
+            title = { Text(stringResource(R.string.note_unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.note_unsaved_changes_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showUnsavedChangesConfirm = false
+                        if (isEncrypted) {
+                            initiateEncryptedSave()
+                        } else {
+                            initiatePlainSave(onComplete = { onBack() })
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showUnsavedChangesConfirm = false
+                        detailVm.discardEditing()
+                        onBack()
+                    },
+                ) {
+                    Text(stringResource(R.string.discard))
+                }
+            },
         )
     }
 }

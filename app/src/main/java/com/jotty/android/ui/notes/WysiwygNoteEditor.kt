@@ -37,6 +37,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -74,6 +76,9 @@ internal fun WysiwygNoteEditor(
     var editorWebView by remember { mutableStateOf<WebView?>(null) }
     var editorBridge by remember { mutableStateOf<WysiwygEditorBridge?>(null) }
     var formatState by remember(contentReloadKey) { mutableStateOf(WysiwygFormatState()) }
+    var showLinkDialog by remember { mutableStateOf(false) }
+    var showImageDialog by remember { mutableStateOf(false) }
+    var urlInput by remember { mutableStateOf("") }
     // Snapshot HTML when entering visual mode; do not recompute when WYSIWYG sync updates [content].
     val editorHtml = remember(contentReloadKey) { prepareNoteContentForWysiwyg(content) }
     val surfaceColor = MaterialTheme.colorScheme.surface.toArgb()
@@ -131,6 +136,14 @@ internal fun WysiwygNoteEditor(
             borderColor = borderColor,
             onContentChange = onContentChange,
             onFormatStateChange = { formatState = it },
+            onInsertLinkRequested = {
+                urlInput = ""
+                showLinkDialog = true
+            },
+            onInsertImageRequested = {
+                urlInput = ""
+                showImageDialog = true
+            },
             onWebViewReady = {
                 editorWebView = it
                 onEditorWebView(it)
@@ -146,6 +159,72 @@ internal fun WysiwygNoteEditor(
                     .defaultMinSize(minHeight = 160.dp),
         )
     }
+
+    if (showLinkDialog) {
+        WysiwygUrlInsertDialog(
+            titleRes = R.string.wysiwyg_insert_link_title,
+            hintRes = R.string.wysiwyg_insert_link_hint,
+            url = urlInput,
+            onUrlChange = { urlInput = it },
+            onDismiss = { showLinkDialog = false },
+            onConfirm = { url ->
+                showLinkDialog = false
+                val escaped = escapeForJsString(url.trim())
+                editorWebView?.evaluateJavascript("insertLinkWithUrl($escaped);", null)
+            },
+        )
+    }
+    if (showImageDialog) {
+        WysiwygUrlInsertDialog(
+            titleRes = R.string.wysiwyg_insert_image_title,
+            hintRes = R.string.wysiwyg_insert_image_hint,
+            url = urlInput,
+            onUrlChange = { urlInput = it },
+            onDismiss = { showImageDialog = false },
+            onConfirm = { url ->
+                showImageDialog = false
+                val escaped = escapeForJsString(url.trim())
+                editorWebView?.evaluateJavascript("insertImageWithUrl($escaped);", null)
+            },
+        )
+    }
+}
+
+@Composable
+private fun WysiwygUrlInsertDialog(
+    titleRes: Int,
+    hintRes: Int,
+    url: String,
+    onUrlChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(titleRes)) },
+        text = {
+            OutlinedTextField(
+                value = url,
+                onValueChange = onUrlChange,
+                label = { Text(stringResource(hintRes)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(url) },
+                enabled = url.isNotBlank(),
+            ) {
+                Text(stringResource(R.string.wysiwyg_insert))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
 }
 
 @Composable
@@ -247,6 +326,8 @@ private fun WysiwygWebEditor(
     borderColor: Int,
     onContentChange: (String) -> Unit,
     onFormatStateChange: (WysiwygFormatState) -> Unit,
+    onInsertLinkRequested: () -> Unit,
+    onInsertImageRequested: () -> Unit,
     onWebViewReady: (WebView) -> Unit,
     onBridgeReady: (WysiwygEditorBridge) -> Unit,
     modifier: Modifier = Modifier,
@@ -265,6 +346,14 @@ private fun WysiwygWebEditor(
 
                     override fun onFormatStateChanged(json: String) {
                         onFormatStateChange(parseWysiwygFormatStateJson(json))
+                    }
+
+                    override fun onInsertLinkRequested() {
+                        onInsertLinkRequested()
+                    }
+
+                    override fun onInsertImageRequested() {
+                        onInsertImageRequested()
                     }
                 },
             )

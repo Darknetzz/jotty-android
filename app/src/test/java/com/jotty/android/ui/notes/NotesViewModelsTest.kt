@@ -183,6 +183,55 @@ class NoteDetailViewModelTest {
             assertEquals(true, vm.isEditing.value)
         }
 
+    @Test
+    fun hasUnsavedChanges_tracksEditsAndClearsAfterSave() =
+        runTest {
+            val note =
+                Note(
+                    id = "n1",
+                    title = "Title",
+                    category = "Work",
+                    content = "Body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                )
+            val actions =
+                object : NoteDetailActions {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> =
+                        Result.success(
+                            note.copy(title = title, content = content, category = category),
+                        )
+
+                    override suspend fun deleteNote(noteId: String): Result<Unit> = Result.success(Unit)
+                }
+            val vm = NoteDetailViewModel(note, actions)
+            assertFalse(vm.hasUnsavedChanges())
+
+            vm.startEditing()
+            assertFalse(vm.hasUnsavedChanges())
+
+            vm.setTitle("Changed")
+            assertTrue(vm.hasUnsavedChanges())
+
+            vm.discardEditing()
+            assertFalse(vm.hasUnsavedChanges())
+            assertEquals("Title", vm.title.value)
+            assertFalse(vm.isEditing.value)
+
+            vm.startEditing()
+            vm.setContent("New body")
+            vm.saveEdit(onSuccess = {}, onFailure = {})
+            advanceUntilIdle()
+            assertFalse(vm.hasUnsavedChanges())
+            assertFalse(vm.isEditing.value)
+        }
+
     @After
     fun clearDecryptionSession() {
         NoteDecryptionSession.clear()

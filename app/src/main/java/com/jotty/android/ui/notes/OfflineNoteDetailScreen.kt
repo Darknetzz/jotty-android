@@ -41,6 +41,7 @@ fun OfflineNoteDetailScreen(
     biometricSaveOfferEnabled: Boolean = true,
     categorySuggestions: List<String> = emptyList(),
     richEditorEnabled: Boolean = false,
+    visualEditorSaveAsMarkdown: Boolean = false,
     noteSnapshotsEnabled: Boolean = true,
     api: JottyApi? = null,
 ) {
@@ -88,6 +89,7 @@ fun OfflineNoteDetailScreen(
             biometricSaveOfferEnabled = biometricSaveOfferEnabled,
             categorySuggestions = categorySuggestions,
             richEditorEnabled = richEditorEnabled,
+            visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
             noteSnapshotsEnabled = noteSnapshotsEnabled,
             api = api,
             isOnline = isOnline,

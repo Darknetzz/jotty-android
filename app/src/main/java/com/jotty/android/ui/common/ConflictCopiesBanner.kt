@@ -44,7 +44,7 @@ fun ConflictCopiesBanner(
         ) {
             Icon(
                 Icons.Default.Warning,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.cd_warning),
                 tint = MaterialTheme.colorScheme.onSecondaryContainer,
             )
             Text(

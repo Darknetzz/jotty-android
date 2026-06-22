@@ -30,6 +30,7 @@ import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.ListFilterHeader
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.ListSortOption
@@ -66,6 +67,7 @@ fun NotesScreen(
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -153,7 +155,6 @@ fun NotesScreen(
                     lastSyncAttemptEpochMs = null,
                     onRefresh = { vm.loadNotes() },
                     onAdd = { vm.setShowCreateDialog(true) },
-                    showSyncStatus = false,
                 )
             } else {
                 null
@@ -181,70 +182,17 @@ fun NotesScreen(
             ) { note ->
                 if (note == null) {
                     Column(Modifier.fillMaxSize()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { vm.setSearchQuery(it) },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text(stringResource(R.string.search_notes)) },
-                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search)) },
-                            singleLine = true,
-                        )
-                        SortMenuButton(
-                            current = sortOption,
-                            onSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
-                        )
-                    }
-                    if (noteCategories.isNotEmpty()) {
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            item {
-                                FilterChip(
-                                    selected = selectedCategory == null,
-                                    onClick = { vm.setSelectedCategory(null) },
-                                    label = {
-                                        Text(
-                                            stringResource(R.string.category_all),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                            item {
-                                FilterChip(
-                                    selected = selectedCategory == JOTTY_ARCHIVE_CATEGORY,
-                                    onClick = { vm.setSelectedCategory(JOTTY_ARCHIVE_CATEGORY) },
-                                    label = {
-                                        Text(
-                                            stringResource(R.string.category_archived),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                            items(noteCategories.filter { !it.equals(JOTTY_ARCHIVE_CATEGORY, true) }, key = { it }) { cat ->
-                                FilterChip(
-                                    selected = selectedCategory == cat,
-                                    onClick = { vm.setSelectedCategory(cat) },
-                                    label = {
-                                        Text(
-                                            cat,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    ListFilterHeader(
+                        searchQuery = searchQuery,
+                        onSearchQueryChange = { vm.setSearchQuery(it) },
+                        searchPlaceholderRes = R.string.search_notes,
+                        sortOption = sortOption,
+                        onSortSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
+                        categories = noteCategories,
+                        selectedCategory = selectedCategory,
+                        onClearCategoryFilter = { vm.setSelectedCategory(null) },
+                        onCategoryToggle = { vm.toggleCategoryChip(it) },
+                    )
 
                     ListScreenContent(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -349,6 +297,7 @@ fun NotesScreen(
                         biometricSaveOfferEnabled = biometricSaveOfferEnabled,
                         categorySuggestions = noteCategories,
                         richEditorEnabled = richNoteEditorEnabled,
+                        visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
                         noteSnapshotsEnabled = noteSnapshotsEnabled,
                         api = api,
                     )

@@ -176,8 +176,9 @@ fun ChecklistItemRow(
             }
             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                 if (onMoveUp != null) {
+                    val moveUpLabel = stringResource(R.string.cd_move_item_up)
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.cd_move_item_up)) },
+                        text = { Text(moveUpLabel) },
                         onClick = {
                             menuExpanded = false
                             onMoveUp()
@@ -185,14 +186,15 @@ fun ChecklistItemRow(
                         leadingIcon = {
                             Icon(
                                 Icons.Default.KeyboardArrowUp,
-                                contentDescription = null,
+                                contentDescription = moveUpLabel,
                             )
                         },
                     )
                 }
                 if (onMoveDown != null) {
+                    val moveDownLabel = stringResource(R.string.cd_move_item_down)
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.cd_move_item_down)) },
+                        text = { Text(moveDownLabel) },
                         onClick = {
                             menuExpanded = false
                             onMoveDown()
@@ -200,14 +202,15 @@ fun ChecklistItemRow(
                         leadingIcon = {
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
-                                contentDescription = null,
+                                contentDescription = moveDownLabel,
                             )
                         },
                     )
                 }
                 if (isProject && depth == 0 && onAddSubItem != null) {
+                    val addSubLabel = stringResource(R.string.add_sub_task)
                     DropdownMenuItem(
-                        text = { Text(stringResource(R.string.add_sub_task)) },
+                        text = { Text(addSubLabel) },
                         onClick = {
                             menuExpanded = false
                             onAddSubItem()
@@ -215,7 +218,7 @@ fun ChecklistItemRow(
                         leadingIcon = {
                             Icon(
                                 Icons.Default.Add,
-                                contentDescription = null,
+                                contentDescription = addSubLabel,
                             )
                         },
                     )

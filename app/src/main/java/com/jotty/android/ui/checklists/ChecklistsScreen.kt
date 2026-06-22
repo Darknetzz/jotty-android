@@ -47,6 +47,7 @@ import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
+import com.jotty.android.ui.common.ListFilterHeader
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.ListSortOption
@@ -161,7 +162,6 @@ fun ChecklistsScreen(
                     lastSyncAttemptEpochMs = null,
                     onRefresh = { vm.loadChecklists() },
                     onAdd = { vm.setShowCreateDialog(true) },
-                    showSyncStatus = false,
                 )
             } else {
                 null
@@ -211,72 +211,19 @@ fun ChecklistsScreen(
                 )
                 } else {
                     Column(Modifier.fillMaxSize()) {
-                if (checklists.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { vm.setSearchQuery(it) },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text(stringResource(R.string.search_checklists)) },
-                            leadingIcon = {
-                                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.cd_search))
-                            },
-                            singleLine = true,
-                        )
-                        SortMenuButton(
-                            current = sortOption,
-                            onSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
-                        )
-                    }
-                    if (checklistCategories.isNotEmpty()) {
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            item {
-                                FilterChip(
-                                    selected = selectedCategory == null,
-                                    onClick = { vm.setSelectedCategory(null) },
-                                    label = {
-                                        Text(
-                                            stringResource(R.string.all_categories),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                            item {
-                                FilterChip(
-                                    selected = selectedCategory == JOTTY_ARCHIVE_CATEGORY,
-                                    onClick = { vm.toggleCategoryChip(JOTTY_ARCHIVE_CATEGORY) },
-                                    label = {
-                                        Text(
-                                            stringResource(R.string.category_archived),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                            items(
-                                checklistCategories.filter { !it.equals(JOTTY_ARCHIVE_CATEGORY, true) },
-                                key = { it },
-                            ) { cat ->
-                                FilterChip(
-                                    selected = selectedCategory == cat,
-                                    onClick = { vm.toggleCategoryChip(cat) },
-                                    label = { Text(cat, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+                ListFilterHeader(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { vm.setSearchQuery(it) },
+                    searchPlaceholderRes = R.string.search_checklists,
+                    sortOption = sortOption,
+                    onSortSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
+                    categories = checklistCategories,
+                    selectedCategory = selectedCategory,
+                    onClearCategoryFilter = { vm.setSelectedCategory(null) },
+                    onCategoryToggle = { vm.toggleCategoryChip(it) },
+                    categoryChipPadding = PaddingValues(vertical = 4.dp),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 ListScreenContent(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     showSkeleton = loading && sortedChecklists.isEmpty(),

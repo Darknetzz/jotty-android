@@ -124,6 +124,12 @@ class SettingsRepository(
             prefs[KEY_RICH_NOTE_EDITOR] ?: false
         }.catch { emit(false) }
 
+    /** When enabled, visual editor saves convert HTML back to GFM/markdown when possible. Default false. */
+    val visualEditorSaveAsMarkdownEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_VISUAL_EDITOR_SAVE_AS_MARKDOWN] ?: false
+        }.catch { emit(false) }
+
     /** Hide Kanban columns with no tasks on project boards. Default false. */
     val kanbanHideEmptyColumns: Flow<Boolean> =
         context.jottySettingsDataStore.data.map { prefs ->
@@ -331,6 +337,16 @@ class SettingsRepository(
     suspend fun setRichNoteEditorEnabled(value: Boolean) {
         context.jottySettingsDataStore.edit {
             if (value) it[KEY_RICH_NOTE_EDITOR] = true else it.remove(KEY_RICH_NOTE_EDITOR)
+        }
+    }
+
+    suspend fun setVisualEditorSaveAsMarkdownEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) {
+                it[KEY_VISUAL_EDITOR_SAVE_AS_MARKDOWN] = true
+            } else {
+                it.remove(KEY_VISUAL_EDITOR_SAVE_AS_MARKDOWN)
+            }
         }
     }
 
@@ -542,6 +558,8 @@ class SettingsRepository(
         private val KEY_SWIPE_TO_DELETE = booleanPreferencesKey("swipe_to_delete_enabled")
         private val KEY_NOTE_SNAPSHOTS = booleanPreferencesKey("note_snapshots_enabled")
         private val KEY_RICH_NOTE_EDITOR = booleanPreferencesKey("rich_note_editor_enabled")
+        private val KEY_VISUAL_EDITOR_SAVE_AS_MARKDOWN =
+            booleanPreferencesKey("visual_editor_save_as_markdown_enabled")
         private val KEY_CHECKLIST_DRAG_REORDER = booleanPreferencesKey("checklist_drag_reorder_enabled")
         private val KEY_SHOW_CHECKLIST_EMOJIS = booleanPreferencesKey("show_checklist_emojis")
         private val KEY_KANBAN_HIDE_EMPTY_COLUMNS = booleanPreferencesKey("kanban_hide_empty_columns")

@@ -16,9 +16,10 @@ fun ShareDropdownMenuItem(
     onClick: () -> Unit,
     labelRes: Int = R.string.share_checklist,
 ) {
+    val label = stringResource(labelRes)
     DropdownMenuItem(
-        text = { Text(stringResource(labelRes)) },
-        leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
+        text = { Text(label) },
+        leadingIcon = { Icon(Icons.Default.Share, contentDescription = label) },
         onClick = onClick,
     )
 }
@@ -28,20 +29,18 @@ fun ArchiveDropdownMenuItem(
     isArchived: Boolean,
     onClick: () -> Unit,
 ) {
+    val label =
+        if (isArchived) {
+            stringResource(R.string.unarchive)
+        } else {
+            stringResource(R.string.archive)
+        }
     DropdownMenuItem(
-        text = {
-            Text(
-                if (isArchived) {
-                    stringResource(R.string.unarchive)
-                } else {
-                    stringResource(R.string.archive)
-                },
-            )
-        },
+        text = { Text(label) },
         leadingIcon = {
             Icon(
                 if (isArchived) Icons.Default.Unarchive else Icons.Default.Archive,
-                contentDescription = null,
+                contentDescription = label,
             )
         },
         onClick = onClick,

@@ -41,6 +41,12 @@
 # Jotty local database models
 -keep class com.jotty.android.data.local.** { *; }
 
+# WYSIWYG editor JavaScript bridge
+-keepclassmembers class com.jotty.android.ui.notes.WysiwygEditorBridge {
+    @android.webkit.JavascriptInterface <methods>;
+}
+-keep class com.jotty.android.ui.notes.WysiwygEditorBridge { *; }
+
 # GitHub release (update check) DTOs for Gson
 -keep class com.jotty.android.data.updates.GitHubReleaseResponse { *; }
 -keep class com.jotty.android.data.updates.GitHubAsset { *; }

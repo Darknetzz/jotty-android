@@ -10,9 +10,20 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Settings → Report an issue** — Troubleshooting section links to GitHub Issues so users can report bugs or suggest features (mentions debug logs for easier diagnosis).
 - **Settings → Behavior categories** — Options are grouped under General, Lists, Checklists, and Notes for easier scanning.
+- **Shared list filter header** — Notes and checklists use the same search, sort, and category chip row; tap a category again to clear the filter.
+- **Settings → Save visual edits as Markdown** — Optional toggle under Notes to convert WYSIWYG HTML back to GFM when saving for better Jotty web compatibility.
+- **Note unsaved-changes prompt** — Leaving note edit with changes shows Save / Discard (matches Kanban item detail).
+
+### Changed
+
+- **Rich editor saves** — Plain-note saves from the visual editor now flush the WebView snapshot before persisting (same safety as encrypted saves).
+- **Rich editor link/image insert** — Compose dialogs replace hardcoded English browser prompts.
+- **Online list sync indicator** — Notes and checklists show refresh/sync status in the top bar when not using offline-only fetch.
+- **Rich text editor settings copy** — Description now matches behavior (HTML/table notes open in Visual; encrypted notes default to Markdown).
 
 ### Fixed
 
+- **Release rich editor** — ProGuard keep rules for the WYSIWYG JavaScript bridge so release builds do not strip `@JavascriptInterface` methods.
 - **Dev-latest publish** — Dev APK builds now run `:app:clean` before assemble and verify embedded commit/version code match release notes before upload, preventing stale APKs that loop the in-app updater.
 
 ---

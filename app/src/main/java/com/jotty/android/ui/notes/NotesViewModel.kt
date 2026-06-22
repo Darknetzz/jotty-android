@@ -84,6 +84,10 @@ class NotesViewModel(
         _selectedCategory.value = category
     }
 
+    fun toggleCategoryChip(category: String) {
+        _selectedCategory.value = if (_selectedCategory.value == category) null else category
+    }
+
     fun setSelectedNote(note: Note?) {
         _selectedNote.value = note
     }

@@ -82,6 +82,17 @@ object NoteEncryption {
      */
     fun isEncrypted(content: String): Boolean = parse(content) is ParsedNoteContent.Encrypted
 
+    /** Encrypted JSON body only, or null when [content] is not encrypted. */
+    fun encryptedBodyOrNull(content: String): String? =
+        (parse(content) as? ParsedNoteContent.Encrypted)?.encryptedBody
+
+    /**
+     * Content to send on note update for encrypted notes: JSON body only (no YAML frontmatter).
+     * The Jotty server strips frontmatter, re-serializes metadata, and runs markdown sanitization;
+     * sending the bare body matches what the web app stores and avoids frontmatter delimiter bugs.
+     */
+    fun contentForEncryptedServerUpdate(content: String): String? = encryptedBodyOrNull(content)
+
     /**
      * Closing `---` must be on its own line so titles/values containing `---` do not truncate the body.
      */

@@ -17,10 +17,14 @@ import com.jotty.android.data.local.JottyDatabase
 import com.jotty.android.data.local.OfflineNotesRepository
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.delay
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -28,6 +32,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLooper
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -662,5 +667,147 @@ class NoteDetailViewModelTest {
         vm.onDecrypted("Secret body")
         vm.invalidateDecryptedIfServerContentChanged("cipher-b")
         assertNull(vm.decryptedContent.value)
+    }
+
+    @Test
+    fun encrypt_save_sendsEncryptedJsonBodyOnly() =
+        runBlocking {
+            val passphrase = "my secure passphrase 123"
+            val plain = "Edited secret body"
+            val bodyV1 = XChaCha20Encryptor.encrypt("original", passphrase)!!
+            val wrappedV1 =
+                XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", bodyV1)
+            var capturedContent: String? = null
+            val note =
+                Note(
+                    id = "n-enc",
+                    title = "Secret",
+                    category = "Work",
+                    content = wrappedV1,
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = true,
+                )
+            val vm =
+                NoteDetailViewModel(
+                    note,
+                    object : NoteDetailActions {
+                        override suspend fun updateNote(
+                            noteId: String,
+                            title: String,
+                            content: String,
+                            category: String,
+                            originalCategory: String,
+                        ): Result<Note> {
+                            capturedContent = content
+                            return Result.success(note.copy(title = title, content = content, updatedAt = "u2"))
+                        }
+
+                        override suspend fun deleteNote(noteId: String): Result<Unit> =
+                            Result.failure(UnsupportedOperationException())
+                    },
+                )
+            vm.onDecrypted(plain, passphrase = passphrase.toCharArray())
+            vm.encryptWithSessionPassphrase(
+                encryptFailedMsg = "failed",
+                onSuccess = {},
+                onFailure = {},
+            )
+            withTimeout(15_000) {
+                while (capturedContent == null && vm.encryptError.value == null) {
+                    ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+                    delay(25)
+                }
+            }
+            assertNotNull(capturedContent)
+            assertFalse("encrypted save must not send YAML frontmatter", capturedContent!!.startsWith("---"))
+            assertTrue(NoteEncryption.isEncrypted(capturedContent!!))
+            assertEquals(plain, XChaCha20Decryptor.decrypt(capturedContent!!, passphrase))
+        }
+
+    @Test
+    fun encrypt_serverVerifyFailure_rollsBackPreSaveCiphertext() =
+        runBlocking {
+            val passphrase = "my secure passphrase 123"
+            val plain = "Edited secret body"
+            val bodyV1 = XChaCha20Encryptor.encrypt("original", passphrase)!!
+            val wrappedV1 =
+                XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", bodyV1)
+            var updateCount = 0
+            var rollbackContent: String? = null
+            val note =
+                Note(
+                    id = "n-enc",
+                    title = "Secret",
+                    category = "Work",
+                    content = wrappedV1,
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = true,
+                )
+            val vm =
+                NoteDetailViewModel(
+                    note,
+                    object : NoteDetailActions {
+                        override suspend fun updateNote(
+                            noteId: String,
+                            title: String,
+                            content: String,
+                            category: String,
+                            originalCategory: String,
+                        ): Result<Note> {
+                            updateCount++
+                            if (updateCount == 1) {
+                                val corrupted =
+                                    content.replace("\"data\":\"", "\"data\":\"00")
+                                return Result.success(note.copy(content = corrupted, updatedAt = "u2"))
+                            }
+                            rollbackContent = content
+                            return Result.success(note.copy(content = content, updatedAt = "u3"))
+                        }
+
+                        override suspend fun deleteNote(noteId: String): Result<Unit> =
+                            Result.failure(UnsupportedOperationException())
+                    },
+                )
+            vm.onDecrypted(plain, passphrase = passphrase.toCharArray())
+            vm.encryptWithSessionPassphrase(
+                encryptFailedMsg = "failed",
+                onSuccess = {},
+                onFailure = {},
+                encryptServerVerifyFailedMsg = "server verify failed",
+            )
+            withTimeout(15_000) {
+                while (updateCount < 2 && vm.encryptError.value == null) {
+                    ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
+                    delay(25)
+                }
+            }
+            assertEquals("server verify failed", vm.encryptError.value)
+            assertTrue(vm.consumeSaveFailed())
+            assertEquals(2, updateCount)
+            assertEquals(wrappedV1, rollbackContent)
+            assertEquals(plain, vm.decryptedContent.value)
+        }
+
+    @Test
+    fun resetFromNote_normalizesFrontmatterWrappedContentToBodyOnly() {
+        val passphrase = "my secure passphrase 123"
+        val body = XChaCha20Encryptor.encrypt("Secret", passphrase)!!
+        val wrapped = XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Title", "Work", body)
+        val vm = encryptedNoteViewModel(wrapped)
+        vm.resetFromNote(
+            Note(
+                id = "n-enc",
+                title = "Title",
+                category = "Work",
+                content = wrapped,
+                createdAt = "c",
+                updatedAt = "u2",
+                encrypted = true,
+            ),
+        )
+        assertEquals(body, vm.content.value)
+        assertFalse(vm.content.value.startsWith("---"))
     }
 }

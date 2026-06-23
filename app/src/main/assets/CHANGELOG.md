@@ -40,6 +40,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Note card long-press** — Single combined click target (matches checklist cards) without duplicate ripples.
 - **Visual save guard scope** — JSON-escaped HTML check applies only to visual-editor saves, not Markdown source edits.
 - **Dev-latest publish** — Dev APK builds now run `:app:clean` before assemble and verify embedded commit/version code match release notes before upload, preventing stale APKs that loop the in-app updater.
+- **Encrypted note re-save** — Saving an edited encrypted note now uploads the encrypted JSON body only (matching the Jotty server), instead of YAML frontmatter the server strips and rewrites. If the server returns undecryptable ciphertext after save, the app rolls back to the pre-save copy automatically and keeps your edits visible locally.
 
 ---
 

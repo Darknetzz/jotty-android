@@ -115,7 +115,7 @@ class NoteDetailViewModel(
     fun resetFromNote(updated: Note) {
         adoptNoteId(updated.id)
         _title.value = stripInvisibleFromEdges(updated.title)
-        _content.value = stripInvisibleFromEdges(updated.content)
+        _content.value = normalizeStoredContent(updated.content)
         _category.value = updated.category
         persistedCategory = updated.category
         _isEditing.value = false
@@ -456,12 +456,14 @@ class NoteDetailViewModel(
                         _encryptError.value = encryptFailedMsg
                         return@launch
                     }
+                    val preSaveContent = _content.value
                     snapshotBeforeSave(snapshotsEnabled)
                     val result =
                         actions.updateNote(
                             noteId = activeNoteId,
                             title = _title.value,
-                            content = fullContent,
+                            // Jotty stores encrypted JSON body only; frontmatter is rebuilt server-side.
+                            content = body,
                             category = _category.value,
                             originalCategory = persistedCategory,
                         )
@@ -490,6 +492,25 @@ class NoteDetailViewModel(
                                 "Server-stored note $activeNoteId did not decrypt after save " +
                                     "(serverContentLength=${saved.content.length}); keeping local plaintext unlocked",
                             )
+                            val rollback =
+                                actions.updateNote(
+                                    noteId = activeNoteId,
+                                    title = _title.value,
+                                    content = preSaveContent,
+                                    category = _category.value,
+                                    originalCategory = persistedCategory,
+                                )
+                            if (rollback.isSuccess) {
+                                AppLog.d(
+                                    "encryption",
+                                    "Restored pre-save ciphertext on server for note $activeNoteId after failed verify",
+                                )
+                            } else {
+                                AppLog.e(
+                                    "encryption",
+                                    "Failed to roll back note $activeNoteId after undecryptable server save",
+                                )
+                            }
                             _encryptError.value = encryptServerVerifyFailedMsg ?: encryptFailedMsg
                             _saveFailed.value = true
                             onFailure()
@@ -497,10 +518,9 @@ class NoteDetailViewModel(
                         }
 
                         _isEditing.value = false
+                        // Anchor before onSuccess so a parent refresh does not spuriously re-lock (#67).
+                        sessionSourceFingerprint = contentFingerprint(body)
                         completePersist(saved, onSuccess)
-                        // Anchor the session fingerprint to the SERVER copy so a follow-up snapshot
-                        // refresh does not spuriously re-lock the note (#67 follow-up).
-                        sessionSourceFingerprint = contentFingerprint(_content.value)
                         dismissEncryptDialog()
                     } else {
                         _saveFailed.value = true
@@ -531,12 +551,17 @@ class NoteDetailViewModel(
         activeNoteId = newId
     }
 
+    private fun normalizeStoredContent(content: String): String {
+        val trimmed = stripInvisibleFromEdges(content)
+        return NoteEncryption.encryptedBodyOrNull(trimmed) ?: trimmed
+    }
+
     private fun completePersist(
         saved: Note,
         onSuccess: (Note) -> Unit,
     ) {
         adoptNoteId(saved.id)
-        _content.value = stripInvisibleFromEdges(saved.content)
+        _content.value = normalizeStoredContent(saved.content)
         onSuccess(saved)
     }
 

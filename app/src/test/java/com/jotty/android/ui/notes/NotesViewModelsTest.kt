@@ -703,6 +703,11 @@ class NoteDetailViewModelTest {
                             return Result.success(note.copy(title = title, content = content, updatedAt = "u2"))
                         }
 
+                        override suspend fun fetchNote(noteId: String): Result<Note> {
+                            val saved = capturedContent ?: return Result.failure(IllegalStateException("no save"))
+                            return Result.success(note.copy(content = saved, updatedAt = "u3"))
+                        }
+
                         override suspend fun deleteNote(noteId: String): Result<Unit> =
                             Result.failure(UnsupportedOperationException())
                     },
@@ -735,6 +740,7 @@ class NoteDetailViewModelTest {
                 XChaCha20Encryptor.wrapWithFrontmatter("n-enc", "Secret", "Work", bodyV1)
             var updateCount = 0
             var rollbackContent: String? = null
+            var persistedOnServer: String? = null
             val note =
                 Note(
                     id = "n-enc",
@@ -760,10 +766,18 @@ class NoteDetailViewModelTest {
                             if (updateCount == 1) {
                                 val corrupted =
                                     content.replace("\"data\":\"", "\"data\":\"00")
+                                persistedOnServer = corrupted
                                 return Result.success(note.copy(content = corrupted, updatedAt = "u2"))
                             }
                             rollbackContent = content
                             return Result.success(note.copy(content = content, updatedAt = "u3"))
+                        }
+
+                        override suspend fun fetchNote(noteId: String): Result<Note> {
+                            val stored =
+                                persistedOnServer
+                                    ?: return Result.failure(IllegalStateException("not saved"))
+                            return Result.success(note.copy(content = stored, updatedAt = "u2"))
                         }
 
                         override suspend fun deleteNote(noteId: String): Result<Unit> =

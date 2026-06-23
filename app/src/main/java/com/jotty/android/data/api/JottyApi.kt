@@ -129,6 +129,11 @@ interface JottyApi {
         @Query("q") search: String? = null,
     ): NotesResponse
 
+    @GET("api/notes/{noteId}")
+    suspend fun getNote(
+        @Path("noteId") noteId: String,
+    ): ApiResponse<Note>
+
     @POST("api/notes")
     suspend fun createNote(
         @Body body: CreateNoteRequest,

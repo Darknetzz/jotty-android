@@ -534,6 +534,12 @@ internal fun DecryptNoteDialog(
                                 isDecrypting = false
                                 val plaintext = result.plaintext
                                 if (plaintext != null) {
+                                    withContext(Dispatchers.IO) {
+                                        if (biometricStore?.hasPassphrase(noteId) == true) {
+                                            biometricStore.clearPassphrase(noteId)
+                                        }
+                                    }
+                                    hasStoredBiometric = false
                                     val canOffer =
                                         biometricSaveOfferEnabled &&
                                             biometricStore != null && biometricSavePrompt != null &&

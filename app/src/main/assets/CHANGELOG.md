@@ -41,6 +41,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Visual save guard scope** — JSON-escaped HTML check applies only to visual-editor saves, not Markdown source edits.
 - **Dev-latest publish** — Dev APK builds now run `:app:clean` before assemble and verify embedded commit/version code match release notes before upload, preventing stale APKs that loop the in-app updater.
 - **Encrypted note re-save** — Saving an edited encrypted note now uploads the encrypted JSON body only (matching the Jotty server), instead of YAML frontmatter the server strips and rewrites. If the server returns undecryptable ciphertext after save, the app rolls back to the pre-save copy automatically and keeps your edits visible locally.
+- **Encrypted note save verification** — After re-encrypting, the app now re-fetches the note from the server and verifies that copy decrypts (the PUT response alone is not always what later GET/list reads from disk). Manual passphrase decrypt clears a stale biometric-stored passphrase so fingerprint unlock cannot use an old key after you typed a new one.
 
 ---
 

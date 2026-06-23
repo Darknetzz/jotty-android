@@ -3,6 +3,7 @@ package com.jotty.android.ui.notes
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.UpdateNoteRequest
+import com.jotty.android.data.api.normalizedForClient
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.util.AppLog
 
@@ -17,6 +18,10 @@ interface NoteDetailActions {
         category: String,
         originalCategory: String = category,
     ): Result<Note>
+
+    /** Re-reads the note from the server (or local DB when offline) after a save. */
+    suspend fun fetchNote(noteId: String): Result<Note> =
+        Result.failure(UnsupportedOperationException("fetchNote not supported"))
 
     suspend fun deleteNote(noteId: String): Result<Unit>
 }
@@ -46,6 +51,16 @@ class ApiNoteDetailActions(
                 response.data
             } else {
                 error("Update failed")
+            }
+        }
+
+    override suspend fun fetchNote(noteId: String): Result<Note> =
+        runCatching {
+            val response = api.getNote(noteId)
+            if (response.success && response.data != null) {
+                response.data.normalizedForClient()
+            } else {
+                error("Fetch failed")
             }
         }
 
@@ -81,6 +96,12 @@ class OfflineNoteDetailActions(
         }
         return result
     }
+
+    override suspend fun fetchNote(noteId: String): Result<Note> =
+        runCatching {
+            offlineRepository.getNoteById(noteId)
+                ?: error("Note not found")
+        }
 
     override suspend fun deleteNote(noteId: String): Result<Unit> {
         AppLog.d("OfflineNoteDetail", "Deleting note offline: $noteId")

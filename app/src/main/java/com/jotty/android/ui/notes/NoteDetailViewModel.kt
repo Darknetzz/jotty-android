@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.api.normalizedForClient
 import com.jotty.android.data.local.NoteSnapshotRepository
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NotePassphraseSession
@@ -469,7 +470,7 @@ class NoteDetailViewModel(
                         )
                     if (result.isSuccess) {
                         persistedCategory = _category.value
-                        val saved = result.getOrThrow()
+                        val updateResponse = result.getOrThrow().normalizedForClient()
                         // Always keep the freshly-encrypted plaintext available so the note stays
                         // readable, and never lose the user's text — even if the save did not verify.
                         _decryptedContent.value = plainToEncrypt
@@ -477,20 +478,35 @@ class NoteDetailViewModel(
                         NoteDecryptionSession.put(activeNoteId, plainToEncrypt)
                         NotePassphraseSession.put(activeNoteId, passChars)
 
-                        // Authoritative safety net: the Jotty server re-serializes note frontmatter
-                        // on save, so the stored copy can differ from the locally built content.
-                        // Verify the SERVER-RETURNED copy decrypts to our plaintext; if not, keep the
-                        // note unlocked with the plaintext intact and report the failure instead of
-                        // locking (which would force a re-decrypt of an unreadable server copy).
+                        // Authoritative guard: re-read what the server stored (PUT body can match what we
+                        // sent while the on-disk copy served by GET /api/notes differs after Jotty
+                        // re-serializes frontmatter to markdown files).
+                        val persisted =
+                            actions.fetchNote(activeNoteId).getOrNull()?.normalizedForClient()
+                                ?: updateResponse
+                        if (persisted.content != updateResponse.content) {
+                            AppLog.e(
+                                "encryption",
+                                "Note $activeNoteId: PUT response differs from refetched copy " +
+                                    "(putLen=${updateResponse.content.length}, " +
+                                    "fetchedLen=${persisted.content.length})",
+                            )
+                        }
                         val serverDecryptsOk =
                             withContext(Dispatchers.Default) {
-                                verifyServerContentDecrypts(saved.content, body, plainToEncrypt, passChars)
+                                verifyServerContentDecrypts(
+                                    persisted.content,
+                                    body,
+                                    plainToEncrypt,
+                                    passChars,
+                                )
                             }
                         if (!serverDecryptsOk) {
                             AppLog.e(
                                 "encryption",
                                 "Server-stored note $activeNoteId did not decrypt after save " +
-                                    "(serverContentLength=${saved.content.length}); keeping local plaintext unlocked",
+                                    "(persistedContentLength=${persisted.content.length}); " +
+                                    "keeping local plaintext unlocked",
                             )
                             val rollback =
                                 actions.updateNote(
@@ -519,8 +535,8 @@ class NoteDetailViewModel(
 
                         _isEditing.value = false
                         // Anchor before onSuccess so a parent refresh does not spuriously re-lock (#67).
-                        sessionSourceFingerprint = contentFingerprint(body)
-                        completePersist(saved, onSuccess)
+                        sessionSourceFingerprint = contentFingerprint(persisted.content)
+                        completePersist(persisted, onSuccess)
                         dismissEncryptDialog()
                     } else {
                         _saveFailed.value = true

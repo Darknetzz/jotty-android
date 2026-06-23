@@ -104,6 +104,15 @@ internal class FakeJottyApi(
         search: String?,
     ): NotesResponse = NotesResponse(notesFromGet)
 
+    override suspend fun getNote(noteId: String): ApiResponse<Note> {
+        val found = notesFromGet.find { it.id == noteId }
+        return if (found != null) {
+            ApiResponse(true, found)
+        } else {
+            ApiResponse(false, Note("", "", content = "", createdAt = "", updatedAt = ""))
+        }
+    }
+
     override suspend fun createNote(body: CreateNoteRequest): ApiResponse<Note> {
         val handler =
             createNoteResponse ?: return ApiResponse(

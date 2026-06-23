@@ -187,6 +187,9 @@ private class MinimalChecklistApi : JottyApi {
         search: String?,
     ): NotesResponse = NotesResponse(emptyList())
 
+    override suspend fun getNote(noteId: String): ApiResponse<Note> =
+        ApiResponse(false, Note("", "", content = "", createdAt = "", updatedAt = ""))
+
     override suspend fun createNote(body: CreateNoteRequest): ApiResponse<Note> = error("unused")
 
     override suspend fun updateNote(

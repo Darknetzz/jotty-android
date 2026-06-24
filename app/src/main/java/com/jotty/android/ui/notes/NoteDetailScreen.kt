@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -205,6 +206,12 @@ internal fun NoteDetailScreen(
     val saveFailedRestoreMsg = stringResource(R.string.save_failed_restore_backup)
     val restoreBackupAction = stringResource(R.string.restore_backup_action)
     val saveUnsafeMsg = stringResource(R.string.error_unsafe_html_save)
+    val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
+    val encryptNoPlaintextMsg = stringResource(R.string.error_encrypt_no_plaintext)
+    val encryptServerVerifyFailedMsg = stringResource(R.string.error_encrypt_server_verify_failed)
+    val encryptStaleSessionMsg = stringResource(R.string.error_encrypt_stale_session)
+    val encryptArgonFallbackMsg = stringResource(R.string.encrypt_argon_fallback_notice)
+    val restoreVerifyFailedMsg = stringResource(R.string.error_restore_verify_failed)
     val ctx = context
 
     val activity = LocalActivity.current as? FragmentActivity
@@ -224,7 +231,9 @@ internal fun NoteDetailScreen(
             subtitle = biometricSubtitle,
             negativeButtonText = biometricCancelStr,
             encryptedBody = { encryptedBodyForBiometric },
-            onDecrypted = { plain, pass -> detailVm.onDecrypted(plain, passphrase = pass) },
+            onDecrypted = { plain, usedLegacy, pass ->
+                detailVm.onDecrypted(plain, usedLegacy, passphrase = pass)
+            },
             onDecryptFailed = {
                 scope.launch { snackbarHostState.showSnackbar(decryptFailedMsg) }
             },
@@ -299,7 +308,7 @@ internal fun NoteDetailScreen(
             html
         }
 
-    fun isVisualBodySafeToSave(body: String): Boolean = !detailVm.isUnsafePlaintextForSave(body)
+    fun isVisualBodySafeToSave(body: String): Boolean = !detailVm.isUnsafeVisualPlaintextForSave(body)
 
     fun handleSaveFailed() {
         scope.launch {
@@ -325,6 +334,35 @@ internal fun NoteDetailScreen(
             } else {
                 onSaveFailed()
             }
+        }
+    }
+
+    fun onEncryptSuccess(updated: Note) {
+        onUpdate(updated)
+        if (detailVm.consumeArgonFallbackNotice()) {
+            scope.launch {
+                snackbarHostState.showSnackbar(encryptArgonFallbackMsg)
+            }
+        }
+    }
+
+    fun runEncryptedSaveWithSessionPassphrase() {
+        detailVm.encryptWithSessionPassphrase(
+            encryptFailedMsg,
+            onSuccess = ::onEncryptSuccess,
+            onFailure = { handleSaveFailed() },
+            encryptNoPlaintextMsg = encryptNoPlaintextMsg,
+            encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
+            encryptStaleSessionMsg = encryptStaleSessionMsg,
+            snapshotsEnabled = noteSnapshotsEnabled,
+        )
+    }
+
+    fun reencryptForWebCompatibility() {
+        if (detailVm.hasSessionPassphrase()) {
+            runEncryptedSaveWithSessionPassphrase()
+        } else {
+            detailVm.showEncryptDialog()
         }
     }
 
@@ -900,16 +938,29 @@ internal fun NoteDetailScreen(
                                 modifier = Modifier.fillMaxSize(),
                             )
                             if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
-                                Text(
-                                    text = stringResource(R.string.legacy_encryption_warning),
+                                Surface(
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                    shape = MaterialTheme.shapes.small,
                                     modifier =
                                         Modifier
                                             .align(Alignment.TopCenter)
                                             .fillMaxWidth()
                                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = stringResource(R.string.legacy_encryption_warning),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                        TextButton(
+                                            onClick = { reencryptForWebCompatibility() },
+                                            contentPadding = PaddingValues(0.dp),
+                                        ) {
+                                            Text(stringResource(R.string.reencrypt_for_web))
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -987,7 +1038,15 @@ internal fun NoteDetailScreen(
                                     )
                                 }
                             },
-                            onFailure = { handleSaveFailed() },
+                            onFailure = {
+                                if (detailVm.consumeRestoreVerifyFailed()) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(restoreVerifyFailedMsg)
+                                    }
+                                } else {
+                                    handleSaveFailed()
+                                }
+                            },
                         )
                     },
                 ) {
@@ -1003,32 +1062,18 @@ internal fun NoteDetailScreen(
     }
 
     if (showEncryptDialog) {
-        val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
-        val encryptNoPlaintextMsg = stringResource(R.string.error_encrypt_no_plaintext)
-        val encryptServerVerifyFailedMsg = stringResource(R.string.error_encrypt_server_verify_failed)
-        val encryptStaleSessionMsg = stringResource(R.string.error_encrypt_stale_session)
         val reEncryptMode = isEncrypted && detailVm.hasSessionPassphrase()
         EncryptNoteDialog(
             onDismiss = { detailVm.dismissEncryptDialog() },
             isEncrypting = isEncrypting,
             encryptError = encryptError,
             reEncryptMode = reEncryptMode,
-            onUseStoredPassphrase = {
-                detailVm.encryptWithSessionPassphrase(
-                    encryptFailedMsg,
-                    onSuccess = onUpdate,
-                    onFailure = { handleSaveFailed() },
-                    encryptNoPlaintextMsg = encryptNoPlaintextMsg,
-                    encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
-                    encryptStaleSessionMsg = encryptStaleSessionMsg,
-                    snapshotsEnabled = noteSnapshotsEnabled,
-                )
-            },
+            onUseStoredPassphrase = { runEncryptedSaveWithSessionPassphrase() },
             onEncrypt = { passChars ->
                 detailVm.encrypt(
                     passChars,
                     encryptFailedMsg,
-                    onSuccess = onUpdate,
+                    onSuccess = ::onEncryptSuccess,
                     onFailure = { handleSaveFailed() },
                     encryptNoPlaintextMsg = encryptNoPlaintextMsg,
                     encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,

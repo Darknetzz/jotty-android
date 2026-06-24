@@ -229,7 +229,8 @@
     <string name="note_snapshots">Local note backups</string>
     <string name="note_snapshots_description">Keep recent on-device copies before each save so you can restore a note if something goes wrong. Up to five backups per note.</string>
     <string name="restore">Restore</string>
-    <string name="error_encrypt_server_verify_failed">Saved, but the server\'s stored copy could not be decrypted. Your text is still shown here — copy it before closing, then try saving again or contact your server admin.</string>
+    <string name="error_encrypt_server_verify_failed">Save failed: the server stored undecryptable ciphertext. Your edits are still shown here — copy them, then use Restore backup from the menu or try saving again.</string>
+    <string name="error_restore_verify_failed">Restored backup could not be verified. Try another backup or unlock the note to confirm it decrypts.</string>
     <string name="note_is_encrypted">This note is encrypted</string>
     <string name="pgp_not_supported">PGP decryption is not supported in the app. Use the Jotty web app to decrypt.</string>
     <string name="enter_passphrase_to_view">Enter your passphrase to view the content.</string>
@@ -237,6 +238,8 @@
     <string name="use_web_app_to_decrypt">Use the Jotty web app to decrypt this note.</string>
     <string name="pgp_not_supported_short">PGP decryption is not supported in the app. Use the Jotty web app.</string>
     <string name="legacy_encryption_warning">This note uses a legacy encryption payload format. Re-encrypt and save it to restore web compatibility.</string>
+    <string name="reencrypt_for_web">Re-encrypt for web</string>
+    <string name="encrypt_argon_fallback_notice">Encrypted with reduced memory settings on this device. The Jotty web app may not decrypt this note until it supports 32 MiB Argon2.</string>
     <string name="note_images_auth_blocked_banner">Images from your Jotty server could not be loaded in the app. On the server, set SERVE_PUBLIC_IMAGES=yes (see Jotty Docker docs). The web app may still show them using your browser session.</string>
 
     <!-- Setup -->

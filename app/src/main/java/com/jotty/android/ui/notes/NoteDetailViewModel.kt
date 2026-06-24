@@ -85,6 +85,24 @@ class NoteDetailViewModel(
     private val _legacyEncryptionDetected = MutableStateFlow(false)
     val legacyEncryptionDetected: StateFlow<Boolean> = _legacyEncryptionDetected.asStateFlow()
 
+    private val _argonFallbackNoticePending = MutableStateFlow(false)
+
+    private val _restoreVerifyFailed = MutableStateFlow(false)
+
+    /** One-shot: true after encrypt used 32 MiB Argon2 fallback; cleared on read. */
+    fun consumeArgonFallbackNotice(): Boolean {
+        val pending = _argonFallbackNoticePending.value
+        if (pending) _argonFallbackNoticePending.value = false
+        return pending
+    }
+
+    /** One-shot: true when [restoreSnapshot] failed decrypt verification; cleared on read. */
+    fun consumeRestoreVerifyFailed(): Boolean {
+        val failed = _restoreVerifyFailed.value
+        if (failed) _restoreVerifyFailed.value = false
+        return failed
+    }
+
     fun consumeSaveFailed(): Boolean {
         val failed = _saveFailed.value
         if (failed) _saveFailed.value = false
@@ -350,7 +368,20 @@ class NoteDetailViewModel(
                         onFailure()
                         return@launch
                     }
-            if (NoteEncryption.isEncrypted(snapshot.content)) {
+            val snapshotEncrypted = NoteEncryption.isEncrypted(snapshot.content)
+            val snapshotBody =
+                if (snapshotEncrypted) {
+                    NoteEncryption.encryptedBodyOrNull(snapshot.content)
+                } else {
+                    null
+                }
+            val sessionPassChars =
+                if (snapshotEncrypted && snapshotBody != null) {
+                    NotePassphraseSession.get(activeNoteId)
+                } else {
+                    null
+                }
+            if (snapshotEncrypted) {
                 lockNote()
             }
             _saveFailed.value = false
@@ -363,12 +394,41 @@ class NoteDetailViewModel(
                     originalCategory = persistedCategory,
                 )
             if (result.isSuccess) {
+                val saved = result.getOrThrow()
+                if (snapshotEncrypted && snapshotBody != null && sessionPassChars != null) {
+                    val verifyOk =
+                        withContext(Dispatchers.Default) {
+                            val expectedPlain =
+                                XChaCha20Decryptor.decrypt(snapshotBody, sessionPassChars.copyOf())
+                                    ?: return@withContext false
+                            verifyServerContentDecrypts(
+                                saved.content,
+                                snapshotBody,
+                                expectedPlain,
+                                sessionPassChars,
+                            )
+                        }
+                    sessionPassChars.clearPassphrase()
+                    if (!verifyOk) {
+                        AppLog.e(
+                            "encryption",
+                            "Restored encrypted snapshot $snapshotId for note $activeNoteId failed decrypt verify",
+                        )
+                        _restoreVerifyFailed.value = true
+                        _saveFailed.value = true
+                        onFailure()
+                        return@launch
+                    }
+                } else {
+                    sessionPassChars?.clearPassphrase()
+                }
                 persistedCategory = _category.value
-                completePersist(result.getOrThrow(), onSuccess)
+                completePersist(saved, onSuccess)
                 if (NoteEncryption.isEncrypted(_content.value)) {
                     sessionSourceFingerprint = contentFingerprint(_content.value)
                 }
             } else {
+                sessionPassChars?.clearPassphrase()
                 _saveFailed.value = true
                 onFailure()
             }
@@ -430,11 +490,15 @@ class NoteDetailViewModel(
                 return@launch
             }
             try {
-                val body =
+                val encryptResult =
                     withContext(Dispatchers.Default) {
-                        XChaCha20Encryptor.encrypt(plainToEncrypt, passChars)
+                        XChaCha20Encryptor.encryptWithResult(plainToEncrypt, passChars)
                     }
+                val body = encryptResult?.body
                 if (body != null) {
+                    if (encryptResult.usedArgonFallback) {
+                        _argonFallbackNoticePending.value = true
+                    }
                     val fullContent =
                         XChaCha20Encryptor.wrapWithFrontmatter(
                             activeNoteId,
@@ -593,14 +657,7 @@ class NoteDetailViewModel(
         }
     }
 
-    internal fun contentFingerprint(content: String): String {
-        val body =
-            when (val parsed = NoteEncryption.parse(content)) {
-                is ParsedNoteContent.Encrypted -> parsed.encryptedBody
-                else -> stripInvisibleFromEdges(content)
-            }
-        return body.hashCode().toString()
-    }
+    internal fun contentFingerprint(content: String): String = NoteEncryption.contentFingerprint(content)
 
     /**
      * Decrypts the freshly produced [body] (and the frontmatter-wrapped [fullContent]) with [passChars]
@@ -678,6 +735,14 @@ class NoteDetailViewModel(
         NoteEncryption.isEncrypted(plain) ||
             plain.contains("""\u003C""") ||
             plain.contains("""\u003E""")
+
+    /**
+     * Extra guards for WYSIWYG editor saves (HTML entity artifacts from evaluateJavascript).
+     */
+    fun isUnsafeVisualPlaintextForSave(plain: String): Boolean =
+        isUnsafePlaintextForEncrypt(plain) ||
+            plain.contains("&lt;") ||
+            plain.contains("&gt;")
 
     /** Refuses persisting evaluateJavascript JSON artifacts in plain note bodies. */
     fun isUnsafePlaintextForSave(plain: String): Boolean = isUnsafePlaintextForEncrypt(plain)

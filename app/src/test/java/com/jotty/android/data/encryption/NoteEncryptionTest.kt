@@ -164,4 +164,46 @@ class NoteEncryptionTest {
         val result = NoteEncryption.parse(content)
         assertTrue(result is ParsedNoteContent.Encrypted)
     }
+
+    @Test
+    fun `contentFingerprint matches frontmatter wrapped and body only`() {
+        val body = """{"alg":"xchacha20","salt":"abc","nonce":"def","data":"ghi"}"""
+        val wrapped =
+            """
+            |---
+            |encrypted: true
+            |encryptionMethod: xchacha
+            |---
+            |$body
+            """.trimMargin()
+        assertEquals(
+            NoteEncryption.contentFingerprint(wrapped),
+            NoteEncryption.contentFingerprint(body),
+        )
+    }
+
+    @Test
+    fun `contentFingerprint differs when encrypted body changes`() {
+        val bodyA = """{"alg":"xchacha20","salt":"abc","nonce":"def","data":"aaa"}"""
+        val bodyB = """{"alg":"xchacha20","salt":"abc","nonce":"def","data":"bbb"}"""
+        assertNotEquals(
+            NoteEncryption.contentFingerprint(bodyA),
+            NoteEncryption.contentFingerprint(bodyB),
+        )
+    }
+
+    @Test
+    fun `contentForEncryptedServerUpdate returns JSON body only`() {
+        val body = """{"alg":"xchacha20","salt":"abc","nonce":"def","data":"ghi"}"""
+        val wrapped =
+            """
+            |---
+            |uuid: note-1
+            |encrypted: true
+            |encryptionMethod: xchacha
+            |---
+            |$body
+            """.trimMargin()
+        assertEquals(body, NoteEncryption.contentForEncryptedServerUpdate(wrapped))
+    }
 }

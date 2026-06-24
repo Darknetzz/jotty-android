@@ -1,5 +1,8 @@
 package com.jotty.android.data.encryption
 
+import com.jotty.android.util.stripInvisibleFromEdges
+import java.security.MessageDigest
+
 /**
  * Result of parsing note content. Jotty encrypted notes use YAML frontmatter
  * (see howto/ENCRYPTION.md): `encrypted: true`, `encryptionMethod: xchacha` or `pgp`.
@@ -92,6 +95,20 @@ object NoteEncryption {
      * sending the bare body matches what the web app stores and avoids frontmatter delimiter bugs.
      */
     fun contentForEncryptedServerUpdate(content: String): String? = encryptedBodyOrNull(content)
+
+    /**
+     * Stable fingerprint of encrypted JSON body (or full plain content when not encrypted).
+     * Used to detect server-side ciphertext changes without hashCode collisions.
+     */
+    fun contentFingerprint(content: String): String {
+        val body =
+            when (val parsed = parse(content)) {
+                is ParsedNoteContent.Encrypted -> parsed.encryptedBody
+                else -> stripInvisibleFromEdges(content)
+            }
+        val digest = MessageDigest.getInstance("SHA-256").digest(body.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
+    }
 
     /**
      * Closing `---` must be on its own line so titles/values containing `---` do not truncate the body.

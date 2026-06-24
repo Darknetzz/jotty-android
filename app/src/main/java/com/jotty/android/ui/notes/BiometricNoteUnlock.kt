@@ -32,7 +32,7 @@ fun rememberBiometricNoteUnlock(
     subtitle: String,
     negativeButtonText: String,
     encryptedBody: () -> String?,
-    onDecrypted: (String, CharArray?) -> Unit,
+    onDecrypted: (plaintext: String, usedLegacyDataOrder: Boolean, passphrase: CharArray?) -> Unit,
     onDecryptFailed: () -> Unit,
     onAuthError: (errorCode: Int, errString: CharSequence) -> Unit,
     onAuthCancelled: () -> Unit,
@@ -80,13 +80,14 @@ fun rememberBiometricNoteUnlock(
                                     }
                                     return@launch
                                 }
-                                val plain =
+                                val result =
                                     withContext(Dispatchers.Default) {
-                                        XChaCha20Decryptor.decrypt(encBody, passChars)
+                                        XChaCha20Decryptor.decryptWithReason(encBody, passChars)
                                     }
                                 withContext(Dispatchers.Main) {
+                                    val plain = result.plaintext
                                     if (plain != null) {
-                                        currentOnDecrypted.value(plain, passChars)
+                                        currentOnDecrypted.value(plain, result.usedLegacyDataOrder, passChars)
                                     } else {
                                         passChars.clearPassphrase()
                                         currentOnDecryptFailed.value()

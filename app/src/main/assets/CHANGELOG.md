@@ -8,6 +8,20 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Encrypted notes — legacy format** — After decrypting a note with the old Android payload order, a **Re-encrypt for web** action re-saves using your session passphrase to restore Jotty web compatibility.
+- **Encrypted notes — low-RAM warning** — When encryption falls back to 32 MiB Argon2, a snackbar explains the note may not decrypt in the Jotty web app until web supports that preset.
+
+### Changed
+
+- **Encrypted note fingerprints** — Ciphertext change detection now uses SHA-256 of the encrypted JSON body (more reliable than hashCode).
+- **Encrypted backup restore** — When a session passphrase is available, restored encrypted backups are verified to decrypt before the operation completes.
+- **Passphrase minimum** — The 12-character minimum is enforced in the crypto layer as well as the encrypt dialog.
+- **Biometric unlock** — Fingerprint unlock now surfaces the legacy-format warning when applicable (same as manual decrypt).
+- **Visual editor saves** — WYSIWYG saves also block HTML entity artifacts (`&lt;` / `&gt;`) that can corrupt encrypted note bodies.
+- **Server verify failure message** — Clearer guidance to copy your text and use **Restore backup** when the server stores undecryptable ciphertext.
+
+### Fixed
+
 - **Settings → Appearance (notes list)** — Control note list metadata (dates and categories), date format (absolute or relative), bottom navigation labels (icons only), and monospace Markdown editor font.
 - **Settings → Behavior (notes)** — Preview length (title-only through 4 lines), open notes in edit mode, default visual/Markdown editor when the rich editor is on, and default category for new notes.
 - **Settings → Report an issue** — Troubleshooting section links to GitHub Issues so users can report bugs or suggest features (mentions debug logs for easier diagnosis).

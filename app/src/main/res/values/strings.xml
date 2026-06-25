@@ -173,6 +173,13 @@
     <string name="export_note">Export note</string>
     <string name="copy_note">Copy note</string>
     <string name="note_copied">Note copied to clipboard</string>
+    <string name="clone">Clone</string>
+    <string name="clone_note">Clone note</string>
+    <string name="clone_checklist">Clone checklist</string>
+    <string name="clone_category_title">Clone to category</string>
+    <string name="note_cloned">Note cloned</string>
+    <string name="checklist_cloned">Checklist cloned</string>
+    <string name="clone_failed">Could not clone</string>
     <string name="note_html_save_hint">This note contains HTML (images or tables). It will be saved as written; the web app may reformat it when opened there.</string>
     <string name="edit">Edit</string>
     <string name="more_options">More options</string>

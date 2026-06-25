@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Clone notes and checklists** — List and detail ⋮ menus include **Clone** with a category picker (matching Jotty web). Creates a copy titled “(Copy)” via the REST API; encrypted note bodies are copied as stored.
+
 ---
 
 ## [1.8.0] - 2026-06-25

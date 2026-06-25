@@ -48,6 +48,7 @@ fun OfflineNoteDetailScreen(
     defaultNoteEditMode: String = "markdown",
     markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
+    onClone: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val allNotes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -106,6 +107,7 @@ fun OfflineNoteDetailScreen(
             markdownEditorMonospace = markdownEditorMonospace,
             api = api,
             isOnline = isOnline,
+            onClone = onClone,
         )
     }
 }

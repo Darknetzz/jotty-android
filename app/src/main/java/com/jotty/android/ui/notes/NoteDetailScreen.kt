@@ -74,6 +74,7 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import androidx.compose.material.icons.filled.Share
 import com.jotty.android.ui.common.ArchiveDropdownMenuItem
+import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
@@ -121,6 +122,7 @@ internal fun NoteDetailScreen(
     markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
     isOnline: Boolean = true,
+    onClone: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val snapshotRepository =
@@ -729,6 +731,15 @@ internal fun NoteDetailScreen(
                                         scope.launch {
                                             snackbarHostState.showSnackbar(noteCopiedMessage)
                                         }
+                                    },
+                                )
+                            }
+                            onClone?.let { cloneAction ->
+                                CloneDropdownMenuItem(
+                                    labelRes = R.string.clone_note,
+                                    onClick = {
+                                        menuExpanded = false
+                                        cloneAction()
                                     },
                                 )
                             }

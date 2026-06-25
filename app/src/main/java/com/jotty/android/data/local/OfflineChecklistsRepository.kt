@@ -701,18 +701,7 @@ class OfflineChecklistsRepository(
         items: List<com.jotty.android.data.api.ChecklistItem>,
         parentPath: String?,
     ) {
-        items.forEachIndexed { index, item ->
-            val path = if (parentPath == null) "$index" else "$parentPath.$index"
-            runCatching {
-                api.addChecklistItem(
-                    listId,
-                    AddItemRequest(text = item.text, status = item.status, parentIndex = parentPath),
-                )
-                val children = item.children.orEmpty()
-                if (children.isNotEmpty()) replayItemsToServer(listId, children, path)
-                if (item.completed) api.checkItem(listId, path)
-            }
-        }
+        com.jotty.android.util.replayChecklistItemsToServer(api, listId, items, parentPath)
     }
 
     private suspend fun executePendingOp(

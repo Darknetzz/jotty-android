@@ -45,6 +45,7 @@ import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.local.itemAtPath
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
+import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListFilterHeader
@@ -62,7 +63,10 @@ import com.jotty.android.util.KanbanItemFieldsProbe
 import com.jotty.android.util.ServerCapabilities
 import android.content.Intent
 import com.jotty.android.ui.common.ShareServerDialog
+import com.jotty.android.ui.common.CloneCategoryDialog
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
+import com.jotty.android.util.cloneChecklist
+import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.exportChecklistAsPlainText
 import com.jotty.android.util.isArchived
@@ -113,6 +117,12 @@ fun ChecklistsScreen(
     val renameLeafOnlyMsg = stringResource(R.string.rename_leaf_only)
     val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
     val undoLabel = stringResource(R.string.undo)
+    val checklistClonedMsg = stringResource(R.string.checklist_cloned)
+    val cloneFailedMsg = stringResource(R.string.clone_failed)
+    val context = LocalContext.current
+
+    var pendingCloneChecklist by remember { mutableStateOf<Checklist?>(null) }
+    var cloneLoading by remember { mutableStateOf(false) }
 
     suspend fun deleteWithUndoForList(list: Checklist) {
         try {
@@ -201,6 +211,7 @@ fun ChecklistsScreen(
                         vm.setSelectedList(it)
                     },
                     onDelete = { scope.launch { deleteWithUndoForList(currentList) } },
+                    onClone = { pendingCloneChecklist = it },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onDeleteFailed = { scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) } },
                     onRenameUnsupported = {
@@ -255,6 +266,7 @@ fun ChecklistsScreen(
                                         ChecklistCard(
                                             checklist = list,
                                             onClick = { vm.setSelectedList(list) },
+                                            onClone = { pendingCloneChecklist = list },
                                             onDelete = { scope.launch { deleteWithUndoForList(list) } },
                                         )
                                     }
@@ -262,6 +274,7 @@ fun ChecklistsScreen(
                                     ChecklistCard(
                                         checklist = list,
                                         onClick = { vm.setSelectedList(list) },
+                                        onClone = { pendingCloneChecklist = list },
                                         onDelete = { scope.launch { deleteWithUndoForList(list) } },
                                     )
                                 }
@@ -289,6 +302,35 @@ fun ChecklistsScreen(
             },
         )
     }
+
+    pendingCloneChecklist?.let { sourceChecklist ->
+        CloneCategoryDialog(
+            initialCategory = sourceChecklist.category,
+            categorySuggestions = checklistCategories,
+            loading = cloneLoading,
+            onDismiss = {
+                if (!cloneLoading) pendingCloneChecklist = null
+            },
+            onConfirm = { targetCategory ->
+                scope.launch {
+                    cloneLoading = true
+                    cloneChecklist(api, sourceChecklist, targetCategory)
+                        .onSuccess { cloned ->
+                            pendingCloneChecklist = null
+                            vm.loadChecklists()
+                            vm.setSelectedList(cloned)
+                            snackbarHostState.showSnackbar(checklistClonedMsg)
+                        }
+                        .onFailure { error ->
+                            snackbarHostState.showSnackbar(
+                                "$cloneFailedMsg: ${ApiErrorHelper.userMessage(context, error)}",
+                            )
+                        }
+                    cloneLoading = false
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -296,6 +338,7 @@ private fun ChecklistCard(
     checklist: Checklist,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onClone: () -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -357,6 +400,13 @@ private fun ChecklistCard(
                         onClick()
                     },
                 )
+                CloneDropdownMenuItem(
+                    labelRes = R.string.clone_checklist,
+                    onClick = {
+                        menuExpanded = false
+                        onClone()
+                    },
+                )
                 DeleteDropdownMenuItem(
                     onClick = {
                         menuExpanded = false
@@ -380,6 +430,7 @@ private fun ChecklistDetailScreen(
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
     onDelete: () -> Unit,
+    onClone: (Checklist) -> Unit = {},
     onSaveFailed: () -> Unit = {},
     onDeleteFailed: () -> Unit = {},
     onRenameUnsupported: () -> Unit = {},
@@ -489,6 +540,7 @@ private fun ChecklistDetailScreen(
             onBack = onBack,
             onRename = { detailVm.setShowRenameDialog(true) },
             onDelete = onDelete,
+            onClone = { onClone(checklist.copy(items = items)) },
             onShare = { detailVm.setShowShareDialog(true) },
             isArchived = checklist.isArchived(),
             onArchiveToggle = {

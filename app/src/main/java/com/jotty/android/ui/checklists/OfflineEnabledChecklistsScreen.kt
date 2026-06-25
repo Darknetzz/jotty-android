@@ -43,6 +43,8 @@ import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.ConfirmDiscardPendingSyncDialog
 import com.jotty.android.ui.common.ConflictCopiesBanner
+import com.jotty.android.ui.common.CloneCategoryDialog
+import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListFilterHeader
@@ -64,6 +66,7 @@ import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.ui.common.ShareServerDialog
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.cloneChecklistOffline
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.exportChecklistAsPlainText
@@ -140,6 +143,11 @@ fun OfflineEnabledChecklistsScreen(
     val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
     val undoActionLabel = stringResource(R.string.undo)
     val discardPendingSyncDoneMsg = stringResource(R.string.discard_pending_sync_done)
+    val checklistClonedMsg = stringResource(R.string.checklist_cloned)
+    val cloneFailedMsg = stringResource(R.string.clone_failed)
+
+    var pendingCloneChecklist by remember { mutableStateOf<Checklist?>(null) }
+    var cloneLoading by remember { mutableStateOf(false) }
 
     suspend fun offlineDeleteWithUndo(list: Checklist) {
         val snap = list
@@ -324,6 +332,7 @@ fun OfflineEnabledChecklistsScreen(
                             vm.setSelectedList(null)
                         }
                     },
+                    onClone = { pendingCloneChecklist = it },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
                     onRenameUnsupported = {
@@ -402,6 +411,7 @@ fun OfflineEnabledChecklistsScreen(
                                         OfflineChecklistCard(
                                             checklist = list,
                                             onClick = { vm.setSelectedList(list) },
+                                            onClone = { pendingCloneChecklist = list },
                                             onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
                                             showPendingSync = list.id in dirtyChecklistIds,
                                         )
@@ -410,6 +420,7 @@ fun OfflineEnabledChecklistsScreen(
                                     OfflineChecklistCard(
                                         checklist = list,
                                         onClick = { vm.setSelectedList(list) },
+                                        onClone = { pendingCloneChecklist = list },
                                         onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
                                         showPendingSync = list.id in dirtyChecklistIds,
                                     )
@@ -447,6 +458,36 @@ fun OfflineEnabledChecklistsScreen(
             },
         )
     }
+
+    pendingCloneChecklist?.let { sourceChecklist ->
+        CloneCategoryDialog(
+            initialCategory = sourceChecklist.category,
+            categorySuggestions = checklistCategories,
+            loading = cloneLoading,
+            onDismiss = {
+                if (!cloneLoading) pendingCloneChecklist = null
+            },
+            onConfirm = { targetCategory ->
+                scope.launch {
+                    cloneLoading = true
+                    cloneChecklistOffline(offlineRepository, sourceChecklist, targetCategory)
+                        .onSuccess { cloned ->
+                            pendingCloneChecklist = null
+                            vm.setSelectedList(cloned)
+                            snackbarHostState.showSnackbar(
+                                if (isOnline) checklistClonedMsg else savedLocallyMsg,
+                            )
+                        }
+                        .onFailure { error ->
+                            snackbarHostState.showSnackbar(
+                                "$cloneFailedMsg: ${ApiErrorHelper.userMessage(context, error)}",
+                            )
+                        }
+                    cloneLoading = false
+                }
+            },
+        )
+    }
 }
 
 // ─── Checklist card ───────────────────────────────────────────────────────────────────
@@ -456,6 +497,7 @@ private fun OfflineChecklistCard(
     checklist: Checklist,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    onClone: () -> Unit = {},
     showPendingSync: Boolean = false,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -520,6 +562,13 @@ private fun OfflineChecklistCard(
                         onClick()
                     },
                 )
+                CloneDropdownMenuItem(
+                    labelRes = R.string.clone_checklist,
+                    onClick = {
+                        menuExpanded = false
+                        onClone()
+                    },
+                )
                 DeleteDropdownMenuItem(
                     onClick = {
                         menuExpanded = false
@@ -549,6 +598,7 @@ private fun OfflineChecklistDetailContent(
     onBack: () -> Unit,
     onUpdate: (Checklist) -> Unit,
     onDelete: () -> Unit,
+    onClone: (Checklist) -> Unit = {},
     onSaveFailed: () -> Unit,
     onSavedLocally: () -> Unit,
     onRenameUnsupported: () -> Unit,
@@ -743,6 +793,7 @@ private fun OfflineChecklistDetailContent(
             onBack = onBack,
             onRename = { showRenameDialog = true },
             onDelete = onDelete,
+            onClone = { onClone(liveChecklist.copy(items = items)) },
             onShare = { showShareDialog = true },
             isArchived = liveChecklist.isArchived(),
             onArchiveToggle = {

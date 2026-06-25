@@ -3,14 +3,14 @@ package com.jotty.android.ui.checklists
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.jotty.android.data.api.AddItemRequest
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.Checklist
-import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.CreateChecklistRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
+import com.jotty.android.util.apiChecklistTypeFrom
+import com.jotty.android.util.replayChecklistItemsToServer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -119,48 +119,22 @@ class ChecklistsViewModel(
      * completion state). Returns false if the server rejected the create.
      */
     suspend fun recreateChecklistAfterUndo(original: Checklist): Boolean {
-        val type =
-            if (original.type.equals("task", ignoreCase = true) ||
-                original.type.equals("project", ignoreCase = true)
-            ) {
-                "task"
-            } else {
-                "simple"
-            }
         val created =
             api.createChecklist(
                 CreateChecklistRequest(
                     title = original.title,
                     category = original.category,
-                    type = type,
+                    type = apiChecklistTypeFrom(original.type),
                 ),
             )
         if (!created.success) return false
         try {
-            replayItems(created.data.id, original.items, null)
+            replayChecklistItemsToServer(api, created.data.id, original.items)
         } catch (e: Exception) {
             AppLog.e("checklists", "Failed restoring items after undo", e)
         }
         loadChecklists()
         return true
-    }
-
-    /** Re-adds [items] depth-first under [parentPath], preserving order and completion state. */
-    private suspend fun replayItems(
-        listId: String,
-        items: List<ChecklistItem>,
-        parentPath: String?,
-    ) {
-        items.forEachIndexed { index, item ->
-            val path = if (parentPath == null) "$index" else "$parentPath.$index"
-            api.addChecklistItem(
-                listId,
-                AddItemRequest(text = item.text, status = item.status, parentIndex = parentPath),
-            )
-            val children = item.children.orEmpty()
-            if (children.isNotEmpty()) replayItems(listId, children, path)
-            if (item.completed) api.checkItem(listId, path)
-        }
     }
 
     fun createChecklist(

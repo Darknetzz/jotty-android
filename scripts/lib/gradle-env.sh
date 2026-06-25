@@ -102,3 +102,53 @@ compute_dev_version_code() {
   run_num="$(git -C "$repo_root" rev-list --count HEAD 2>/dev/null || echo 1)"
   echo $(( base * 10000 + run_num % 10000 ))
 }
+
+find_aapt_executable() {
+  local sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+  [[ -n "$sdk" && -d "$sdk/build-tools" ]] || return 1
+  local dir
+  for dir in $(ls -1 "$sdk/build-tools" 2>/dev/null | sort -V -r); do
+    if [[ -x "$sdk/build-tools/$dir/aapt" ]]; then
+      echo "$sdk/build-tools/$dir/aapt"
+      return 0
+    fi
+  done
+  return 1
+}
+
+get_apk_version_info() {
+  local apk_path="$1"
+  local aapt
+  aapt="$(find_aapt_executable)" || { echo "Android build-tools aapt not found" >&2; return 1; }
+  local line
+  line="$("$aapt" dump badging "$apk_path" 2>/dev/null | grep -m1 '^package:')" || {
+    echo "Could not read APK metadata from: $apk_path" >&2
+    return 1
+  }
+  local version_code version_name
+  version_code="$(sed -n "s/.*versionCode='\([0-9][0-9]*\)'.*/\1/p" <<<"$line")"
+  version_name="$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" <<<"$line")"
+  if [[ -z "$version_code" || -z "$version_name" ]]; then
+    echo "APK metadata missing versionCode/versionName: $apk_path" >&2
+    return 1
+  fi
+  printf '%s\n%s\n' "$version_code" "$version_name"
+}
+
+assert_dev_apk_matches_expected() {
+  local apk_path="$1"
+  local expected_short_sha="$2"
+  local expected_version_code="$3"
+  local info version_code version_name
+  info="$(get_apk_version_info "$apk_path")" || return 1
+  version_code="$(sed -n '1p' <<<"$info")"
+  version_name="$(sed -n '2p' <<<"$info")"
+  if [[ "$version_code" != "$expected_version_code" ]]; then
+    echo "Dev APK versionCode mismatch: expected $expected_version_code, got $version_code ($apk_path)" >&2
+    return 1
+  fi
+  if [[ "$version_name" != *"-dev+${expected_short_sha}"* ]]; then
+    echo "Dev APK versionName mismatch: expected suffix -dev+${expected_short_sha}, got ${version_name} ($apk_path)" >&2
+    return 1
+  fi
+}

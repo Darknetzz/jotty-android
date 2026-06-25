@@ -26,12 +26,12 @@ $props = @{
 
 $signed = Test-ReleaseKeystoreConfigured -RepoRoot $repoRoot
 if ($signed) {
-    Invoke-JottyGradlew -Tasks @("assembleRelease") -Properties $props
+    Invoke-JottyGradlew -Tasks @(":app:clean", "assembleRelease") -Properties $props
     $src = Join-Path $repoRoot "app\build\outputs\apk\release\app-release.apk"
     $outName = "jotty-android-$versionName-dev.apk"
 } else {
     Write-Host "No keystore.properties — building debug-signed dev APK." -ForegroundColor Yellow
-    Invoke-JottyGradlew -Tasks @("assembleDebug") -Properties $props
+    Invoke-JottyGradlew -Tasks @(":app:clean", "assembleDebug") -Properties $props
     $src = Join-Path $repoRoot "app\build\outputs\apk\debug\app-debug.apk"
     $outName = "jotty-android-$versionName-dev-debug.apk"
 }
@@ -40,5 +40,6 @@ $destDir = if ([System.IO.Path]::IsPathRooted($OutputDir)) { $OutputDir } else {
 New-Item -ItemType Directory -Force -Path $destDir | Out-Null
 $dest = Join-Path $destDir $outName
 Copy-Item -LiteralPath $src -Destination $dest -Force
+Assert-DevApkMatchesExpected -ApkPath $dest -ExpectedShortSha $sha -ExpectedVersionCode $devCode
 Write-Host "APK: $dest" -ForegroundColor Green
 Write-Output $dest

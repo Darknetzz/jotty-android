@@ -178,6 +178,62 @@ function Get-GradleProperty {
     throw "$Name not found in gradle.properties"
 }
 
+function Find-AaptExecutable {
+    $sdk = $env:ANDROID_HOME
+    if (-not $sdk) { $sdk = $env:ANDROID_SDK_ROOT }
+    if (-not $sdk) { return $null }
+    $aapt = Get-ChildItem -Path (Join-Path $sdk "build-tools") -Recurse -Filter "aapt.exe" -ErrorAction SilentlyContinue |
+        Sort-Object { [version]($_.Directory.Name) } -Descending |
+        Select-Object -First 1
+    if ($aapt) { return $aapt.FullName }
+    return $null
+}
+
+function Get-ApkVersionInfo {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApkPath
+    )
+    $aapt = Find-AaptExecutable
+    if (-not $aapt) {
+        throw "Android build-tools aapt not found. Set ANDROID_HOME or install Android SDK build-tools."
+    }
+    $line = & $aapt dump badging $ApkPath 2>$null | Select-String -Pattern "^package:" | Select-Object -First 1
+    if (-not $line) {
+        throw "Could not read APK metadata from: $ApkPath"
+    }
+    $versionCode = $null
+    $versionName = $null
+    if ($line -match "versionCode='(\d+)'") { $versionCode = [int]$Matches[1] }
+    if ($line -match "versionName='([^']+)'") { $versionName = $Matches[1] }
+    if ($null -eq $versionCode -or [string]::IsNullOrWhiteSpace($versionName)) {
+        throw "APK metadata missing versionCode/versionName: $ApkPath"
+    }
+    return [PSCustomObject]@{
+        VersionCode = $versionCode
+        VersionName = $versionName
+    }
+}
+
+function Assert-DevApkMatchesExpected {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ApkPath,
+        [Parameter(Mandatory = $true)]
+        [string]$ExpectedShortSha,
+        [Parameter(Mandatory = $true)]
+        [int]$ExpectedVersionCode
+    )
+    $info = Get-ApkVersionInfo -ApkPath $ApkPath
+    $expectedSuffix = "-dev+$ExpectedShortSha"
+    if ($info.VersionCode -ne $ExpectedVersionCode) {
+        throw "Dev APK versionCode mismatch: expected $ExpectedVersionCode, got $($info.VersionCode) ($ApkPath)"
+    }
+    if ($info.VersionName -notlike "*$expectedSuffix") {
+        throw "Dev APK versionName mismatch: expected suffix '$expectedSuffix', got '$($info.VersionName)' ($ApkPath)"
+    }
+}
+
 function Test-ReleaseKeystoreConfigured {
     param([string]$RepoRoot)
     $keystoreProps = Join-Path $RepoRoot "keystore.properties"

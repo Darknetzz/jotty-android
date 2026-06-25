@@ -81,11 +81,19 @@ internal fun buildWysiwygEditorDocument(
             scheduleFormatStateNotify();
           }
           function insertLink() {
-            var url = prompt('URL');
+            if (window.AndroidBridge && AndroidBridge.onInsertLinkRequested) {
+              AndroidBridge.onInsertLinkRequested();
+            }
+          }
+          function insertLinkWithUrl(url) {
             if (url) { cmd('createLink', url); }
           }
           function insertImage() {
-            var url = prompt('Image URL');
+            if (window.AndroidBridge && AndroidBridge.onInsertImageRequested) {
+              AndroidBridge.onInsertImageRequested();
+            }
+          }
+          function insertImageWithUrl(url) {
             if (url) { cmd('insertImage', url); }
           }
           function insertCode() {
@@ -98,9 +106,37 @@ internal fun buildWysiwygEditorDocument(
               cmd('insertHTML', '<code></code>');
             }
           }
-          function insertTable() {
-            var html = '<table><thead><tr><th>Header</th></tr></thead><tbody><tr><td>Cell</td></tr></tbody></table><p></p>';
+          function insertTable(rows, cols) {
+            rows = Math.max(1, rows || 2);
+            cols = Math.max(1, cols || 2);
+            var html = '<table><thead><tr>';
+            for (var c = 0; c < cols; c++) {
+              html += '<th>Header</th>';
+            }
+            html += '</tr></thead><tbody>';
+            for (var r = 0; r < rows - 1; r++) {
+              html += '<tr>';
+              for (var c2 = 0; c2 < cols; c2++) {
+                html += '<td>Cell</td>';
+              }
+              html += '</tr>';
+            }
+            html += '</tbody></table><p></p>';
             cmd('insertHTML', html);
+          }
+          function insertTaskList() {
+            cmd('insertHTML', '<ul style="list-style-type:none;padding-left:0;"><li><input type="checkbox" disabled> Task</li></ul><p></p>');
+          }
+          function undoEdit() { document.execCommand('undo', false, null); notifyChange(); scheduleFormatStateNotify(); }
+          function redoEdit() { document.execCommand('redo', false, null); notifyChange(); scheduleFormatStateNotify(); }
+          function headingLevel() {
+            var block = getParentBlock();
+            if (!block) return 0;
+            var tag = block.tagName;
+            if (tag === 'H1') return 1;
+            if (tag === 'H2') return 2;
+            if (tag === 'H3') return 3;
+            return 0;
           }
           function setContent(html) {
             suppressNotify = true;
@@ -151,6 +187,9 @@ internal fun buildWysiwygEditorDocument(
               unorderedList: document.queryCommandState('insertUnorderedList'),
               orderedList: document.queryCommandState('insertOrderedList'),
               heading: isHeadingBlock(),
+              heading1: headingLevel() === 1,
+              heading2: headingLevel() === 2,
+              heading3: headingLevel() === 3,
               blockquote: isBlockquote(),
               code: isInCode(),
               link: document.queryCommandState('createLink')

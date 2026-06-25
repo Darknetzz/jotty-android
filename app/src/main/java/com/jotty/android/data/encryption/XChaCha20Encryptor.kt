@@ -23,6 +23,14 @@ private fun encodeHex(bytes: ByteArray): String {
  * Uses AEAD combined format (ciphertext then tag) used by Jotty web's libsodium implementation.
  */
 object XChaCha20Encryptor {
+    /** Minimum passphrase length (matches encrypt dialog and Jotty web guidance). */
+    const val MIN_PASSPHRASE_LENGTH = 12
+
+    data class EncryptResult(
+        val body: String,
+        val usedArgonFallback: Boolean,
+    )
+
     internal data class Argon2Dims(
         val iterations: Int,
         val memoryKb: Int,
@@ -41,38 +49,52 @@ object XChaCha20Encryptor {
 
     private val random = SecureRandom()
 
-    /**
-     * Encrypts [plaintext] with [passphrase]. Returns JSON body (no frontmatter).
-     * Passphrase is trimmed so it matches decryption behavior.
-     */
     fun encrypt(
         plaintext: String,
         passphrase: CharArray,
-    ): String? {
+    ): String? = encryptWithResult(plaintext, passphrase)?.body
+
+    /**
+     * Like [encrypt] but reports whether the 32 MiB Argon2 fallback was used (low-RAM devices).
+     */
+    fun encryptWithResult(
+        plaintext: String,
+        passphrase: CharArray,
+    ): EncryptResult? {
         val trimmed = passphrase.copyTrimmedOrNull() ?: return null
+        if (trimmed.size < MIN_PASSPHRASE_LENGTH) {
+            trimmed.clearPassphrase()
+            return null
+        }
         return try {
             val primary = encryptAttempt(plaintext, trimmed, ARGON_PRIMARY)
             if (primary != null) {
-                primary
+                EncryptResult(primary, usedArgonFallback = false)
             } else {
                 AppLog.d("encryption", "Encrypt: retrying with Argon2 memoryKb=${ARGON_FALLBACK.memoryKb}")
                 val fallback = encryptAttempt(plaintext, trimmed, ARGON_FALLBACK)
                 if (fallback == null) {
                     AppLog.d("encryption", "Encrypt: failed with primary (64 MiB) and fallback (32 MiB) Argon2 presets")
                 }
-                fallback
+                fallback?.let { EncryptResult(it, usedArgonFallback = true) }
             }
         } catch (_: OutOfMemoryError) {
             AppLog.d("encryption", "Encrypt: OutOfMemoryError — retrying with Argon2 memoryKb=${ARGON_FALLBACK.memoryKb}")
-            encryptAttempt(plaintext, trimmed, ARGON_FALLBACK)
-                ?: run {
-                    AppLog.d("encryption", "Encrypt: failed after OutOfMemoryError and fallback (32 MiB) Argon2")
-                    null
-                }
+            encryptAttempt(plaintext, trimmed, ARGON_FALLBACK)?.let {
+                EncryptResult(it, usedArgonFallback = true)
+            } ?: run {
+                AppLog.d("encryption", "Encrypt: failed after OutOfMemoryError and fallback (32 MiB) Argon2")
+                null
+            }
         } finally {
             trimmed.clearPassphrase()
         }
     }
+
+    /** Returns true when [body] was encrypted with [ARGON_FALLBACK] (32 MiB Argon2). */
+    fun bodyUsesArgonFallback(body: String): Boolean = ARGON_FALLBACK_MEMORY_JSON.containsMatchIn(body)
+
+    private val ARGON_FALLBACK_MEMORY_JSON = Regex(""""m"\s*:\s*32768\b""")
 
     /** Convenience for tests and callers that only have a [String]; clears a temporary [CharArray]. */
     fun encrypt(

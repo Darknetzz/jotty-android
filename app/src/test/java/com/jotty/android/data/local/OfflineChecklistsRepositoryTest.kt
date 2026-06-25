@@ -1041,6 +1041,9 @@ private class FakeChecklistApi(
         search: String?,
     ): NotesResponse = NotesResponse(emptyList())
 
+    override suspend fun getNote(noteId: String): ApiResponse<Note> =
+        ApiResponse(false, Note("", "", content = "", createdAt = "", updatedAt = ""))
+
     override suspend fun createNote(body: CreateNoteRequest): ApiResponse<Note> = error("not used in checklist tests")
 
     override suspend fun updateNote(

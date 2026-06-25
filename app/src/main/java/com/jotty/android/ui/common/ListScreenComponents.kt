@@ -84,7 +84,7 @@ fun OfflineConnectivityBanner(
         ) {
             Icon(
                 Icons.Default.WifiOff,
-                contentDescription = null,
+                contentDescription = stringResource(R.string.cd_offline),
                 tint = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.size(28.dp),
             )

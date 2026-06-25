@@ -33,6 +33,7 @@ fun OfflineNoteDetailScreen(
     onSavedLocally: () -> Unit = {},
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
+    apiKey: String? = null,
     serverCapabilitiesKey: String? = null,
     isOnline: Boolean = false,
     onRetrySync: () -> Unit = {},
@@ -41,17 +42,26 @@ fun OfflineNoteDetailScreen(
     biometricSaveOfferEnabled: Boolean = true,
     categorySuggestions: List<String> = emptyList(),
     richEditorEnabled: Boolean = false,
+    visualEditorSaveAsMarkdown: Boolean = false,
     noteSnapshotsEnabled: Boolean = true,
+    openNotesInEditMode: Boolean = false,
+    defaultNoteEditMode: String = "markdown",
+    markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
 ) {
     val scope = rememberCoroutineScope()
     val allNotes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
-    val liveNote =
+    val flowNote =
         allNotes.find { it.id == note.id }
             ?: offlineRepository.remappedNoteId(note.id)?.let { serverId ->
                 allNotes.find { it.id == serverId }
             }
-            ?: note
+    // Prefer the selected note when the Room flow is behind (avoids resetting ciphertext mid-edit).
+    val detailNote =
+        remember(note.id, note.updatedAt, note.content, flowNote?.updatedAt, flowNote?.content) {
+            val flow = flowNote
+            if (flow != null && flow.updatedAt > note.updatedAt) flow else note
+        }
     val actions =
         remember(offlineRepository, isOnline) {
             OfflineNoteDetailActions(
@@ -68,27 +78,32 @@ fun OfflineNoteDetailScreen(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
         NoteDetailScreen(
-            note = liveNote,
+            note = detailNote,
             actions = actions,
             modifier = Modifier.weight(1f, fill = true).fillMaxWidth(),
             onBack = onBack,
             onUpdate = onUpdate,
             onDelete = {
                 scope.launch {
-                    actions.deleteNote(liveNote.id)
+                    actions.deleteNote(detailNote.id)
                     onDelete()
                 }
             },
             onSaveFailed = onSaveFailed,
             imageLoader = imageLoader,
             jottyServerUrl = jottyServerUrl,
+            apiKey = apiKey,
             serverCapabilitiesKey = serverCapabilitiesKey,
             biometricStore = biometricStore,
             biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
             biometricSaveOfferEnabled = biometricSaveOfferEnabled,
             categorySuggestions = categorySuggestions,
             richEditorEnabled = richEditorEnabled,
+            visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
             noteSnapshotsEnabled = noteSnapshotsEnabled,
+            openNotesInEditMode = openNotesInEditMode,
+            defaultNoteEditMode = defaultNoteEditMode,
+            markdownEditorMonospace = markdownEditorMonospace,
             api = api,
             isOnline = isOnline,
         )

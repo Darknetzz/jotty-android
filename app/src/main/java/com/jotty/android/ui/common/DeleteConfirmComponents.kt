@@ -47,10 +47,11 @@ fun EditDropdownMenuItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val label = stringResource(R.string.edit)
     DropdownMenuItem(
-        text = { Text(stringResource(R.string.edit)) },
+        text = { Text(label) },
         leadingIcon = {
-            Icon(Icons.Default.Edit, contentDescription = null)
+            Icon(Icons.Default.Edit, contentDescription = label)
         },
         onClick = onClick,
         modifier = modifier,
@@ -62,10 +63,11 @@ fun RenameDropdownMenuItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val label = stringResource(R.string.rename)
     DropdownMenuItem(
-        text = { Text(stringResource(R.string.rename)) },
+        text = { Text(label) },
         leadingIcon = {
-            Icon(Icons.Default.Edit, contentDescription = null)
+            Icon(Icons.Default.Edit, contentDescription = label)
         },
         onClick = onClick,
         modifier = modifier,
@@ -78,10 +80,11 @@ fun DeleteDropdownMenuItem(
     modifier: Modifier = Modifier,
 ) {
     val errorColor = MaterialTheme.colorScheme.error
+    val label = stringResource(R.string.delete)
     DropdownMenuItem(
-        text = { Text(stringResource(R.string.delete), color = errorColor) },
+        text = { Text(label, color = errorColor) },
         leadingIcon = {
-            Icon(Icons.Default.Delete, contentDescription = null, tint = errorColor)
+            Icon(Icons.Default.Delete, contentDescription = label, tint = errorColor)
         },
         onClick = onClick,
         modifier = modifier,
@@ -120,10 +123,11 @@ fun DiscardPendingSyncDropdownMenuItem(
     modifier: Modifier = Modifier,
 ) {
     val errorColor = MaterialTheme.colorScheme.error
+    val label = stringResource(R.string.discard_pending_sync)
     DropdownMenuItem(
-        text = { Text(stringResource(R.string.discard_pending_sync), color = errorColor) },
+        text = { Text(label, color = errorColor) },
         leadingIcon = {
-            Icon(Icons.Default.SyncProblem, contentDescription = null, tint = errorColor)
+            Icon(Icons.Default.SyncProblem, contentDescription = label, tint = errorColor)
         },
         onClick = onClick,
         modifier = modifier,

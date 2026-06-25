@@ -17,6 +17,17 @@ enum class NoteEditMode {
     Markdown,
 }
 
+internal fun resolveInitialNoteEditMode(
+    richEditorEnabled: Boolean,
+    defaultModeKey: String,
+): NoteEditMode {
+    if (!richEditorEnabled) return NoteEditMode.Markdown
+    return when (defaultModeKey.lowercase()) {
+        "visual" -> NoteEditMode.Visual
+        else -> NoteEditMode.Markdown
+    }
+}
+
 @Composable
 internal fun NoteEditModeToggle(
     mode: NoteEditMode,

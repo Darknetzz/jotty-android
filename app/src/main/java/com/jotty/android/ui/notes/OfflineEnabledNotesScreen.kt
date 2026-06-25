@@ -29,7 +29,12 @@ import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConflictCopiesBanner
+import com.jotty.android.ui.common.ShareServerDialog
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
+import com.jotty.android.util.ListDateFormat
+import com.jotty.android.util.defaultUnarchiveCategory
+import com.jotty.android.util.isArchivedCategory
+import com.jotty.android.ui.common.ListFilterHeader
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.rememberStaleListWhileRefresh
@@ -64,13 +69,26 @@ fun OfflineEnabledNotesScreen(
     swipeToDeleteEnabled: Boolean = false,
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
+    apiKey: String? = null,
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val notePreviewMaxLines by settingsRepository.notePreviewMaxLines.collectAsStateWithLifecycle(
+        initialValue = SettingsRepository.DEFAULT_NOTE_PREVIEW_MAX_LINES,
+    )
+    val showNoteListDates by settingsRepository.showNoteListDates.collectAsStateWithLifecycle(initialValue = true)
+    val showNoteListCategories by settingsRepository.showNoteListCategories.collectAsStateWithLifecycle(initialValue = true)
+    val listDateFormatKey by settingsRepository.listDateFormat.collectAsStateWithLifecycle(initialValue = "date")
+    val listDateFormat = remember(listDateFormatKey) { ListDateFormat.fromKey(listDateFormatKey) }
+    val openNotesInEditMode by settingsRepository.openNotesInEditMode.collectAsStateWithLifecycle(initialValue = false)
+    val defaultNoteEditMode by settingsRepository.defaultNoteEditMode.collectAsStateWithLifecycle(initialValue = "markdown")
+    val markdownEditorMonospace by settingsRepository.markdownEditorMonospace.collectAsStateWithLifecycle(initialValue = false)
+    val defaultNoteCategory by settingsRepository.defaultNoteCategory.collectAsStateWithLifecycle(initialValue = null)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -128,6 +146,9 @@ fun OfflineEnabledNotesScreen(
     val undoActionLabel = stringResource(R.string.undo)
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
+
+    var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
+    var shareServerNote by remember { mutableStateOf<Note?>(null) }
 
     fun requestSync(
         showLoading: Boolean = true,
@@ -189,19 +210,59 @@ fun OfflineEnabledNotesScreen(
         vm.loadCategories(isOnline, notes)
     }
 
-    // Handle deep link
-    LaunchedEffect(filteredNotes, initialNoteId) {
-        val id = initialNoteId ?: return@LaunchedEffect
-        filteredNotes.find { it.id == id }?.let { note ->
-            vm.setSelectedNote(note)
-            onDeepLinkConsumed()
-        }
-    }
+    // Handle deep link (unfiltered local lookup, then sync when online)
+    var deepLinkSyncAttempted by remember(initialNoteId) { mutableStateOf(false) }
+    var deepLinkResolved by remember(initialNoteId) { mutableStateOf(false) }
+    val noteNotSyncedYetMsg = stringResource(R.string.note_not_synced_yet)
+    val shareEncryptedLockedMsg = stringResource(R.string.share_encrypted_note_locked)
 
-    LaunchedEffect(filteredNotes, screenState.loading, initialNoteId) {
-        if (!screenState.loading && initialNoteId != null && filteredNotes.isNotEmpty() && filteredNotes.none { it.id == initialNoteId }) {
-            scope.launch { snackbarHostState.showSnackbar(noteNotFoundMsg) }
+    LaunchedEffect(
+        initialNoteId,
+        notes,
+        listRefreshing,
+        isOnline,
+        deepLinkSyncAttempted,
+        deepLinkResolved,
+    ) {
+        val id = initialNoteId ?: return@LaunchedEffect
+        if (deepLinkResolved) return@LaunchedEffect
+
+        suspend fun openIfFound(note: Note?) {
+            if (note != null) {
+                vm.setSelectedNote(note)
+                onDeepLinkConsumed()
+                deepLinkResolved = true
+            }
+        }
+
+        openIfFound(offlineRepository.getNoteById(id))
+        if (deepLinkResolved) return@LaunchedEffect
+
+        if (listRefreshing) return@LaunchedEffect
+
+        if (isOnline && !deepLinkSyncAttempted) {
+            deepLinkSyncAttempted = true
+            requestSync(showLoading = true)
+            return@LaunchedEffect
+        }
+
+        if (!isOnline && !deepLinkSyncAttempted) {
+            deepLinkSyncAttempted = true
+            snackbarHostState.showSnackbar(noteNotSyncedYetMsg)
             onDeepLinkConsumed()
+            deepLinkResolved = true
+            return@LaunchedEffect
+        }
+
+        if (deepLinkSyncAttempted && !listRefreshing) {
+            openIfFound(offlineRepository.getNoteById(id))
+            if (!deepLinkResolved) {
+                snackbarHostState.showSnackbar(
+                    if (isOnline) noteNotFoundMsg else noteNotSyncedYetMsg,
+                )
+                onDeepLinkConsumed()
+                deepLinkResolved = true
+            }
         }
     }
 
@@ -282,78 +343,19 @@ fun OfflineEnabledNotesScreen(
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
 
-                    // Search bar + sort
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { vm.setSearchQuery(it) },
-                            modifier = Modifier.weight(1f),
-                            placeholder = { Text(stringResource(R.string.search_notes)) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = stringResource(R.string.cd_search),
-                                )
-                            },
-                            singleLine = true,
-                        )
-                        SortMenuButton(
-                            current = sortOption,
-                            onSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
-                        )
-                    }
-
-                    // Category filter chips
-                    if (noteCategories.isNotEmpty()) {
-                        LazyRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            item {
-                                FilterChip(
-                                    selected = selectedCategory == null,
-                                    onClick = { vm.setSelectedCategory(null) },
-                                    label = {
-                                        Text(
-                                            stringResource(R.string.all_categories),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                            item {
-                                FilterChip(
-                                    selected = selectedCategory == JOTTY_ARCHIVE_CATEGORY,
-                                    onClick = { vm.toggleCategoryChip(JOTTY_ARCHIVE_CATEGORY, notes) },
-                                    label = {
-                                        Text(
-                                            stringResource(R.string.category_archived),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                            items(noteCategories.filter { !it.equals(JOTTY_ARCHIVE_CATEGORY, true) }, key = { it }) { cat ->
-                                FilterChip(
-                                    selected = selectedCategory == cat,
-                                    onClick = { vm.toggleCategoryChip(cat, notes) },
-                                    label = {
-                                        Text(
-                                            cat,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    // Search bar + sort + category filters
+                    ListFilterHeader(
+                        searchQuery = searchQuery,
+                        onSearchQueryChange = { vm.setSearchQuery(it) },
+                        searchPlaceholderRes = R.string.search_notes,
+                        sortOption = sortOption,
+                        onSortSelect = { scope.launch { settingsRepository.setListSortOption(it.key) } },
+                        categories = noteCategories,
+                        selectedCategory = selectedCategory,
+                        onClearCategoryFilter = { vm.setSelectedCategory(null) },
+                        onCategoryToggle = { vm.toggleCategoryChip(it, notes) },
+                        categoryChipPadding = PaddingValues(vertical = 4.dp),
+                    )
 
                     if (conflictCopies.isNotEmpty()) {
                         ConflictCopiesBanner(
@@ -396,39 +398,52 @@ fun OfflineEnabledNotesScreen(
                                         deleteConfirmMessage = noteDeleteConfirm,
                                         onDelete = {
                                             scope.launch {
-                                                val result = offlineRepository.deleteNote(n.id)
-                                                if (result.isFailure) {
-                                                    snackbarHostState.showSnackbar(deleteFailedMsg)
-                                                } else {
-                                                    val snackbarResult =
-                                                        snackbarHostState.showSnackbar(
-                                                            message = noteDeletedMsg,
-                                                            actionLabel = undoActionLabel,
-                                                        )
-                                                    if (snackbarResult == SnackbarResult.ActionPerformed) {
-                                                        val undoResult =
-                                                            offlineRepository.createNote(
-                                                                title = n.title,
-                                                                content = n.content,
-                                                                category = n.category,
-                                                            )
-                                                        if (undoResult.isFailure) {
-                                                            snackbarHostState.showSnackbar(saveFailedMsg)
-                                                        } else if (!isOnline) {
-                                                            snackbarHostState.showSnackbar(savedLocallyMsg)
-                                                        }
-                                                    } else if (!isOnline) {
-                                                        snackbarHostState.showSnackbar(savedLocallyMsg)
-                                                    }
-                                                }
-                                                if (selectedNote?.id == n.id) vm.setSelectedNote(null)
+                                                deleteOfflineNoteWithUndo(
+                                                    note = n,
+                                                    offlineRepository = offlineRepository,
+                                                    snackbarHostState = snackbarHostState,
+                                                    noteDeletedMsg = noteDeletedMsg,
+                                                    undoActionLabel = undoActionLabel,
+                                                    deleteFailedMsg = deleteFailedMsg,
+                                                    saveFailedMsg = saveFailedMsg,
+                                                    savedLocallyMsg = savedLocallyMsg,
+                                                    isOnline = isOnline,
+                                                    onClearSelectionIfNeeded = {
+                                                        if (selectedNote?.id == n.id) vm.setSelectedNote(null)
+                                                    },
+                                                )
                                             }
                                         },
                                     ) {
-                                        NoteCard(
+                                        NoteListCardWithMenu(
                                             note = n,
                                             onClick = { vm.setSelectedNote(n) },
+                                            onDelete = {
+                                                scope.launch {
+                                                    deleteOfflineNoteWithUndo(
+                                                        note = n,
+                                                        offlineRepository = offlineRepository,
+                                                        snackbarHostState = snackbarHostState,
+                                                        noteDeletedMsg = noteDeletedMsg,
+                                                        undoActionLabel = undoActionLabel,
+                                                        deleteFailedMsg = deleteFailedMsg,
+                                                        saveFailedMsg = saveFailedMsg,
+                                                        savedLocallyMsg = savedLocallyMsg,
+                                                        isOnline = isOnline,
+                                                        onClearSelectionIfNeeded = {
+                                                            if (selectedNote?.id == n.id) vm.setSelectedNote(null)
+                                                        },
+                                                    )
+                                                }
+                                            },
+                                            onArchive = { pendingArchiveNote = n },
+                                            showShare = api != null,
+                                            onShare = { shareServerNote = n },
                                             showPreview = noteListPreviewEnabled,
+                                            previewMaxLines = notePreviewMaxLines,
+                                            showDates = showNoteListDates,
+                                            showCategories = showNoteListCategories,
+                                            listDateFormat = listDateFormat,
                                             showPendingSync = n.id in dirtyNoteIds,
                                             isUnlockedInSession = n.id in unlockedNoteIds,
                                         )
@@ -453,6 +468,7 @@ fun OfflineEnabledNotesScreen(
                         onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
                         imageLoader = imageLoader,
                         jottyServerUrl = jottyServerUrl,
+                        apiKey = apiKey,
                         serverCapabilitiesKey = serverCapabilitiesKey,
                         isOnline = isOnline,
                         onRetrySync = { requestSync(showLoading = true) },
@@ -461,11 +477,84 @@ fun OfflineEnabledNotesScreen(
                         biometricSaveOfferEnabled = biometricSaveOfferEnabled,
                         categorySuggestions = noteCategories,
                         richEditorEnabled = richNoteEditorEnabled,
+                        visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
                         noteSnapshotsEnabled = noteSnapshotsEnabled,
+                        openNotesInEditMode = openNotesInEditMode,
+                        defaultNoteEditMode = defaultNoteEditMode,
+                        markdownEditorMonospace = markdownEditorMonospace,
                         api = api,
                     )
                 }
             }
+        }
+    }
+
+    pendingArchiveNote?.let { archiveNote ->
+        val archived = isArchivedCategory(archiveNote.category)
+        AlertDialog(
+            onDismissRequest = { pendingArchiveNote = null },
+            title = { Text(stringResource(if (archived) R.string.unarchive else R.string.archive)) },
+            text = { Text(stringResource(R.string.archive_note_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val target = archiveNote
+                        pendingArchiveNote = null
+                        scope.launch {
+                            val newCategory =
+                                if (archived) {
+                                    defaultUnarchiveCategory()
+                                } else {
+                                    JOTTY_ARCHIVE_CATEGORY
+                                }
+                            offlineRepository
+                                .updateNote(
+                                    noteId = target.id,
+                                    title = target.title,
+                                    content = target.content,
+                                    category = newCategory,
+                                ).onFailure {
+                                    snackbarHostState.showSnackbar(saveFailedMsg)
+                                }
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingArchiveNote = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    shareServerNote?.let { shareNote ->
+        if (api != null) {
+            val displayTitle = shareNote.title.ifBlank { stringResource(R.string.untitled) }
+            val exportTitle = stringResource(R.string.export_note)
+            val ctx = LocalContext.current
+            ShareServerDialog(
+                itemType = "note",
+                itemId = shareNote.id,
+                itemTitle = displayTitle,
+                api = api,
+                capabilitiesKey = serverCapabilitiesKey,
+                onDismiss = { shareServerNote = null },
+                onExportText = {
+                    val exported =
+                        shareNoteTextExport(
+                            context = ctx,
+                            note = shareNote,
+                            chooserTitle = exportTitle,
+                        )
+                    if (!exported) {
+                        scope.launch { snackbarHostState.showSnackbar(shareEncryptedLockedMsg) }
+                    }
+                    shareServerNote = null
+                },
+            )
         }
     }
 
@@ -478,6 +567,7 @@ fun OfflineEnabledNotesScreen(
             },
             categorySuggestions = noteCategories,
             initialContent = pendingSharedText.orEmpty(),
+            initialCategory = defaultNoteCategory.orEmpty(),
             onCreate = { title, content, category ->
                 scope.launch {
                     val result =

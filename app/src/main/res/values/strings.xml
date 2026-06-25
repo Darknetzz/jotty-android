@@ -84,6 +84,8 @@
     <string name="kanban_edit_details">Edit details</string>
     <string name="kanban_unsaved_changes_title">Save changes?</string>
     <string name="kanban_unsaved_changes_message">You have unsaved title or task detail changes.</string>
+    <string name="note_unsaved_changes_title">Save changes?</string>
+    <string name="note_unsaved_changes_message">You have unsaved note edits.</string>
     <string name="discard">Discard</string>
     <string name="kanban_item_description">Description</string>
     <string name="kanban_item_description_placeholder">No description</string>
@@ -139,6 +141,10 @@
     <string name="no_notes_yet">No notes yet</string>
     <string name="tap_add_note">Tap + to add a note</string>
     <string name="note_not_found">Note not found</string>
+    <string name="note_not_synced_yet">This note is not on this device yet. Connect and sync to download it.</string>
+    <string name="save_failed_restore_backup">Couldn\'t save. Restore a local backup?</string>
+    <string name="restore_backup_action">Restore backup</string>
+    <string name="error_unsafe_html_save">Save blocked: note content looks corrupted (escaped HTML). Switch to Markdown source and fix, or restore a backup.</string>
     <string name="note_deleted">Note deleted</string>
     <string name="checklist_deleted">Checklist deleted</string>
     <string name="encrypted">Encrypted</string>
@@ -163,6 +169,7 @@
     <string name="archive_checklist_confirm">Move this checklist to Archive? You can find it under the Archived filter.</string>
     <string name="share_checklist">Share checklist</string>
     <string name="share_note">Share note</string>
+    <string name="share_encrypted_note_locked">Unlock this note first to export its text.</string>
     <string name="export_note">Export note</string>
     <string name="copy_note">Copy note</string>
     <string name="note_copied">Note copied to clipboard</string>
@@ -181,6 +188,11 @@
     <string name="cd_choose_category">Choose category</string>
     <string name="change_category">Change category</string>
     <string name="cd_sort">Sort</string>
+    <string name="cd_filter_selected">Selected</string>
+    <string name="cd_filter_not_selected">Not selected</string>
+    <string name="cd_pending_sync">Pending sync</string>
+    <string name="cd_offline">Offline</string>
+    <string name="cd_warning">Warning</string>
     <string name="sort_updated">Last updated</string>
     <string name="sort_created">Date created</string>
     <string name="sort_title">Title (A–Z)</string>
@@ -215,7 +227,8 @@
     <string name="note_snapshots">Local note backups</string>
     <string name="note_snapshots_description">Keep recent on-device copies before each save so you can restore a note if something goes wrong. Up to five backups per note.</string>
     <string name="restore">Restore</string>
-    <string name="error_encrypt_server_verify_failed">Saved, but the server\'s stored copy could not be decrypted. Your text is still shown here — copy it before closing, then try saving again or contact your server admin.</string>
+    <string name="error_encrypt_server_verify_failed">Save failed: the server stored undecryptable ciphertext. Your edits are still shown here — copy them, then use Restore backup from the menu or try saving again.</string>
+    <string name="error_restore_verify_failed">Restored backup could not be verified. Try another backup or unlock the note to confirm it decrypts.</string>
     <string name="note_is_encrypted">This note is encrypted</string>
     <string name="pgp_not_supported">PGP decryption is not supported in the app. Use the Jotty web app to decrypt.</string>
     <string name="enter_passphrase_to_view">Enter your passphrase to view the content.</string>
@@ -223,6 +236,8 @@
     <string name="use_web_app_to_decrypt">Use the Jotty web app to decrypt this note.</string>
     <string name="pgp_not_supported_short">PGP decryption is not supported in the app. Use the Jotty web app.</string>
     <string name="legacy_encryption_warning">This note uses a legacy encryption payload format. Re-encrypt and save it to restore web compatibility.</string>
+    <string name="reencrypt_for_web">Re-encrypt for web</string>
+    <string name="encrypt_argon_fallback_notice">Encrypted with reduced memory settings on this device. The Jotty web app may not decrypt this note until it supports 32 MiB Argon2.</string>
     <string name="note_images_auth_blocked_banner">Images from your Jotty server could not be loaded in the app. On the server, set SERVE_PUBLIC_IMAGES=yes (see Jotty Docker docs). The web app may still show them using your browser session.</string>
 
     <!-- Setup -->
@@ -267,6 +282,7 @@
     <string name="settings_category_general">General</string>
     <string name="settings_category_behavior">Behavior</string>
     <string name="behavior_description">Start screen, swipe to delete, checklist reorder, note previews, and offline sync</string>
+    <string name="behavior_category_lists">Lists</string>
     <string name="connection">Connection</string>
     <string name="instance_label">Instance</string>
     <string name="connected">Connected</string>
@@ -317,6 +333,13 @@
     <string name="md_strikethrough">Strikethrough</string>
     <string name="md_code">Code</string>
     <string name="md_heading">Heading</string>
+    <string name="md_heading_h1">Heading 1</string>
+    <string name="md_heading_h3">Heading 3</string>
+    <string name="wysiwyg_undo">Undo</string>
+    <string name="wysiwyg_redo">Redo</string>
+    <string name="wysiwyg_insert_table_title">Insert table</string>
+    <string name="wysiwyg_table_rows">Rows</string>
+    <string name="wysiwyg_table_cols">Columns</string>
     <string name="md_list">Bullet list</string>
     <string name="md_numbered_list">Numbered list</string>
     <string name="md_task_list">Task list</string>
@@ -341,11 +364,16 @@
     <string name="note_list_preview">Note preview in list</string>
     <string name="note_list_preview_description">Show a short excerpt of each note under the title in the notes list</string>
     <string name="rich_note_editor">Rich text editor</string>
-    <string name="wysiwyg_link">Link</string>
-    <string name="wysiwyg_table">Table</string>
     <string name="note_edit_mode_visual">Visual</string>
     <string name="note_edit_mode_markdown">Markdown</string>
-    <string name="rich_note_editor_description">Experimental visual editor (WebView). Default for plain notes when enabled; encrypted and HTML-heavy notes open in Markdown source for safer editing.</string>
+    <string name="rich_note_editor_description">Experimental visual editor (WebView). When enabled, plain notes open in Visual mode. Notes with HTML or tables always open in Visual for faithful editing; encrypted notes default to Markdown for safer saves.</string>
+    <string name="visual_editor_save_as_markdown">Save visual edits as Markdown</string>
+    <string name="visual_editor_save_as_markdown_description">When saving from the visual editor, convert HTML back to Markdown/GFM when possible for better compatibility with the Jotty web app.</string>
+    <string name="wysiwyg_insert_link_title">Insert link</string>
+    <string name="wysiwyg_insert_link_hint">URL</string>
+    <string name="wysiwyg_insert_image_title">Insert image</string>
+    <string name="wysiwyg_insert_image_hint">Image URL</string>
+    <string name="wysiwyg_insert">Insert</string>
     <string name="encrypted_note_visual_editor_warning">Encrypted note — visual editing is risky. Tables and HTML can be mangled when saving. Use Markdown source, or save from view mode (tap Save without Edit) to re-encrypt without opening the visual editor.</string>
     <string name="encrypted_note_visual_editor_confirm_title">Use visual editor on this encrypted note?</string>
     <string name="encrypted_note_visual_editor_confirm_message">The visual editor has corrupted encrypted notes that contain tables or HTML. Markdown source is strongly recommended. Only continue if you accept that risk.</string>
@@ -354,6 +382,33 @@
     <string name="content_padding_description">Vertical spacing at top and bottom of screens</string>
     <string name="content_padding_comfortable">Comfortable</string>
     <string name="content_padding_compact">Compact</string>
+    <string name="note_list_metadata">Note list metadata</string>
+    <string name="note_list_metadata_description">Choose which details appear under each note title in the list</string>
+    <string name="note_list_metadata_both">Dates &amp; categories</string>
+    <string name="note_list_metadata_dates">Dates only</string>
+    <string name="note_list_metadata_categories">Categories only</string>
+    <string name="note_list_metadata_none">Hidden</string>
+    <string name="list_date_format">List date format</string>
+    <string name="list_date_format_description">How updated dates appear on note list cards</string>
+    <string name="list_date_format_date">Date</string>
+    <string name="list_date_format_relative">Relative</string>
+    <string name="bottom_nav_labels">Bottom navigation labels</string>
+    <string name="bottom_nav_labels_show">Show labels</string>
+    <string name="bottom_nav_labels_icons_only">Icons only</string>
+    <string name="markdown_editor_monospace">Monospace markdown editor</string>
+    <string name="markdown_editor_monospace_description">Use a fixed-width font when editing note source in Markdown mode</string>
+    <string name="note_preview_lines">Preview length</string>
+    <string name="note_preview_lines_description">How many lines of note body to show under the title (when preview is enabled)</string>
+    <string name="note_preview_lines_none">Title only</string>
+    <string name="note_preview_lines_1">1 line</string>
+    <string name="note_preview_lines_2">2 lines</string>
+    <string name="note_preview_lines_4">4 lines</string>
+    <string name="open_notes_in_edit_mode">Open notes in edit mode</string>
+    <string name="open_notes_in_edit_mode_description">Start in the editor when opening an existing note (encrypted notes wait until unlocked)</string>
+    <string name="default_note_edit_mode">Default editor mode</string>
+    <string name="default_note_edit_mode_description">Which editor to use when the rich text editor is enabled</string>
+    <string name="default_note_category">Default category for new notes</string>
+    <string name="default_note_category_description">Pre-fill the category when creating a note (leave blank for uncategorized)</string>
     <string name="motion_effects_label">Motion effects</string>
     <string name="motion_effects_description">Cross-fade when switching screens and animated bottom tabs. Off by default; turn on if you want decorative transitions.</string>
     <string name="motion_effects_off">Off</string>
@@ -370,6 +425,8 @@
     <string name="export_debug_logs_saved_downloads">Saved to Downloads: %1$s</string>
     <string name="export_debug_logs_saved_picker">Log file saved</string>
     <string name="export_debug_logs_save_failed">Could not save log file</string>
+    <string name="report_github_issue">Report an issue</string>
+    <string name="report_github_issue_description">Found a bug or have a suggestion? Open an issue on GitHub — debug logs help when reporting problems.</string>
     <string name="offline_mode">Local storage &amp; sync</string>
     <string name="offline_mode_description">Keep notes and checklists on this device and sync with your server when connected. Turn off to fetch directly from the server only (no local copy).</string>
     <string name="syncing">Syncing…</string>

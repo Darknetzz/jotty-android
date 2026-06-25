@@ -19,7 +19,7 @@ if ($signed) {
     $src = Join-Path $repoRoot "app\build\outputs\apk\release\app-release.apk"
     $outName = "jotty-android-$versionName.apk"
 } else {
-    Write-Host "No keystore.properties — building debug-signed APK." -ForegroundColor Yellow
+    Write-Host "No keystore.properties - building debug-signed APK." -ForegroundColor Yellow
     Invoke-JottyGradlew -Tasks @("assembleDebug")
     $src = Join-Path $repoRoot "app\build\outputs\apk\debug\app-debug.apk"
     $outName = "jotty-android-$versionName-debug.apk"

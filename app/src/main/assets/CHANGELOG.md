@@ -6,6 +6,60 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+---
+
+## [1.8.0] - 2026-06-25
+
+### Added
+
+- **Encrypted notes — legacy format** — After decrypting a note with the old Android payload order, a **Re-encrypt for web** action re-saves using your session passphrase to restore Jotty web compatibility.
+- **Encrypted notes — low-RAM warning** — When encryption falls back to 32 MiB Argon2, a snackbar explains the note may not decrypt in the Jotty web app until web supports that preset.
+- **Settings → Appearance (notes list)** — Control note list metadata (dates and categories), date format (absolute or relative), bottom navigation labels (icons only), and monospace Markdown editor font.
+- **Settings → Behavior (notes)** — Preview length (title-only through 4 lines), open notes in edit mode, default visual/Markdown editor when the rich editor is on, and default category for new notes.
+- **Settings → Report an issue** — Troubleshooting section links to GitHub Issues so users can report bugs or suggest features (mentions debug logs for easier diagnosis).
+- **Settings → Behavior categories** — Options are grouped under General, Lists, Checklists, and Notes for easier scanning.
+- **Shared list filter header** — Notes and checklists use the same search, sort, and category chip row; tap a category again to clear the filter.
+- **Settings → Save visual edits as Markdown** — Optional toggle under Notes to convert WYSIWYG HTML back to GFM when saving for better Jotty web compatibility.
+- **Note unsaved-changes prompt** — Leaving note edit with changes shows Save / Discard (matches Kanban item detail).
+- **Note list long-press menu** — Share, archive, and delete from the notes list without enabling swipe-to-delete.
+- **WYSIWYG toolbar** — Undo/redo, H1/H3 headings, task lists, and configurable table size; same-host images load with API auth in the visual editor.
+
+### Changed
+
+- **Encrypted note fingerprints** — Ciphertext change detection now uses SHA-256 of the encrypted JSON body (more reliable than hashCode).
+- **Encrypted backup restore** — When a session passphrase is available, restored encrypted backups are verified to decrypt before the operation completes.
+- **Passphrase minimum** — The 12-character minimum is enforced in the crypto layer as well as the encrypt dialog.
+- **Biometric unlock** — Fingerprint unlock now surfaces the legacy-format warning when applicable (same as manual decrypt).
+- **Visual editor saves** — WYSIWYG saves also block HTML entity artifacts (`&lt;` / `&gt;`) that can corrupt encrypted note bodies.
+- **Server verify failure message** — Clearer guidance to copy your text and use **Restore backup** when the server stores undecryptable ciphertext.
+- **Rich editor saves** — Plain-note saves from the visual editor now flush the WebView snapshot before persisting (same safety as encrypted saves).
+- **Rich editor link/image insert** — Compose dialogs replace hardcoded English browser prompts.
+- **Online list sync indicator** — Notes and checklists show refresh/sync status in the top bar when not using offline-only fetch.
+- **Rich text editor settings copy** — Description now matches behavior (HTML/table notes open in Visual; encrypted notes default to Markdown).
+- **Failed note save** — When local backups exist, the save-failure snackbar offers **Restore backup** instead of only a generic error.
+- **Deep links (offline)** — Opening a note link triggers sync first when online; shows a clearer message when the note is not on the device yet.
+- **List/detail transition** — A short cross-fade when switching between list and detail if motion effects are enabled.
+- **Settings → Behavior → Lists** — Removed the non-interactive “List sort” hint row; sort is changed from the sort icon on each list toolbar.
+
+### Fixed
+
+- **Release rich editor** — ProGuard keep rules for the WYSIWYG JavaScript bridge so release builds do not strip `@JavascriptInterface` methods.
+- **Corrupted visual saves** — Plain-note saves refuse bodies containing JSON-escaped HTML (`\u003C`) that would corrupt content on the server.
+- **Instance switcher accessibility** — Instance dropdown icons now have TalkBack labels.
+- **List/detail crossfade** — Transition animation now correctly fades between list and detail instead of showing the same pane twice.
+- **Note deep links** — Links resolve notes even when a category filter is active; online mode retries an unfiltered fetch before “not found”.
+- **List share (encrypted)** — Text export from the notes list uses decrypted session content or prompts to unlock instead of sharing ciphertext.
+- **Note card long-press** — Single combined click target (matches checklist cards) without duplicate ripples.
+- **Visual save guard scope** — JSON-escaped HTML check applies only to visual-editor saves, not Markdown source edits.
+- **Dev-latest publish** — Dev APK builds now run `:app:clean` before assemble and verify embedded commit/version code match release notes before upload, preventing stale APKs that loop the in-app updater.
+- **Encrypted note re-save** — Saving an edited encrypted note now uploads the encrypted JSON body only (matching the Jotty server), instead of YAML frontmatter the server strips and rewrites. If the server returns undecryptable ciphertext after save, the app rolls back to the pre-save copy automatically and keeps your edits visible locally.
+- **Encrypted note save verification** — After re-encrypting, the app now re-fetches the note from the server and verifies that copy decrypts (the PUT response alone is not always what later GET/list reads from disk). Manual passphrase decrypt clears a stale biometric-stored passphrase so fingerprint unlock cannot use an old key after you typed a new one.
+
+
+---
+
+## [1.7.5] - 2026-06-18
+
 ### Added
 
 - **Local note backups** — Before each note save (encrypted or plaintext), the app keeps up to five on-device copies per note. If a save goes wrong, open the note menu (**⋮ → Restore backup**) to push a previous copy back to the server. Disable under **Settings → Behavior → Local note backups**.
@@ -23,6 +77,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Encrypted note save verifies the server copy** — After saving an encrypted note, the app now decrypts the copy the **server actually stored and returned** (the Jotty server re-serializes note frontmatter on save, so it can differ from what the app built). If that copy does not decrypt, the app keeps your note unlocked with your text intact, shows a clear warning, and no longer silently locks the note (which previously surfaced as “Auth failed” when reopening). Debug logs now record any server-side change to the encrypted body to aid diagnosis.
 
 - **Dev update check** — Dev channel no longer offers an in-app update when your installed dev build already has a higher version code than the published `dev-latest` APK (e.g. after a local build). Dev release notes include `VersionCode` for this check. Downgrade errors on the dev channel no longer say “stable APK”.
+
 
 ---
 
@@ -1051,3 +1106,7 @@ Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes 
 [1.7.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.3
 
 [1.7.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.4
+
+[1.7.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.5
+
+[1.8.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.8.0

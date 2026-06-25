@@ -23,6 +23,12 @@ class FormatTest {
     }
 
     @Test
+    fun `ListDateFormat fromKey defaults to date`() {
+        assertEquals(ListDateFormat.DATE, ListDateFormat.fromKey(null))
+        assertEquals(ListDateFormat.RELATIVE, ListDateFormat.fromKey("relative"))
+    }
+
+    @Test
     fun `stripInvisibleUnicode removes BOM and zero-width throughout string`() {
         assertEquals(
             "<span>text</span>",

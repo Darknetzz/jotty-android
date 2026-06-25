@@ -5,6 +5,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.json.JSONObject
+import java.text.Normalizer
 import java.util.Base64
 
 @RunWith(RobolectricTestRunner::class)
@@ -139,17 +141,17 @@ class XChaCha20EncryptorTest {
     @Test
     fun `decrypt with wrong passphrase returns null`() {
         val plaintext = "Secret"
-        val encrypted = XChaCha20Encryptor.encrypt(plaintext, "correct")!!
-        assertNull(XChaCha20Decryptor.decrypt(encrypted, "wrong"))
+        val encrypted = XChaCha20Encryptor.encrypt(plaintext, "correct-pass12")!!
+        assertNull(XChaCha20Decryptor.decrypt(encrypted, "wrong-pass-12"))
     }
 
     @Test
     fun `decrypt with trimmed passphrase matches encrypt with trimmed passphrase`() {
         val plaintext = "Content"
-        val passphraseWithSpaces = "  trim me  "
+        val passphraseWithSpaces = "  trim-me-pass  "
         val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphraseWithSpaces)!!
         assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, passphraseWithSpaces))
-        assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, "trim me"))
+        assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, "trim-me-pass"))
     }
 
     @Test
@@ -169,7 +171,7 @@ class XChaCha20EncryptorTest {
     @Test
     fun `decrypt accepts URL-safe base64 and unpadded base64 in JSON`() {
         val plaintext = "Note encrypted with standard base64"
-        val passphrase = "pass"
+        val passphrase = "test-pass-12"
         val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
         // Legacy base64 payloads (older Android builds): convert to URL-safe unpadded form.
         val base64Json =
@@ -224,7 +226,7 @@ class XChaCha20EncryptorTest {
     fun `decrypt accepts tag then ciphertext for backward compatibility`() {
         // Old app builds wrote tag||ciphertext. Reorder current ciphertext||tag output and ensure decrypt still works.
         val plaintext = "Backward compat"
-        val passphrase = "pass"
+        val passphrase = "test-pass-12"
         val encryptedJson = XChaCha20Encryptor.encrypt(plaintext, passphrase)!!
         val regex = """"data"\s*:\s*"([^"]+)"""".toRegex()
         val dataHex =
@@ -245,6 +247,54 @@ class XChaCha20EncryptorTest {
         assertNotNull(result.plaintext)
         assertEquals(plaintext, result.plaintext)
         assertTrue(result.usedLegacyDataOrder)
+    }
+
+    @Test
+    fun `encrypt rejects passphrase shorter than minimum`() {
+        assertNull(XChaCha20Encryptor.encrypt("secret", "short".toCharArray()))
+        assertNull(XChaCha20Encryptor.encrypt("secret", "exactly11ch".toCharArray()))
+    }
+
+    @Test
+    fun `encryptWithArgonDims fallback preset produces 32 MiB params`() {
+        val passphrase = "my secure passphrase 123".toCharArray()
+        val body =
+            XChaCha20Encryptor.encryptWithArgonDims(
+                "low memory note",
+                passphrase,
+                XChaCha20Encryptor.ARGON_FALLBACK,
+            )
+        passphrase.fill(' ')
+        assertNotNull(body)
+        assertTrue(XChaCha20Encryptor.bodyUsesArgonFallback(body!!))
+        assertEquals("low memory note", XChaCha20Decryptor.decrypt(body, "my secure passphrase 123"))
+    }
+
+    @Test
+    fun `decrypt accepts NFC-normalized passphrase variant`() {
+        val plaintext = "NFC passphrase test"
+        val passphraseNfc = "caf\u00e9-passphrase-12".toCharArray()
+        val encrypted = XChaCha20Encryptor.encrypt(plaintext, passphraseNfc)!!
+        passphraseNfc.fill(' ')
+        val nfdPass = Normalizer.normalize("caf\u00e9-passphrase-12", Normalizer.Form.NFD).toCharArray()
+        assertEquals(plaintext, XChaCha20Decryptor.decrypt(encrypted, nfdPass))
+        nfdPass.fill(' ')
+    }
+
+    @Test
+    fun `golden jotty web fixture decrypts from test resources`() {
+        val fixtureJson =
+            requireNotNull(javaClass.classLoader)
+                .getResourceAsStream("jotty_web_encrypted_note.json")!!
+                .bufferedReader()
+                .readText()
+        val fixture = JSONObject(fixtureJson)
+        val body = fixture.getString("body")
+        val passphrase = fixture.getString("passphrase")
+        val expectedPlaintext = fixture.getString("plaintext")
+        val result = XChaCha20Decryptor.decryptWithReason(body, passphrase)
+        assertEquals(expectedPlaintext, result.plaintext)
+        assertFalse(result.usedLegacyDataOrder)
     }
 
     @Test

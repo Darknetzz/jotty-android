@@ -107,6 +107,8 @@ fun MainScreen(
     val serverUrl by settingsRepository.serverUrl.collectAsStateWithLifecycle(initialValue = null)
     val apiKey by settingsRepository.apiKey.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val bottomNavLabels by settingsRepository.bottomNavLabels.collectAsStateWithLifecycle(initialValue = "show")
+    val showBottomNavLabels = bottomNavLabels != "icons_only"
     val reducedMotion = LocalReducedMotionEnabled.current
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -237,11 +239,13 @@ fun MainScreen(
                                             contentDescription = stringResource(route.titleRes),
                                             tint = color,
                                         )
-                                        Text(
-                                            text = stringResource(route.titleRes),
-                                            color = color,
-                                            style = MaterialTheme.typography.labelSmall,
-                                        )
+                                        if (showBottomNavLabels) {
+                                            Text(
+                                                text = stringResource(route.titleRes),
+                                                color = color,
+                                                style = MaterialTheme.typography.labelSmall,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -255,6 +259,7 @@ fun MainScreen(
                                 onClick = { onMainRouteClick(route) },
                                 icon = { Icon(route.icon, contentDescription = stringResource(route.titleRes)) },
                                 label = { Text(stringResource(route.titleRes)) },
+                                alwaysShowLabel = showBottomNavLabels,
                             )
                         }
                     }
@@ -318,6 +323,7 @@ fun MainScreen(
                                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                                 imageLoader = imageLoader,
                                 jottyServerUrl = serverUrl,
+                                apiKey = apiKey,
                                 tabReselectToken = notesTabReselectToken,
                             )
                         } else {
@@ -404,20 +410,25 @@ private fun InstanceSwitcher(
                     },
                     leadingIcon = {
                         val accent = instance.accentColor()
+                        val instanceLabel = instance.name
                         if (accent != null) {
                             Box(
                                 modifier =
                                     Modifier
                                         .size(14.dp)
-                                        .background(accent, CircleShape),
+                                        .background(accent, CircleShape)
+                                        .semantics { contentDescription = instanceLabel },
                             )
                         } else {
-                            Icon(Icons.Default.Dns, contentDescription = null)
+                            Icon(Icons.Default.Dns, contentDescription = instanceLabel)
                         }
                     },
                     trailingIcon = {
                         if (instance.id == currentInstance?.id) {
-                            Icon(Icons.Default.Check, contentDescription = null)
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = stringResource(R.string.cd_filter_selected),
+                            )
                         }
                     },
                 )
@@ -429,7 +440,12 @@ private fun InstanceSwitcher(
                     expanded = false
                     onManageInstances()
                 },
-                leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = stringResource(R.string.manage_instances),
+                    )
+                },
             )
         }
     }

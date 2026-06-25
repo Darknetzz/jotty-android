@@ -5,7 +5,9 @@ import android.webkit.WebView
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -35,6 +37,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -103,13 +107,18 @@ internal fun NoteDetailScreen(
     modifier: Modifier = Modifier,
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
+    apiKey: String? = null,
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
     biometricSaveOfferEnabled: Boolean = true,
     categorySuggestions: List<String> = emptyList(),
     richEditorEnabled: Boolean = false,
+    visualEditorSaveAsMarkdown: Boolean = false,
     noteSnapshotsEnabled: Boolean = true,
+    openNotesInEditMode: Boolean = false,
+    defaultNoteEditMode: String = "markdown",
+    markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
     isOnline: Boolean = true,
 ) {
@@ -153,12 +162,16 @@ internal fun NoteDetailScreen(
             (NoteEncryption.parse(content) as? ParsedNoteContent.Encrypted)?.encryptedBody
         }
 
-    var noteEditMode by rememberSaveable(note.id) { mutableStateOf(NoteEditMode.Markdown) }
+    var noteEditMode by rememberSaveable(note.id) {
+        mutableStateOf(resolveInitialNoteEditMode(richEditorEnabled, defaultNoteEditMode))
+    }
+    var autoEditTriggered by rememberSaveable(note.id) { mutableStateOf(false) }
     var editorReloadNonce by rememberSaveable(note.id) { mutableIntStateOf(0) }
     var wysiwygWebView by remember(note.id) { mutableStateOf<WebView?>(null) }
     var wysiwygBridge by remember(note.id) { mutableStateOf<WysiwygEditorBridge?>(null) }
     var encryptedVisualAcknowledged by rememberSaveable(note.id) { mutableStateOf(false) }
     var showEncryptedVisualConfirm by remember { mutableStateOf(false) }
+    var showUnsavedChangesConfirm by remember { mutableStateOf(false) }
 
     fun currentEditBody(): String = if (isEncrypted) decryptedContent.orEmpty() else content
 
@@ -168,34 +181,6 @@ internal fun NoteDetailScreen(
         } else {
             detailVm.setContent(value)
         }
-    }
-
-    fun initiateEncryptedSave(flushVisualEditor: Boolean = true) {
-        if (flushVisualEditor && noteEditMode == NoteEditMode.Visual) {
-            flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
-                setEditBody(html)
-                detailVm.showEncryptDialog()
-            }
-        } else {
-            detailVm.showEncryptDialog()
-        }
-    }
-
-    fun applyNoteEditModeChange(mode: NoteEditMode) {
-        if (mode == NoteEditMode.Markdown && noteEditMode == NoteEditMode.Visual) {
-            setEditBody(prepareWysiwygHtmlForMarkdown(currentEditBody()))
-        }
-        noteEditMode = mode
-        editorReloadNonce++
-    }
-
-    fun onNoteEditModeChange(mode: NoteEditMode) {
-        if (mode == noteEditMode) return
-        if (mode == NoteEditMode.Visual && isEncrypted && isDecrypted && !encryptedVisualAcknowledged) {
-            showEncryptedVisualConfirm = true
-            return
-        }
-        applyNoteEditModeChange(mode)
     }
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -218,6 +203,15 @@ internal fun NoteDetailScreen(
     val exportNoteTitle = stringResource(R.string.export_note)
     val restoreSnapshotSuccessPlain = stringResource(R.string.restore_note_snapshot_success)
     val restoreSnapshotSuccessEncrypted = stringResource(R.string.restore_note_snapshot_success_encrypted)
+    val saveFailedRestoreMsg = stringResource(R.string.save_failed_restore_backup)
+    val restoreBackupAction = stringResource(R.string.restore_backup_action)
+    val saveUnsafeMsg = stringResource(R.string.error_unsafe_html_save)
+    val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
+    val encryptNoPlaintextMsg = stringResource(R.string.error_encrypt_no_plaintext)
+    val encryptServerVerifyFailedMsg = stringResource(R.string.error_encrypt_server_verify_failed)
+    val encryptStaleSessionMsg = stringResource(R.string.error_encrypt_stale_session)
+    val encryptArgonFallbackMsg = stringResource(R.string.encrypt_argon_fallback_notice)
+    val restoreVerifyFailedMsg = stringResource(R.string.error_restore_verify_failed)
     val ctx = context
 
     val activity = LocalActivity.current as? FragmentActivity
@@ -237,7 +231,9 @@ internal fun NoteDetailScreen(
             subtitle = biometricSubtitle,
             negativeButtonText = biometricCancelStr,
             encryptedBody = { encryptedBodyForBiometric },
-            onDecrypted = { plain, pass -> detailVm.onDecrypted(plain, passphrase = pass) },
+            onDecrypted = { plain, usedLegacy, pass ->
+                detailVm.onDecrypted(plain, usedLegacy, passphrase = pass)
+            },
             onDecryptFailed = {
                 scope.launch { snackbarHostState.showSnackbar(decryptFailedMsg) }
             },
@@ -305,6 +301,146 @@ internal fun NoteDetailScreen(
         }
     }
 
+    fun bodyAfterVisualSave(html: String): String =
+        if (visualEditorSaveAsMarkdown) {
+            prepareWysiwygHtmlForMarkdown(html)
+        } else {
+            html
+        }
+
+    fun isVisualBodySafeToSave(body: String): Boolean = !detailVm.isUnsafeVisualPlaintextForSave(body)
+
+    fun handleSaveFailed() {
+        scope.launch {
+            val snapshots =
+                if (snapshotRepository != null) {
+                    withContext(Dispatchers.IO) {
+                        snapshotRepository.listForNote(note.id)
+                    }
+                } else {
+                    emptyList()
+                }
+            noteSnapshots = snapshots
+            if (snapshots.isNotEmpty()) {
+                val result =
+                    snackbarHostState.showSnackbar(
+                        message = saveFailedRestoreMsg,
+                        actionLabel = restoreBackupAction,
+                        duration = SnackbarDuration.Long,
+                    )
+                if (result == SnackbarResult.ActionPerformed) {
+                    showRestoreSnapshots = true
+                }
+            } else {
+                onSaveFailed()
+            }
+        }
+    }
+
+    fun onEncryptSuccess(updated: Note) {
+        onUpdate(updated)
+        if (detailVm.consumeArgonFallbackNotice()) {
+            scope.launch {
+                snackbarHostState.showSnackbar(encryptArgonFallbackMsg)
+            }
+        }
+    }
+
+    fun runEncryptedSaveWithSessionPassphrase() {
+        detailVm.encryptWithSessionPassphrase(
+            encryptFailedMsg,
+            onSuccess = ::onEncryptSuccess,
+            onFailure = { handleSaveFailed() },
+            encryptNoPlaintextMsg = encryptNoPlaintextMsg,
+            encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
+            encryptStaleSessionMsg = encryptStaleSessionMsg,
+            snapshotsEnabled = noteSnapshotsEnabled,
+        )
+    }
+
+    fun reencryptForWebCompatibility() {
+        if (detailVm.hasSessionPassphrase()) {
+            runEncryptedSaveWithSessionPassphrase()
+        } else {
+            detailVm.showEncryptDialog()
+        }
+    }
+
+    fun persistPlainEdit(onComplete: () -> Unit = {}) {
+        detailVm.saveEdit(
+            onSuccess = {
+                onUpdate(it)
+                onComplete()
+            },
+            onFailure = { handleSaveFailed() },
+            snapshotsEnabled = noteSnapshotsEnabled,
+        )
+    }
+
+    fun initiatePlainSave(onComplete: () -> Unit = {}) {
+        if (noteEditMode == NoteEditMode.Visual) {
+            flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
+                val body = bodyAfterVisualSave(html)
+                if (!isVisualBodySafeToSave(body)) {
+                    scope.launch { snackbarHostState.showSnackbar(saveUnsafeMsg) }
+                    return@flushWysiwygContentForSave
+                }
+                setEditBody(body)
+                persistPlainEdit(onComplete)
+            }
+        } else {
+            persistPlainEdit(onComplete)
+        }
+    }
+
+    fun initiateEncryptedSave(flushVisualEditor: Boolean = true) {
+        if (flushVisualEditor && noteEditMode == NoteEditMode.Visual) {
+            flushWysiwygContentForSave(wysiwygWebView, wysiwygBridge, currentEditBody()) { html ->
+                val body = bodyAfterVisualSave(html)
+                if (!isVisualBodySafeToSave(body)) {
+                    scope.launch { snackbarHostState.showSnackbar(saveUnsafeMsg) }
+                    return@flushWysiwygContentForSave
+                }
+                setEditBody(body)
+                detailVm.showEncryptDialog()
+            }
+        } else {
+            detailVm.showEncryptDialog()
+        }
+    }
+
+    fun requestNavigateBack() {
+        if (isEditing && detailVm.hasUnsavedChanges()) {
+            showUnsavedChangesConfirm = true
+        } else {
+            if (isEditing) {
+                detailVm.cancelEditing()
+            }
+            onBack()
+        }
+    }
+
+    fun applyNoteEditModeChange(mode: NoteEditMode) {
+        if (mode == NoteEditMode.Markdown && noteEditMode == NoteEditMode.Visual) {
+            setEditBody(prepareWysiwygHtmlForMarkdown(currentEditBody()))
+        }
+        noteEditMode = mode
+        editorReloadNonce++
+    }
+
+    fun onNoteEditModeChange(mode: NoteEditMode) {
+        if (mode == noteEditMode) return
+        if (mode == NoteEditMode.Visual && isEncrypted && isDecrypted && !encryptedVisualAcknowledged) {
+            showEncryptedVisualConfirm = true
+            return
+        }
+        applyNoteEditModeChange(mode)
+    }
+
+    BackHandler(enabled = isEditing) {
+        requestNavigateBack()
+    }
+
     fun formatSnapshotLabel(epochMs: Long): String {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
         return Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault()).format(formatter)
@@ -314,6 +450,14 @@ internal fun NoteDetailScreen(
         if (isEditing && isEncrypted && noteEditMode == NoteEditMode.Visual && !encryptedVisualAcknowledged) {
             noteEditMode = NoteEditMode.Markdown
             editorReloadNonce++
+        }
+    }
+
+    LaunchedEffect(note.id, openNotesInEditMode, isEncrypted, isDecrypted, autoEditTriggered) {
+        if (autoEditTriggered || !openNotesInEditMode || isEditing) return@LaunchedEffect
+        if (!isEncrypted || isDecrypted) {
+            detailVm.startEditing()
+            autoEditTriggered = true
         }
     }
 
@@ -449,7 +593,7 @@ internal fun NoteDetailScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { requestNavigateBack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
@@ -496,11 +640,7 @@ internal fun NoteDetailScreen(
                                     if (isEncrypted) {
                                         initiateEncryptedSave()
                                     } else {
-                                        detailVm.saveEdit(
-                                            onSuccess = onUpdate,
-                                            onFailure = onSaveFailed,
-                                            snapshotsEnabled = noteSnapshotsEnabled,
-                                        )
+                                        initiatePlainSave()
                                     }
                                 },
                             ) {
@@ -568,7 +708,10 @@ internal fun NoteDetailScreen(
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.copy_note)) },
                                     leadingIcon = {
-                                        Icon(Icons.Default.ContentCopy, contentDescription = null)
+                                        Icon(
+                                            Icons.Default.ContentCopy,
+                                            contentDescription = stringResource(R.string.copy_note),
+                                        )
                                     },
                                     onClick = {
                                         menuExpanded = false
@@ -593,7 +736,10 @@ internal fun NoteDetailScreen(
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.restore_note_snapshot)) },
                                     leadingIcon = {
-                                        Icon(Icons.Default.History, contentDescription = null)
+                                        Icon(
+                                            Icons.Default.History,
+                                            contentDescription = stringResource(R.string.restore_note_snapshot),
+                                        )
                                     },
                                     onClick = {
                                         menuExpanded = false
@@ -612,8 +758,11 @@ internal fun NoteDetailScreen(
                                         hasBiometricPassphrase = biometricStore?.hasPassphrase(note.id) == true
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Default.Lock, contentDescription = null)
-                                    },
+                                        Icon(
+                                            Icons.Default.Lock,
+                                            contentDescription = stringResource(R.string.lock_note),
+                                        )
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.reencrypt)) },
@@ -622,7 +771,10 @@ internal fun NoteDetailScreen(
                                         initiateEncryptedSave(flushVisualEditor = false)
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Default.Lock, contentDescription = null)
+                                        Icon(
+                                            Icons.Default.Lock,
+                                            contentDescription = stringResource(R.string.reencrypt),
+                                        )
                                     },
                                 )
                             }
@@ -718,6 +870,9 @@ internal fun NoteDetailScreen(
                                     showHtmlSaveHint = noteContentContainsRawHtml(editBody),
                                     onEditorWebView = { wysiwygWebView = it },
                                     onEditorBridge = { wysiwygBridge = it },
+                                    jottyServerUrl = jottyServerUrl,
+                                    apiKey = apiKey,
+                                    serverCapabilitiesKey = serverCapabilitiesKey,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             NoteEditMode.Markdown ->
@@ -729,6 +884,7 @@ internal fun NoteDetailScreen(
                                     category = category,
                                     onCategoryChange = { detailVm.setCategory(it) },
                                     categorySuggestions = categorySuggestions,
+                                    monospaceFont = markdownEditorMonospace,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                         }
@@ -782,16 +938,29 @@ internal fun NoteDetailScreen(
                                 modifier = Modifier.fillMaxSize(),
                             )
                             if (isEncrypted && isDecrypted && legacyEncryptionDetected) {
-                                Text(
-                                    text = stringResource(R.string.legacy_encryption_warning),
+                                Surface(
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                    shape = MaterialTheme.shapes.small,
                                     modifier =
                                         Modifier
                                             .align(Alignment.TopCenter)
                                             .fillMaxWidth()
                                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.error,
-                                )
+                                ) {
+                                    Column(modifier = Modifier.padding(12.dp)) {
+                                        Text(
+                                            text = stringResource(R.string.legacy_encryption_warning),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                        TextButton(
+                                            onClick = { reencryptForWebCompatibility() },
+                                            contentPadding = PaddingValues(0.dp),
+                                        ) {
+                                            Text(stringResource(R.string.reencrypt_for_web))
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -869,7 +1038,15 @@ internal fun NoteDetailScreen(
                                     )
                                 }
                             },
-                            onFailure = onSaveFailed,
+                            onFailure = {
+                                if (detailVm.consumeRestoreVerifyFailed()) {
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(restoreVerifyFailedMsg)
+                                    }
+                                } else {
+                                    handleSaveFailed()
+                                }
+                            },
                         )
                     },
                 ) {
@@ -885,33 +1062,19 @@ internal fun NoteDetailScreen(
     }
 
     if (showEncryptDialog) {
-        val encryptFailedMsg = stringResource(R.string.error_encrypt_failed)
-        val encryptNoPlaintextMsg = stringResource(R.string.error_encrypt_no_plaintext)
-        val encryptServerVerifyFailedMsg = stringResource(R.string.error_encrypt_server_verify_failed)
-        val encryptStaleSessionMsg = stringResource(R.string.error_encrypt_stale_session)
         val reEncryptMode = isEncrypted && detailVm.hasSessionPassphrase()
         EncryptNoteDialog(
             onDismiss = { detailVm.dismissEncryptDialog() },
             isEncrypting = isEncrypting,
             encryptError = encryptError,
             reEncryptMode = reEncryptMode,
-            onUseStoredPassphrase = {
-                detailVm.encryptWithSessionPassphrase(
-                    encryptFailedMsg,
-                    onSuccess = onUpdate,
-                    onFailure = onSaveFailed,
-                    encryptNoPlaintextMsg = encryptNoPlaintextMsg,
-                    encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
-                    encryptStaleSessionMsg = encryptStaleSessionMsg,
-                    snapshotsEnabled = noteSnapshotsEnabled,
-                )
-            },
+            onUseStoredPassphrase = { runEncryptedSaveWithSessionPassphrase() },
             onEncrypt = { passChars ->
                 detailVm.encrypt(
                     passChars,
                     encryptFailedMsg,
-                    onSuccess = onUpdate,
-                    onFailure = onSaveFailed,
+                    onSuccess = ::onEncryptSuccess,
+                    onFailure = { handleSaveFailed() },
                     encryptNoPlaintextMsg = encryptNoPlaintextMsg,
                     encryptServerVerifyFailedMsg = encryptServerVerifyFailedMsg,
                     encryptStaleSessionMsg = encryptStaleSessionMsg,
@@ -938,6 +1101,39 @@ internal fun NoteDetailScreen(
             decryptError = decryptError,
             decryptErrorDetail = decryptErrorDetail,
             onDecryptError = { main, detail -> detailVm.onDecryptError(main, detail) },
+        )
+    }
+
+    if (showUnsavedChangesConfirm) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedChangesConfirm = false },
+            title = { Text(stringResource(R.string.note_unsaved_changes_title)) },
+            text = { Text(stringResource(R.string.note_unsaved_changes_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showUnsavedChangesConfirm = false
+                        if (isEncrypted) {
+                            initiateEncryptedSave()
+                        } else {
+                            initiatePlainSave(onComplete = { onBack() })
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.save))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showUnsavedChangesConfirm = false
+                        detailVm.discardEditing()
+                        onBack()
+                    },
+                ) {
+                    Text(stringResource(R.string.discard))
+                }
+            },
         )
     }
 }

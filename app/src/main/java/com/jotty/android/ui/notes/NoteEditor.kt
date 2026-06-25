@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isUnspecified
@@ -38,6 +39,7 @@ internal fun NoteEditor(
     category: String = "",
     onCategoryChange: ((String) -> Unit)? = null,
     categorySuggestions: List<String> = emptyList(),
+    monospaceFont: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -52,7 +54,7 @@ internal fun NoteEditor(
     val textScale = LocalReaderTextScale.current.coerceIn(0.75f, 1.5f)
     val baseStyle = MaterialTheme.typography.bodyLarge
     val editorTextStyle =
-        remember(textScale, baseStyle) {
+        remember(textScale, baseStyle, monospaceFont) {
             val fontSize =
                 if (baseStyle.fontSize.isUnspecified) {
                     16.sp
@@ -65,7 +67,8 @@ internal fun NoteEditor(
                 } else {
                     (baseStyle.lineHeight.value * textScale).sp
                 }
-            baseStyle.copy(fontSize = fontSize, lineHeight = lineHeight)
+            val fontFamily = if (monospaceFont) FontFamily.Monospace else baseStyle.fontFamily
+            baseStyle.copy(fontSize = fontSize, lineHeight = lineHeight, fontFamily = fontFamily)
         }
     fun updateContentField(updated: TextFieldValue) {
         val adjusted = applyMarkdownContentChange(contentField, updated)

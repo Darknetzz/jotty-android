@@ -23,16 +23,17 @@ if [[ "$SKIP_PUBLISH" -eq 0 ]]; then
   gh auth status >/dev/null
 fi
 
-APK_PATH="$("$SCRIPT_DIR/build-dev-apk.sh" --output-dir "$REPO_ROOT" | tail -n 1)"
-if [[ ! -f "$APK_PATH" ]]; then
-  echo "Build did not produce APK at: $APK_PATH" >&2
-  exit 1
-fi
 SHA="$(git rev-parse HEAD)"
 SHORT_SHA="$(git rev-parse --short=7 HEAD)"
 BASE_CODE="$(grep -E '^VERSION_CODE=' gradle.properties | cut -d= -f2)"
 RUN_NUM="$(git rev-list --count HEAD)"
 DEV_CODE=$((BASE_CODE * 10000 + RUN_NUM % 10000))
+
+APK_PATH="$("$SCRIPT_DIR/build-dev-apk.sh" --output-dir "$REPO_ROOT" | tail -n 1)"
+if [[ ! -f "$APK_PATH" ]]; then
+  echo "Build did not produce APK at: $APK_PATH" >&2
+  exit 1
+fi
 REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "OWNER/REPO")"
 
 BODY="Rolling pre-release build from \`dev\` (built locally).

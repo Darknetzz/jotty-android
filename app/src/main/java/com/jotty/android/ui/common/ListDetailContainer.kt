@@ -1,5 +1,6 @@
 package com.jotty.android.ui.common
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
@@ -18,9 +19,20 @@ fun <T> ListDetailContainer(
     contentKey: (T?) -> Any = { it ?: "list" },
     content: @Composable (T?) -> Unit,
 ) {
-    Box(modifier) {
-        key(contentKey(target)) {
-            content(target)
+    val reducedMotion = LocalReducedMotionEnabled.current
+    if (reducedMotion) {
+        Box(modifier) {
+            key(contentKey(target)) {
+                content(target)
+            }
+        }
+    } else {
+        Crossfade(
+            targetState = target,
+            modifier = modifier,
+            label = "listDetailCrossfade",
+        ) { current ->
+            content(current)
         }
     }
 }

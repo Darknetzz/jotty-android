@@ -24,10 +24,18 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
     val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val notePreviewMaxLines by settingsRepository.notePreviewMaxLines.collectAsStateWithLifecycle(
+        initialValue = SettingsRepository.DEFAULT_NOTE_PREVIEW_MAX_LINES,
+    )
     val offlineModeEnabled by settingsRepository.offlineModeEnabled.collectAsStateWithLifecycle(initialValue = true)
+    val openNotesInEditMode by settingsRepository.openNotesInEditMode.collectAsStateWithLifecycle(initialValue = false)
+    val defaultNoteEditMode by settingsRepository.defaultNoteEditMode.collectAsStateWithLifecycle(initialValue = "markdown")
+    val defaultNoteCategory by settingsRepository.defaultNoteCategory.collectAsStateWithLifecycle(initialValue = null)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
+    val cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
 
     Column(
         modifier =
@@ -37,10 +45,9 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                 .verticalScroll(rememberScrollState()),
     ) {
         Spacer(modifier = Modifier.height(8.dp))
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        ) {
+
+        SettingsSectionTitle(stringResource(R.string.settings_category_general))
+        Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.start_screen)) },
                 supportingContent = {
@@ -69,6 +76,31 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
             )
             HorizontalDivider()
             ListItem(
+                headlineContent = { Text(stringResource(R.string.offline_mode)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.offline_mode_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = offlineModeEnabled,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setOfflineModeEnabled(it)
+                            }
+                        },
+                    )
+                },
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SettingsSectionTitle(stringResource(R.string.behavior_category_lists))
+        Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
+            ListItem(
                 headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
                 supportingContent = {
                     Text(
@@ -87,7 +119,12 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                     )
                 },
             )
-            HorizontalDivider()
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SettingsSectionTitle(stringResource(R.string.nav_checklists))
+        Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.checklist_drag_reorder)) },
                 supportingContent = {
@@ -147,7 +184,12 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                     )
                 },
             )
-            HorizontalDivider()
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        SettingsSectionTitle(stringResource(R.string.nav_notes))
+        Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
             ListItem(
                 headlineContent = { Text(stringResource(R.string.rich_note_editor)) },
                 supportingContent = {
@@ -164,6 +206,27 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                                 settingsRepository.setRichNoteEditorEnabled(it)
                             }
                         },
+                    )
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.visual_editor_save_as_markdown)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.visual_editor_save_as_markdown_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = visualEditorSaveAsMarkdown,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setVisualEditorSaveAsMarkdownEnabled(it)
+                            }
+                        },
+                        enabled = richNoteEditorEnabled,
                     )
                 },
             )
@@ -187,6 +250,119 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                     )
                 },
             )
+            if (noteListPreviewEnabled) {
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.note_preview_lines)) },
+                    supportingContent = {
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                            Text(
+                                stringResource(R.string.note_preview_lines_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    0 to R.string.note_preview_lines_none,
+                                    1 to R.string.note_preview_lines_1,
+                                    2 to R.string.note_preview_lines_2,
+                                    4 to R.string.note_preview_lines_4,
+                                ).forEach { (value, labelRes) ->
+                                    FilterChip(
+                                        selected = notePreviewMaxLines == value,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setNotePreviewMaxLines(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.open_notes_in_edit_mode)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.open_notes_in_edit_mode_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = openNotesInEditMode,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setOpenNotesInEditMode(it)
+                            }
+                        },
+                    )
+                },
+            )
+            if (richNoteEditorEnabled) {
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.default_note_edit_mode)) },
+                    supportingContent = {
+                        Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                            Text(
+                                stringResource(R.string.default_note_edit_mode_description),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    "markdown" to R.string.note_edit_mode_markdown,
+                                    "visual" to R.string.note_edit_mode_visual,
+                                ).forEach { (value, labelRes) ->
+                                    FilterChip(
+                                        selected = defaultNoteEditMode == value,
+                                        onClick = {
+                                            scope.launch {
+                                                settingsRepository.setDefaultNoteEditMode(value)
+                                            }
+                                        },
+                                        label = { Text(stringResource(labelRes)) },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.default_note_category)) },
+                supportingContent = {
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                        Text(
+                            stringResource(R.string.default_note_category_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        OutlinedTextField(
+                            value = defaultNoteCategory.orEmpty(),
+                            onValueChange = { newValue ->
+                                scope.launch {
+                                    settingsRepository.setDefaultNoteCategory(newValue)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            singleLine = true,
+                            placeholder = { Text(stringResource(R.string.category)) },
+                        )
+                    }
+                },
+            )
             HorizontalDivider()
             ListItem(
                 headlineContent = { Text(stringResource(R.string.note_snapshots)) },
@@ -207,27 +383,8 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                     )
                 },
             )
-            HorizontalDivider()
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.offline_mode)) },
-                supportingContent = {
-                    Text(
-                        stringResource(R.string.offline_mode_description),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = offlineModeEnabled,
-                        onCheckedChange = {
-                            scope.launch {
-                                settingsRepository.setOfflineModeEnabled(it)
-                            }
-                        },
-                    )
-                },
-            )
         }
+
         Spacer(modifier = Modifier.height(32.dp))
     }
 }

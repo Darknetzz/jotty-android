@@ -30,7 +30,19 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
     val readerTextScale by settingsRepository.readerTextScale.collectAsStateWithLifecycle(initialValue = 1.0f)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val reducedMotionMode by settingsRepository.reducedMotionMode.collectAsStateWithLifecycle(initialValue = null)
+    val showNoteListDates by settingsRepository.showNoteListDates.collectAsStateWithLifecycle(initialValue = true)
+    val showNoteListCategories by settingsRepository.showNoteListCategories.collectAsStateWithLifecycle(initialValue = true)
+    val listDateFormat by settingsRepository.listDateFormat.collectAsStateWithLifecycle(initialValue = "date")
+    val bottomNavLabels by settingsRepository.bottomNavLabels.collectAsStateWithLifecycle(initialValue = "show")
+    val markdownEditorMonospace by settingsRepository.markdownEditorMonospace.collectAsStateWithLifecycle(initialValue = false)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
+    val noteListMetadataMode =
+        when {
+            showNoteListDates && showNoteListCategories -> "both"
+            showNoteListDates -> "dates"
+            showNoteListCategories -> "categories"
+            else -> "none"
+        }
 
     Column(
         modifier =
@@ -123,6 +135,131 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
                             )
                         }
                     }
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.note_list_metadata)) },
+                supportingContent = {
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                        Text(
+                            stringResource(R.string.note_list_metadata_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(
+                                "both" to R.string.note_list_metadata_both,
+                                "dates" to R.string.note_list_metadata_dates,
+                                "categories" to R.string.note_list_metadata_categories,
+                                "none" to R.string.note_list_metadata_none,
+                            ).forEach { (value, labelRes) ->
+                                FilterChip(
+                                    selected = noteListMetadataMode == value,
+                                    onClick = {
+                                        scope.launch {
+                                            when (value) {
+                                                "both" -> {
+                                                    settingsRepository.setShowNoteListDates(true)
+                                                    settingsRepository.setShowNoteListCategories(true)
+                                                }
+                                                "dates" -> {
+                                                    settingsRepository.setShowNoteListDates(true)
+                                                    settingsRepository.setShowNoteListCategories(false)
+                                                }
+                                                "categories" -> {
+                                                    settingsRepository.setShowNoteListDates(false)
+                                                    settingsRepository.setShowNoteListCategories(true)
+                                                }
+                                                else -> {
+                                                    settingsRepository.setShowNoteListDates(false)
+                                                    settingsRepository.setShowNoteListCategories(false)
+                                                }
+                                            }
+                                        }
+                                    },
+                                    label = { Text(stringResource(labelRes)) },
+                                )
+                            }
+                        }
+                    }
+                },
+            )
+            if (showNoteListDates) {
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.list_date_format)) },
+                    supportingContent = {
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(
+                                "date" to R.string.list_date_format_date,
+                                "relative" to R.string.list_date_format_relative,
+                            ).forEach { (value, labelRes) ->
+                                FilterChip(
+                                    selected = listDateFormat == value,
+                                    onClick = {
+                                        scope.launch {
+                                            settingsRepository.setListDateFormat(value)
+                                        }
+                                    },
+                                    label = { Text(stringResource(labelRes)) },
+                                )
+                            }
+                        }
+                    },
+                )
+            }
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.bottom_nav_labels)) },
+                supportingContent = {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        listOf(
+                            "show" to R.string.bottom_nav_labels_show,
+                            "icons_only" to R.string.bottom_nav_labels_icons_only,
+                        ).forEach { (value, labelRes) ->
+                            FilterChip(
+                                selected = bottomNavLabels == value,
+                                onClick = {
+                                    scope.launch {
+                                        settingsRepository.setBottomNavLabels(value)
+                                    }
+                                },
+                                label = { Text(stringResource(labelRes)) },
+                            )
+                        }
+                    }
+                },
+            )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.markdown_editor_monospace)) },
+                supportingContent = {
+                    Text(
+                        stringResource(R.string.markdown_editor_monospace_description),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                },
+                trailingContent = {
+                    Switch(
+                        checked = markdownEditorMonospace,
+                        onCheckedChange = {
+                            scope.launch {
+                                settingsRepository.setMarkdownEditorMonospace(it)
+                            }
+                        },
+                    )
                 },
             )
             HorizontalDivider()

@@ -44,6 +44,7 @@ import androidx.fragment.app.FragmentActivity
 import com.jotty.android.R
 import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.encryption.XChaCha20Decryptor
+import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.data.encryption.clearPassphrase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -223,7 +224,7 @@ internal fun EncryptNoteDialog(
                     val pTrim = passphrase.trim()
                     val cTrim = confirm.trim()
                     when {
-                        pTrim.length < 12 -> error = errorShort
+                        pTrim.length < XChaCha20Encryptor.MIN_PASSPHRASE_LENGTH -> error = errorShort
                         pTrim != cTrim -> error = errorMismatch
                         else -> {
                             val p = pTrim.toCharArray()
@@ -303,8 +304,8 @@ internal fun DecryptNoteDialog(
             subtitle = biometricSubtitle,
             negativeButtonText = biometricCancelStr,
             encryptedBody = { encryptedBody },
-            onDecrypted = { plain, pass ->
-                pass?.let { onDecrypted(plain, false, it) } ?: onDecrypted(plain, false, null)
+            onDecrypted = { plain, usedLegacy, pass ->
+                pass?.let { onDecrypted(plain, usedLegacy, it) } ?: onDecrypted(plain, usedLegacy, null)
             },
             onDecryptFailed = { onDecryptError(decryptFailedMsg, null) },
             onAuthError = { _, _ -> onDecryptError(biometricErrorMsg, null) },
@@ -534,6 +535,12 @@ internal fun DecryptNoteDialog(
                                 isDecrypting = false
                                 val plaintext = result.plaintext
                                 if (plaintext != null) {
+                                    withContext(Dispatchers.IO) {
+                                        if (biometricStore?.hasPassphrase(noteId) == true) {
+                                            biometricStore.clearPassphrase(noteId)
+                                        }
+                                    }
+                                    hasStoredBiometric = false
                                     val canOffer =
                                         biometricSaveOfferEnabled &&
                                             biometricStore != null && biometricSavePrompt != null &&

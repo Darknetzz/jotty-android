@@ -84,6 +84,10 @@ class NotesViewModel(
         _selectedCategory.value = category
     }
 
+    fun toggleCategoryChip(category: String) {
+        _selectedCategory.value = if (_selectedCategory.value == category) null else category
+    }
+
     fun setSelectedNote(note: Note?) {
         _selectedNote.value = note
     }
@@ -118,6 +122,15 @@ class NotesViewModel(
         if (_selectedNote.value?.id == noteId) {
             _selectedNote.value = null
         }
+    }
+
+    /** Lookup by id ignoring the active list category/search filter (for deep links). */
+    suspend fun resolveNoteForDeepLink(noteId: String): Note? {
+        _notes.value.find { it.id == noteId }?.let { return it }
+        return runCatching {
+            loadNotesWithSearch(api = api, query = "", category = null)
+                .find { it.id == noteId }
+        }.getOrNull()
     }
 
     class Factory(

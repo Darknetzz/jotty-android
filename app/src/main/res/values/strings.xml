@@ -196,8 +196,6 @@
     <string name="sort_updated">Last updated</string>
     <string name="sort_created">Date created</string>
     <string name="sort_title">Title (A–Z)</string>
-    <string name="list_sort">List sort</string>
-    <string name="list_sort_location_description">Sort notes and checklists from the sort icon in each list toolbar (last updated, date created, or title).</string>
 
     <!-- Encrypt / Decrypt dialogs -->
     <string name="encrypt_note">Encrypt note</string>

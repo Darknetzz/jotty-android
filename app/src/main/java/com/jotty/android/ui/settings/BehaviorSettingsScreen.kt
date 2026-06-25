@@ -101,16 +101,6 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
         SettingsSectionTitle(stringResource(R.string.behavior_category_lists))
         Card(modifier = Modifier.fillMaxWidth(), colors = cardColors) {
             ListItem(
-                headlineContent = { Text(stringResource(R.string.list_sort)) },
-                supportingContent = {
-                    Text(
-                        stringResource(R.string.list_sort_location_description),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                },
-            )
-            HorizontalDivider()
-            ListItem(
                 headlineContent = { Text(stringResource(R.string.swipe_to_delete)) },
                 supportingContent = {
                     Text(

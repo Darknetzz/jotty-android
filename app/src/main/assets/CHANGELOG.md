@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+---
+
+## [1.8.0] - 2026-06-25
+
 ### Added
 
 - **Encrypted notes — legacy format** — After decrypting a note with the old Android payload order, a **Re-encrypt for web** action re-saves using your session passphrase to restore Jotty web compatibility.
@@ -35,7 +39,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Failed note save** — When local backups exist, the save-failure snackbar offers **Restore backup** instead of only a generic error.
 - **Deep links (offline)** — Opening a note link triggers sync first when online; shows a clearer message when the note is not on the device yet.
 - **List/detail transition** — A short cross-fade when switching between list and detail if motion effects are enabled.
-- **Settings → Behavior → Lists** — Notes where list sort lives (toolbar sort icon).
+- **Settings → Behavior → Lists** — Removed the non-interactive “List sort” hint row; sort is changed from the sort icon on each list toolbar.
 
 ### Fixed
 
@@ -50,6 +54,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Dev-latest publish** — Dev APK builds now run `:app:clean` before assemble and verify embedded commit/version code match release notes before upload, preventing stale APKs that loop the in-app updater.
 - **Encrypted note re-save** — Saving an edited encrypted note now uploads the encrypted JSON body only (matching the Jotty server), instead of YAML frontmatter the server strips and rewrites. If the server returns undecryptable ciphertext after save, the app rolls back to the pre-save copy automatically and keeps your edits visible locally.
 - **Encrypted note save verification** — After re-encrypting, the app now re-fetches the note from the server and verifies that copy decrypts (the PUT response alone is not always what later GET/list reads from disk). Manual passphrase decrypt clears a stale biometric-stored passphrase so fingerprint unlock cannot use an old key after you typed a new one.
+
 
 ---
 
@@ -1103,3 +1108,5 @@ Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes 
 [1.7.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.4
 
 [1.7.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.5
+
+[1.8.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.8.0

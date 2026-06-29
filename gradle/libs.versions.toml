@@ -1,8 +1,8 @@
 [versions]
 agp = "9.2.1"
-kotlin = "2.3.21"
+kotlin = "2.4.0"
 ksp = "2.3.9"
-compose-bom = "2026.05.01"
+compose-bom = "2026.06.00"
 ktlint = "12.1.1" # 14.x fails ktlintTestSourceSetCheck until formatted (Dependabot PR #61)
 reorderable = "3.1.0"
 

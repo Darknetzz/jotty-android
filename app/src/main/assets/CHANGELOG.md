@@ -9,6 +9,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Added
 
 - **Clone notes and checklists** — List and detail ⋮ menus include **Clone** with a category picker (matching Jotty web). Creates a copy titled “(Copy)” via the REST API; encrypted note bodies are copied as stored.
+- **Custom HTTP headers per instance** - Add/remove arbitrary request headers (e.g. for reverse-proxy authentication) under **Optional details** when adding or editing an instance. Headers are stored with the instance and sent on every API request including background sync.
 
 ---
 

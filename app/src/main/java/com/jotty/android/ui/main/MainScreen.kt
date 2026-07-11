@@ -137,11 +137,11 @@ fun MainScreen(
         }
 
     val api =
-        remember(serverUrl, apiKey) {
+        remember(serverUrl, apiKey, currentInstance) {
             val url = serverUrl
             val key = apiKey
             if (!url.isNullOrBlank() && !key.isNullOrBlank()) {
-                ApiClient.create(url, key)
+                ApiClient.create(url, key, currentInstance?.customHeaders.orEmpty())
             } else {
                 null
             }

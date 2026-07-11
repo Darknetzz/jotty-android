@@ -30,7 +30,7 @@ class OfflineSyncWorker(
         instances.forEach { instance ->
             if (instance.serverUrl.isBlank() || instance.apiKey.isBlank()) return@forEach
             runCatching {
-                val api = ApiClient.create(instance.serverUrl, instance.apiKey)
+                val api = ApiClient.create(instance.serverUrl, instance.apiKey, instance.customHeaders)
                 val notesRepo =
                     OfflineNotesRepository(
                         context = applicationContext,

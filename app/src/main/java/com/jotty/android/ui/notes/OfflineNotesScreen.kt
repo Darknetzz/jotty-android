@@ -33,6 +33,7 @@ fun OfflineNotesScreen(
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
     apiKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
     tabReselectToken: Int = 0,
 ) {
     val context = LocalContext.current
@@ -65,6 +66,7 @@ fun OfflineNotesScreen(
                 imageLoader = imageLoader,
                 jottyServerUrl = jottyServerUrl,
                 apiKey = apiKey,
+                customHeaders = customHeaders,
                 serverCapabilitiesKey = instanceId,
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,
@@ -82,6 +84,7 @@ fun OfflineNotesScreen(
                 imageLoader = imageLoader,
                 jottyServerUrl = jottyServerUrl,
                 apiKey = apiKey,
+                customHeaders = customHeaders,
                 serverCapabilitiesKey = instanceId,
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,

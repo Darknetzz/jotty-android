@@ -4,6 +4,7 @@ package com.jotty.android.data.preferences
  * A saved Jotty server connection (name, URL, API key).
  * [colorHex] optional (e.g. "0xFF6200EE") for list/icon tint; null = default.
  * [customHeaders] optional extra HTTP headers sent with every request (e.g. for reverse-proxy auth).
+ * When encrypted storage is available, header values are kept in [ApiKeyStore] rather than DataStore JSON.
  */
 data class JottyInstance(
     val id: String,

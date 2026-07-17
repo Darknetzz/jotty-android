@@ -109,6 +109,7 @@ internal fun NoteDetailScreen(
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
     apiKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
@@ -883,6 +884,7 @@ internal fun NoteDetailScreen(
                                     onEditorBridge = { wysiwygBridge = it },
                                     jottyServerUrl = jottyServerUrl,
                                     apiKey = apiKey,
+                                    customHeaders = customHeaders,
                                     serverCapabilitiesKey = serverCapabilitiesKey,
                                     modifier = Modifier.fillMaxSize(),
                                 )

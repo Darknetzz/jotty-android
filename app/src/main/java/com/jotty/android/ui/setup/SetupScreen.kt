@@ -41,6 +41,7 @@ import com.jotty.android.ui.common.ServerUrlInputField
 import com.jotty.android.ui.common.accentColor
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.CustomHttpHeaders
 import com.jotty.android.util.browserUrlFromServerUrl
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -308,6 +309,7 @@ private fun InstanceForm(
         )
     }
     var apiKeyVisible by remember { mutableStateOf(false) }
+    var headerValuesVisible by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -317,6 +319,7 @@ private fun InstanceForm(
     val fillUrlAndKeyMsg = stringResource(R.string.fill_url_and_key)
     val openBrowserFailedMsg = stringResource(R.string.open_jotty_browser_failed)
     val connectionFailedFmt = stringResource(R.string.connection_failed)
+    val invalidHeaderFmt = stringResource(R.string.custom_header_invalid)
     var showAdvancedFields by remember(initialInstance) { mutableStateOf(initialInstance != null) }
 
     val instanceColors: List<Long?> =
@@ -466,11 +469,31 @@ private fun InstanceForm(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = stringResource(R.string.custom_headers_label),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.custom_headers_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (customHeaders.isNotEmpty()) {
+                    TextButton(
+                        onClick = { headerValuesVisible = !headerValuesVisible },
+                        contentPadding = PaddingValues(horizontal = 0.dp),
+                    ) {
+                        Text(
+                            if (headerValuesVisible) {
+                                stringResource(R.string.hide)
+                            } else {
+                                stringResource(R.string.show)
+                            },
+                        )
+                    }
+                }
+            }
             Text(
                 text = stringResource(R.string.custom_headers_hint),
                 style = MaterialTheme.typography.bodySmall,
@@ -500,6 +523,12 @@ private fun InstanceForm(
                         },
                         label = { Text(stringResource(R.string.custom_header_value)) },
                         singleLine = true,
+                        visualTransformation =
+                            if (headerValuesVisible) {
+                                VisualTransformation.None
+                            } else {
+                                PasswordVisualTransformation()
+                            },
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(
@@ -565,7 +594,13 @@ private fun InstanceForm(
                                 return@launch
                             }
 
-                            val api = ApiClient.create(url, key, customHeaders.filter { it.first.isNotBlank() }.toMap())
+                            val headers = CustomHttpHeaders.normalize(customHeaders)
+                            CustomHttpHeaders.firstInvalid(headers)?.let { (badName, _) ->
+                                error = String.format(invalidHeaderFmt, badName)
+                                return@launch
+                            }
+
+                            val api = ApiClient.create(url, key, headers)
                             api.health()
                             // health() is unauthenticated; verify the API key with an
                             // authenticated endpoint so a wrong key fails here instead of later.
@@ -578,7 +613,7 @@ private fun InstanceForm(
                                     serverUrl = url,
                                     apiKey = key,
                                     colorHex = colorHex,
-                                    customHeaders = customHeaders.filter { it.first.isNotBlank() }.toMap(),
+                                    customHeaders = headers,
                                 )
                             settingsRepository.addInstance(instance, setAsCurrent = setAsCurrentOnConnect)
                             if (isEdit) {

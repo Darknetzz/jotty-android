@@ -54,6 +54,15 @@ class SettingsRepositoryMigrationTest {
 
                     override suspend fun removeApiKey(instanceId: String) {}
 
+                    override fun getCustomHeaders(instanceId: String): Map<String, String>? = null
+
+                    override suspend fun setCustomHeaders(
+                        instanceId: String,
+                        headers: Map<String, String>,
+                    ) {}
+
+                    override suspend fun removeCustomHeaders(instanceId: String) {}
+
                     override suspend fun clearAll() {}
                 }
             val repo = SettingsRepository(context, fake)
@@ -97,6 +106,7 @@ class SettingsRepositoryMigrationTest {
         override val isEncrypted: Boolean,
     ) : ApiKeyStorage {
         private val keys = mutableMapOf<String, String>()
+        private val headers = mutableMapOf<String, Map<String, String>>()
         val setApiKeyCalls = mutableListOf<Pair<String, String>>()
 
         override fun getApiKey(instanceId: String): String? = keys[instanceId]?.takeIf { it.isNotBlank() }
@@ -114,8 +124,26 @@ class SettingsRepositoryMigrationTest {
             keys.remove(instanceId)
         }
 
+        override fun getCustomHeaders(instanceId: String): Map<String, String>? = headers[instanceId]
+
+        override suspend fun setCustomHeaders(
+            instanceId: String,
+            headers: Map<String, String>,
+        ) {
+            if (headers.isEmpty()) {
+                this.headers.remove(instanceId)
+            } else {
+                this.headers[instanceId] = headers
+            }
+        }
+
+        override suspend fun removeCustomHeaders(instanceId: String) {
+            headers.remove(instanceId)
+        }
+
         override suspend fun clearAll() {
             keys.clear()
+            headers.clear()
         }
     }
 }

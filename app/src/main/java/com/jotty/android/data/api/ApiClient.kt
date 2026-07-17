@@ -1,6 +1,7 @@
 package com.jotty.android.data.api
 
 import com.jotty.android.BuildConfig
+import com.jotty.android.util.CustomHttpHeaders
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -16,15 +17,15 @@ object ApiClient {
         customHeaders: Map<String, String> = emptyMap(),
     ): JottyApi {
         val normalizedBase = normalizeBaseUrl(baseUrl)
+        val headers = CustomHttpHeaders.normalize(customHeaders)
 
         val client =
             OkHttpClient.Builder()
                 .addInterceptor { chain ->
-                    val builder = chain.request().newBuilder()
-                        .addHeader(HEADER_API_KEY, apiKey)
-                    customHeaders.forEach { (name, value) ->
-                        if (name.isNotBlank()) builder.addHeader(name.trim(), value)
-                    }
+                    val builder =
+                        chain.request().newBuilder()
+                            .addHeader(HEADER_API_KEY, apiKey)
+                    CustomHttpHeaders.applyTo(builder, headers)
                     chain.proceed(builder.build())
                 }
                 .apply {
@@ -33,6 +34,7 @@ object ApiClient {
                             HttpLoggingInterceptor().apply {
                                 level = HttpLoggingInterceptor.Level.HEADERS
                                 redactHeader(HEADER_API_KEY)
+                                CustomHttpHeaders.redactIn(this, headers)
                             },
                         )
                     }

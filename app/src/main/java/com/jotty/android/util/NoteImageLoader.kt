@@ -25,23 +25,27 @@ private val loaderCache: MutableMap<String, ImageLoader> =
 /**
  * Builds a Coil [ImageLoader] for use in note Markdown (e.g. `![alt](url)`).
  * When [baseUrl] and [apiKey] are set, requests to the Jotty instance origin (or Jotty media paths)
- * get the `x-api-key` header so server-hosted images can load when the server accepts API keys.
- * Loaders are cached per (baseUrl, apiKey) using application context so caches survive config changes.
+ * get the `x-api-key` header (and optional [customHeaders]) so server-hosted images can load
+ * when the server or reverse proxy requires them.
+ * Loaders are cached per (baseUrl, apiKey, customHeaders, capabilitiesKey) using application context.
  */
 fun createNoteImageLoader(
     context: Context,
     baseUrl: String?,
     apiKey: String?,
     capabilitiesKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
 ): ImageLoader {
     if (baseUrl.isNullOrBlank() || apiKey.isNullOrBlank()) {
         return ImageLoader.Builder(context.applicationContext).build()
     }
     val normalizedBase = ApiClient.normalizeBaseUrl(baseUrl)
-    val key = "$normalizedBase|$apiKey|${capabilitiesKey.orEmpty()}"
+    val headers = CustomHttpHeaders.normalize(customHeaders)
+    val headersKey = headers.entries.joinToString("|") { "${it.key}=${it.value}" }
+    val key = "$normalizedBase|$apiKey|${capabilitiesKey.orEmpty()}|$headersKey"
     loaderCache[key]?.let { return it }
     val client =
-        createNoteImageAuthClient(baseUrl, apiKey, capabilitiesKey)
+        createNoteImageAuthClient(baseUrl, apiKey, capabilitiesKey, headers)
             ?: return ImageLoader.Builder(context.applicationContext).build()
     val appCtx = context.applicationContext
     val loader =
@@ -66,14 +70,16 @@ fun createNoteImageLoader(
     return loader
 }
 
-/** OkHttp client that attaches [x-api-key] for Jotty-hosted note images. */
+/** OkHttp client that attaches [x-api-key] and optional [customHeaders] for Jotty-hosted note images. */
 fun createNoteImageAuthClient(
     baseUrl: String?,
     apiKey: String?,
     capabilitiesKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
 ): OkHttpClient? {
     if (baseUrl.isNullOrBlank() || apiKey.isNullOrBlank()) return null
     val normalizedBase = ApiClient.normalizeBaseUrl(baseUrl)
+    val headers = CustomHttpHeaders.normalize(customHeaders)
     val instanceKey = capabilitiesKey
     val jottyOrigin =
         try {
@@ -87,7 +93,9 @@ fun createNoteImageAuthClient(
             val requestUrl = request.url
             val newRequest =
                 if (shouldAttachApiKey(requestUrl, jottyOrigin)) {
-                    request.newBuilder().addHeader(HEADER_API_KEY, apiKey).build()
+                    val builder = request.newBuilder().addHeader(HEADER_API_KEY, apiKey)
+                    CustomHttpHeaders.applyTo(builder, headers)
+                    builder.build()
                 } else {
                     request
                 }

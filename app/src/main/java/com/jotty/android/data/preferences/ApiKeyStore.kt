@@ -6,11 +6,14 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.jotty.android.util.AppLog
+import com.jotty.android.util.CustomHttpHeaders
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Backing store for instance API keys; default implementation is [ApiKeyStore]. */
+/** Backing store for instance API keys and custom HTTP headers; default implementation is [ApiKeyStore]. */
 interface ApiKeyStorage {
     val isEncrypted: Boolean
 
@@ -22,6 +25,20 @@ interface ApiKeyStorage {
     )
 
     suspend fun removeApiKey(instanceId: String)
+
+    /** Returns encrypted custom headers for [instanceId], or `null` if absent / encryption unavailable. */
+    fun getCustomHeaders(instanceId: String): Map<String, String>?
+
+    /**
+     * Persists [headers] as JSON. Empty [headers] removes any stored value.
+     * No-op when encryption is unavailable.
+     */
+    suspend fun setCustomHeaders(
+        instanceId: String,
+        headers: Map<String, String>,
+    )
+
+    suspend fun removeCustomHeaders(instanceId: String)
 
     suspend fun clearAll()
 }
@@ -91,7 +108,37 @@ class ApiKeyStore(private val context: Context) : ApiKeyStorage {
         }
     }
 
-    /** Removes all stored API keys. Call from [SettingsRepository.clearAll]. */
+    override fun getCustomHeaders(instanceId: String): Map<String, String>? {
+        val json = encryptedPrefs?.getString(headersPrefKey(instanceId), null)?.takeIf { it.isNotBlank() } ?: return null
+        return runCatching {
+            gson.fromJson<Map<String, String>>(json, headersType)?.let { CustomHttpHeaders.normalize(it) }
+        }.getOrNull()
+    }
+
+    override suspend fun setCustomHeaders(
+        instanceId: String,
+        headers: Map<String, String>,
+    ) {
+        val normalized = CustomHttpHeaders.normalize(headers)
+        withContext(Dispatchers.IO) {
+            val prefs = encryptedPrefs ?: return@withContext
+            val editor = prefs.edit()
+            if (normalized.isEmpty()) {
+                editor.remove(headersPrefKey(instanceId))
+            } else {
+                editor.putString(headersPrefKey(instanceId), gson.toJson(normalized))
+            }
+            editor.commit()
+        }
+    }
+
+    override suspend fun removeCustomHeaders(instanceId: String) {
+        withContext(Dispatchers.IO) {
+            encryptedPrefs?.edit()?.remove(headersPrefKey(instanceId))?.commit()
+        }
+    }
+
+    /** Removes all stored API keys and custom headers. Call from [SettingsRepository.clearAll]. */
     override suspend fun clearAll() {
         withContext(Dispatchers.IO) {
             encryptedPrefs?.edit()?.clear()?.commit()
@@ -100,9 +147,14 @@ class ApiKeyStore(private val context: Context) : ApiKeyStorage {
 
     private fun prefKey(instanceId: String) = "${PREF_KEY_PREFIX}$instanceId"
 
+    private fun headersPrefKey(instanceId: String) = "${HEADERS_PREF_KEY_PREFIX}$instanceId"
+
     companion object {
         private const val PREFS_NAME = "jotty_api_keys"
         private const val PREF_KEY_PREFIX = "api_key_"
+        private const val HEADERS_PREF_KEY_PREFIX = "custom_headers_"
         private const val TAG = "ApiKeyStore"
+        private val gson = Gson()
+        private val headersType = object : TypeToken<Map<String, String>>() {}.type
     }
 }

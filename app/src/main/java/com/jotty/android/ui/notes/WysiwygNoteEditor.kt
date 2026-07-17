@@ -78,6 +78,7 @@ internal fun WysiwygNoteEditor(
     onEditorBridge: (WysiwygEditorBridge?) -> Unit = {},
     jottyServerUrl: String? = null,
     apiKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
     serverCapabilitiesKey: String? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -166,6 +167,7 @@ internal fun WysiwygNoteEditor(
             },
             jottyServerUrl = jottyServerUrl,
             apiKey = apiKey,
+            customHeaders = customHeaders,
             serverCapabilitiesKey = serverCapabilitiesKey,
             modifier =
                 Modifier
@@ -426,6 +428,7 @@ private fun WysiwygWebEditor(
     onBridgeReady: (WysiwygEditorBridge) -> Unit,
     jottyServerUrl: String? = null,
     apiKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
     serverCapabilitiesKey: String? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -485,6 +488,7 @@ private fun WysiwygWebEditor(
                             WysiwygAuthWebViewClient(
                                 baseUrl = jottyServerUrl,
                                 apiKey = apiKey,
+                                customHeaders = customHeaders,
                                 capabilitiesKey = serverCapabilitiesKey,
                                 onPageFinished = pageFinished,
                             )

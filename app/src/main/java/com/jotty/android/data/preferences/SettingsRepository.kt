@@ -26,16 +26,20 @@ class SettingsRepository(
     // API keys are stored in hardware-backed EncryptedSharedPreferences when available.
     // The instances JSON in DataStore stores apiKey as "" after migration to encrypted storage.
 
-    /** Enrich a parsed instance with its API key from [ApiKeyStore]. */
-    private fun JottyInstance.withStoredApiKey(): JottyInstance {
-        val stored = apiKeyStore.getApiKey(id)
-        // Prefer the encrypted store; fall back to JSON value (pre-migration data).
-        return if (stored != null) copy(apiKey = stored) else this
+    /** Enrich a parsed instance with API key / custom headers from [ApiKeyStore]. */
+    private fun JottyInstance.withStoredSecrets(): JottyInstance {
+        val storedKey = apiKeyStore.getApiKey(id)
+        val storedHeaders = apiKeyStore.getCustomHeaders(id)
+        // Prefer the encrypted store; fall back to JSON values (pre-migration / unencrypted mode).
+        var result = this
+        if (storedKey != null) result = result.copy(apiKey = storedKey)
+        if (storedHeaders != null) result = result.copy(customHeaders = storedHeaders)
+        return result
     }
 
     val instances: Flow<List<JottyInstance>> =
         context.jottySettingsDataStore.data.map { prefs ->
-            parseInstances(prefs[KEY_INSTANCES]).orEmpty().map { it.withStoredApiKey() }
+            parseInstances(prefs[KEY_INSTANCES]).orEmpty().map { it.withStoredSecrets() }
         }.catch { emit(emptyList()) }
 
     val currentInstanceId: Flow<String?> =
@@ -53,7 +57,7 @@ class SettingsRepository(
         context.jottySettingsDataStore.data.map { prefs ->
             val list = parseInstances(prefs[KEY_INSTANCES]) ?: emptyList()
             val id = prefs[KEY_CURRENT_INSTANCE_ID]?.takeIf { it.isNotBlank() }
-            list.find { it.id == id }?.withStoredApiKey()
+            list.find { it.id == id }?.withStoredSecrets()
         }.catch { emit(null) }
 
     val serverUrl: Flow<String?> = currentInstance.map { it?.serverUrl }
@@ -264,9 +268,9 @@ class SettingsRepository(
      * Adds or updates an instance. When [setAsCurrent] is true, also sets it as the current instance.
      *
      * When [ApiKeyStore.isEncrypted] is true (typical):
-     *  - API key is written to [ApiKeyStore] (commit, durable) BEFORE the DataStore edit.
-     *    A crash after the encrypted write leaves a harmless orphan key, never a missing key.
-     *  - DataStore JSON stores `apiKey=""` so the key is never on disk in plain text.
+     *  - API key and custom headers are written to [ApiKeyStore] (commit, durable) BEFORE the DataStore edit.
+     *    A crash after the encrypted write leaves a harmless orphan, never a missing secret.
+     *  - DataStore JSON stores `apiKey=""` and empty `customHeaders` so secrets are never on disk in plain text.
      *
      * When encryption is unavailable: instance is stored as-is in DataStore (plain text).
      */
@@ -277,9 +281,15 @@ class SettingsRepository(
         val encrypted = apiKeyStore.isEncrypted
         if (encrypted) {
             apiKeyStore.setApiKey(instance.id, instance.apiKey) // commit + Dispatchers.IO inside
+            apiKeyStore.setCustomHeaders(instance.id, instance.customHeaders)
         }
         context.jottySettingsDataStore.edit { prefs ->
-            val toStore = if (encrypted) instance.copy(apiKey = "") else instance
+            val toStore =
+                if (encrypted) {
+                    instance.copy(apiKey = "", customHeaders = emptyMap())
+                } else {
+                    instance
+                }
             val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty().toMutableList()
             if (list.none { it.id == toStore.id }) {
                 list.add(toStore)
@@ -292,8 +302,8 @@ class SettingsRepository(
     }
 
     suspend fun removeInstance(id: String) {
-        // Remove instance from DataStore first, then clean up the key.
-        // A crash between the two leaves an orphan key — harmless, never an instance with no key.
+        // Remove instance from DataStore first, then clean up secrets.
+        // A crash between the two leaves an orphan secret — harmless, never an instance with no key.
         context.jottySettingsDataStore.edit { prefs ->
             val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty().filter { it.id != id }
             prefs[KEY_INSTANCES] = gson.toJson(list)
@@ -311,6 +321,7 @@ class SettingsRepository(
             if (prefs[KEY_DEFAULT_INSTANCE_ID] == id) prefs.remove(KEY_DEFAULT_INSTANCE_ID)
         }
         apiKeyStore.removeApiKey(id)
+        apiKeyStore.removeCustomHeaders(id)
     }
 
     suspend fun setCurrentInstanceId(id: String?) {
@@ -613,6 +624,33 @@ class SettingsRepository(
         context.jottySettingsDataStore.edit { p ->
             val current = parseInstances(p[KEY_INSTANCES]).orEmpty()
             val migrated = current.map { if (it.apiKey.isNotBlank()) it.copy(apiKey = "") else it }
+            p[KEY_INSTANCES] = gson.toJson(migrated)
+        }
+    }
+
+    /**
+     * One-time migration: move custom HTTP headers stored in the instances JSON
+     * to [ApiKeyStore], then clear them from DataStore.
+     *
+     * Safe to call on every launch. No-op when encryption is unavailable or nothing to migrate.
+     */
+    suspend fun migrateCustomHeadersToEncryptedStoreIfNeeded() {
+        if (!apiKeyStore.isEncrypted) return
+        val prefs = context.jottySettingsDataStore.data.first()
+        val list = parseInstances(prefs[KEY_INSTANCES]).orEmpty()
+        val plainTextHeaders = list.filter { it.customHeaders.isNotEmpty() }
+        if (plainTextHeaders.isEmpty()) return
+        plainTextHeaders.forEach { instance ->
+            if (apiKeyStore.getCustomHeaders(instance.id) == null) {
+                apiKeyStore.setCustomHeaders(instance.id, instance.customHeaders)
+            }
+        }
+        context.jottySettingsDataStore.edit { p ->
+            val current = parseInstances(p[KEY_INSTANCES]).orEmpty()
+            val migrated =
+                current.map {
+                    if (it.customHeaders.isNotEmpty()) it.copy(customHeaders = emptyMap()) else it
+                }
             p[KEY_INSTANCES] = gson.toJson(migrated)
         }
     }

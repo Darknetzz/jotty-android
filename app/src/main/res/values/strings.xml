@@ -282,11 +282,12 @@
     <string name="remove_instance">Remove instance</string>
     <string name="no_color">—</string>
     <string name="custom_headers_label">Custom HTTP headers</string>
-    <string name="custom_headers_hint">Extra headers sent with every request (e.g. for reverse-proxy authentication). Blank header names are ignored.</string>
+    <string name="custom_headers_hint">Extra headers sent with every API and same-host image request (e.g. reverse-proxy auth). Header values are stored encrypted when possible. Blank names are ignored.</string>
     <string name="custom_header_name">Header name</string>
     <string name="custom_header_value">Value</string>
     <string name="custom_header_add">Add header</string>
     <string name="custom_header_remove">Remove header</string>
+    <string name="custom_header_invalid">Invalid HTTP header name: \"%1$s\". Use letters, digits, and standard header punctuation only.</string>
     <string name="untitled">Untitled</string>
 
     <!-- Settings -->

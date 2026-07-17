@@ -130,14 +130,20 @@ fun MainScreen(
         }
 
     val imageLoader =
-        remember(context, serverUrl, apiKey, currentInstance?.id) {
+        remember(context, serverUrl, apiKey, currentInstance?.id, currentInstance?.customHeaders) {
             val url = serverUrl
             val key = apiKey
-            createNoteImageLoader(context, url, key, currentInstance?.id)
+            createNoteImageLoader(
+                context,
+                url,
+                key,
+                currentInstance?.id,
+                currentInstance?.customHeaders.orEmpty(),
+            )
         }
 
     val api =
-        remember(serverUrl, apiKey, currentInstance) {
+        remember(serverUrl, apiKey, currentInstance?.customHeaders) {
             val url = serverUrl
             val key = apiKey
             if (!url.isNullOrBlank() && !key.isNullOrBlank()) {
@@ -286,8 +292,8 @@ fun MainScreen(
                     composable(MainRoute.Checklists.route) {
                         val instanceId = currentInstance?.id
                         val authFingerprint =
-                            remember(serverUrl, apiKey) {
-                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
+                            remember(serverUrl, apiKey, currentInstance?.customHeaders) {
+                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}|${currentInstance?.customHeaders.orEmpty()}"
                             }
                         val checklistsApi = currentApi
                         if (instanceId != null && checklistsApi != null) {
@@ -306,8 +312,8 @@ fun MainScreen(
                     composable(MainRoute.Notes.route) {
                         val instanceId = currentInstance?.id
                         val authFingerprint =
-                            remember(serverUrl, apiKey) {
-                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
+                            remember(serverUrl, apiKey, currentInstance?.customHeaders) {
+                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}|${currentInstance?.customHeaders.orEmpty()}"
                             }
                         val notesApi = currentApi
                         if (instanceId != null && notesApi != null) {
@@ -324,6 +330,7 @@ fun MainScreen(
                                 imageLoader = imageLoader,
                                 jottyServerUrl = serverUrl,
                                 apiKey = apiKey,
+                                customHeaders = currentInstance?.customHeaders.orEmpty(),
                                 tabReselectToken = notesTabReselectToken,
                             )
                         } else {

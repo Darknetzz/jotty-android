@@ -13,17 +13,19 @@ object ApiClient {
     fun create(
         baseUrl: String,
         apiKey: String,
+        customHeaders: Map<String, String> = emptyMap(),
     ): JottyApi {
         val normalizedBase = normalizeBaseUrl(baseUrl)
 
         val client =
             OkHttpClient.Builder()
                 .addInterceptor { chain ->
-                    chain.proceed(
-                        chain.request().newBuilder()
-                            .addHeader(HEADER_API_KEY, apiKey)
-                            .build(),
-                    )
+                    val builder = chain.request().newBuilder()
+                        .addHeader(HEADER_API_KEY, apiKey)
+                    customHeaders.forEach { (name, value) ->
+                        if (name.isNotBlank()) builder.addHeader(name.trim(), value)
+                    }
+                    chain.proceed(builder.build())
                 }
                 .apply {
                     if (BuildConfig.DEBUG) {

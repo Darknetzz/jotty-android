@@ -298,6 +298,15 @@ private fun InstanceForm(
     var serverUrl by remember(initialInstance) { mutableStateOf(initialInstance?.serverUrl ?: "") }
     var apiKey by remember(initialInstance) { mutableStateOf(initialInstance?.apiKey ?: "") }
     var colorHex by remember(initialInstance) { mutableStateOf(initialInstance?.colorHex) }
+    // Custom headers: immutable list of (name, value) pairs; reassigned on every edit
+    var customHeaders by remember(initialInstance) {
+        mutableStateOf<List<Pair<String, String>>>(
+            initialInstance?.customHeaders
+                ?.entries
+                ?.map { it.key to it.value }
+                ?: emptyList()
+        )
+    }
     var apiKeyVisible by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
@@ -456,6 +465,69 @@ private fun InstanceForm(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = stringResource(R.string.custom_headers_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = stringResource(R.string.custom_headers_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),
+            )
+            for (index in customHeaders.indices) {
+                val (headerName, headerValue) = customHeaders[index]
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = headerName,
+                        onValueChange = { newName ->
+                            customHeaders = customHeaders.toMutableList().also { it[index] = newName to headerValue }
+                        },
+                        label = { Text(stringResource(R.string.custom_header_name)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = headerValue,
+                        onValueChange = { newValue ->
+                            customHeaders = customHeaders.toMutableList().also { it[index] = headerName to newValue }
+                        },
+                        label = { Text(stringResource(R.string.custom_header_value)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(
+                        onClick = {
+                            customHeaders = customHeaders.toMutableList().also { it.removeAt(index) }
+                        },
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.custom_header_remove),
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+            TextButton(
+                onClick = { customHeaders = customHeaders + ("" to "") },
+                contentPadding = PaddingValues(horizontal = 0.dp),
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(R.string.custom_header_add))
+            }
         }
 
         error?.let { msg ->
@@ -493,7 +565,7 @@ private fun InstanceForm(
                                 return@launch
                             }
 
-                            val api = ApiClient.create(url, key)
+                            val api = ApiClient.create(url, key, customHeaders.filter { it.first.isNotBlank() }.toMap())
                             api.health()
                             // health() is unauthenticated; verify the API key with an
                             // authenticated endpoint so a wrong key fails here instead of later.
@@ -506,6 +578,7 @@ private fun InstanceForm(
                                     serverUrl = url,
                                     apiKey = key,
                                     colorHex = colorHex,
+                                    customHeaders = customHeaders.filter { it.first.isNotBlank() }.toMap(),
                                 )
                             settingsRepository.addInstance(instance, setAsCurrent = setAsCurrentOnConnect)
                             if (isEdit) {

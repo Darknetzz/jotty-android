@@ -65,6 +65,12 @@ data class ChecklistEntity(
     val instanceId: String,
     @ColumnInfo(defaultValue = "0")
     val isLocalOnly: Boolean = false,
+    /** Server-shaped JSON ([ChecklistSyncPayload]) captured when the checklist first became dirty. */
+    @ColumnInfo(defaultValue = "NULL")
+    val syncBaselineJson: String? = null,
+    /** Epoch ms when local edits first made this row dirty (null when clean). */
+    @ColumnInfo(defaultValue = "NULL")
+    val dirtySinceEpochMs: Long? = null,
 )
 
 // ─── Type tokens ────────────────────────────────────────────────────────────
@@ -96,6 +102,8 @@ fun ChecklistEntity.toChecklist(): Checklist =
 fun Checklist.toEntity(
     instanceId: String,
     isDirty: Boolean = false,
+    syncBaselineJson: String? = null,
+    dirtySinceEpochMs: Long? = null,
 ): ChecklistEntity =
     ChecklistEntity(
         id = id,
@@ -110,6 +118,8 @@ fun Checklist.toEntity(
         isDeleted = false,
         instanceId = instanceId,
         isLocalOnly = false,
+        syncBaselineJson = syncBaselineJson,
+        dirtySinceEpochMs = dirtySinceEpochMs,
     )
 
 // ─── Local item tree mutation ────────────────────────────────────────────────

@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Pending sync manager** — From Sync details (**Manage pending**) or Settings → Behavior, review dirty notes and checklists (including pending deletes), compare local vs server/baseline, overwrite either way, and restore from automatic on-device sync backups (shareable).
 - **Clone notes and checklists** — List and detail ⋮ menus include **Clone** with a category picker (matching Jotty web). Creates a copy titled “(Copy)” via the REST API; encrypted note bodies are copied as stored.
 - **Custom HTTP headers per instance** — Add/remove request headers (e.g. reverse-proxy auth) under **Optional details** when adding or editing an instance. Headers are stored encrypted with the instance (when Keystore is available), sent on API requests and same-host note images (including WYSIWYG), and redacted from debug HTTP logs. Thanks [@GitGitro](https://github.com/GitGitro) ([#81](https://github.com/Darknetzz/jotty-android/pull/81)).
 

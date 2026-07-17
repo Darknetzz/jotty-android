@@ -40,6 +40,7 @@ class OfflineNotesRepository(
 ) {
     private val appContext = context.applicationContext
     private val noteDao = database.noteDao()
+    private val syncBackups = SyncBackupRepository(database, instanceId)
     /** Local UUID → server id after [syncNote] pushes a local-only note. */
     private val localToServerIdRemap = ConcurrentHashMap<String, String>()
     private val syncMutex = Mutex()
@@ -99,6 +100,184 @@ class OfflineNotesRepository(
             .map { it.toSet() }
             .flowOn(Dispatchers.IO)
 
+    /** Dirty and soft-deleted notes awaiting sync (includes pending deletes). */
+    fun getPendingSyncItemsFlow(): Flow<List<PendingSyncItem>> =
+        noteDao.getDirtyNoteIdsFlow(instanceId)
+            .map {
+                noteDao.getDirtyNotes(instanceId).map { SyncPayloadCodec.noteEntityToPendingItem(it) }
+            }
+            .flowOn(Dispatchers.IO)
+
+    suspend fun getPendingSyncItems(): List<PendingSyncItem> =
+        withContext(Dispatchers.IO) {
+            noteDao.getDirtyNotes(instanceId).map { SyncPayloadCodec.noteEntityToPendingItem(it) }
+        }
+
+    suspend fun getPendingSyncItem(noteId: String): PendingSyncItem? =
+        withContext(Dispatchers.IO) {
+            noteDao.getNoteByIdIncludingDeleted(resolveNoteId(noteId))
+                ?.takeIf { it.isDirty || it.isDeleted }
+                ?.let { SyncPayloadCodec.noteEntityToPendingItem(it) }
+        }
+
+    suspend fun listSyncBackups(noteId: String): List<SyncBackup> =
+        syncBackups.listForItem(SyncBackupKind.NOTE, resolveNoteId(noteId))
+
+    /**
+     * Local note payload for diffs (current Room row, including soft-deleted).
+     */
+    suspend fun getLocalSyncPayload(noteId: String): NoteSyncPayload? =
+        withContext(Dispatchers.IO) {
+            noteDao.getNoteByIdIncludingDeleted(resolveNoteId(noteId))?.toSyncPayload()
+        }
+
+    /**
+     * Server (or baseline) payload for diffs. Prefers live fetch when online; falls back to stored baseline.
+     */
+    suspend fun getServerSyncPayload(noteId: String): NoteSyncPayload? =
+        withContext(Dispatchers.IO) {
+            val resolved = resolveNoteId(noteId)
+            val local = noteDao.getNoteByIdIncludingDeleted(resolved)
+            if (local?.isLocalOnly == true) return@withContext null
+            if (isOnline.value) {
+                runCatching {
+                    api.getNotes().notes.find { it.id == resolved }?.let { note ->
+                        NoteSyncPayload(
+                            id = note.id,
+                            title = note.title,
+                            category = note.category,
+                            content = note.content,
+                            createdAt = note.createdAt,
+                            updatedAt = note.updatedAt,
+                            encrypted = note.encrypted,
+                        )
+                    }
+                }.getOrNull()?.let { return@withContext it }
+            }
+            local?.syncBaselineJson?.let { SyncPayloadCodec.decodeNote(it) }
+        }
+
+    /**
+     * Abandons unsynced local changes. Local-only notes are deleted. Server-backed notes are
+     * replaced with the current server version (requires connectivity). Creates a local backup first.
+     */
+    suspend fun discardPendingSync(noteId: String): Result<Note?> =
+        pullFromServer(noteId)
+
+    /**
+     * Overwrite server with the local copy. Backs up the server/baseline payload first when available.
+     */
+    suspend fun forcePushLocal(noteId: String): Result<Note?> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val resolved = resolveNoteId(noteId)
+                val entity =
+                    noteDao.getNoteByIdIncludingDeleted(resolved)
+                        ?: throw Exception(appContext.getString(R.string.error_not_found))
+                if (!entity.isDirty && !entity.isDeleted) {
+                    return@runCatching entity.toNote()
+                }
+                val serverPayload = getServerSyncPayload(resolved)
+                if (serverPayload != null) {
+                    syncBackups.save(
+                        kind = SyncBackupKind.NOTE,
+                        itemId = resolved,
+                        direction = SyncBackupDirection.BEFORE_PUSH_LOCAL,
+                        title = serverPayload.title,
+                        payloadJson = SyncPayloadCodec.encodeNote(serverPayload),
+                    )
+                }
+                if (entity.isDeleted) {
+                    if (!isOnline.value) {
+                        throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
+                    }
+                    syncDeletedNote(resolved)
+                    return@runCatching null
+                }
+                if (!isOnline.value) {
+                    throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
+                }
+                val synced =
+                    syncNote(entity)
+                        ?: throw Exception(appContext.getString(R.string.sync_force_push_failed))
+                synced.toNote()
+            }
+        }
+
+    /**
+     * Overwrite local with the server copy. Backs up the local payload first.
+     */
+    suspend fun pullFromServer(noteId: String): Result<Note?> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val resolved = resolveNoteId(noteId)
+                val entity =
+                    noteDao.getNoteByIdIncludingDeleted(resolved)
+                        ?: throw Exception(appContext.getString(R.string.error_not_found))
+                if (!entity.isDirty && !entity.isDeleted) {
+                    return@runCatching entity.toNote()
+                }
+                syncBackups.save(
+                    kind = SyncBackupKind.NOTE,
+                    itemId = resolved,
+                    direction = SyncBackupDirection.BEFORE_PULL_SERVER,
+                    title = entity.title,
+                    payloadJson = SyncPayloadCodec.encodeNote(entity),
+                )
+                if (entity.isLocalOnly) {
+                    noteDao.deleteNote(resolved)
+                    AppLog.d(TAG, "Local-only note discarded: $resolved")
+                    return@runCatching null
+                }
+                if (!isOnline.value) {
+                    throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
+                }
+                val fresh =
+                    api.getNotes().notes.find { it.id == resolved }
+                        ?: throw Exception(appContext.getString(R.string.error_not_found))
+                noteDao.insertNote(fresh.normalizedForClient().toEntity(instanceId))
+                AppLog.d(TAG, "Pending sync discarded — restored note from server: $resolved")
+                fresh.normalizedForClient()
+            }
+        }
+
+    /**
+     * Restores a sync backup into local Room as a dirty note (user can then push).
+     */
+    suspend fun restoreSyncBackup(backupId: Long): Result<Note> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val backup =
+                    syncBackups.getById(backupId)
+                        ?: throw Exception(appContext.getString(R.string.error_not_found))
+                if (backup.kind != SyncBackupKind.NOTE) {
+                    throw IllegalArgumentException("Backup is not a note")
+                }
+                val payload =
+                    SyncPayloadCodec.decodeNote(backup.payloadJson)
+                        ?: throw Exception(appContext.getString(R.string.sync_backup_invalid))
+                val now = java.time.Instant.now().toString()
+                val entity =
+                    NoteEntity(
+                        id = payload.id,
+                        title = payload.title,
+                        category = payload.category,
+                        content = payload.content,
+                        createdAt = payload.createdAt,
+                        updatedAt = now,
+                        encrypted = payload.encrypted,
+                        isDirty = true,
+                        isDeleted = false,
+                        instanceId = instanceId,
+                        isLocalOnly = false,
+                        syncBaselineJson = SyncPayloadCodec.encodeNote(payload),
+                        dirtySinceEpochMs = System.currentTimeMillis(),
+                    )
+                noteDao.insertNote(entity)
+                entity.toNote()
+            }
+        }
+
     /**
      * Get all notes (one-time fetch).
      */
@@ -144,6 +323,7 @@ class OfflineNotesRepository(
                         isDeleted = false,
                         instanceId = instanceId,
                         isLocalOnly = true,
+                        dirtySinceEpochMs = System.currentTimeMillis(),
                     )
 
                 // Save locally
@@ -193,21 +373,23 @@ class OfflineNotesRepository(
                     )
                 }
                 val updated =
-                    existing.copy(
-                        title = title,
-                        content = content,
-                        category = category,
-                        encrypted = isEncryptedContent || existing.encrypted == true,
-                        // Remember the pre-change category once, so a later sync can tell the
-                        // server which folder to move the note out of.
-                        originalCategory =
-                            if (existing.category != category) {
-                                existing.originalCategory ?: existing.category
-                            } else {
-                                existing.originalCategory
-                            },
-                        updatedAt = java.time.Instant.now().toString(),
-                        isDirty = true,
+                    existing.withFirstDirtyBaseline(
+                        existing.copy(
+                            title = title,
+                            content = content,
+                            category = category,
+                            encrypted = isEncryptedContent || existing.encrypted == true,
+                            // Remember the pre-change category once, so a later sync can tell the
+                            // server which folder to move the note out of.
+                            originalCategory =
+                                if (existing.category != category) {
+                                    existing.originalCategory ?: existing.category
+                                } else {
+                                    existing.originalCategory
+                                },
+                            updatedAt = java.time.Instant.now().toString(),
+                            isDirty = true,
+                        ),
                     )
 
                 noteDao.updateNote(updated)
@@ -244,6 +426,16 @@ class OfflineNotesRepository(
                 if (note != null && note.isLocalOnly) {
                     noteDao.deleteNote(resolvedId)
                     AppLog.d("OfflineNotesRepository", "Local-only note hard-deleted: $noteId")
+                } else if (note != null) {
+                    val marked =
+                        note.withFirstDirtyBaseline(
+                            note.copy(isDeleted = true, isDirty = true),
+                        )
+                    noteDao.updateNote(marked)
+                    AppLog.d("OfflineNotesRepository", "Note marked for deletion: $resolvedId")
+                    if (isOnline.value) {
+                        syncDeletedNote(resolvedId)
+                    }
                 } else {
                     noteDao.markAsDeleted(resolvedId)
                     AppLog.d("OfflineNotesRepository", "Note marked for deletion: $resolvedId")

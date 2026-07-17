@@ -92,6 +92,7 @@ fun OfflineEnabledChecklistsScreen(
     settingsRepository: SettingsRepository,
     swipeToDeleteEnabled: Boolean = false,
     tabReselectToken: Int = 0,
+    onOpenPendingSync: () -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -280,6 +281,8 @@ fun OfflineEnabledChecklistsScreen(
                     lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
                     lastSyncDurationText = lastSyncDurationText,
                     lastSyncError = lastSyncError,
+                    pendingSyncCount = dirtyChecklistIds.size,
+                    onManagePendingSync = onOpenPendingSync,
                     onRefresh = { requestSync(showLoading = false) },
                     onAdd = { vm.setShowCreateDialog(true) },
                 )

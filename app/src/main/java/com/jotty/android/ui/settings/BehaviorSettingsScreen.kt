@@ -1,5 +1,6 @@
 package com.jotty.android.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -15,7 +16,10 @@ import com.jotty.android.ui.common.mainScreenTabContentPadding
 import kotlinx.coroutines.launch
 
 @Composable
-fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
+fun BehaviorSettingsScreen(
+    settingsRepository: SettingsRepository,
+    onOpenPendingSync: () -> Unit = {},
+) {
     val scope = rememberCoroutineScope()
     val startTab by settingsRepository.startTab.collectAsStateWithLifecycle(initialValue = null)
     val swipeToDeleteEnabled by settingsRepository.swipeToDeleteEnabled.collectAsStateWithLifecycle(initialValue = false)
@@ -94,6 +98,19 @@ fun BehaviorSettingsScreen(settingsRepository: SettingsRepository) {
                     )
                 },
             )
+            if (offlineModeEnabled) {
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.pending_sync_settings_link)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.pending_sync_settings_link_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    modifier = Modifier.clickable(onClick = onOpenPendingSync),
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))

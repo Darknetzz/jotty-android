@@ -510,7 +510,10 @@ private fun InstanceForm(
                     OutlinedTextField(
                         value = headerName,
                         onValueChange = { newName ->
-                            customHeaders = customHeaders.toMutableList().also { it[index] = newName to headerValue }
+                            customHeaders =
+                                customHeaders.toMutableList().also { list ->
+                                    list[index] = newName to list[index].second
+                                }
                         },
                         label = { Text(stringResource(R.string.custom_header_name)) },
                         singleLine = true,
@@ -519,7 +522,10 @@ private fun InstanceForm(
                     OutlinedTextField(
                         value = headerValue,
                         onValueChange = { newValue ->
-                            customHeaders = customHeaders.toMutableList().also { it[index] = headerName to newValue }
+                            customHeaders =
+                                customHeaders.toMutableList().also { list ->
+                                    list[index] = list[index].first to newValue
+                                }
                         },
                         label = { Text(stringResource(R.string.custom_header_value)) },
                         singleLine = true,

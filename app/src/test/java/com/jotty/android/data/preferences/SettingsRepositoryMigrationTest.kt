@@ -101,6 +101,28 @@ class SettingsRepositoryMigrationTest {
             assertTrue(!instancesJson.contains("encrypted-path-secret"))
         }
 
+    @Test
+    fun instancesWithoutCustomHeadersField_doNotCrashOnReadOrHeaderMigration() =
+        runBlocking {
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            // Pre-#81 instance JSON: no customHeaders key (Gson would leave the map null).
+            context.jottySettingsDataStore.edit {
+                it[keyInstances] =
+                    """[{"id":"inst-1","name":"Home","serverUrl":"https://example.com","apiKey":"","colorHex":null}]"""
+                it[stringPreferencesKey("current_instance_id")] = "inst-1"
+            }
+            val fake = FakeInMemoryApiKeyStorage(isEncrypted = true)
+            val repo = SettingsRepository(context, fake)
+
+            val current = repo.currentInstance.first()
+            assertEquals("inst-1", current?.id)
+            assertTrue(current?.customHeaders?.isEmpty() == true)
+
+            repo.migrateCustomHeadersToEncryptedStoreIfNeeded()
+            assertTrue(fake.getCustomHeaders("inst-1") == null)
+            assertTrue(repo.currentInstance.first()?.customHeaders?.isEmpty() == true)
+        }
+
     /** Mimics [ApiKeyStore] persistence enough for migration tests. */
     private class FakeInMemoryApiKeyStorage(
         override val isEncrypted: Boolean,

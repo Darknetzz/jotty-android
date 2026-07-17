@@ -20,8 +20,10 @@ object CustomHttpHeaders {
         return out
     }
 
-    fun normalize(headers: Map<String, String>): Map<String, String> =
-        normalize(headers.entries.map { it.key to it.value })
+    fun normalize(headers: Map<String, String>?): Map<String, String> {
+        if (headers.isNullOrEmpty()) return emptyMap()
+        return normalize(headers.entries.map { it.key to it.value })
+    }
 
     /** Returns true when OkHttp accepts [name] and [value] as a request header. */
     fun isValid(

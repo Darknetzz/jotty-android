@@ -757,10 +757,26 @@ class SettingsRepository(
         private fun parseInstances(json: String?): List<JottyInstance>? {
             if (json.isNullOrBlank()) return null
             return try {
-                gson.fromJson<List<JottyInstance>>(json, instancesType) ?: emptyList()
+                // Gson ignores Kotlin default values: older instance JSON without `customHeaders`
+                // deserializes that property as null and would NPE on `.isNotEmpty()` / normalize.
+                gson.fromJson<List<JottyInstance>>(json, instancesType)
+                    ?.map { it.withNullSafeFields() }
+                    ?: emptyList()
             } catch (_: Exception) {
                 null
             }
+        }
+
+        /**
+         * Coerce fields Gson may leave null despite non-null Kotlin types
+         * (defaults are not applied when the property is missing from JSON).
+         */
+        private fun JottyInstance.withNullSafeFields(): JottyInstance {
+            @Suppress("USELESS_ELVIS")
+            val headers = customHeaders ?: emptyMap()
+            @Suppress("USELESS_ELVIS")
+            val key = apiKey ?: ""
+            return if (headers === customHeaders && key === apiKey) this else copy(customHeaders = headers, apiKey = key)
         }
     }
 }

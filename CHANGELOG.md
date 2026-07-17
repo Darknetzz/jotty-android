@@ -14,6 +14,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Fixed
 
 - **Custom header editing** — Editing a header name then its value no longer pairs the new value with a stale header name (reads the current pair from the list at callback time).
+- **Launch crash with custom headers** — Older saved instances (JSON without `customHeaders`) no longer crash on startup when Gson leaves that map null.
 
 ---
 

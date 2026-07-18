@@ -21,6 +21,7 @@ fun OfflineChecklistsScreen(
     authFingerprint: String,
     swipeToDeleteEnabled: Boolean = false,
     tabReselectToken: Int = 0,
+    onOpenPendingSync: () -> Unit = {},
 ) {
     val application = LocalContext.current.applicationContext as Application
     val vmFactory =
@@ -46,6 +47,7 @@ fun OfflineChecklistsScreen(
                 settingsRepository = settingsRepository,
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                 tabReselectToken = tabReselectToken,
+                onOpenPendingSync = onOpenPendingSync,
             )
         },
         onlineContent = {

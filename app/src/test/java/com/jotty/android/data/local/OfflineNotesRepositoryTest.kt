@@ -589,4 +589,167 @@ class OfflineNotesRepositoryTest {
             assertTrue(database.noteDao().getAllNotes(instanceId).isEmpty())
             assertEquals(1, database.noteDao().getAllNotes(otherInstanceId).size)
         }
+
+    @Test
+    fun getPendingSyncItems_includesSoftDeletedNotes() =
+        runTest {
+            database.noteDao().insertNote(
+                NoteEntity(
+                    id = "n-del",
+                    title = "Gone",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = false,
+                    isDirty = true,
+                    isDeleted = true,
+                    instanceId = instanceId,
+                    dirtySinceEpochMs = 99L,
+                ),
+            )
+            val repo =
+                OfflineNotesRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeJottyApi(),
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            val pending = repo.getPendingSyncItems()
+            assertEquals(1, pending.size)
+            assertTrue(pending.single().isPendingDelete)
+            assertEquals("n-del", pending.single().id)
+        }
+
+    @Test
+    fun discardPendingSync_whenDirty_restoresServerVersionAndCreatesBackup() =
+        runTest {
+            val serverNote =
+                Note(
+                    id = "n1",
+                    title = "ServerTitle",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "server-body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                )
+            database.noteDao().insertNote(
+                NoteEntity(
+                    id = "n1",
+                    title = "LocalTitle",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "local-body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = false,
+                    isDirty = true,
+                    instanceId = instanceId,
+                    syncBaselineJson =
+                        SyncPayloadCodec.encodeNote(
+                            NoteSyncPayload(
+                                id = "n1",
+                                title = "ServerTitle",
+                                category = API_CATEGORY_UNCATEGORIZED,
+                                content = "server-body",
+                                createdAt = "c",
+                                updatedAt = "u",
+                                encrypted = false,
+                            ),
+                        ),
+                    dirtySinceEpochMs = 1L,
+                ),
+            )
+            val repo =
+                OfflineNotesRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeJottyApi(notesFromGet = listOf(serverNote)),
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            val result = repo.discardPendingSync("n1")
+
+            assertTrue(result.isSuccess)
+            assertEquals("ServerTitle", result.getOrNull()?.title)
+            val entity = database.noteDao().getNoteById("n1")
+            assertEquals(false, entity?.isDirty)
+            assertNull(entity?.syncBaselineJson)
+            assertNull(entity?.dirtySinceEpochMs)
+            val backups = repo.listSyncBackups("n1")
+            assertEquals(1, backups.size)
+            assertEquals(SyncBackupDirection.BEFORE_PULL_SERVER, backups.single().direction)
+            assertTrue(backups.single().payloadJson.contains("local-body"))
+        }
+
+    @Test
+    fun forcePushLocal_whenDirty_pushesLocalAndCreatesServerBackup() =
+        runTest {
+            val updatedBodies = mutableListOf<String>()
+            val serverNote =
+                Note(
+                    id = "n1",
+                    title = "ServerTitle",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "server-body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                )
+            database.noteDao().insertNote(
+                NoteEntity(
+                    id = "n1",
+                    title = "LocalTitle",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "local-body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = false,
+                    isDirty = true,
+                    instanceId = instanceId,
+                    dirtySinceEpochMs = 1L,
+                ),
+            )
+            val api =
+                FakeJottyApi(
+                    notesFromGet = listOf(serverNote),
+                    updateNoteHandler = { noteId, body ->
+                        updatedBodies.add(body.content.orEmpty())
+                        ApiResponse(
+                            true,
+                            Note(
+                                id = noteId,
+                                title = body.title.orEmpty(),
+                                category = body.category ?: API_CATEGORY_UNCATEGORIZED,
+                                content = body.content.orEmpty(),
+                                createdAt = "c",
+                                updatedAt = "u2",
+                            ),
+                        )
+                    },
+                )
+            val repo =
+                OfflineNotesRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            val result = repo.forcePushLocal("n1")
+
+            assertTrue(result.isSuccess)
+            assertEquals("LocalTitle", result.getOrNull()?.title)
+            assertEquals(listOf("local-body"), updatedBodies)
+            assertEquals(false, database.noteDao().getNoteById("n1")?.isDirty)
+            val backups = repo.listSyncBackups("n1")
+            assertEquals(1, backups.size)
+            assertEquals(SyncBackupDirection.BEFORE_PUSH_LOCAL, backups.single().direction)
+            assertTrue(backups.single().payloadJson.contains("server-body"))
+        }
 }

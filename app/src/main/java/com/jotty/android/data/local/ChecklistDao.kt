@@ -18,6 +18,10 @@ interface ChecklistDao {
     @Query("SELECT * FROM checklists WHERE id = :id AND isDeleted = 0")
     suspend fun getById(id: String): ChecklistEntity?
 
+    /** Includes soft-deleted rows (needed for pending-delete sync management). */
+    @Query("SELECT * FROM checklists WHERE id = :id")
+    suspend fun getByIdIncludingDeleted(id: String): ChecklistEntity?
+
     @Query("SELECT * FROM checklists WHERE instanceId = :instanceId AND (isDirty = 1 OR isDeleted = 1)")
     suspend fun getDirty(instanceId: String): List<ChecklistEntity>
 

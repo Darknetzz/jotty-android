@@ -62,6 +62,7 @@ class OfflineChecklistsRepository(
 ) {
     private val appContext = context.applicationContext
     private val checklistDao = database.checklistDao()
+    private val syncBackups = SyncBackupRepository(database, instanceId)
     private val itemMutationDepth = AtomicInteger(0)
     private val pendingSyncAfterMutations = AtomicBoolean(false)
     /** Local UUID → server id after [syncChecklist] pushes a local-only checklist. */
@@ -117,6 +118,57 @@ class OfflineChecklistsRepository(
             .map { it.toSet() }
             .flowOn(Dispatchers.IO)
 
+    /** Dirty and soft-deleted checklists awaiting sync (includes pending deletes). */
+    fun getPendingSyncItemsFlow(): Flow<List<PendingSyncItem>> =
+        checklistDao.getDirtyChecklistIdsFlow(instanceId)
+            .map {
+                checklistDao.getDirty(instanceId).map { SyncPayloadCodec.checklistEntityToPendingItem(it) }
+            }
+            .flowOn(Dispatchers.IO)
+
+    suspend fun getPendingSyncItems(): List<PendingSyncItem> =
+        withContext(Dispatchers.IO) {
+            checklistDao.getDirty(instanceId).map { SyncPayloadCodec.checklistEntityToPendingItem(it) }
+        }
+
+    suspend fun getPendingSyncItem(checklistId: String): PendingSyncItem? =
+        withContext(Dispatchers.IO) {
+            checklistDao.getByIdIncludingDeleted(resolveChecklistId(checklistId))
+                ?.takeIf { it.isDirty || it.isDeleted || it.pendingOps().isNotEmpty() }
+                ?.let { SyncPayloadCodec.checklistEntityToPendingItem(it) }
+        }
+
+    suspend fun listSyncBackups(checklistId: String): List<SyncBackup> =
+        syncBackups.listForItem(SyncBackupKind.CHECKLIST, resolveChecklistId(checklistId))
+
+    suspend fun getLocalSyncPayload(checklistId: String): ChecklistSyncPayload? =
+        withContext(Dispatchers.IO) {
+            checklistDao.getByIdIncludingDeleted(resolveChecklistId(checklistId))?.toSyncPayload()
+        }
+
+    suspend fun getServerSyncPayload(checklistId: String): ChecklistSyncPayload? =
+        withContext(Dispatchers.IO) {
+            val resolved = resolveChecklistId(checklistId)
+            val local = checklistDao.getByIdIncludingDeleted(resolved)
+            if (local?.isLocalOnly == true) return@withContext null
+            if (isOnline.value) {
+                runCatching {
+                    api.getChecklists().checklists.find { it.id == resolved }?.let { list ->
+                        ChecklistSyncPayload(
+                            id = list.id,
+                            title = list.title,
+                            category = list.category,
+                            type = list.type,
+                            itemsJson = gson.toJson(list.items.normalizedForLocal()),
+                            createdAt = list.createdAt,
+                            updatedAt = list.updatedAt,
+                        )
+                    }
+                }.getOrNull()?.let { return@withContext it }
+            }
+            local?.syncBaselineJson?.let { SyncPayloadCodec.decodeChecklist(it) }
+        }
+
     fun clearConflictNotification() {
         runtime.syncStatus.setConflictsDetected(0)
     }
@@ -127,7 +179,7 @@ class OfflineChecklistsRepository(
 
     suspend fun isLocalOnlyChecklist(checklistId: String): Boolean =
         withContext(Dispatchers.IO) {
-            checklistDao.getById(resolveChecklistId(checklistId))?.isLocalOnly == true
+            checklistDao.getByIdIncludingDeleted(resolveChecklistId(checklistId))?.isLocalOnly == true
         }
 
     /** Server id for a checklist that was created offline and has since synced, if known. */
@@ -135,31 +187,121 @@ class OfflineChecklistsRepository(
 
     /**
      * Abandons unsynced local changes. Local-only checklists are deleted. Server-backed checklists
-     * are replaced with the current server version (requires connectivity).
+     * are replaced with the current server version (requires connectivity). Creates a local backup first.
      */
     suspend fun discardPendingSync(checklistId: String): Result<Checklist?> =
+        pullFromServer(checklistId)
+
+    /**
+     * Overwrite server with the local copy. Backs up the server/baseline payload first when available.
+     */
+    suspend fun forcePushLocal(checklistId: String): Result<Checklist?> =
         withContext(Dispatchers.IO) {
             runCatching {
+                val resolved = resolveChecklistId(checklistId)
                 val entity =
-                    checklistDao.getById(checklistId)
-                        ?: throw Exception("Checklist not found")
-                if (!entity.isDirty && entity.pendingOps().isEmpty()) {
+                    checklistDao.getByIdIncludingDeleted(resolved)
+                        ?: throw Exception(appContext.getString(R.string.error_not_found))
+                if (!entity.isDirty && !entity.isDeleted && entity.pendingOps().isEmpty()) {
                     return@runCatching entity.toChecklist()
                 }
+                val serverPayload = getServerSyncPayload(resolved)
+                if (serverPayload != null) {
+                    syncBackups.save(
+                        kind = SyncBackupKind.CHECKLIST,
+                        itemId = resolved,
+                        direction = SyncBackupDirection.BEFORE_PUSH_LOCAL,
+                        title = serverPayload.title,
+                        payloadJson = SyncPayloadCodec.encodeChecklist(serverPayload),
+                        pendingOpsJson = null,
+                    )
+                }
+                if (entity.isDeleted) {
+                    if (!isOnline.value) {
+                        throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
+                    }
+                    syncDeletedChecklist(resolved)
+                    return@runCatching null
+                }
+                if (!isOnline.value) {
+                    throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
+                }
+                syncChecklist(entity)
+                checklistDao.getById(resolved)?.toChecklist()
+                    ?: throw Exception(appContext.getString(R.string.sync_force_push_failed))
+            }
+        }
+
+    /**
+     * Overwrite local with the server copy. Backs up the local payload first.
+     */
+    suspend fun pullFromServer(checklistId: String): Result<Checklist?> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val resolved = resolveChecklistId(checklistId)
+                val entity =
+                    checklistDao.getByIdIncludingDeleted(resolved)
+                        ?: throw Exception(appContext.getString(R.string.error_not_found))
+                if (!entity.isDirty && !entity.isDeleted && entity.pendingOps().isEmpty()) {
+                    return@runCatching entity.toChecklist()
+                }
+                syncBackups.save(
+                    kind = SyncBackupKind.CHECKLIST,
+                    itemId = resolved,
+                    direction = SyncBackupDirection.BEFORE_PULL_SERVER,
+                    title = entity.title,
+                    payloadJson = SyncPayloadCodec.encodeChecklist(entity),
+                    pendingOpsJson = entity.pendingOpsJson,
+                )
                 if (entity.isLocalOnly) {
-                    checklistDao.delete(checklistId)
-                    AppLog.d(TAG, "Local-only checklist discarded: $checklistId")
+                    checklistDao.delete(resolved)
+                    AppLog.d(TAG, "Local-only checklist discarded: $resolved")
                     return@runCatching null
                 }
                 if (!isOnline.value) {
                     throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
                 }
                 val fresh =
-                    api.getChecklists().checklists.find { it.id == checklistId }
+                    api.getChecklists().checklists.find { it.id == resolved }
                         ?: throw Exception(appContext.getString(R.string.error_not_found))
                 checklistDao.insert(fresh.toEntity(instanceId))
-                AppLog.d(TAG, "Pending sync discarded — restored checklist from server: $checklistId")
+                AppLog.d(TAG, "Pending sync discarded — restored checklist from server: $resolved")
                 fresh
+            }
+        }
+
+    suspend fun restoreSyncBackup(backupId: Long): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val backup =
+                    syncBackups.getById(backupId)
+                        ?: throw Exception(appContext.getString(R.string.error_not_found))
+                if (backup.kind != SyncBackupKind.CHECKLIST) {
+                    throw IllegalArgumentException("Backup is not a checklist")
+                }
+                val payload =
+                    SyncPayloadCodec.decodeChecklist(backup.payloadJson)
+                        ?: throw Exception(appContext.getString(R.string.sync_backup_invalid))
+                val now = Instant.now().toString()
+                val entity =
+                    ChecklistEntity(
+                        id = payload.id,
+                        title = payload.title,
+                        category = payload.category,
+                        type = payload.type,
+                        itemsJson = payload.itemsJson,
+                        pendingOpsJson = backup.pendingOpsJson ?: payload.pendingOpsJson,
+                        createdAt = payload.createdAt,
+                        updatedAt = now,
+                        isDirty = true,
+                        isDeleted = false,
+                        instanceId = instanceId,
+                        isLocalOnly = false,
+                        syncBaselineJson = SyncPayloadCodec.encodeChecklist(payload),
+                        dirtySinceEpochMs = System.currentTimeMillis(),
+                    )
+                checklistDao.insert(entity)
+                entity.toChecklist()
             }
         }
 
@@ -187,6 +329,7 @@ class OfflineChecklistsRepository(
                         isDeleted = false,
                         instanceId = instanceId,
                         isLocalOnly = true,
+                        dirtySinceEpochMs = System.currentTimeMillis(),
                     )
                 checklistDao.insert(entity)
                 AppLog.d(TAG, "Checklist created locally: ${entity.id}")
@@ -218,6 +361,7 @@ class OfflineChecklistsRepository(
                         isDirty = true,
                         isDeleted = false,
                         instanceId = instanceId,
+                        dirtySinceEpochMs = System.currentTimeMillis(),
                         isLocalOnly = true,
                     )
                 checklistDao.insert(entity)
@@ -233,6 +377,14 @@ class OfflineChecklistsRepository(
                 if (entity != null && entity.isLocalOnly) {
                     checklistDao.delete(id)
                     AppLog.d(TAG, "Local-only checklist hard-deleted: $id")
+                } else if (entity != null) {
+                    checklistDao.update(
+                        entity.withFirstDirtyBaseline(
+                            entity.copy(isDeleted = true, isDirty = true),
+                        ),
+                    )
+                    AppLog.d(TAG, "Checklist marked for deletion: $id")
+                    if (isOnline.value) syncDeletedChecklist(id)
                 } else {
                     checklistDao.markAsDeleted(id)
                     AppLog.d(TAG, "Checklist marked for deletion: $id")
@@ -252,11 +404,13 @@ class OfflineChecklistsRepository(
                     checklistDao.getById(id)
                         ?: throw Exception("Checklist not found")
                 val updated =
-                    existing.copy(
-                        title = title,
-                        category = category ?: existing.category,
-                        updatedAt = Instant.now().toString(),
-                        isDirty = true,
+                    existing.withFirstDirtyBaseline(
+                        existing.copy(
+                            title = title,
+                            category = category ?: existing.category,
+                            updatedAt = Instant.now().toString(),
+                            isDirty = true,
+                        ),
                     )
                 checklistDao.update(updated)
                 AppLog.d(TAG, "Checklist title updated locally: $id")
@@ -872,11 +1026,13 @@ class OfflineChecklistsRepository(
         val newItems = applyOpToItems(entity.items(), op)
         val newOps = (entity.pendingOps() + op).distinct()
         val updated =
-            entity.copy(
-                itemsJson = gson.toJson(newItems),
-                pendingOpsJson = gson.toJson(newOps),
-                isDirty = true,
-                updatedAt = Instant.now().toString(),
+            entity.withFirstDirtyBaseline(
+                entity.copy(
+                    itemsJson = gson.toJson(newItems),
+                    pendingOpsJson = gson.toJson(newOps),
+                    isDirty = true,
+                    updatedAt = Instant.now().toString(),
+                ),
             )
         checklistDao.update(updated)
         if (isOnline.value) {

@@ -76,6 +76,7 @@ fun OfflineEnabledNotesScreen(
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
+    onOpenPendingSync: () -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -315,6 +316,8 @@ fun OfflineEnabledNotesScreen(
                     lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
                     lastSyncDurationText = lastSyncDurationText,
                     lastSyncError = lastSyncError,
+                    pendingSyncCount = dirtyNoteIds.size,
+                    onManagePendingSync = onOpenPendingSync,
                     onRefresh = { requestSync(showLoading = false) },
                     onAdd = { vm.setShowCreateDialog(true) },
                 )

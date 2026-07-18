@@ -36,6 +36,12 @@ data class NoteEntity(
     // move the note between category folders). Null when the category was never changed locally.
     @ColumnInfo(defaultValue = "NULL")
     val originalCategory: String? = null,
+    /** Server-shaped JSON ([NoteSyncPayload]) captured when the note first became dirty. */
+    @ColumnInfo(defaultValue = "NULL")
+    val syncBaselineJson: String? = null,
+    /** Epoch ms when local edits first made this row dirty (null when clean). */
+    @ColumnInfo(defaultValue = "NULL")
+    val dirtySinceEpochMs: Long? = null,
 )
 
 /**
@@ -44,6 +50,8 @@ data class NoteEntity(
 fun Note.toEntity(
     instanceId: String,
     isDirty: Boolean = false,
+    syncBaselineJson: String? = null,
+    dirtySinceEpochMs: Long? = null,
 ): NoteEntity {
     val encryptedFlag =
         when {
@@ -62,6 +70,8 @@ fun Note.toEntity(
         isDirty = isDirty,
         isDeleted = false,
         instanceId = instanceId,
+        syncBaselineJson = syncBaselineJson,
+        dirtySinceEpochMs = dirtySinceEpochMs,
     )
 }
 

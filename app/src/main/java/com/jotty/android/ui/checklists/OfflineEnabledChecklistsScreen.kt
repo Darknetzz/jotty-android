@@ -643,14 +643,7 @@ private fun OfflineChecklistDetailContent(
 
     val isProject = isProjectChecklistType(liveChecklist.type)
     val showItemEmojis = checklistAutoEmojiEnabled(showChecklistEmojis, liveChecklist.type)
-    val flatItems =
-        remember(items, isProject) {
-            if (isProject) {
-                flattenChecklistItems(items)
-            } else {
-                items.mapIndexed { i, item -> ChecklistFlatItem(item, 0, "$i") }
-            }
-        }
+    val flatItems = remember(items) { flattenChecklistItems(items) }
     val toDo = flatItems.filter { !it.item.isCompletedForApi() }
     val done = flatItems.filter { it.item.isCompletedForApi() }
 

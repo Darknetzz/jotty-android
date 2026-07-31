@@ -7,7 +7,7 @@ import com.jotty.android.data.api.isCompletedForApi
 /** Checklist row with display depth and API path (e.g. `"0"` or `"0.1"` for nested). */
 data class ChecklistFlatItem(val item: ChecklistItem, val depth: Int, val apiPath: String)
 
-/** Flatten checklist items with depth and API path for project/task type. */
+/** Flatten checklist items (including nested children) with depth and API path. */
 fun flattenChecklistItems(
     items: List<ChecklistItem>,
     depth: Int = 0,

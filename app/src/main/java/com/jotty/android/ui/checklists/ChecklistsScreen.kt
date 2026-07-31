@@ -597,14 +597,7 @@ private fun ChecklistDetailScreen(
             )
         }
 
-        val flatItems =
-            remember(items, isProject) {
-                if (isProject) {
-                    flattenChecklistItems(items)
-                } else {
-                    items.mapIndexed { index, item -> ChecklistFlatItem(item, 0, "$index") }
-                }
-            }
+        val flatItems = remember(items) { flattenChecklistItems(items) }
 
         Spacer(modifier = Modifier.height(8.dp))
 

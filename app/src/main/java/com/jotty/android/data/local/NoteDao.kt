@@ -31,6 +31,10 @@ interface NoteDao {
     @Query("SELECT * FROM notes WHERE id = :noteId AND isDeleted = 0")
     suspend fun getNoteById(noteId: String): NoteEntity?
 
+    /** Includes soft-deleted rows (needed for pending-delete sync management). */
+    @Query("SELECT * FROM notes WHERE id = :noteId")
+    suspend fun getNoteByIdIncludingDeleted(noteId: String): NoteEntity?
+
     /**
      * Get notes that need to be synced (dirty or deleted).
      */

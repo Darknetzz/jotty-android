@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Room database for offline storage.
- * Database version: 7
+ * Database version: 8
  *
  * v1 → v2: add isLocalOnly column to notes.
  * v2 → v3: add checklists table for offline checklist support.
@@ -17,10 +17,16 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * v4 → v5: add originalCategory column to notes (for category moves on sync).
  * v5 → v6: encrypted_note_snapshots table for local note backups before save.
  * v6 → v7: rename encrypted_note_snapshots → note_snapshots (all note types).
+ * v7 → v8: sync baselines on notes/checklists + sync_backups table for pending-sync resolve.
  */
 @Database(
-    entities = [NoteEntity::class, ChecklistEntity::class, NoteSnapshotEntity::class],
-    version = 7,
+    entities = [
+        NoteEntity::class,
+        ChecklistEntity::class,
+        NoteSnapshotEntity::class,
+        SyncBackupEntity::class,
+    ],
+    version = 8,
     exportSchema = false,
 )
 abstract class JottyDatabase : RoomDatabase() {
@@ -29,6 +35,8 @@ abstract class JottyDatabase : RoomDatabase() {
     abstract fun checklistDao(): ChecklistDao
 
     abstract fun noteSnapshotDao(): NoteSnapshotDao
+
+    abstract fun syncBackupDao(): SyncBackupDao
 
     companion object {
         @Volatile
@@ -123,6 +131,40 @@ abstract class JottyDatabase : RoomDatabase() {
                 }
             }
 
+        private val MIGRATION_7_8 =
+            object : Migration(7, 8) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE notes ADD COLUMN syncBaselineJson TEXT DEFAULT NULL")
+                    db.execSQL("ALTER TABLE notes ADD COLUMN dirtySinceEpochMs INTEGER DEFAULT NULL")
+                    db.execSQL("ALTER TABLE checklists ADD COLUMN syncBaselineJson TEXT DEFAULT NULL")
+                    db.execSQL("ALTER TABLE checklists ADD COLUMN dirtySinceEpochMs INTEGER DEFAULT NULL")
+                    db.execSQL(
+                        """
+                        CREATE TABLE IF NOT EXISTS sync_backups (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                            instanceId TEXT NOT NULL,
+                            kind TEXT NOT NULL,
+                            itemId TEXT NOT NULL,
+                            direction TEXT NOT NULL,
+                            createdAtEpochMs INTEGER NOT NULL,
+                            title TEXT NOT NULL,
+                            payloadJson TEXT NOT NULL,
+                            pendingOpsJson TEXT
+                        )
+                        """.trimIndent(),
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_sync_backups_instanceId ON sync_backups (instanceId)",
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_sync_backups_itemId ON sync_backups (itemId)",
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_sync_backups_instanceId_kind_itemId ON sync_backups (instanceId, kind, itemId)",
+                    )
+                }
+            }
+
         fun getDatabase(context: Context): JottyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance =
@@ -138,6 +180,7 @@ abstract class JottyDatabase : RoomDatabase() {
                             MIGRATION_4_5,
                             MIGRATION_5_6,
                             MIGRATION_6_7,
+                            MIGRATION_7_8,
                         )
                         .build()
                 INSTANCE = instance

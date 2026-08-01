@@ -3,6 +3,7 @@ package com.jotty.android.ui.common
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -45,6 +46,8 @@ class MainTabTopBarState(
     val lastSyncAttemptEpochMs: Long?,
     val lastSyncDurationText: String? = null,
     val lastSyncError: String? = null,
+    val pendingSyncCount: Int = 0,
+    val onManagePendingSync: (() -> Unit)? = null,
     val onRefresh: () -> Unit,
     val onAdd: () -> Unit,
     val showSyncStatus: Boolean = true,
@@ -137,6 +140,8 @@ fun OfflineSyncStatusIndicator(
     lastSyncAttemptEpochMs: Long?,
     lastSyncDurationText: String? = null,
     lastSyncError: String? = null,
+    pendingSyncCount: Int = 0,
+    onManagePendingSync: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     compact: Boolean = false,
 ) {
@@ -238,8 +243,32 @@ fun OfflineSyncStatusIndicator(
                         Text(stringResource(R.string.close))
                     }
                 },
+                dismissButton = {
+                    if (onManagePendingSync != null) {
+                        TextButton(
+                            onClick = {
+                                showDetailsDialog = false
+                                onManagePendingSync()
+                            },
+                        ) {
+                            Text(stringResource(R.string.pending_sync_manage))
+                        }
+                    }
+                },
                 title = { Text(stringResource(R.string.sync_details)) },
-                text = { Text(syncDialogBody) },
+                text = {
+                    Column {
+                        Text(syncDialogBody)
+                        if (pendingSyncCount > 0) {
+                            Text(
+                                text = stringResource(R.string.pending_sync_count_summary, pendingSyncCount),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(top = 12.dp),
+                            )
+                        }
+                    }
+                },
             )
         }
         return
@@ -341,6 +370,8 @@ fun MainTabTopBarSyncSlot(
     lastSyncAttemptEpochMs: Long?,
     lastSyncDurationText: String? = null,
     lastSyncError: String? = null,
+    pendingSyncCount: Int = 0,
+    onManagePendingSync: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     OfflineSyncStatusIndicator(
@@ -349,6 +380,8 @@ fun MainTabTopBarSyncSlot(
         lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
         lastSyncDurationText = lastSyncDurationText,
         lastSyncError = lastSyncError,
+        pendingSyncCount = pendingSyncCount,
+        onManagePendingSync = onManagePendingSync,
         modifier = modifier,
         compact = true,
     )
@@ -363,6 +396,8 @@ fun MainTabTopBarActions(state: MainTabTopBarState) {
             lastSyncAttemptEpochMs = state.lastSyncAttemptEpochMs,
             lastSyncDurationText = state.lastSyncDurationText,
             lastSyncError = state.lastSyncError,
+            pendingSyncCount = state.pendingSyncCount,
+            onManagePendingSync = state.onManagePendingSync,
         )
     }
     val refreshEnabled =

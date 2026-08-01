@@ -8,16 +8,18 @@ import com.jotty.android.util.createNoteImageAuthClient
 import okhttp3.Request
 
 /**
- * Loads same-host / Jotty media images in the WYSIWYG WebView with [x-api-key] auth,
- * matching [com.jotty.android.util.createNoteImageLoader] behavior for note view mode.
+ * Loads same-host / Jotty media images in the WYSIWYG WebView with [x-api-key] auth
+ * (and optional custom headers), matching [com.jotty.android.util.createNoteImageLoader]
+ * behavior for note view mode.
  */
 internal class WysiwygAuthWebViewClient(
     baseUrl: String?,
     apiKey: String?,
     capabilitiesKey: String?,
+    customHeaders: Map<String, String> = emptyMap(),
     private val onPageFinished: (WebView?) -> Unit,
 ) : WebViewClient() {
-    private val authClient = createNoteImageAuthClient(baseUrl, apiKey, capabilitiesKey)
+    private val authClient = createNoteImageAuthClient(baseUrl, apiKey, capabilitiesKey, customHeaders)
 
     override fun onPageFinished(
         view: WebView?,

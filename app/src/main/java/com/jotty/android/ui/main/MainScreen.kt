@@ -18,12 +18,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.jotty.android.R
 import com.jotty.android.data.api.ApiClient
+import com.jotty.android.data.local.SyncBackupKind
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.checklists.OfflineChecklistsScreen
@@ -43,6 +46,8 @@ import com.jotty.android.ui.settings.BehaviorSettingsScreen
 import com.jotty.android.ui.settings.DashboardOverviewScreen
 import com.jotty.android.ui.settings.SettingsScreen
 import com.jotty.android.ui.setup.SetupScreen
+import com.jotty.android.ui.sync.PendingSyncDetailScreen
+import com.jotty.android.ui.sync.PendingSyncScreen
 import com.jotty.android.util.createNoteImageLoader
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -51,6 +56,8 @@ private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
 private const val ROUTE_APPEARANCE = "appearance"
 private const val ROUTE_DASHBOARD = "dashboard"
 private const val ROUTE_BEHAVIOR = "behavior"
+private const val ROUTE_PENDING_SYNC = "pending_sync"
+private const val ROUTE_PENDING_SYNC_DETAIL = "pending_sync/{kind}/{id}"
 
 /** Routes that only use [SettingsRepository], not a live [JottyApi] / current instance. */
 private val ROUTES_WITHOUT_API =
@@ -113,35 +120,48 @@ fun MainScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val selectedRoute =
-        when (currentRoute) {
-            ROUTE_MANAGE_INSTANCES, ROUTE_APPEARANCE, ROUTE_DASHBOARD, ROUTE_BEHAVIOR -> MainRoute.Settings.route
+        when {
+            currentRoute == ROUTE_MANAGE_INSTANCES ||
+                currentRoute == ROUTE_APPEARANCE ||
+                currentRoute == ROUTE_DASHBOARD ||
+                currentRoute == ROUTE_BEHAVIOR ||
+                currentRoute == ROUTE_PENDING_SYNC ||
+                currentRoute?.startsWith("pending_sync/") == true -> MainRoute.Settings.route
             else -> currentRoute
         }
     val titleRes =
-        when (currentRoute) {
-            MainRoute.Checklists.route -> MainRoute.Checklists.titleRes
-            MainRoute.Notes.route -> MainRoute.Notes.titleRes
-            MainRoute.Settings.route -> MainRoute.Settings.titleRes
-            ROUTE_MANAGE_INSTANCES -> R.string.manage_instances
-            ROUTE_APPEARANCE -> R.string.appearance
-            ROUTE_DASHBOARD -> R.string.dashboard_overview
-            ROUTE_BEHAVIOR -> R.string.settings_category_behavior
+        when {
+            currentRoute == MainRoute.Checklists.route -> MainRoute.Checklists.titleRes
+            currentRoute == MainRoute.Notes.route -> MainRoute.Notes.titleRes
+            currentRoute == MainRoute.Settings.route -> MainRoute.Settings.titleRes
+            currentRoute == ROUTE_MANAGE_INSTANCES -> R.string.manage_instances
+            currentRoute == ROUTE_APPEARANCE -> R.string.appearance
+            currentRoute == ROUTE_DASHBOARD -> R.string.dashboard_overview
+            currentRoute == ROUTE_BEHAVIOR -> R.string.settings_category_behavior
+            currentRoute == ROUTE_PENDING_SYNC || currentRoute?.startsWith("pending_sync/") == true ->
+                R.string.pending_sync_manager_title
             else -> R.string.app_name
         }
 
     val imageLoader =
-        remember(context, serverUrl, apiKey, currentInstance?.id) {
+        remember(context, serverUrl, apiKey, currentInstance?.id, currentInstance?.customHeaders) {
             val url = serverUrl
             val key = apiKey
-            createNoteImageLoader(context, url, key, currentInstance?.id)
+            createNoteImageLoader(
+                context,
+                url,
+                key,
+                currentInstance?.id,
+                currentInstance?.customHeaders.orEmpty(),
+            )
         }
 
     val api =
-        remember(serverUrl, apiKey) {
+        remember(serverUrl, apiKey, currentInstance?.customHeaders) {
             val url = serverUrl
             val key = apiKey
             if (!url.isNullOrBlank() && !key.isNullOrBlank()) {
-                ApiClient.create(url, key)
+                ApiClient.create(url, key, currentInstance?.customHeaders.orEmpty())
             } else {
                 null
             }
@@ -184,7 +204,9 @@ fun MainScreen(
                             currentRoute == ROUTE_MANAGE_INSTANCES ||
                                 currentRoute == ROUTE_APPEARANCE ||
                                 currentRoute == ROUTE_DASHBOARD ||
-                                currentRoute == ROUTE_BEHAVIOR
+                                currentRoute == ROUTE_BEHAVIOR ||
+                                currentRoute == ROUTE_PENDING_SYNC ||
+                                currentRoute?.startsWith("pending_sync/") == true
                         ) {
                             IconButton(onClick = { navController.popBackStack() }) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
@@ -286,8 +308,8 @@ fun MainScreen(
                     composable(MainRoute.Checklists.route) {
                         val instanceId = currentInstance?.id
                         val authFingerprint =
-                            remember(serverUrl, apiKey) {
-                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
+                            remember(serverUrl, apiKey, currentInstance?.customHeaders) {
+                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}|${currentInstance?.customHeaders.orEmpty()}"
                             }
                         val checklistsApi = currentApi
                         if (instanceId != null && checklistsApi != null) {
@@ -298,6 +320,7 @@ fun MainScreen(
                                 authFingerprint = authFingerprint,
                                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                                 tabReselectToken = checklistsTabReselectToken,
+                                onOpenPendingSync = { navController.navigate(ROUTE_PENDING_SYNC) },
                             )
                         } else {
                             LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
@@ -306,8 +329,8 @@ fun MainScreen(
                     composable(MainRoute.Notes.route) {
                         val instanceId = currentInstance?.id
                         val authFingerprint =
-                            remember(serverUrl, apiKey) {
-                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}"
+                            remember(serverUrl, apiKey, currentInstance?.customHeaders) {
+                                "${serverUrl.orEmpty()}|${apiKey.orEmpty()}|${currentInstance?.customHeaders.orEmpty()}"
                             }
                         val notesApi = currentApi
                         if (instanceId != null && notesApi != null) {
@@ -324,7 +347,9 @@ fun MainScreen(
                                 imageLoader = imageLoader,
                                 jottyServerUrl = serverUrl,
                                 apiKey = apiKey,
+                                customHeaders = currentInstance?.customHeaders.orEmpty(),
                                 tabReselectToken = notesTabReselectToken,
+                                onOpenPendingSync = { navController.navigate(ROUTE_PENDING_SYNC) },
                             )
                         } else {
                             LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
@@ -345,7 +370,51 @@ fun MainScreen(
                         AppearanceSettingsScreen(settingsRepository = settingsRepository)
                     }
                     composable(ROUTE_BEHAVIOR) {
-                        BehaviorSettingsScreen(settingsRepository = settingsRepository)
+                        BehaviorSettingsScreen(
+                            settingsRepository = settingsRepository,
+                            onOpenPendingSync = { navController.navigate(ROUTE_PENDING_SYNC) },
+                        )
+                    }
+                    composable(ROUTE_PENDING_SYNC) {
+                        val pendingApi = currentApi
+                        val pendingInstanceId = currentInstance?.id
+                        if (pendingApi != null && pendingInstanceId != null) {
+                            PendingSyncScreen(
+                                api = pendingApi,
+                                instanceId = pendingInstanceId,
+                                onOpenItem = { kind, id ->
+                                    navController.navigate("pending_sync/${kind.name}/$id")
+                                },
+                            )
+                        } else {
+                            LoadingState(modifier = Modifier.fillMaxSize(), message = stringResource(R.string.loading))
+                        }
+                    }
+                    composable(
+                        route = ROUTE_PENDING_SYNC_DETAIL,
+                        arguments =
+                            listOf(
+                                navArgument("kind") { type = NavType.StringType },
+                                navArgument("id") { type = NavType.StringType },
+                            ),
+                    ) { entry ->
+                        val pendingApi = currentApi
+                        val pendingInstanceId = currentInstance?.id
+                        val kindName = entry.arguments?.getString("kind").orEmpty()
+                        val itemId = entry.arguments?.getString("id").orEmpty()
+                        val kind =
+                            runCatching { SyncBackupKind.valueOf(kindName) }.getOrNull()
+                        if (pendingApi != null && pendingInstanceId != null && kind != null && itemId.isNotBlank()) {
+                            PendingSyncDetailScreen(
+                                api = pendingApi,
+                                instanceId = pendingInstanceId,
+                                kind = kind,
+                                itemId = itemId,
+                                onBack = { navController.popBackStack() },
+                            )
+                        } else {
+                            LoadingState(modifier = Modifier.fillMaxSize(), message = stringResource(R.string.loading))
+                        }
                     }
                     composable(ROUTE_DASHBOARD) {
                         val dashboardApi = currentApi

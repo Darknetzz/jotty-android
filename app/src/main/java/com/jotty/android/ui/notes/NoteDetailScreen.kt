@@ -74,6 +74,7 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import androidx.compose.material.icons.filled.Share
 import com.jotty.android.ui.common.ArchiveDropdownMenuItem
+import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
@@ -108,6 +109,7 @@ internal fun NoteDetailScreen(
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
     apiKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     biometricAutoUnlockEnabled: Boolean = true,
@@ -121,6 +123,7 @@ internal fun NoteDetailScreen(
     markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
     isOnline: Boolean = true,
+    onClone: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val snapshotRepository =
@@ -732,6 +735,15 @@ internal fun NoteDetailScreen(
                                     },
                                 )
                             }
+                            onClone?.let { cloneAction ->
+                                CloneDropdownMenuItem(
+                                    labelRes = R.string.clone_note,
+                                    onClick = {
+                                        menuExpanded = false
+                                        cloneAction()
+                                    },
+                                )
+                            }
                             if (noteSnapshots.isNotEmpty()) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.restore_note_snapshot)) },
@@ -872,6 +884,7 @@ internal fun NoteDetailScreen(
                                     onEditorBridge = { wysiwygBridge = it },
                                     jottyServerUrl = jottyServerUrl,
                                     apiKey = apiKey,
+                                    customHeaders = customHeaders,
                                     serverCapabilitiesKey = serverCapabilitiesKey,
                                     modifier = Modifier.fillMaxSize(),
                                 )

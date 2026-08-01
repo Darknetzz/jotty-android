@@ -7,6 +7,28 @@ import org.junit.Test
 
 class ChecklistProgressTest {
     @Test
+    fun flattenChecklistItems_includesNestedChildrenOnSimpleTree() {
+        val items =
+            listOf(
+                ChecklistItem(
+                    index = 0,
+                    text = "Parent",
+                    children =
+                        listOf(
+                            ChecklistItem(index = 0, text = "Child A"),
+                            ChecklistItem(index = 1, text = "Child B"),
+                        ),
+                ),
+                ChecklistItem(index = 1, text = "Sibling"),
+            )
+        val flat = flattenChecklistItems(items)
+        assertEquals(4, flat.size)
+        assertEquals(listOf(0, 1, 1, 0), flat.map { it.depth })
+        assertEquals(listOf("0", "0.0", "0.1", "1"), flat.map { it.apiPath })
+        assertEquals(listOf("Parent", "Child A", "Child B", "Sibling"), flat.map { it.item.text })
+    }
+
+    @Test
     fun checklistProgressCounts_includesNestedSubtasks() {
         val checklist =
             Checklist(

@@ -8,6 +8,25 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ---
 
+## [1.9.0] - 2026-08-01
+
+### Added
+
+- **Pending sync manager** — From Sync details (**Manage pending**) or Settings → Behavior, review dirty notes and checklists (including pending deletes), compare local vs server/baseline, overwrite either way, and restore from automatic on-device sync backups (shareable).
+- **Clone notes and checklists** — List and detail ⋮ menus include **Clone** with a category picker (matching Jotty web). Creates a copy titled “(Copy)” via the REST API; encrypted note bodies are copied as stored.
+- **Custom HTTP headers per instance** — Add/remove request headers (e.g. reverse-proxy auth) under **Optional details** when adding or editing an instance. Headers are stored encrypted with the instance (when Keystore is available), sent on API requests and same-host note images (including WYSIWYG), and redacted from debug HTTP logs. Thanks [@GitGitro](https://github.com/GitGitro) ([#81](https://github.com/Darknetzz/jotty-android/pull/81)).
+
+### Fixed
+
+- **Checklist nested sub-items** — Simple checklist detail now shows nested children (indent + full progress), matching list-card counts ([#86](https://github.com/Darknetzz/jotty-android/issues/86)).
+- **Custom header editing** — Editing a header name then its value no longer pairs the new value with a stale header name (reads the current pair from the list at callback time).
+- **Launch crash with custom headers** — Older saved instances (JSON without `customHeaders`) no longer crash on startup when Gson leaves that map null.
+- **Pending sync success feedback** — Overwrite-server and restore-backup actions show a success alert when they complete.
+- **Invalid custom headers at request time** — Malformed stored header names are skipped when building requests so OkHttp does not throw (UI still validates new input).
+
+
+---
+
 ## [1.8.0] - 2026-06-25
 
 ### Added
@@ -1110,3 +1129,5 @@ Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes 
 [1.7.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.5
 
 [1.8.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.8.0
+
+[1.9.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.9.0

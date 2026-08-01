@@ -42,6 +42,7 @@ fun JottyAppContent(
             settingsRepository.migrateFromLegacyIfNeeded()
             settingsRepository.migrateThemeToModeAndColorIfNeeded()
             settingsRepository.migrateApiKeysToEncryptedStoreIfNeeded()
+            settingsRepository.migrateCustomHeadersToEncryptedStoreIfNeeded()
             val currentId = settingsRepository.currentInstanceId.first()
             val defaultId = settingsRepository.defaultInstanceId.first()
             if (currentId == null && defaultId != null) {

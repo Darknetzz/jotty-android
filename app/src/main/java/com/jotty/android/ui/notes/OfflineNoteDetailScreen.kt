@@ -34,6 +34,7 @@ fun OfflineNoteDetailScreen(
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
     apiKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
     serverCapabilitiesKey: String? = null,
     isOnline: Boolean = false,
     onRetrySync: () -> Unit = {},
@@ -48,6 +49,7 @@ fun OfflineNoteDetailScreen(
     defaultNoteEditMode: String = "markdown",
     markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
+    onClone: (() -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val allNotes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -93,6 +95,7 @@ fun OfflineNoteDetailScreen(
             imageLoader = imageLoader,
             jottyServerUrl = jottyServerUrl,
             apiKey = apiKey,
+            customHeaders = customHeaders,
             serverCapabilitiesKey = serverCapabilitiesKey,
             biometricStore = biometricStore,
             biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
@@ -106,6 +109,7 @@ fun OfflineNoteDetailScreen(
             markdownEditorMonospace = markdownEditorMonospace,
             api = api,
             isOnline = isOnline,
+            onClone = onClone,
         )
     }
 }

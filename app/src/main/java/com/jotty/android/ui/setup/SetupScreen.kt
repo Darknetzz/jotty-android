@@ -41,6 +41,7 @@ import com.jotty.android.ui.common.ServerUrlInputField
 import com.jotty.android.ui.common.accentColor
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.CustomHttpHeaders
 import com.jotty.android.util.browserUrlFromServerUrl
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -298,7 +299,17 @@ private fun InstanceForm(
     var serverUrl by remember(initialInstance) { mutableStateOf(initialInstance?.serverUrl ?: "") }
     var apiKey by remember(initialInstance) { mutableStateOf(initialInstance?.apiKey ?: "") }
     var colorHex by remember(initialInstance) { mutableStateOf(initialInstance?.colorHex) }
+    // Custom headers: immutable list of (name, value) pairs; reassigned on every edit
+    var customHeaders by remember(initialInstance) {
+        mutableStateOf<List<Pair<String, String>>>(
+            initialInstance?.customHeaders
+                ?.entries
+                ?.map { it.key to it.value }
+                ?: emptyList()
+        )
+    }
     var apiKeyVisible by remember { mutableStateOf(false) }
+    var headerValuesVisible by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -308,6 +319,7 @@ private fun InstanceForm(
     val fillUrlAndKeyMsg = stringResource(R.string.fill_url_and_key)
     val openBrowserFailedMsg = stringResource(R.string.open_jotty_browser_failed)
     val connectionFailedFmt = stringResource(R.string.connection_failed)
+    val invalidHeaderFmt = stringResource(R.string.custom_header_invalid)
     var showAdvancedFields by remember(initialInstance) { mutableStateOf(initialInstance != null) }
 
     val instanceColors: List<Long?> =
@@ -456,6 +468,101 @@ private fun InstanceForm(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = stringResource(R.string.custom_headers_label),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (customHeaders.isNotEmpty()) {
+                    TextButton(
+                        onClick = { headerValuesVisible = !headerValuesVisible },
+                        contentPadding = PaddingValues(horizontal = 0.dp),
+                    ) {
+                        Text(
+                            if (headerValuesVisible) {
+                                stringResource(R.string.hide)
+                            } else {
+                                stringResource(R.string.show)
+                            },
+                        )
+                    }
+                }
+            }
+            Text(
+                text = stringResource(R.string.custom_headers_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp, bottom = 6.dp),
+            )
+            for (index in customHeaders.indices) {
+                val (headerName, headerValue) = customHeaders[index]
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = headerName,
+                        onValueChange = { newName ->
+                            customHeaders =
+                                customHeaders.toMutableList().also { list ->
+                                    list[index] = newName to list[index].second
+                                }
+                        },
+                        label = { Text(stringResource(R.string.custom_header_name)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedTextField(
+                        value = headerValue,
+                        onValueChange = { newValue ->
+                            customHeaders =
+                                customHeaders.toMutableList().also { list ->
+                                    list[index] = list[index].first to newValue
+                                }
+                        },
+                        label = { Text(stringResource(R.string.custom_header_value)) },
+                        singleLine = true,
+                        visualTransformation =
+                            if (headerValuesVisible) {
+                                VisualTransformation.None
+                            } else {
+                                PasswordVisualTransformation()
+                            },
+                        modifier = Modifier.weight(1f),
+                    )
+                    IconButton(
+                        onClick = {
+                            customHeaders = customHeaders.toMutableList().also { it.removeAt(index) }
+                        },
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = stringResource(R.string.custom_header_remove),
+                            tint = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+            TextButton(
+                onClick = { customHeaders = customHeaders + ("" to "") },
+                contentPadding = PaddingValues(horizontal = 0.dp),
+            ) {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(stringResource(R.string.custom_header_add))
+            }
         }
 
         error?.let { msg ->
@@ -493,7 +600,13 @@ private fun InstanceForm(
                                 return@launch
                             }
 
-                            val api = ApiClient.create(url, key)
+                            val headers = CustomHttpHeaders.normalize(customHeaders)
+                            CustomHttpHeaders.firstInvalid(headers)?.let { (badName, _) ->
+                                error = String.format(invalidHeaderFmt, badName)
+                                return@launch
+                            }
+
+                            val api = ApiClient.create(url, key, headers)
                             api.health()
                             // health() is unauthenticated; verify the API key with an
                             // authenticated endpoint so a wrong key fails here instead of later.
@@ -506,6 +619,7 @@ private fun InstanceForm(
                                     serverUrl = url,
                                     apiKey = key,
                                     colorHex = colorHex,
+                                    customHeaders = headers,
                                 )
                             settingsRepository.addInstance(instance, setAsCurrent = setAsCurrentOnConnect)
                             if (isEdit) {

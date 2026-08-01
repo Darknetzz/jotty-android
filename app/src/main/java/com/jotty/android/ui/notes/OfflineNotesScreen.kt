@@ -33,7 +33,9 @@ fun OfflineNotesScreen(
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
     apiKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
     tabReselectToken: Int = 0,
+    onOpenPendingSync: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -65,9 +67,11 @@ fun OfflineNotesScreen(
                 imageLoader = imageLoader,
                 jottyServerUrl = jottyServerUrl,
                 apiKey = apiKey,
+                customHeaders = customHeaders,
                 serverCapabilitiesKey = instanceId,
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,
+                onOpenPendingSync = onOpenPendingSync,
             )
         },
         onlineContent = {
@@ -82,6 +86,7 @@ fun OfflineNotesScreen(
                 imageLoader = imageLoader,
                 jottyServerUrl = jottyServerUrl,
                 apiKey = apiKey,
+                customHeaders = customHeaders,
                 serverCapabilitiesKey = instanceId,
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,

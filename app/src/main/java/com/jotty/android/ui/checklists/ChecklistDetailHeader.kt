@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.MoreVert
 import com.jotty.android.R
 import com.jotty.android.ui.common.ArchiveDropdownMenuItem
+import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.ShareDropdownMenuItem
 import com.jotty.android.ui.common.CategorySelector
 import com.jotty.android.ui.common.ConfirmDeleteDialog
@@ -43,6 +44,7 @@ fun ChecklistDetailHeader(
     onRename: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
+    onClone: (() -> Unit)? = null,
     onDiscardPendingSync: (() -> Unit)? = null,
     onShare: (() -> Unit)? = null,
     isArchived: Boolean = false,
@@ -119,6 +121,15 @@ fun ChecklistDetailHeader(
                     onRename()
                 },
             )
+            onClone?.let { cloneAction ->
+                CloneDropdownMenuItem(
+                    labelRes = R.string.clone_checklist,
+                    onClick = {
+                        menuExpanded = false
+                        cloneAction()
+                    },
+                )
+            }
             if (onShare != null) {
                 ShareDropdownMenuItem(
                     onClick = {

@@ -29,6 +29,7 @@ import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ConflictCopiesBanner
+import com.jotty.android.ui.common.CloneCategoryDialog
 import com.jotty.android.ui.common.ShareServerDialog
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.util.ListDateFormat
@@ -49,6 +50,7 @@ import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.common.rememberListScreenState
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.cloneNoteOffline
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -70,9 +72,11 @@ fun OfflineEnabledNotesScreen(
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
     apiKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
+    onOpenPendingSync: () -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -148,7 +152,11 @@ fun OfflineEnabledNotesScreen(
     val conflictActionLabel = stringResource(R.string.view_conflicts)
 
     var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
+    var pendingCloneNote by remember { mutableStateOf<Note?>(null) }
+    var cloneLoading by remember { mutableStateOf(false) }
     var shareServerNote by remember { mutableStateOf<Note?>(null) }
+    val noteClonedMsg = stringResource(R.string.note_cloned)
+    val cloneFailedMsg = stringResource(R.string.clone_failed)
 
     fun requestSync(
         showLoading: Boolean = true,
@@ -308,6 +316,8 @@ fun OfflineEnabledNotesScreen(
                     lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
                     lastSyncDurationText = lastSyncDurationText,
                     lastSyncError = lastSyncError,
+                    pendingSyncCount = dirtyNoteIds.size,
+                    onManagePendingSync = onOpenPendingSync,
                     onRefresh = { requestSync(showLoading = false) },
                     onAdd = { vm.setShowCreateDialog(true) },
                 )
@@ -437,6 +447,7 @@ fun OfflineEnabledNotesScreen(
                                                 }
                                             },
                                             onArchive = { pendingArchiveNote = n },
+                                            onClone = { pendingCloneNote = n },
                                             showShare = api != null,
                                             onShare = { shareServerNote = n },
                                             showPreview = noteListPreviewEnabled,
@@ -469,6 +480,7 @@ fun OfflineEnabledNotesScreen(
                         imageLoader = imageLoader,
                         jottyServerUrl = jottyServerUrl,
                         apiKey = apiKey,
+                        customHeaders = customHeaders,
                         serverCapabilitiesKey = serverCapabilitiesKey,
                         isOnline = isOnline,
                         onRetrySync = { requestSync(showLoading = true) },
@@ -483,6 +495,7 @@ fun OfflineEnabledNotesScreen(
                         defaultNoteEditMode = defaultNoteEditMode,
                         markdownEditorMonospace = markdownEditorMonospace,
                         api = api,
+                        onClone = { pendingCloneNote = note },
                     )
                 }
             }
@@ -525,6 +538,36 @@ fun OfflineEnabledNotesScreen(
             dismissButton = {
                 TextButton(onClick = { pendingArchiveNote = null }) {
                     Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    pendingCloneNote?.let { sourceNote ->
+        CloneCategoryDialog(
+            initialCategory = sourceNote.category,
+            categorySuggestions = noteCategories,
+            loading = cloneLoading,
+            onDismiss = {
+                if (!cloneLoading) pendingCloneNote = null
+            },
+            onConfirm = { targetCategory ->
+                scope.launch {
+                    cloneLoading = true
+                    cloneNoteOffline(offlineRepository, sourceNote, targetCategory)
+                        .onSuccess { cloned ->
+                            pendingCloneNote = null
+                            vm.setSelectedNote(cloned)
+                            snackbarHostState.showSnackbar(
+                                if (isOnline) noteClonedMsg else savedLocallyMsg,
+                            )
+                        }
+                        .onFailure { error ->
+                            snackbarHostState.showSnackbar(
+                                "$cloneFailedMsg: ${ApiErrorHelper.userMessage(context, error)}",
+                            )
+                        }
+                    cloneLoading = false
                 }
             },
         )

@@ -28,6 +28,8 @@ import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.util.ListDateFormat
 import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.isArchivedCategory
+import com.jotty.android.util.cloneNote
+import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
@@ -35,6 +37,7 @@ import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.ListFilterHeader
+import com.jotty.android.ui.common.CloneCategoryDialog
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.ListSortOption
@@ -61,6 +64,7 @@ fun NotesScreen(
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
     apiKey: String? = null,
+    customHeaders: Map<String, String> = emptyMap(),
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
@@ -121,8 +125,12 @@ fun NotesScreen(
     val undoActionLabel = stringResource(R.string.undo)
 
     var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
+    var pendingCloneNote by remember { mutableStateOf<Note?>(null) }
+    var cloneLoading by remember { mutableStateOf(false) }
     var shareServerNote by remember { mutableStateOf<Note?>(null) }
     val shareEncryptedLockedMsg = stringResource(R.string.share_encrypted_note_locked)
+    val noteClonedMsg = stringResource(R.string.note_cloned)
+    val cloneFailedMsg = stringResource(R.string.clone_failed)
 
     var deepLinkResolved by remember(initialNoteId) { mutableStateOf(false) }
     var deepLinkUnfilteredAttempted by remember(initialNoteId) { mutableStateOf(false) }
@@ -289,6 +297,7 @@ fun NotesScreen(
                                                 }
                                             },
                                             onArchive = { pendingArchiveNote = n },
+                                            onClone = { pendingCloneNote = n },
                                             showShare = true,
                                             onShare = { shareServerNote = n },
                                             showPreview = noteListPreviewEnabled,
@@ -326,6 +335,7 @@ fun NotesScreen(
                         imageLoader = imageLoader,
                         jottyServerUrl = jottyServerUrl,
                         apiKey = apiKey,
+                        customHeaders = customHeaders,
                         serverCapabilitiesKey = serverCapabilitiesKey,
                         biometricStore = biometricStore,
                         biometricAutoUnlockEnabled = biometricAutoUnlockEnabled,
@@ -338,6 +348,7 @@ fun NotesScreen(
                         defaultNoteEditMode = defaultNoteEditMode,
                         markdownEditorMonospace = markdownEditorMonospace,
                         api = api,
+                        onClone = { pendingCloneNote = note },
                     )
                 }
             }
@@ -411,6 +422,35 @@ fun NotesScreen(
                     scope.launch { snackbarHostState.showSnackbar(shareEncryptedLockedMsg) }
                 }
                 shareServerNote = null
+            },
+        )
+    }
+
+    pendingCloneNote?.let { sourceNote ->
+        CloneCategoryDialog(
+            initialCategory = sourceNote.category,
+            categorySuggestions = noteCategories,
+            loading = cloneLoading,
+            onDismiss = {
+                if (!cloneLoading) pendingCloneNote = null
+            },
+            onConfirm = { targetCategory ->
+                scope.launch {
+                    cloneLoading = true
+                    cloneNote(api, sourceNote, targetCategory)
+                        .onSuccess { cloned ->
+                            pendingCloneNote = null
+                            vm.loadNotes()
+                            vm.setSelectedNote(cloned)
+                            snackbarHostState.showSnackbar(noteClonedMsg)
+                        }
+                        .onFailure { error ->
+                            snackbarHostState.showSnackbar(
+                                "$cloneFailedMsg: ${ApiErrorHelper.userMessage(context, error)}",
+                            )
+                        }
+                    cloneLoading = false
+                }
             },
         )
     }

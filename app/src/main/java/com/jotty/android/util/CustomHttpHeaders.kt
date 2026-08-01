@@ -42,7 +42,10 @@ object CustomHttpHeaders {
         headers: Map<String, String>,
     ) {
         normalize(headers).forEach { (name, value) ->
-            builder.addHeader(name, value)
+            // Skip invalid entries (e.g. pre-hardening store) so OkHttp does not throw.
+            if (isValid(name, value)) {
+                builder.addHeader(name, value)
+            }
         }
     }
 

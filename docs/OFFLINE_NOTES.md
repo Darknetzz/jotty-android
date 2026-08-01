@@ -49,6 +49,7 @@ The app uses an intelligent sync strategy with **conflict detection and local co
 ### Sync Status Indicators
 
 In the Notes screen, you'll see sync status indicators:
+- With offline mode on, open **Manage pending** (from Sync details or Settings → Behavior) to review dirty notes and checklists, compare local vs server, overwrite either way, and restore automatic on-device sync backups
 - Top-right corner shows connection status icon
 - "Saved locally" snackbar appears when saving offline
 - "X conflict(s) detected" snackbar with "View copies" action when conflicts occur
@@ -173,8 +174,8 @@ When you see "X conflict(s) detected" notification:
 Possible enhancements for future versions:
 - ~~Conflict resolution UI for simultaneous edits~~ ✅ Implemented (creates local copies)
 - ~~Offline support for checklists~~ ✅ Implemented (1.3.x)
+- ~~Sync status per note (show which notes are pending)~~ ✅ List badges + pending sync manager
+- ~~Background sync using WorkManager~~ ✅ `OfflineSyncWorker`
 - Selective sync (only certain categories)
 - Export/backup local database
-- Sync status per note (show which notes are pending)
-- Background sync using WorkManager
 - Advanced merge UI with side-by-side comparison

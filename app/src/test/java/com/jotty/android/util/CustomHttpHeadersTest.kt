@@ -34,4 +34,25 @@ class CustomHttpHeadersTest {
         val bad = CustomHttpHeaders.firstInvalid(mapOf("X-Ok" to "1", "Bad Name" to "2"))
         assertEquals("Bad Name", bad?.first)
     }
+
+    @Test
+    fun applyTo_skipsInvalidHeaders() {
+        val request =
+            okhttp3.Request.Builder()
+                .url("https://example.com/")
+                .also {
+                    CustomHttpHeaders.applyTo(
+                        it,
+                        mapOf(
+                            "X-Ok" to "1",
+                            "Bad Name" to "2",
+                            "X-Also" to "3",
+                        ),
+                    )
+                }
+                .build()
+        assertEquals("1", request.header("X-Ok"))
+        assertEquals("3", request.header("X-Also"))
+        assertNull(request.header("Bad Name"))
+    }
 }

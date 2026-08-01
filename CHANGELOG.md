@@ -17,6 +17,8 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Checklist nested sub-items** — Simple checklist detail now shows nested children (indent + full progress), matching list-card counts ([#86](https://github.com/Darknetzz/jotty-android/issues/86)).
 - **Custom header editing** — Editing a header name then its value no longer pairs the new value with a stale header name (reads the current pair from the list at callback time).
 - **Launch crash with custom headers** — Older saved instances (JSON without `customHeaders`) no longer crash on startup when Gson leaves that map null.
+- **Pending sync success feedback** — Overwrite-server and restore-backup actions show a success alert when they complete.
+- **Invalid custom headers at request time** — Malformed stored header names are skipped when building requests so OkHttp does not throw (UI still validates new input).
 
 ---
 

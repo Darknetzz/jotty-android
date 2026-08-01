@@ -18,7 +18,8 @@ Prioritized backlog after v1.3.5. See also [CHANGELOG.md](../CHANGELOG.md).
 ## Features (blocked or larger)
 
 - [x] Checklist item reorder ([#29](https://github.com/Darknetzz/jotty-android/issues/29)) — Jotty REST `PUT …/items/reorder`; see [CHECKLIST_REORDER.md](CHECKLIST_REORDER.md)
-- [ ] Background sync via WorkManager
+- [x] Background sync via WorkManager (`OfflineSyncWorker`)
+- [x] Pending sync manager (diffs, force push/pull, on-device sync backups)
 - [ ] Advanced conflict merge UI (side-by-side); see [CONFLICT_RESOLUTION.md](CONFLICT_RESOLUTION.md)
 - [ ] i18n (`values-*` locales)
 

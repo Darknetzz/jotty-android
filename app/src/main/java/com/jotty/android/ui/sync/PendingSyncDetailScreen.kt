@@ -47,7 +47,6 @@ import com.jotty.android.ui.common.InlineAlertVariant
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import androidx.compose.foundation.layout.height
 import java.text.DateFormat
 import java.util.Date
 
@@ -81,9 +80,14 @@ fun PendingSyncDetailScreen(
     var confirmPush by remember { mutableStateOf(false) }
     var confirmPull by remember { mutableStateOf(false) }
     var restoreBackupId by remember { mutableStateOf<Long?>(null) }
+    var successMessage by remember { mutableStateOf<String?>(null) }
 
     val doneMsg = stringResource(R.string.pending_sync_action_done)
     val shareLabel = stringResource(R.string.pending_sync_share_backup)
+
+    LaunchedEffect(error) {
+        if (error != null) successMessage = null
+    }
 
     Column(
         modifier =
@@ -138,6 +142,13 @@ fun PendingSyncDetailScreen(
             InlineAlert(
                 message = msg,
                 variant = InlineAlertVariant.Danger,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+        successMessage?.let { msg ->
+            InlineAlert(
+                message = msg,
+                variant = InlineAlertVariant.Success,
                 modifier = Modifier.padding(top = 12.dp),
             )
         }
@@ -311,7 +322,10 @@ fun PendingSyncDetailScreen(
                 TextButton(
                     onClick = {
                         confirmPush = false
-                        vm.forcePush(kind, itemId) { /* snackbar optional */ }
+                        successMessage = null
+                        vm.forcePush(kind, itemId) { success ->
+                            if (success) successMessage = doneMsg
+                        }
                     },
                 ) { Text(stringResource(R.string.ok)) }
             },
@@ -331,6 +345,7 @@ fun PendingSyncDetailScreen(
                 TextButton(
                     onClick = {
                         confirmPull = false
+                        successMessage = null
                         vm.pullFromServer(kind, itemId) { success ->
                             if (success) onBack()
                         }
@@ -354,7 +369,10 @@ fun PendingSyncDetailScreen(
                     onClick = {
                         val id = backupId
                         restoreBackupId = null
-                        vm.restoreBackup(kind, itemId, id) { }
+                        successMessage = null
+                        vm.restoreBackup(kind, itemId, id) { success ->
+                            if (success) successMessage = doneMsg
+                        }
                     },
                 ) { Text(stringResource(R.string.ok)) }
             },
@@ -365,10 +383,6 @@ fun PendingSyncDetailScreen(
             },
         )
     }
-
-    // Silence unused warning when snackbars are not wired yet.
-    @Suppress("UNUSED_VARIABLE")
-    val unusedDone = doneMsg
 }
 
 @Composable

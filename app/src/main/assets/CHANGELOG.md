@@ -18,7 +18,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
-- **Checklist nested sub-items** — Simple checklist detail now shows nested children (indent + full progress), matching list-card counts ([#86](https://github.com/Darknetzz/jotty-android/issues/86)).
+- **Checklist nested sub-items** — Simple checklist detail now shows nested children (indent + full progress), matching list-card counts. Thanks [@4dprinter](https://github.com/4dprinter) ([#86](https://github.com/Darknetzz/jotty-android/issues/86)).
 - **Custom header editing** — Editing a header name then its value no longer pairs the new value with a stale header name (reads the current pair from the list at callback time).
 - **Launch crash with custom headers** — Older saved instances (JSON without `customHeaders`) no longer crash on startup when Gson leaves that map null.
 - **Pending sync success feedback** — Overwrite-server and restore-backup actions show a success alert when they complete.

@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -141,6 +142,7 @@ fun OfflineEnabledNotesScreen(
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
@@ -208,7 +210,7 @@ fun OfflineEnabledNotesScreen(
     LaunchedEffect(Unit) {
         vm.categoryFilterEmptyEvents.collect { category ->
             snackbarHostState.showSnackbar(
-                message = context.getString(R.string.offline_category_filter_empty, category),
+                message = resources.getString(R.string.offline_category_filter_empty, category),
             )
         }
     }

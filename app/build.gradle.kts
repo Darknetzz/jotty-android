@@ -110,10 +110,10 @@ dependencies {
     implementation(libs.reorderable)
 
     implementation("androidx.core:core-ktx:1.18.0") // 1.19+ requires compileSdk 37 (see Dependabot PR #54)
-    implementation("androidx.lifecycle:lifecycle-process:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-process:2.10.0") // 2.11+ requires compileSdk 37
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0") // 2.11+ requires compileSdk 37
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.navigation:navigation-compose:2.9.8")
 
@@ -140,11 +140,12 @@ dependencies {
     implementation("androidx.glance:glance-material3:1.1.1")
 
     // Markdown rendering for notes (images via Coil)
+    // 0.6+ migrates to Coil 3; stay on 0.5.x until NoteImageLoader / Coil are upgraded together
     implementation("com.github.jeziellago:compose-markdown:0.5.8")
     implementation("io.coil-kt:coil:2.7.0")
 
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
 
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")

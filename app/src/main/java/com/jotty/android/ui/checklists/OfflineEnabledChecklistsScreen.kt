@@ -21,6 +21,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
@@ -132,6 +133,7 @@ fun OfflineEnabledChecklistsScreen(
     val checklistListDisplay = rememberStaleListWhileRefresh(sortedChecklists, listRefreshing)
 
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
@@ -240,7 +242,7 @@ fun OfflineEnabledChecklistsScreen(
     LaunchedEffect(Unit) {
         vm.categoryFilterEmptyEvents.collect { category ->
             snackbarHostState.showSnackbar(
-                message = context.getString(R.string.offline_category_filter_empty, category),
+                message = resources.getString(R.string.offline_category_filter_empty, category),
             )
         }
     }

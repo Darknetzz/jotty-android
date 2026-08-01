@@ -6,6 +6,16 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Changed
+
+- **Dependencies** — AGP 9.3.0, Compose BOM 2026.06.01, KSP 2.3.10, Bouncy Castle 1.85, Gradle 9.6.1, and ktlint Gradle plugin 13.1.0. Kotlin stays on 2.3.21 until a coordinated 2.4 upgrade; Lifecycle stays on 2.10 (2.11 needs compileSdk 37); compose-markdown stays on 0.5.8 (0.6+ needs Coil 3).
+- **Dependabot** — Ignore rules now cover Kotlin Gradle plugin ids (not only `org.jetbrains.kotlin:*`), exclude Kotlin from grouped weekly/major PRs, and block Lifecycle 2.11+, compose-markdown 0.6+, until their prerequisites land (see closed [#85](https://github.com/Darknetzz/jotty-android/pull/85)).
+- **GitHub Actions** — `actions/checkout` v7 and `android-emulator-runner` 2.38 ([#79](https://github.com/Darknetzz/jotty-android/pull/79)).
+
+### Fixed
+
+- **Compose lint (LocalContext resources)** — Category-filter empty snackbars use `LocalResources` instead of `LocalContext.getString`, satisfying the new Compose lint check from the BOM/AGP bump.
+
 ---
 
 ## [1.9.0] - 2026-08-01

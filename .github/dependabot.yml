@@ -18,24 +18,43 @@ updates:
           - "patch"
         patterns:
           - "*"
+        exclude-patterns:
+          - "org.jetbrains.kotlin*"
       # Major bumps reviewed separately (AGP, Room majors, etc.)
       gradle-major:
         update-types:
           - "major"
         patterns:
           - "*"
+        exclude-patterns:
+          - "org.jetbrains.kotlin*"
     ignore:
       # Blocked until compileSdk 37 (see app/build.gradle.kts)
       - dependency-name: "androidx.core:core-ktx"
         versions: [">=1.19.0"]
+      - dependency-name: "androidx.lifecycle:*"
+        versions: [">=2.11.0"]
+      # compose-markdown 0.6+ requires Coil 3; bump with NoteImageLoader migration
+      - dependency-name: "com.github.jeziellago:compose-markdown"
+        versions: [">=0.6.0"]
       # ktlint 14+ requires fixing test-source violations first
       - dependency-name: "org.jlleitschuh.gradle.ktlint"
         versions: [">=14.0.0"]
       # OkHttp 5 must align with Retrofit's OkHttp; bump together deliberately
       - dependency-name: "com.squareup.okhttp3:*"
         update-types: ["version-update:semver-major"]
-      # Kotlin 2.4+ needs coordinated KSP / AGP check
+      # Kotlin 2.4+ needs coordinated KSP / AGP check.
+      # Cover Maven coords and Gradle plugin ids (version-catalog kotlin.plugin.compose
+      # slipped into gradle-weekly as a "minor" in Dependabot PR #85).
       - dependency-name: "org.jetbrains.kotlin:*"
+        versions: [">=2.4.0"]
+      - dependency-name: "org.jetbrains.kotlin.android"
+        versions: [">=2.4.0"]
+      - dependency-name: "org.jetbrains.kotlin.jvm"
+        versions: [">=2.4.0"]
+      - dependency-name: "org.jetbrains.kotlin.plugin.compose"
+        versions: [">=2.4.0"]
+      - dependency-name: "org.jetbrains.kotlin.plugin.serialization"
         versions: [">=2.4.0"]
 
   - package-ecosystem: github-actions

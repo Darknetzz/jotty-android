@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+---
+
+## [1.9.0] - 2026-08-01
+
 ### Added
 
 - **Pending sync manager** — From Sync details (**Manage pending**) or Settings → Behavior, review dirty notes and checklists (including pending deletes), compare local vs server/baseline, overwrite either way, and restore from automatic on-device sync backups (shareable).
@@ -19,6 +23,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Launch crash with custom headers** — Older saved instances (JSON without `customHeaders`) no longer crash on startup when Gson leaves that map null.
 - **Pending sync success feedback** — Overwrite-server and restore-backup actions show a success alert when they complete.
 - **Invalid custom headers at request time** — Malformed stored header names are skipped when building requests so OkHttp does not throw (UI still validates new input).
+
 
 ---
 
@@ -1124,3 +1129,5 @@ Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes 
 [1.7.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.5
 
 [1.8.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.8.0
+
+[1.9.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.9.0

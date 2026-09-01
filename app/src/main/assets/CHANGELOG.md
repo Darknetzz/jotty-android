@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Visual editor table editing** — When the cursor is inside a table, add row/column and exit-table actions appear in the toolbar (quick buttons by default, full menu on the table button). Tab moves between cells; Enter or arrow down from the last row exits below the table. Settings → Behavior → **Compact table toolbar** hides the quick buttons.
+
 ### Changed
 
 - **Dependencies** — AGP 9.3.1 ([#92](https://github.com/Darknetzz/jotty-android/pull/92)), Compose BOM 2026.06.01, KSP 2.3.10, Bouncy Castle 1.85, Gradle 9.6.1, and ktlint Gradle plugin 13.1.0. Kotlin stays on 2.3.21 until a coordinated 2.4 upgrade; Lifecycle stays on 2.10 (2.11 needs compileSdk 37); compose-markdown stays on 0.5.8 (0.6+ needs Coil 3).

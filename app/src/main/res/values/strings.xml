@@ -354,6 +354,16 @@
     <string name="wysiwyg_insert_table_title">Insert table</string>
     <string name="wysiwyg_table_rows">Rows</string>
     <string name="wysiwyg_table_cols">Columns</string>
+    <string name="wysiwyg_table_add_row">Add row below</string>
+    <string name="wysiwyg_table_add_row_above">Add row above</string>
+    <string name="wysiwyg_table_add_column">Add column after</string>
+    <string name="wysiwyg_table_add_column_before">Add column before</string>
+    <string name="wysiwyg_table_delete_row">Delete row</string>
+    <string name="wysiwyg_table_delete_column">Delete column</string>
+    <string name="wysiwyg_table_exit">Exit table</string>
+    <string name="wysiwyg_table_menu">Table actions</string>
+    <string name="compact_table_toolbar">Compact table toolbar</string>
+    <string name="compact_table_toolbar_description">Show table row/column actions in the table menu only (hide quick-action buttons)</string>
     <string name="md_list">Bullet list</string>
     <string name="md_numbered_list">Numbered list</string>
     <string name="md_task_list">Task list</string>

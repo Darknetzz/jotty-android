@@ -8,6 +8,7 @@ import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
@@ -21,6 +22,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.FormatBold
@@ -42,6 +45,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -80,6 +85,7 @@ internal fun WysiwygNoteEditor(
     apiKey: String? = null,
     customHeaders: Map<String, String> = emptyMap(),
     serverCapabilitiesKey: String? = null,
+    compactTableToolbar: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     var editorWebView by remember { mutableStateOf<WebView?>(null) }
@@ -134,6 +140,7 @@ internal fun WysiwygNoteEditor(
         }
         WysiwygFormatToolbar(
             state = formatState,
+            compactTableToolbar = compactTableToolbar,
             onCommand = { script ->
                 editorWebView?.evaluateJavascript(script) {
                     refreshWysiwygFormatState(editorWebView) { formatState = it }
@@ -305,10 +312,12 @@ private fun WysiwygUrlInsertDialog(
 @Composable
 private fun WysiwygFormatToolbar(
     state: WysiwygFormatState,
+    compactTableToolbar: Boolean,
     onCommand: (String) -> Unit,
     onInsertTable: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var showTableMenu by remember { mutableStateOf(false) }
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -348,10 +357,105 @@ private fun WysiwygFormatToolbar(
             WysiwygToolbarButton("cmd('formatBlock','blockquote')", Icons.Default.FormatQuote, R.string.md_quote, state.blockquote, onCommand)
             WysiwygToolbarButton("insertLink()", Icons.Default.Link, R.string.md_link, state.link, onCommand)
             WysiwygToolbarButton("insertImage()", Icons.Default.Image, R.string.md_image, selected = false, onCommand)
-            val tableLabel = stringResource(R.string.md_table)
-            IconButton(onClick = onInsertTable) {
-                Icon(Icons.Default.TableChart, contentDescription = tableLabel)
+            if (state.inTable && !compactTableToolbar) {
+                WysiwygToolbarButton("addTableRow(true)", Icons.Default.Add, R.string.wysiwyg_table_add_row, selected = false, onCommand)
+                WysiwygToolbarButton("exitTable()", Icons.Default.ArrowDownward, R.string.wysiwyg_table_exit, selected = false, onCommand)
             }
+            WysiwygTableToolbarButton(
+                inTable = state.inTable,
+                tableRows = state.tableRows,
+                tableCols = state.tableCols,
+                showMenu = showTableMenu,
+                onShowMenuChange = { showTableMenu = it },
+                onInsertTable = onInsertTable,
+                onCommand = onCommand,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WysiwygTableToolbarButton(
+    inTable: Boolean,
+    tableRows: Int,
+    tableCols: Int,
+    showMenu: Boolean,
+    onShowMenuChange: (Boolean) -> Unit,
+    onInsertTable: () -> Unit,
+    onCommand: (String) -> Unit,
+) {
+    val tableLabel = stringResource(R.string.md_table)
+    val menuLabel = stringResource(R.string.wysiwyg_table_menu)
+    Box {
+        IconButton(
+            onClick = {
+                if (inTable) {
+                    onShowMenuChange(true)
+                } else {
+                    onInsertTable()
+                }
+            },
+        ) {
+            Icon(
+                Icons.Default.TableChart,
+                contentDescription = if (inTable) menuLabel else tableLabel,
+            )
+        }
+        DropdownMenu(
+            expanded = showMenu && inTable,
+            onDismissRequest = { onShowMenuChange(false) },
+        ) {
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.wysiwyg_table_add_row_above)) },
+            onClick = {
+                onShowMenuChange(false)
+                onCommand("addTableRow(false)")
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.wysiwyg_table_add_row)) },
+            onClick = {
+                onShowMenuChange(false)
+                onCommand("addTableRow(true)")
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.wysiwyg_table_add_column_before)) },
+            onClick = {
+                onShowMenuChange(false)
+                onCommand("addTableColumn(false)")
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.wysiwyg_table_add_column)) },
+            onClick = {
+                onShowMenuChange(false)
+                onCommand("addTableColumn(true)")
+            },
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.wysiwyg_table_delete_row)) },
+            onClick = {
+                onShowMenuChange(false)
+                onCommand("deleteTableRow()")
+            },
+            enabled = tableRows > 1,
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.wysiwyg_table_delete_column)) },
+            onClick = {
+                onShowMenuChange(false)
+                onCommand("deleteTableColumn()")
+            },
+            enabled = tableCols > 1,
+        )
+        DropdownMenuItem(
+            text = { Text(stringResource(R.string.wysiwyg_table_exit)) },
+            onClick = {
+                onShowMenuChange(false)
+                onCommand("exitTable()")
+            },
+        )
         }
     }
 }

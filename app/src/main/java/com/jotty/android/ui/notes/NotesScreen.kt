@@ -88,6 +88,7 @@ fun NotesScreen(
     val defaultNoteCategory by settingsRepository.defaultNoteCategory.collectAsStateWithLifecycle(initialValue = null)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
     val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val compactTableToolbar by settingsRepository.compactTableToolbarEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -343,6 +344,7 @@ fun NotesScreen(
                         categorySuggestions = noteCategories,
                         richEditorEnabled = richNoteEditorEnabled,
                         visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
+                        compactTableToolbar = compactTableToolbar,
                         noteSnapshotsEnabled = noteSnapshotsEnabled,
                         openNotesInEditMode = openNotesInEditMode,
                         defaultNoteEditMode = defaultNoteEditMode,

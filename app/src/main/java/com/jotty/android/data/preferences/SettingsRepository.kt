@@ -135,6 +135,12 @@ class SettingsRepository(
             prefs[KEY_VISUAL_EDITOR_SAVE_AS_MARKDOWN] ?: false
         }.catch { emit(false) }
 
+    /** Hide quick table toolbar buttons; table actions appear in the menu only. Default false. */
+    val compactTableToolbarEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_COMPACT_TABLE_TOOLBAR] ?: false
+        }.catch { emit(false) }
+
     /** Hide Kanban columns with no tasks on project boards. Default false. */
     val kanbanHideEmptyColumns: Flow<Boolean> =
         context.jottySettingsDataStore.data.map { prefs ->
@@ -413,6 +419,12 @@ class SettingsRepository(
             } else {
                 it.remove(KEY_VISUAL_EDITOR_SAVE_AS_MARKDOWN)
             }
+        }
+    }
+
+    suspend fun setCompactTableToolbarEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it[KEY_COMPACT_TABLE_TOOLBAR] = true else it.remove(KEY_COMPACT_TABLE_TOOLBAR)
         }
     }
 
@@ -720,6 +732,7 @@ class SettingsRepository(
         private val KEY_RICH_NOTE_EDITOR = booleanPreferencesKey("rich_note_editor_enabled")
         private val KEY_VISUAL_EDITOR_SAVE_AS_MARKDOWN =
             booleanPreferencesKey("visual_editor_save_as_markdown_enabled")
+        private val KEY_COMPACT_TABLE_TOOLBAR = booleanPreferencesKey("compact_table_toolbar_enabled")
         private val KEY_CHECKLIST_DRAG_REORDER = booleanPreferencesKey("checklist_drag_reorder_enabled")
         private val KEY_SHOW_CHECKLIST_EMOJIS = booleanPreferencesKey("show_checklist_emojis")
         private val KEY_KANBAN_HIDE_EMPTY_COLUMNS = booleanPreferencesKey("kanban_hide_empty_columns")

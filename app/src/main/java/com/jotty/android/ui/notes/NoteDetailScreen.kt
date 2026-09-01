@@ -117,6 +117,7 @@ internal fun NoteDetailScreen(
     categorySuggestions: List<String> = emptyList(),
     richEditorEnabled: Boolean = false,
     visualEditorSaveAsMarkdown: Boolean = false,
+    compactTableToolbar: Boolean = false,
     noteSnapshotsEnabled: Boolean = true,
     openNotesInEditMode: Boolean = false,
     defaultNoteEditMode: String = "markdown",
@@ -886,6 +887,7 @@ internal fun NoteDetailScreen(
                                     apiKey = apiKey,
                                     customHeaders = customHeaders,
                                     serverCapabilitiesKey = serverCapabilitiesKey,
+                                    compactTableToolbar = compactTableToolbar,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             NoteEditMode.Markdown ->

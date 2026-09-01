@@ -29,6 +29,7 @@ fun BehaviorSettingsScreen(
     val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
     val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val compactTableToolbar by settingsRepository.compactTableToolbarEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val notePreviewMaxLines by settingsRepository.notePreviewMaxLines.collectAsStateWithLifecycle(
         initialValue = SettingsRepository.DEFAULT_NOTE_PREVIEW_MAX_LINES,
@@ -247,6 +248,28 @@ fun BehaviorSettingsScreen(
                     )
                 },
             )
+            if (richNoteEditorEnabled) {
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.compact_table_toolbar)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.compact_table_toolbar_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = compactTableToolbar,
+                            onCheckedChange = {
+                                scope.launch {
+                                    settingsRepository.setCompactTableToolbarEnabled(it)
+                                }
+                            },
+                        )
+                    },
+                )
+            }
             HorizontalDivider()
             ListItem(
                 headlineContent = { Text(stringResource(R.string.note_list_preview)) },

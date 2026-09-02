@@ -252,6 +252,10 @@ internal fun buildWysiwygEditorDocument(
             var cell = getTableCell();
             if (!cell) {
               if (lastKnownInTable) return resolveTableContextFromCache();
+              if (editorHasTable()) {
+                seedTableUiFromContent();
+                return resolveTableContextFromCache();
+              }
               return null;
             }
             var row = cell.parentNode;
@@ -400,13 +404,28 @@ internal fun buildWysiwygEditorDocument(
           function isInTable() {
             return !!getTableCell();
           }
+          function editorHasTable() {
+            var editorEl = document.getElementById('editor');
+            return !!(editorEl && editorEl.querySelector('table'));
+          }
           function isInTableForToolbar() {
-            return isInTable() || lastKnownInTable;
+            if (isInTable()) return true;
+            if (lastKnownInTable) return true;
+            return editorHasTable();
           }
           function getTableDimensions() {
             var ctx = getTableContext();
-            if (!ctx) return { rows: 0, cols: 0 };
-            return { rows: ctx.rowCount, cols: ctx.colCount };
+            if (ctx) return { rows: ctx.rowCount, cols: ctx.colCount };
+            var editorEl = document.getElementById('editor');
+            var table = editorEl ? editorEl.querySelector('table') : null;
+            if (!table) return { rows: 0, cols: 0 };
+            var allRows = table.querySelectorAll('tr');
+            var colCount = 0;
+            for (var i = 0; i < allRows.length; i++) {
+              var count = allRows[i].querySelectorAll('td, th').length;
+              if (count > colCount) colCount = count;
+            }
+            return { rows: allRows.length, cols: colCount };
           }
           function updateTableUiCacheFromSelection() {
             var liveCell = getTableCell();

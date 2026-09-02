@@ -18,7 +18,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Fixed
 
-- **Visual editor table toolbar on Android** — Table row/column/exit actions now appear reliably: format state is delivered on the main thread, table context is seeded when a note loads with a table, and cached while the toolbar has focus so the table menu opens instead of “Insert table”.
+- **Visual editor table toolbar on Android** — Table edit controls now appear for any note that contains a table (detected from note content, not only when the cursor is inside a cell). The table button opens the row/column/exit menu instead of “Insert table” on existing table notes.
 - **Compose lint (LocalContext resources)** — Category-filter empty snackbars use `LocalResources` instead of `LocalContext.getString`, satisfying the new Compose lint check from the BOM/AGP bump.
 
 ---

@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.jotty.android.R
 import com.jotty.android.ui.common.CategorySelector
+import com.jotty.android.util.contentHasTable
 import com.jotty.android.util.prepareNoteContentForWysiwyg
 
 @SuppressLint("SetJavaScriptEnabled")
@@ -99,6 +100,7 @@ internal fun WysiwygNoteEditor(
     var tableCols by remember { mutableStateOf("2") }
     // Snapshot HTML when entering visual mode; do not recompute when WYSIWYG sync updates [content].
     val editorHtml = remember(contentReloadKey) { prepareNoteContentForWysiwyg(content) }
+    val noteHasTable = remember(contentReloadKey) { contentHasTable(editorHtml) }
     val surfaceColor = MaterialTheme.colorScheme.surface.toArgb()
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val borderColor = MaterialTheme.colorScheme.outlineVariant.toArgb()
@@ -140,6 +142,7 @@ internal fun WysiwygNoteEditor(
         }
         WysiwygFormatToolbar(
             state = formatState,
+            noteHasTable = noteHasTable,
             compactTableToolbar = compactTableToolbar,
             editorWebView = editorWebView,
             onFormatStateUpdate = { formatState = it },
@@ -314,6 +317,7 @@ private fun WysiwygUrlInsertDialog(
 @Composable
 private fun WysiwygFormatToolbar(
     state: WysiwygFormatState,
+    noteHasTable: Boolean,
     compactTableToolbar: Boolean,
     editorWebView: WebView?,
     onFormatStateUpdate: (WysiwygFormatState) -> Unit,
@@ -321,6 +325,7 @@ private fun WysiwygFormatToolbar(
     onInsertTable: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val showTableActions = noteHasTable || state.inTable
     var showTableMenu by remember { mutableStateOf(false) }
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -361,11 +366,13 @@ private fun WysiwygFormatToolbar(
             WysiwygToolbarButton("cmd('formatBlock','blockquote')", Icons.Default.FormatQuote, R.string.md_quote, state.blockquote, onCommand)
             WysiwygToolbarButton("insertLink()", Icons.Default.Link, R.string.md_link, state.link, onCommand)
             WysiwygToolbarButton("insertImage()", Icons.Default.Image, R.string.md_image, selected = false, onCommand)
-            if (state.inTable && !compactTableToolbar) {
+            if (showTableActions && !compactTableToolbar) {
                 WysiwygToolbarButton("addTableRow(true)", Icons.Default.Add, R.string.wysiwyg_table_add_row, selected = false, onCommand)
                 WysiwygToolbarButton("exitTable()", Icons.Default.ArrowDownward, R.string.wysiwyg_table_exit, selected = false, onCommand)
             }
             WysiwygTableToolbarButton(
+                showTableActions = showTableActions,
+                noteHasTable = noteHasTable,
                 inTable = state.inTable,
                 tableRows = state.tableRows,
                 tableCols = state.tableCols,
@@ -382,6 +389,8 @@ private fun WysiwygFormatToolbar(
 
 @Composable
 private fun WysiwygTableToolbarButton(
+    showTableActions: Boolean,
+    noteHasTable: Boolean,
     inTable: Boolean,
     tableRows: Int,
     tableCols: Int,
@@ -397,6 +406,13 @@ private fun WysiwygTableToolbarButton(
     Box {
         IconButton(
             onClick = {
+                if (noteHasTable) {
+                    refreshWysiwygFormatState(editorWebView) { liveState ->
+                        onFormatStateUpdate(liveState)
+                        onShowMenuChange(true)
+                    }
+                    return@IconButton
+                }
                 refreshWysiwygFormatState(editorWebView) { liveState ->
                     onFormatStateUpdate(liveState)
                     if (liveState.inTable) {
@@ -409,11 +425,11 @@ private fun WysiwygTableToolbarButton(
         ) {
             Icon(
                 Icons.Default.TableChart,
-                contentDescription = if (inTable) menuLabel else tableLabel,
+                contentDescription = if (showTableActions) menuLabel else tableLabel,
             )
         }
         DropdownMenu(
-            expanded = showMenu && inTable,
+            expanded = showMenu && showTableActions,
             onDismissRequest = { onShowMenuChange(false) },
         ) {
         DropdownMenuItem(
@@ -467,6 +483,15 @@ private fun WysiwygTableToolbarButton(
                 onCommand("exitTable()")
             },
         )
+        if (noteHasTable) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.wysiwyg_insert_table_title)) },
+                onClick = {
+                    onShowMenuChange(false)
+                    onInsertTable()
+                },
+            )
+        }
         }
     }
 }
@@ -596,6 +621,10 @@ private fun WysiwygWebEditor(
                     onBridgeReady(bridge)
                     val pageFinished: (WebView?) -> Unit = { view ->
                         bridge.endLoad()
+                        view?.evaluateJavascript(
+                            "(function(){ seedTableUiFromContent(); notifyFormatState(); })();",
+                            null,
+                        )
                         view?.requestFocus()
                     }
                     webViewClient =

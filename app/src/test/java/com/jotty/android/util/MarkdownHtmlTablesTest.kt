@@ -326,4 +326,11 @@ class MarkdownHtmlTablesTest {
         assertTrue(html.contains("<h1>test</h1>"))
         assertTrue(html.contains("<table"))
     }
+
+    @Test
+    fun `contentHasTable detects html and gfm tables`() {
+        assertTrue(contentHasTable("<table><tr><td>a</td></tr></table>"))
+        assertTrue(contentHasTable("| a | b |\n| --- | --- |\n| 1 | 2 |"))
+        assertFalse(contentHasTable("# hello\n\nplain text"))
+    }
 }

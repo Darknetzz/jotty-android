@@ -419,6 +419,10 @@ fun prepareNoteContentForWysiwyg(content: String): String {
 fun noteNeedsRichEditor(content: String): Boolean =
     noteContentContainsRawHtml(content) || contentContainsGfmTable(content)
 
+/** True when the note body contains a markdown or HTML table. */
+fun contentHasTable(content: String): Boolean =
+    content.contains("<table", ignoreCase = true) || contentContainsGfmTable(content)
+
 private val htmlListItemPattern = Regex("""<li\b[^>]*>(.*?)</li>""", regexDotIgnoreCase)
 
 /** Converts HTML lists from the WYSIWYG editor into markdown list lines. */

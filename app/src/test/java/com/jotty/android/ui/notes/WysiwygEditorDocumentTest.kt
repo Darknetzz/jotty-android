@@ -27,7 +27,7 @@ class WysiwygEditorDocumentTest {
         assertTrue(doc.contains("deleteTableColumn"))
         assertTrue(doc.contains("exitTable"))
         assertTrue(doc.contains("inTable"))
-        assertTrue(doc.contains("isInTableForToolbar"))
+        assertTrue(doc.contains("editorHasTable"))
         assertTrue(doc.contains("seedTableUiFromContent"))
         assertTrue(doc.contains("handleTableKeydown"))
     }

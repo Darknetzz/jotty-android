@@ -74,7 +74,8 @@ final class WysiwygEditorBridge {
             return;
         }
         userEdited.set(true);
-        listener.onContentChanged(html);
+        String safe = html != null ? html : "";
+        mainHandler.post(() -> listener.onContentChanged(safe));
     }
 
     @JavascriptInterface
@@ -83,7 +84,7 @@ final class WysiwygEditorBridge {
             return;
         }
         if (json != null) {
-            listener.onFormatStateChanged(json);
+            mainHandler.post(() -> listener.onFormatStateChanged(json));
         }
     }
 

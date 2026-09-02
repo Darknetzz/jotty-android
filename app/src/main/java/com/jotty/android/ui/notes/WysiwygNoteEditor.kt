@@ -141,6 +141,8 @@ internal fun WysiwygNoteEditor(
         WysiwygFormatToolbar(
             state = formatState,
             compactTableToolbar = compactTableToolbar,
+            editorWebView = editorWebView,
+            onFormatStateUpdate = { formatState = it },
             onCommand = { script ->
                 editorWebView?.evaluateJavascript(script) {
                     refreshWysiwygFormatState(editorWebView) { formatState = it }
@@ -313,6 +315,8 @@ private fun WysiwygUrlInsertDialog(
 private fun WysiwygFormatToolbar(
     state: WysiwygFormatState,
     compactTableToolbar: Boolean,
+    editorWebView: WebView?,
+    onFormatStateUpdate: (WysiwygFormatState) -> Unit,
     onCommand: (String) -> Unit,
     onInsertTable: () -> Unit,
     modifier: Modifier = Modifier,
@@ -366,6 +370,8 @@ private fun WysiwygFormatToolbar(
                 tableRows = state.tableRows,
                 tableCols = state.tableCols,
                 showMenu = showTableMenu,
+                editorWebView = editorWebView,
+                onFormatStateUpdate = onFormatStateUpdate,
                 onShowMenuChange = { showTableMenu = it },
                 onInsertTable = onInsertTable,
                 onCommand = onCommand,
@@ -380,6 +386,8 @@ private fun WysiwygTableToolbarButton(
     tableRows: Int,
     tableCols: Int,
     showMenu: Boolean,
+    editorWebView: WebView?,
+    onFormatStateUpdate: (WysiwygFormatState) -> Unit,
     onShowMenuChange: (Boolean) -> Unit,
     onInsertTable: () -> Unit,
     onCommand: (String) -> Unit,
@@ -389,10 +397,13 @@ private fun WysiwygTableToolbarButton(
     Box {
         IconButton(
             onClick = {
-                if (inTable) {
-                    onShowMenuChange(true)
-                } else {
-                    onInsertTable()
+                refreshWysiwygFormatState(editorWebView) { liveState ->
+                    onFormatStateUpdate(liveState)
+                    if (liveState.inTable) {
+                        onShowMenuChange(true)
+                    } else {
+                        onInsertTable()
+                    }
                 }
             },
         ) {

@@ -9,6 +9,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Added
 
 - **Visual editor table editing** — When the cursor is inside a table, add row/column and exit-table actions appear in the toolbar (quick buttons by default, full menu on the table button). Tab moves between cells; Enter or arrow down from the last row exits below the table. Settings → Behavior → **Compact table toolbar** hides the quick buttons.
+- **Fixed** — Table toolbar actions now update reliably on Android (format state delivered on the main thread; table context cached when the toolbar steals focus).
 
 ### Changed
 

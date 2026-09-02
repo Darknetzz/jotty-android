@@ -178,20 +178,82 @@ internal fun buildWysiwygEditorDocument(
             }
             return false;
           }
+          var lastKnownInTable = false;
+          var lastTablePosition = null;
+
+          function clearTableUiState() {
+            lastKnownInTable = false;
+            lastTablePosition = null;
+          }
+
+          function cacheTablePosition(ctx) {
+            if (!ctx) return;
+            lastKnownInTable = true;
+            lastTablePosition = {
+              table: ctx.table,
+              rowIndex: ctx.rowIndex,
+              cellIndex: ctx.cellIndex
+            };
+          }
+
+          function resolveTableContextFromCache() {
+            if (!lastTablePosition || !lastTablePosition.table) return null;
+            var table = lastTablePosition.table;
+            if (!table.parentNode) {
+              clearTableUiState();
+              return null;
+            }
+            var allRows = Array.prototype.slice.call(table.querySelectorAll('tr'));
+            var row = allRows[lastTablePosition.rowIndex];
+            if (!row) return null;
+            var cells = Array.prototype.slice.call(row.children).filter(function(c) {
+              return c.tagName === 'TD' || c.tagName === 'TH';
+            });
+            var cell = cells[lastTablePosition.cellIndex];
+            if (!cell) return null;
+            var colCount = 0;
+            allRows.forEach(function(r) {
+              var count = r.querySelectorAll('td, th').length;
+              if (count > colCount) colCount = count;
+            });
+            return {
+              cell: cell,
+              row: row,
+              table: table,
+              cellIndex: lastTablePosition.cellIndex,
+              rowIndex: lastTablePosition.rowIndex,
+              rowCount: allRows.length,
+              colCount: colCount
+            };
+          }
+
           function getTableCell() {
+            var editorEl = document.getElementById('editor');
             var sel = window.getSelection();
-            if (!sel || sel.rangeCount === 0) return null;
-            var node = sel.anchorNode;
-            if (node && node.nodeType === 3) node = node.parentNode;
-            while (node && node.id !== 'editor') {
-              if (node.nodeType === 1 && (node.tagName === 'TD' || node.tagName === 'TH')) return node;
-              node = node.parentNode;
+            if (sel && sel.rangeCount > 0) {
+              var node = sel.anchorNode;
+              if (node && node.nodeType === 3) node = node.parentNode;
+              while (node && node.id !== 'editor') {
+                if (node.nodeType === 1 && (node.tagName === 'TD' || node.tagName === 'TH')) return node;
+                node = node.parentNode;
+              }
+            }
+            var active = document.activeElement;
+            if (active && active !== editorEl) {
+              var activeNode = active;
+              while (activeNode && activeNode.id !== 'editor') {
+                if (activeNode.nodeType === 1 && (activeNode.tagName === 'TD' || activeNode.tagName === 'TH')) return activeNode;
+                activeNode = activeNode.parentNode;
+              }
             }
             return null;
           }
           function getTableContext() {
             var cell = getTableCell();
-            if (!cell) return null;
+            if (!cell) {
+              if (lastKnownInTable) return resolveTableContextFromCache();
+              return null;
+            }
             var row = cell.parentNode;
             if (!row || row.tagName !== 'TR') return null;
             var table = row;
@@ -208,7 +270,9 @@ internal fun buildWysiwygEditorDocument(
               var count = r.querySelectorAll('td, th').length;
               if (count > colCount) colCount = count;
             });
-            return { cell: cell, row: row, table: table, cellIndex: cellIndex, rowIndex: rowIndex, rowCount: allRows.length, colCount: colCount };
+            var ctx = { cell: cell, row: row, table: table, cellIndex: cellIndex, rowIndex: rowIndex, rowCount: allRows.length, colCount: colCount };
+            cacheTablePosition(ctx);
+            return ctx;
           }
           function focusElement(node, atStart) {
             if (!node) return;
@@ -328,6 +392,7 @@ internal fun buildWysiwygEditorDocument(
                 table.parentNode.appendChild(paragraph);
               }
             }
+            clearTableUiState();
             focusElement(paragraph, true);
             notifyChange();
             scheduleFormatStateNotify();
@@ -335,10 +400,48 @@ internal fun buildWysiwygEditorDocument(
           function isInTable() {
             return !!getTableCell();
           }
+          function isInTableForToolbar() {
+            return isInTable() || lastKnownInTable;
+          }
           function getTableDimensions() {
             var ctx = getTableContext();
             if (!ctx) return { rows: 0, cols: 0 };
             return { rows: ctx.rowCount, cols: ctx.colCount };
+          }
+          function updateTableUiCacheFromSelection() {
+            var liveCell = getTableCell();
+            if (liveCell) {
+              var row = liveCell.parentNode;
+              if (row && row.tagName === 'TR') {
+                var table = row;
+                while (table && table.tagName !== 'TABLE') table = table.parentNode;
+                if (table && table.id !== 'editor') {
+                  var cells = Array.prototype.slice.call(row.children).filter(function(c) {
+                    return c.tagName === 'TD' || c.tagName === 'TH';
+                  });
+                  var allRows = Array.prototype.slice.call(table.querySelectorAll('tr'));
+                  cacheTablePosition({
+                    table: table,
+                    rowIndex: allRows.indexOf(row),
+                    cellIndex: cells.indexOf(liveCell)
+                  });
+                }
+              }
+              return;
+            }
+            if (!lastKnownInTable) return;
+            var sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return;
+            var node = sel.anchorNode;
+            if (node && node.nodeType === 3) node = node.parentNode;
+            while (node) {
+              if (node.id === 'editor') {
+                clearTableUiState();
+                return;
+              }
+              if (node.nodeType === 1 && node.tagName === 'TABLE') return;
+              node = node.parentNode;
+            }
           }
           function getAllTableCells() {
             var ctx = getTableContext();
@@ -431,13 +534,14 @@ internal fun buildWysiwygEditorDocument(
               blockquote: isBlockquote(),
               code: isInCode(),
               link: document.queryCommandState('createLink'),
-              inTable: isInTable(),
+              inTable: isInTableForToolbar(),
               tableRows: dims.rows,
               tableCols: dims.cols
             });
           }
           var formatStateTimer = null;
           function notifyFormatState() {
+            updateTableUiCacheFromSelection();
             if (window.AndroidBridge && AndroidBridge.onFormatStateChanged) {
               AndroidBridge.onFormatStateChanged(getFormatState());
             }
@@ -449,6 +553,10 @@ internal fun buildWysiwygEditorDocument(
               notifyFormatState();
             }, 50);
           }
+          function scheduleFormatStateNotifySoon() {
+            scheduleFormatStateNotify();
+            setTimeout(scheduleFormatStateNotify, 120);
+          }
           function notifyChange() {
             if (suppressNotify) return;
             if (window.AndroidBridge && AndroidBridge.onContentChanged) {
@@ -458,13 +566,33 @@ internal fun buildWysiwygEditorDocument(
           document.getElementById('editor').addEventListener('input', notifyChange);
           var editor = document.getElementById('editor');
           editor.addEventListener('keyup', scheduleFormatStateNotify);
-          editor.addEventListener('mouseup', scheduleFormatStateNotify);
-          editor.addEventListener('touchend', scheduleFormatStateNotify);
+          editor.addEventListener('mouseup', scheduleFormatStateNotifySoon);
+          editor.addEventListener('touchend', scheduleFormatStateNotifySoon);
+          editor.addEventListener('click', scheduleFormatStateNotifySoon);
+          editor.addEventListener('focusin', scheduleFormatStateNotifySoon);
           editor.addEventListener('keydown', handleTableKeydown);
           document.addEventListener('selectionchange', scheduleFormatStateNotify);
+          function seedTableUiFromContent() {
+            var table = editor.querySelector('table');
+            if (!table) return;
+            var firstCell = table.querySelector('td, th');
+            if (!firstCell) return;
+            var row = firstCell.parentNode;
+            if (!row || row.tagName !== 'TR') return;
+            var allRows = table.querySelectorAll('tr');
+            var cells = Array.prototype.slice.call(row.children).filter(function(c) {
+              return c.tagName === 'TD' || c.tagName === 'TH';
+            });
+            cacheTablePosition({
+              table: table,
+              rowIndex: Array.prototype.indexOf.call(allRows, row),
+              cellIndex: cells.indexOf(firstCell)
+            });
+          }
           document.addEventListener('DOMContentLoaded', function() {
             setEditorTheme($backgroundColor, $textColor, $borderColor);
             setContent(INITIAL_CONTENT);
+            seedTableUiFromContent();
             scheduleFormatStateNotify();
           });
         </script>

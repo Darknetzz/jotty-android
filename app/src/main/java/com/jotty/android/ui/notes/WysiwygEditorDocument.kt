@@ -248,6 +248,15 @@ internal fun buildWysiwygEditorDocument(
             }
             return null;
           }
+          function getTableRowFromCell(cell) {
+            if (!cell) return null;
+            var node = cell;
+            while (node && node.id !== 'editor') {
+              if (node.nodeType === 1 && node.tagName === 'TR') return node;
+              node = node.parentNode;
+            }
+            return null;
+          }
           function getTableContext() {
             var cell = getTableCell();
             if (!cell) {
@@ -258,8 +267,8 @@ internal fun buildWysiwygEditorDocument(
               }
               return null;
             }
-            var row = cell.parentNode;
-            if (!row || row.tagName !== 'TR') return null;
+            var row = getTableRowFromCell(cell);
+            if (!row) return null;
             var table = row;
             while (table && table.tagName !== 'TABLE') table = table.parentNode;
             if (!table || table.id === 'editor') return null;
@@ -430,8 +439,8 @@ internal fun buildWysiwygEditorDocument(
           function updateTableUiCacheFromSelection() {
             var liveCell = getTableCell();
             if (liveCell) {
-              var row = liveCell.parentNode;
-              if (row && row.tagName === 'TR') {
+              var row = getTableRowFromCell(liveCell);
+              if (row) {
                 var table = row;
                 while (table && table.tagName !== 'TABLE') table = table.parentNode;
                 if (table && table.id !== 'editor') {
@@ -596,8 +605,8 @@ internal fun buildWysiwygEditorDocument(
             if (!table) return;
             var firstCell = table.querySelector('td, th');
             if (!firstCell) return;
-            var row = firstCell.parentNode;
-            if (!row || row.tagName !== 'TR') return;
+            var row = getTableRowFromCell(firstCell);
+            if (!row) return;
             var allRows = table.querySelectorAll('tr');
             var cells = Array.prototype.slice.call(row.children).filter(function(c) {
               return c.tagName === 'TD' || c.tagName === 'TH';

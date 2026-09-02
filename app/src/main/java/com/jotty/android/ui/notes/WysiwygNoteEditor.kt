@@ -48,6 +48,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -403,18 +404,30 @@ private fun WysiwygTableToolbarButton(
 ) {
     val tableLabel = stringResource(R.string.md_table)
     val menuLabel = stringResource(R.string.wysiwyg_table_menu)
+    var menuRows by remember { mutableStateOf(tableRows) }
+    var menuCols by remember { mutableStateOf(tableCols) }
+    LaunchedEffect(tableRows, tableCols) {
+        if (tableRows > 0) menuRows = tableRows
+        if (tableCols > 0) menuCols = tableCols
+    }
+    val canDeleteRow = menuRows > 1 || (noteHasTable && menuRows == 0)
+    val canDeleteColumn = menuCols > 1 || (noteHasTable && menuCols == 0)
     Box {
         IconButton(
             onClick = {
                 if (noteHasTable) {
                     refreshWysiwygFormatState(editorWebView) { liveState ->
                         onFormatStateUpdate(liveState)
+                        menuRows = liveState.tableRows
+                        menuCols = liveState.tableCols
                         onShowMenuChange(true)
                     }
                     return@IconButton
                 }
                 refreshWysiwygFormatState(editorWebView) { liveState ->
                     onFormatStateUpdate(liveState)
+                    menuRows = liveState.tableRows
+                    menuCols = liveState.tableCols
                     if (liveState.inTable) {
                         onShowMenuChange(true)
                     } else {
@@ -466,7 +479,7 @@ private fun WysiwygTableToolbarButton(
                 onShowMenuChange(false)
                 onCommand("deleteTableRow()")
             },
-            enabled = tableRows > 1,
+            enabled = canDeleteRow,
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.wysiwyg_table_delete_column)) },
@@ -474,7 +487,7 @@ private fun WysiwygTableToolbarButton(
                 onShowMenuChange(false)
                 onCommand("deleteTableColumn()")
             },
-            enabled = tableCols > 1,
+            enabled = canDeleteColumn,
         )
         DropdownMenuItem(
             text = { Text(stringResource(R.string.wysiwyg_table_exit)) },

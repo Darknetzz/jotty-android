@@ -1,5 +1,5 @@
 [versions]
-agp = "9.3.2"
+agp = "9.4.0"
 kotlin = "2.3.21"
 ksp = "2.3.11"
 compose-bom = "2026.06.01" # 2026.08+ needs compileSdk 37 (see Dependabot PR #98)

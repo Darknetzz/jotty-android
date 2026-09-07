@@ -115,7 +115,7 @@ dependencies {
     implementation("androidx.activity:activity-compose:1.13.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0") // 2.11+ requires compileSdk 37
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
-    implementation("androidx.navigation:navigation-compose:2.9.8")
+    implementation("androidx.navigation:navigation-compose:2.9.8") // 2.10+ requires compileSdk 37 (see Dependabot PR #98)
 
     // Retrofit for REST API
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
@@ -145,12 +145,12 @@ dependencies {
     implementation("io.coil-kt:coil:2.7.0")
 
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
 
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")
     // FragmentActivity is required by BiometricPrompt; declared explicitly to avoid relying on transitive resolution.
-    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    implementation("androidx.fragment:fragment-ktx:1.9.0")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")

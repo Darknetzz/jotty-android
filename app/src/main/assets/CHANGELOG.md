@@ -12,7 +12,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
-- **Dependencies** — AGP 9.3.2, KSP 2.3.11, Bouncy Castle 1.85.2, fragment-ktx 1.9.0, and Gradle 9.7.1 (safe subset of [#98](https://github.com/Darknetzz/jotty-android/pull/98)). Compose BOM stays on 2026.06.01 and navigation-compose on 2.9.8 until compileSdk 37; Kotlin stays on 2.3.21 until a coordinated 2.4 upgrade; Lifecycle stays on 2.10 (2.11 needs compileSdk 37); compose-markdown stays on 0.5.8 (0.6+ needs Coil 3).
+- **Dependencies** — AGP 9.4.0 ([#100](https://github.com/Darknetzz/jotty-android/pull/100)), KSP 2.3.11, Bouncy Castle 1.85.2, fragment-ktx 1.9.0, and Gradle 9.7.1 (safe subset of [#98](https://github.com/Darknetzz/jotty-android/pull/98) via [#99](https://github.com/Darknetzz/jotty-android/pull/99)). Compose BOM stays on 2026.06.01 and navigation-compose on 2.9.8 until compileSdk 37; Kotlin stays on 2.3.21 until a coordinated 2.4 upgrade; Lifecycle stays on 2.10 (2.11 needs compileSdk 37); compose-markdown stays on 0.5.8 (0.6+ needs Coil 3).
 - **Dependabot** — Ignore rules now cover Kotlin Gradle plugin ids (not only `org.jetbrains.kotlin:*`), exclude Kotlin from grouped weekly/major PRs, and block Lifecycle 2.11+, Compose BOM 2026.08+, navigation-compose 2.10+, compose-markdown 0.6+, until their prerequisites land (see closed [#85](https://github.com/Darknetzz/jotty-android/pull/85), [#98](https://github.com/Darknetzz/jotty-android/pull/98)).
 - **GitHub Actions** — `actions/checkout` v7, `android-emulator-runner` 2.38 ([#79](https://github.com/Darknetzz/jotty-android/pull/79)), and `actions/setup-java` 6.0.0 ([#97](https://github.com/Darknetzz/jotty-android/pull/97)).
 

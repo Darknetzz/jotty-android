@@ -62,6 +62,14 @@ The app probes `GET /api/tasks/{taskId}/items/{itemIndex}` on first item detail 
 
 When Jotty adds REST sharing endpoints, the client uses [`ShareServerDialog`](../app/src/main/java/com/jotty/android/ui/common/ShareServerDialog.kt) and [`JottySharingProbe`](../app/src/main/java/com/jotty/android/util/JottySharingProbe.kt).
 
+## Kanban card comments (Jotty 1.27+)
+
+| Capability | Jotty web | Jotty OpenAPI (`public/api/paths`) | Android behavior |
+|------------|-----------|-------------------------------------|------------------|
+| Comments on Kanban cards | Server Actions (`app/_server/actions/comments/`); stored under `.comments` | **Not documented** (no comments paths as of Jotty [1.27.0](https://github.com/fccview/jotty/releases/tag/1.27.0)) | **Not supported** — parity gap only; does not break REST notes/checklists/tasks |
+
+TipTap for Kanban item descriptions (also 1.27+) is web-only; the server still stores `description` as markdown, which the app already reads and edits via REST.
+
 ## Kanban item archive
 
 Kanban **item** archive/unarchive in the web app uses server actions (`archiveItem` / `unarchiveItem` on checklist items). There is **no REST equivalent** in OpenAPI today. Android does not expose per-item archive until upstream adds PATCH fields (e.g. `isArchived`) or a dedicated endpoint.

@@ -34,6 +34,10 @@ updates:
         versions: [">=1.19.0"]
       - dependency-name: "androidx.lifecycle:*"
         versions: [">=2.11.0"]
+      - dependency-name: "androidx.navigation:navigation-compose"
+        versions: [">=2.10.0"]
+      - dependency-name: "androidx.compose:compose-bom"
+        versions: [">=2026.08.00"]
       # compose-markdown 0.6+ requires Coil 3; bump with NoteImageLoader migration
       - dependency-name: "com.github.jeziellago:compose-markdown"
         versions: [">=0.6.0"]

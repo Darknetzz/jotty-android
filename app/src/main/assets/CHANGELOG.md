@@ -12,14 +12,18 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
-- **Dependencies** — AGP 9.3.1 ([#92](https://github.com/Darknetzz/jotty-android/pull/92)), Compose BOM 2026.06.01, KSP 2.3.10, Bouncy Castle 1.85, Gradle 9.6.1, and ktlint Gradle plugin 13.1.0. Kotlin stays on 2.3.21 until a coordinated 2.4 upgrade; Lifecycle stays on 2.10 (2.11 needs compileSdk 37); compose-markdown stays on 0.5.8 (0.6+ needs Coil 3).
-- **Dependabot** — Ignore rules now cover Kotlin Gradle plugin ids (not only `org.jetbrains.kotlin:*`), exclude Kotlin from grouped weekly/major PRs, and block Lifecycle 2.11+, compose-markdown 0.6+, until their prerequisites land (see closed [#85](https://github.com/Darknetzz/jotty-android/pull/85)).
-- **GitHub Actions** — `actions/checkout` v7, `android-emulator-runner` 2.38 ([#79](https://github.com/Darknetzz/jotty-android/pull/79)), and `actions/setup-java` 5.6.0 ([#89](https://github.com/Darknetzz/jotty-android/pull/89)).
+- **Dependencies** — AGP 9.3.2, KSP 2.3.11, Bouncy Castle 1.85.2, fragment-ktx 1.9.0, and Gradle 9.7.1 (safe subset of [#98](https://github.com/Darknetzz/jotty-android/pull/98)). Compose BOM stays on 2026.06.01 and navigation-compose on 2.9.8 until compileSdk 37; Kotlin stays on 2.3.21 until a coordinated 2.4 upgrade; Lifecycle stays on 2.10 (2.11 needs compileSdk 37); compose-markdown stays on 0.5.8 (0.6+ needs Coil 3).
+- **Dependabot** — Ignore rules now cover Kotlin Gradle plugin ids (not only `org.jetbrains.kotlin:*`), exclude Kotlin from grouped weekly/major PRs, and block Lifecycle 2.11+, Compose BOM 2026.08+, navigation-compose 2.10+, compose-markdown 0.6+, until their prerequisites land (see closed [#85](https://github.com/Darknetzz/jotty-android/pull/85), [#98](https://github.com/Darknetzz/jotty-android/pull/98)).
+- **GitHub Actions** — `actions/checkout` v7, `android-emulator-runner` 2.38 ([#79](https://github.com/Darknetzz/jotty-android/pull/79)), and `actions/setup-java` 6.0.0 ([#97](https://github.com/Darknetzz/jotty-android/pull/97)).
 
 ### Fixed
 
 - **Visual editor table toolbar on Android** — Table edit controls now appear for any note that contains a table (detected from note content, not only when the cursor is inside a cell). The table button opens the row/column/exit menu instead of “Insert table” on existing table notes. Delete row/column are enabled correctly for Jotty web tables (cells wrapped in `<p>` tags).
 - **Compose lint (LocalContext resources)** — Category-filter empty snackbars use `LocalResources` instead of `LocalContext.getString`, satisfying the new Compose lint check from the BOM/AGP bump.
+
+### Documentation
+
+- **Jotty 1.27.0 compatibility** — Documented that Kanban card comments (and TipTap description editing) are web/server-action only with no public REST yet; Android needs no client change for REST compatibility ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 
 ---
 

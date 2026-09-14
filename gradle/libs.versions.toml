@@ -1,7 +1,7 @@
 [versions]
 agp = "9.4.0"
 kotlin = "2.3.21"
-ksp = "2.3.11"
+ksp = "2.3.12"
 compose-bom = "2026.06.01" # 2026.08+ needs compileSdk 37 (see Dependabot PR #98)
 ktlint = "13.1.0" # 14.x fails ktlintTestSourceSetCheck until formatted (Dependabot PR #61)
 reorderable = "3.1.0"

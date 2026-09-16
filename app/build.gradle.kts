@@ -128,9 +128,9 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.2.1")
 
     // Room for offline storage
-    implementation("androidx.room:room-runtime:2.8.4")
-    implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    ksp("androidx.room:room-compiler:2.8.5")
 
     // WorkManager for background sync
     implementation("androidx.work:work-runtime-ktx:2.11.2")
@@ -145,7 +145,7 @@ dependencies {
     implementation("io.coil-kt:coil:2.7.0")
 
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.85.2")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
 
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")
@@ -155,8 +155,8 @@ dependencies {
     // Unit tests
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.test:core:1.7.0")
-    testImplementation("androidx.room:room-testing:2.8.4")
-    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("androidx.room:room-testing:2.8.5")
+    testImplementation("org.robolectric:robolectric:4.17")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

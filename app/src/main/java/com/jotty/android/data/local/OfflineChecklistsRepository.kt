@@ -69,7 +69,8 @@ class OfflineChecklistsRepository(
     private val localToServerIdRemap = ConcurrentHashMap<String, String>()
 
     @Volatile private var lastSyncCompletedAtMs: Long? = null
-    private val syncMutex = Mutex()
+    /** Shared across UI + [OfflineSyncWorker] repos for this [instanceId]. */
+    private val syncMutex = OfflineSyncLocks.forChecklists(instanceId)
     private val runtime =
         OfflineRepositoryLifecycle(
             context = context,
@@ -220,14 +221,15 @@ class OfflineChecklistsRepository(
                     if (!isOnline.value) {
                         throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
                     }
-                    syncDeletedChecklist(resolved)
+                    syncMutex.withLock { syncDeletedChecklistLocked(resolved) }
                     return@runCatching null
                 }
                 if (!isOnline.value) {
                     throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
                 }
-                syncChecklist(entity)
+                syncMutex.withLock { syncChecklistLocked(entity) }
                 checklistDao.getById(resolved)?.toChecklist()
+                    ?: localToServerIdRemap[resolved]?.let { checklistDao.getById(it)?.toChecklist() }
                     ?: throw Exception(appContext.getString(R.string.sync_force_push_failed))
             }
         }
@@ -384,11 +386,11 @@ class OfflineChecklistsRepository(
                         ),
                     )
                     AppLog.d(TAG, "Checklist marked for deletion: $id")
-                    if (isOnline.value) syncDeletedChecklist(id)
+                    if (isOnline.value) syncMutex.withLock { syncDeletedChecklistLocked(id) }
                 } else {
                     checklistDao.markAsDeleted(id)
                     AppLog.d(TAG, "Checklist marked for deletion: $id")
-                    if (isOnline.value) syncDeletedChecklist(id)
+                    if (isOnline.value) syncMutex.withLock { syncDeletedChecklistLocked(id) }
                 }
             }
         }
@@ -415,8 +417,11 @@ class OfflineChecklistsRepository(
                 checklistDao.update(updated)
                 AppLog.d(TAG, "Checklist title updated locally: $id")
                 if (isOnline.value) {
-                    runCatching { syncChecklist(updated) }
-                        .onFailure { AppLog.d(TAG, "Checklist title sync deferred: ${it.message}") }
+                    runCatching {
+                        syncMutex.withLock {
+                            checklistDao.getById(id)?.let { syncChecklistLocked(it) }
+                        }
+                    }.onFailure { AppLog.d(TAG, "Checklist title sync deferred: ${it.message}") }
                 }
                 checklistDao.getById(id)?.toChecklist()
                     ?: updated.toChecklist()
@@ -698,9 +703,9 @@ class OfflineChecklistsRepository(
                     val pushResult =
                         runCatching {
                             if (entity.isDeleted) {
-                                syncDeletedChecklist(entity.id)
+                                syncDeletedChecklistLocked(entity.id)
                             } else {
-                                syncChecklist(entity)
+                                syncChecklistLocked(entity)
                             }
                         }
                     pushResult.onFailure { e ->
@@ -789,37 +794,40 @@ class OfflineChecklistsRepository(
         return gson.toJson(local.items()) != gson.toJson(server.items)
     }
 
-    private suspend fun syncChecklist(entity: ChecklistEntity) {
-        if (entity.isLocalOnly) {
-            val localId = entity.id
+    private suspend fun syncChecklistLocked(entity: ChecklistEntity) {
+        // Re-read under the shared lock so concurrent repos do not create twice.
+        val current = checklistDao.getById(entity.id) ?: return
+        if (!current.isDirty && !current.isLocalOnly && current.pendingOps().isEmpty()) return
+        if (current.isLocalOnly) {
+            val localId = current.id
             val response =
                 api.createChecklist(
                     CreateChecklistRequest(
-                        title = entity.title,
-                        category = entity.category,
-                        type = entity.type,
+                        title = current.title,
+                        category = current.category,
+                        type = current.type,
                     ),
                 )
             val created = response.data
             localToServerIdRemap[localId] = created.id
-            replayItemsToServer(created.id, entity.items(), null)
-            checklistDao.delete(entity.id)
+            replayItemsToServer(created.id, current.items(), null)
+            checklistDao.delete(current.id)
             val fresh =
                 api.getChecklists().checklists.find { it.id == created.id }
                     ?: throw Exception("Checklist not found after create")
             checklistDao.insert(fresh.toEntity(instanceId))
             AppLog.d(TAG, "Local-only checklist pushed: ${created.id}")
         } else {
-            val failedOps = replayPendingOps(entity)
+            val failedOps = replayPendingOps(current)
             if (failedOps > 0) {
                 throw Exception(appContext.getString(R.string.sync_replay_ops_failed, failedOps))
             }
-            pushChecklistMetadataIfNeeded(entity)
+            pushChecklistMetadataIfNeeded(current)
             val fresh =
-                api.getChecklists().checklists.find { it.id == entity.id }
+                api.getChecklists().checklists.find { it.id == current.id }
                     ?: throw Exception("Checklist not found after sync")
             checklistDao.insert(fresh.toEntity(instanceId))
-            AppLog.d(TAG, "Checklist synced: ${entity.id}")
+            AppLog.d(TAG, "Checklist synced: ${current.id}")
         }
     }
 
@@ -999,7 +1007,9 @@ class OfflineChecklistsRepository(
         }
     }
 
-    private suspend fun syncDeletedChecklist(id: String) {
+    private suspend fun syncDeletedChecklistLocked(id: String) {
+        val current = checklistDao.getByIdIncludingDeleted(id) ?: return
+        if (!current.isDeleted) return
         api.deleteChecklist(id)
         checklistDao.delete(id)
         AppLog.d(TAG, "Checklist deleted on server: $id")

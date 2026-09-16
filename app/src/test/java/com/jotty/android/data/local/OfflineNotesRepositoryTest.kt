@@ -7,6 +7,9 @@ import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.ApiResponse
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.SuccessResponse
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -751,5 +754,79 @@ class OfflineNotesRepositoryTest {
             assertEquals(1, backups.size)
             assertEquals(SyncBackupDirection.BEFORE_PUSH_LOCAL, backups.single().direction)
             assertTrue(backups.single().payloadJson.contains("server-body"))
+        }
+
+    @Test
+    fun concurrentSync_sameLocalOnlyNote_createsOnceOnServer() =
+        runTest {
+            database.noteDao().insertNote(
+                NoteEntity(
+                    id = "local-pizza",
+                    title = "pizza",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "pepperoni",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = null,
+                    isDirty = true,
+                    isDeleted = false,
+                    instanceId = instanceId,
+                    isLocalOnly = true,
+                ),
+            )
+            var createCount = 0
+            val remoteNotes = mutableListOf<Note>()
+            val api =
+                FakeJottyApi(
+                    notesFromGet = remoteNotes,
+                    createNoteResponse = { req ->
+                        // Let the other repository attempt sync while create is in flight.
+                        delay(80)
+                        createCount++
+                        val created =
+                            Note(
+                                id = "server-pizza-$createCount",
+                                title = req.title,
+                                category = req.category ?: API_CATEGORY_UNCATEGORIZED,
+                                content = req.content.orEmpty(),
+                                createdAt = "c",
+                                updatedAt = "u",
+                            )
+                        remoteNotes.add(created)
+                        ApiResponse(true, created)
+                    },
+                )
+            val repoA =
+                OfflineNotesRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+            val repoB =
+                OfflineNotesRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            coroutineScope {
+                val a = async { repoA.syncNotes() }
+                val b = async { repoB.syncNotes() }
+                assertTrue(a.await().isSuccess)
+                assertTrue(b.await().isSuccess)
+            }
+
+            assertEquals("concurrent sync must create the note only once", 1, createCount)
+            val stored = database.noteDao().getAllNotes(instanceId)
+            assertEquals(1, stored.size)
+            assertEquals("server-pizza-1", stored.single().id)
+            assertFalse(stored.single().isLocalOnly)
+            assertFalse(stored.single().isDirty)
         }
 }

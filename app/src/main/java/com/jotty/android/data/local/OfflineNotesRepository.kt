@@ -43,7 +43,8 @@ class OfflineNotesRepository(
     private val syncBackups = SyncBackupRepository(database, instanceId)
     /** Local UUID → server id after [syncNote] pushes a local-only note. */
     private val localToServerIdRemap = ConcurrentHashMap<String, String>()
-    private val syncMutex = Mutex()
+    /** Shared across UI + [OfflineSyncWorker] repos for this [instanceId]. */
+    private val syncMutex = OfflineSyncLocks.forNotes(instanceId)
     private val runtime =
         OfflineRepositoryLifecycle(
             context = context,
@@ -191,15 +192,16 @@ class OfflineNotesRepository(
                     if (!isOnline.value) {
                         throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
                     }
-                    syncDeletedNote(resolved)
+                    syncMutex.withLock { syncDeletedNoteLocked(resolved) }
                     return@runCatching null
                 }
                 if (!isOnline.value) {
                     throw Exception(appContext.getString(R.string.discard_pending_sync_offline))
                 }
                 val synced =
-                    syncNote(entity)
-                        ?: throw Exception(appContext.getString(R.string.sync_force_push_failed))
+                    syncMutex.withLock {
+                        noteDao.getNoteById(resolved)?.let { syncNoteLocked(it) }
+                    } ?: throw Exception(appContext.getString(R.string.sync_force_push_failed))
                 synced.toNote()
             }
         }
@@ -330,9 +332,11 @@ class OfflineNotesRepository(
                 noteDao.insertNote(entity)
                 AppLog.d("OfflineNotesRepository", "Note created locally: $noteId")
 
-                // Try to sync if online
+                // Try to sync if online (same process-wide lock as full sync / WorkManager).
                 if (isOnline.value) {
-                    syncNote(entity)
+                    syncMutex.withLock {
+                        noteDao.getNoteById(noteId)?.let { syncNoteLocked(it) }
+                    }
                 }
 
                 val stored =
@@ -398,7 +402,10 @@ class OfflineNotesRepository(
                 // Try to sync if online — return the server copy when sync succeeds so callers
                 // (e.g. encrypted-note server verify) validate what was actually stored.
                 if (isOnline.value) {
-                    val synced = syncNote(updated)
+                    val synced =
+                        syncMutex.withLock {
+                            noteDao.getNoteById(resolvedId)?.let { syncNoteLocked(it) }
+                        }
                     return@withContext if (synced != null) {
                         Result.success(synced.toNote())
                     } else {
@@ -434,13 +441,13 @@ class OfflineNotesRepository(
                     noteDao.updateNote(marked)
                     AppLog.d("OfflineNotesRepository", "Note marked for deletion: $resolvedId")
                     if (isOnline.value) {
-                        syncDeletedNote(resolvedId)
+                        syncMutex.withLock { syncDeletedNoteLocked(resolvedId) }
                     }
                 } else {
                     noteDao.markAsDeleted(resolvedId)
                     AppLog.d("OfflineNotesRepository", "Note marked for deletion: $resolvedId")
                     if (isOnline.value) {
-                        syncDeletedNote(resolvedId)
+                        syncMutex.withLock { syncDeletedNoteLocked(resolvedId) }
                     }
                 }
                 Result.success(Unit)
@@ -482,9 +489,9 @@ class OfflineNotesRepository(
 
                 for (note in dirtyNotes) {
                     if (note.isDeleted) {
-                        syncDeletedNote(note.id)
+                        syncDeletedNoteLocked(note.id)
                     } else {
-                        syncNote(note)
+                        syncNoteLocked(note)
                     }
                 }
 
@@ -571,53 +578,64 @@ class OfflineNotesRepository(
      * Sync a single note to the server.
      * Uses [NoteEntity.isLocalOnly] to decide between create and update — a note is local-only
      * when it was created offline and has never been pushed to the server, regardless of timestamps.
+     *
+     * Must be called while holding [syncMutex]. Re-reads Room before create so concurrent
+     * syncs (UI + WorkManager) do not POST the same local-only note twice.
      */
-    private suspend fun syncNote(note: NoteEntity): NoteEntity? {
+    private suspend fun syncNoteLocked(note: NoteEntity): NoteEntity? {
+        val current = noteDao.getNoteById(note.id) ?: return null
+        if (!current.isDirty && !current.isLocalOnly) {
+            return current
+        }
         try {
-            if (note.isLocalOnly) {
+            if (current.isLocalOnly) {
                 val request =
                     CreateNoteRequest(
-                        title = note.title,
-                        content = note.content,
-                        category = note.category,
+                        title = current.title,
+                        content = current.content,
+                        category = current.category,
                     )
                 val response = api.createNote(request)
                 if (response.success) {
                     // Swap the local temporary ID for the server-assigned ID.
-                    localToServerIdRemap[note.id] = response.data.id
-                    noteDao.deleteNote(note.id)
+                    localToServerIdRemap[current.id] = response.data.id
                     val entity = response.data.toEntity(instanceId, isDirty = false)
-                    noteDao.insertNote(entity)
+                    database.withTransaction {
+                        noteDao.deleteNote(current.id)
+                        noteDao.insertNote(entity)
+                    }
                     AppLog.d("OfflineNotesRepository", "Note created on server: ${response.data.id}")
                     return entity
                 }
             } else {
                 val request =
                     UpdateNoteRequest(
-                        title = note.title,
-                        content = note.content,
-                        category = note.category,
-                        originalCategory = note.originalCategory ?: note.category,
+                        title = current.title,
+                        content = current.content,
+                        category = current.category,
+                        originalCategory = current.originalCategory ?: current.category,
                     )
-                val response = api.updateNote(note.id, request)
+                val response = api.updateNote(current.id, request)
                 if (response.success) {
                     val entity = response.data.toEntity(instanceId, isDirty = false)
                     noteDao.insertNote(entity)
-                    AppLog.d("OfflineNotesRepository", "Note updated on server: ${note.id}")
+                    AppLog.d("OfflineNotesRepository", "Note updated on server: ${current.id}")
                     return entity
                 }
             }
         } catch (e: Exception) {
-            AppLog.d("OfflineNotesRepository", "Failed to sync note ${note.id}: ${e.message}")
+            AppLog.d("OfflineNotesRepository", "Failed to sync note ${current.id}: ${e.message}")
             // Keep note marked as dirty for next sync attempt.
         }
         return null
     }
 
     /**
-     * Sync a deleted note to the server.
+     * Sync a deleted note to the server. Must be called while holding [syncMutex].
      */
-    private suspend fun syncDeletedNote(noteId: String) {
+    private suspend fun syncDeletedNoteLocked(noteId: String) {
+        val current = noteDao.getNoteByIdIncludingDeleted(noteId) ?: return
+        if (!current.isDeleted) return
         try {
             api.deleteNote(noteId)
             // Permanently delete from local database after successful server delete

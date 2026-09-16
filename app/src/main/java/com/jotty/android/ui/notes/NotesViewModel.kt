@@ -41,8 +41,9 @@ class NotesViewModel(
     private val _selectedNote = MutableStateFlow<Note?>(null)
     val selectedNote: StateFlow<Note?> = _selectedNote.asStateFlow()
 
-    private val _showCreateDialog = MutableStateFlow(false)
-    val showCreateDialog: StateFlow<Boolean> = _showCreateDialog.asStateFlow()
+    /** When true, the selected note opens in the editor (e.g. after quick-create). */
+    private val _openSelectedInEditMode = MutableStateFlow(false)
+    val openSelectedInEditMode: StateFlow<Boolean> = _openSelectedInEditMode.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -88,12 +89,12 @@ class NotesViewModel(
         _selectedCategory.value = if (_selectedCategory.value == category) null else category
     }
 
-    fun setSelectedNote(note: Note?) {
+    fun setSelectedNote(
+        note: Note?,
+        openInEditMode: Boolean = false,
+    ) {
+        _openSelectedInEditMode.value = note != null && openInEditMode
         _selectedNote.value = note
-    }
-
-    fun setShowCreateDialog(show: Boolean) {
-        _showCreateDialog.value = show
     }
 
     fun loadNotes() {

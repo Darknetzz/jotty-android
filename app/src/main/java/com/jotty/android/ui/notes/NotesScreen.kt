@@ -22,7 +22,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.ImageLoader
 import com.jotty.android.R
-import com.jotty.android.data.api.CreateNoteRequest
 import com.jotty.android.ui.common.ShareServerDialog
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
 import com.jotty.android.util.ListDateFormat
@@ -96,9 +95,9 @@ fun NotesScreen(
 
     val notes by vm.notes.collectAsStateWithLifecycle()
     val selectedNote by vm.selectedNote.collectAsStateWithLifecycle()
+    val openSelectedInEditMode by vm.openSelectedInEditMode.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
-    val showCreateDialog by vm.showCreateDialog.collectAsStateWithLifecycle()
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val noteCategories by vm.noteCategories.collectAsStateWithLifecycle()
@@ -162,13 +161,37 @@ fun NotesScreen(
         deepLinkResolved = true
     }
 
-    var pendingSharedText by remember { mutableStateOf<String?>(null) }
+    val untitledTitle = stringResource(R.string.untitled)
+    var isCreatingNote by remember { mutableStateOf(false) }
+    fun createAndOpenNote(content: String = "") {
+        if (isCreatingNote) return
+        scope.launch {
+            isCreatingNote = true
+            try {
+                val created =
+                    createNoteOnline(
+                        api = api,
+                        title = untitledTitle,
+                        content = content,
+                        category = resolveNewNoteCategory(defaultNoteCategory),
+                    )
+                if (created != null) {
+                    vm.loadNotes()
+                    vm.setSelectedNote(created, openInEditMode = true)
+                } else {
+                    snackbarHostState.showSnackbar(saveFailedMsg)
+                }
+            } finally {
+                isCreatingNote = false
+            }
+        }
+    }
+
     LaunchedEffect(sharedText) {
         if (sharedText != null) {
-            pendingSharedText = sharedText
-            vm.setSelectedNote(null)
-            vm.setShowCreateDialog(true)
+            val content = sharedText
             onSharedTextConsumed()
+            createAndOpenNote(content = content)
         }
     }
 
@@ -198,7 +221,7 @@ fun NotesScreen(
                     isSyncing = loading,
                     lastSyncAttemptEpochMs = null,
                     onRefresh = { vm.loadNotes() },
-                    onAdd = { vm.setShowCreateDialog(true) },
+                    onAdd = { createAndOpenNote() },
                 )
             } else {
                 null
@@ -346,7 +369,7 @@ fun NotesScreen(
                         visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
                         compactTableToolbar = compactTableToolbar,
                         noteSnapshotsEnabled = noteSnapshotsEnabled,
-                        openNotesInEditMode = openNotesInEditMode,
+                        openNotesInEditMode = openNotesInEditMode || openSelectedInEditMode,
                         defaultNoteEditMode = defaultNoteEditMode,
                         markdownEditorMonospace = markdownEditorMonospace,
                         api = api,
@@ -457,37 +480,4 @@ fun NotesScreen(
         )
     }
 
-    if (showCreateDialog) {
-        CreateNoteDialog(
-            onDismiss = {
-                vm.setShowCreateDialog(false)
-                pendingSharedText = null
-            },
-            categorySuggestions = noteCategories,
-            initialContent = pendingSharedText.orEmpty(),
-            initialCategory = defaultNoteCategory.orEmpty(),
-            onCreate = { title, content, category ->
-                scope.launch {
-                    try {
-                        val created =
-                            api.createNote(
-                                CreateNoteRequest(
-                                    title = title,
-                                    content = content,
-                                    category = category,
-                                ),
-                            )
-                        if (created.success) {
-                            pendingSharedText = null
-                            vm.loadNotes()
-                            vm.setSelectedNote(created.data)
-                            vm.setShowCreateDialog(false)
-                        }
-                    } catch (_: Exception) {
-                        scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) }
-                    }
-                }
-            },
-        )
-    }
 }

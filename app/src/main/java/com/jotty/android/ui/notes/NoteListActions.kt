@@ -2,6 +2,7 @@ package com.jotty.android.ui.notes
 
 import android.content.Context
 import android.content.Intent
+import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
 import com.jotty.android.data.api.CreateNoteRequest
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
@@ -12,6 +13,32 @@ import com.jotty.android.util.AppLog
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+
+/** Resolves category for a newly created note (settings default or Uncategorized). */
+internal fun resolveNewNoteCategory(defaultCategory: String?): String =
+    defaultCategory?.ifBlank { null } ?: API_CATEGORY_UNCATEGORIZED
+
+/** Creates a note via the REST API; returns the created note or null on failure. */
+internal suspend fun createNoteOnline(
+    api: JottyApi,
+    title: String,
+    content: String,
+    category: String,
+): Note? =
+    try {
+        val resp =
+            api.createNote(
+                CreateNoteRequest(
+                    title = title,
+                    content = content,
+                    category = category,
+                ),
+            )
+        if (resp.success) resp.data else null
+    } catch (e: Exception) {
+        AppLog.e("notes", "Create note failed", e)
+        null
+    }
 
 /** Plain note body suitable for text export/share from the list (not ciphertext). */
 internal fun notePlainTextForListShare(note: Note): String? {

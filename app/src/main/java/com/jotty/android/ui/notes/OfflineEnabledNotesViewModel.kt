@@ -101,15 +101,16 @@ class OfflineEnabledNotesViewModel(
     private val _selectedNote = MutableStateFlow<Note?>(null)
     val selectedNote: StateFlow<Note?> = _selectedNote.asStateFlow()
 
-    fun setSelectedNote(note: Note?) {
+    /** When true, the selected note opens in the editor (e.g. after quick-create). */
+    private val _openSelectedInEditMode = MutableStateFlow(false)
+    val openSelectedInEditMode: StateFlow<Boolean> = _openSelectedInEditMode.asStateFlow()
+
+    fun setSelectedNote(
+        note: Note?,
+        openInEditMode: Boolean = false,
+    ) {
+        _openSelectedInEditMode.value = note != null && openInEditMode
         _selectedNote.value = note
-    }
-
-    private val _showCreateDialog = MutableStateFlow(false)
-    val showCreateDialog: StateFlow<Boolean> = _showCreateDialog.asStateFlow()
-
-    fun setShowCreateDialog(show: Boolean) {
-        _showCreateDialog.value = show
     }
 
     private val _noteCategories = MutableStateFlow<List<String>>(emptyList())

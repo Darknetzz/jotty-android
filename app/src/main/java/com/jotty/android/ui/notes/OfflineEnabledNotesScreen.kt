@@ -117,8 +117,8 @@ fun OfflineEnabledNotesScreen(
     val lastSyncError by offlineRepository.lastSyncError.collectAsStateWithLifecycle()
 
     val selectedNote by vm.selectedNote.collectAsStateWithLifecycle()
+    val openSelectedInEditMode by vm.openSelectedInEditMode.collectAsStateWithLifecycle()
     val screenState = rememberListScreenState()
-    val showCreateDialog by vm.showCreateDialog.collectAsStateWithLifecycle()
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val noteCategories by vm.noteCategories.collectAsStateWithLifecycle()
@@ -277,13 +277,43 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
-    var pendingSharedText by remember { mutableStateOf<String?>(null) }
+    val untitledTitle = stringResource(R.string.untitled)
+    var isCreatingNote by remember { mutableStateOf(false) }
+    fun createAndOpenNote(content: String = "") {
+        if (isCreatingNote) return
+        scope.launch {
+            isCreatingNote = true
+            try {
+                val result =
+                    offlineRepository.createNote(
+                        title = untitledTitle,
+                        content = content,
+                        category = resolveNewNoteCategory(defaultNoteCategory),
+                    )
+                if (result.isSuccess) {
+                    val created = result.getOrNull()
+                    if (created != null) {
+                        vm.setSelectedNote(created, openInEditMode = true)
+                        if (!isOnline) {
+                            snackbarHostState.showSnackbar(savedLocallyMsg)
+                        }
+                    } else {
+                        snackbarHostState.showSnackbar(saveFailedMsg)
+                    }
+                } else {
+                    snackbarHostState.showSnackbar(saveFailedMsg)
+                }
+            } finally {
+                isCreatingNote = false
+            }
+        }
+    }
+
     LaunchedEffect(sharedText) {
         if (sharedText != null) {
-            pendingSharedText = sharedText
-            vm.setSelectedNote(null)
-            vm.setShowCreateDialog(true)
+            val content = sharedText
             onSharedTextConsumed()
+            createAndOpenNote(content = content)
         }
     }
 
@@ -322,7 +352,7 @@ fun OfflineEnabledNotesScreen(
                     pendingSyncCount = dirtyNoteIds.size,
                     onManagePendingSync = onOpenPendingSync,
                     onRefresh = { requestSync(showLoading = false) },
-                    onAdd = { vm.setShowCreateDialog(true) },
+                    onAdd = { createAndOpenNote() },
                 )
             } else {
                 null
@@ -495,7 +525,7 @@ fun OfflineEnabledNotesScreen(
                         visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
                         compactTableToolbar = compactTableToolbar,
                         noteSnapshotsEnabled = noteSnapshotsEnabled,
-                        openNotesInEditMode = openNotesInEditMode,
+                        openNotesInEditMode = openNotesInEditMode || openSelectedInEditMode,
                         defaultNoteEditMode = defaultNoteEditMode,
                         markdownEditorMonospace = markdownEditorMonospace,
                         api = api,
@@ -605,36 +635,4 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
-    // Create note dialog
-    if (showCreateDialog) {
-        CreateNoteDialog(
-            onDismiss = {
-                vm.setShowCreateDialog(false)
-                pendingSharedText = null
-            },
-            categorySuggestions = noteCategories,
-            initialContent = pendingSharedText.orEmpty(),
-            initialCategory = defaultNoteCategory.orEmpty(),
-            onCreate = { title, content, category ->
-                scope.launch {
-                    val result =
-                        offlineRepository.createNote(
-                            title = title,
-                            content = content,
-                            category = category,
-                        )
-                    if (result.isSuccess) {
-                        pendingSharedText = null
-                        vm.setSelectedNote(result.getOrNull())
-                        vm.setShowCreateDialog(false)
-                        if (!isOnline) {
-                            snackbarHostState.showSnackbar(savedLocallyMsg)
-                        }
-                    } else {
-                        snackbarHostState.showSnackbar(saveFailedMsg)
-                    }
-                }
-            },
-        )
-    }
 }

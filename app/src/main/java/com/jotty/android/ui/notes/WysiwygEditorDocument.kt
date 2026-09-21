@@ -618,6 +618,8 @@ internal fun buildWysiwygEditorDocument(
             });
           }
           document.addEventListener('DOMContentLoaded', function() {
+            // Prefer <p> over WebView's default <div> so Enter creates consistent blocks.
+            try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch (e) {}
             setEditorTheme($backgroundColor, $textColor, $borderColor);
             setContent(INITIAL_CONTENT);
             seedTableUiFromContent();

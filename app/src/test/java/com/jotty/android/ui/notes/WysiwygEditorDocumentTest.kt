@@ -30,6 +30,7 @@ class WysiwygEditorDocumentTest {
         assertTrue(doc.contains("getTableRowFromCell"))
         assertTrue(doc.contains("seedTableUiFromContent"))
         assertTrue(doc.contains("handleTableKeydown"))
+        assertTrue(doc.contains("defaultParagraphSeparator"))
     }
 
     @Test

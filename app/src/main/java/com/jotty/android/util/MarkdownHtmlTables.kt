@@ -265,7 +265,13 @@ private val htmlDivPattern =
 private val htmlStrikePattern =
     Regex("""<(?:strike|s|del)\b[^>]*>(.*?)</(?:strike|s|del)>""", regexDotIgnoreCase)
 
-/** Converts block-level HTML from WYSIWYG saves into markdown before table/image conversion. */
+/**
+ * Converts block-level HTML from WYSIWYG saves into markdown before table/image conversion.
+ *
+ * Android WebView contenteditable often wraps Enter in `<div>` (or `<p>`) after bare text.
+ * Replacements must include a leading newline so `Hello<div>World</div>` does not become
+ * `HelloWorld`.
+ */
 fun convertHtmlStructuralElementsToMarkdown(content: String): String {
     if (!content.contains('<')) {
         return content
@@ -276,7 +282,7 @@ fun convertHtmlStructuralElementsToMarkdown(content: String): String {
             val level = match.groupValues[1].toIntOrNull() ?: 1
             val prefix = "#".repeat(level.coerceIn(1, 6))
             val text = htmlInlineToMarkdown(match.groupValues[2])
-            "$prefix $text\n\n"
+            "\n\n$prefix $text\n\n"
         }
     result =
         result.replace(htmlStrikePattern) { match ->
@@ -285,15 +291,16 @@ fun convertHtmlStructuralElementsToMarkdown(content: String): String {
     result =
         result.replace(htmlParagraphPattern) { match ->
             val text = htmlInlineToMarkdown(match.groupValues[1])
-            if (text.isBlank()) "" else "$text\n\n"
+            if (text.isBlank()) "\n\n" else "\n\n$text\n\n"
         }
     result =
         result.replace(htmlDivPattern) { match ->
             val text = htmlInlineToMarkdown(match.groupValues[1])
-            if (text.isBlank()) "" else "$text\n"
+            // Empty divs (often `<div><br></div>`) are blank lines from Enter.
+            if (text.isBlank()) "\n" else "\n$text\n"
         }
     result = result.replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
-    return result.trim()
+    return result.replace(Regex("""\n{3,}"""), "\n\n").trim()
 }
 
 /** Prevents `# heading| col |` from being parsed as one giant heading in Markwon. */

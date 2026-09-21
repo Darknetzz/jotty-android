@@ -128,5 +128,6 @@ internal fun prepareNoteContentForDisplay(
     val withTables = convertHtmlTablesToGfm(withImages)
     val withStructure = convertHtmlStructuralElementsToMarkdown(withTables)
     val separated = separateMarkdownHeadingsFromTables(withStructure)
-    return resolveNoteImageUrlsInMarkdown(separated, jottyServerUrl)
+    val withBreaks = preserveExtraBlankLinesForDisplay(separated)
+    return resolveNoteImageUrlsInMarkdown(withBreaks, jottyServerUrl)
 }

@@ -187,6 +187,47 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
+    fun `convertHtmlStructuralElementsToMarkdown preserves multiple empty div blank lines`() {
+        val oneBlank = "A<div><br></div><div>B</div>"
+        val fiveBlanks =
+            "A" +
+                "<div><br></div>".repeat(5) +
+                "<div>B</div>"
+        val one = convertHtmlStructuralElementsToMarkdown(oneBlank)
+        val five = convertHtmlStructuralElementsToMarkdown(fiveBlanks)
+        val newlinesOne = one.substringAfter("A").substringBefore("B").count { it == '\n' }
+        val newlinesFive = five.substringAfter("A").substringBefore("B").count { it == '\n' }
+        assertTrue(
+            "expected more newlines for 5 blank divs than 1, got $newlinesFive vs $newlinesOne",
+            newlinesFive > newlinesOne,
+        )
+        assertTrue(newlinesFive >= 5)
+    }
+
+    @Test
+    fun `preserveExtraBlankLinesForDisplay turns extra newlines into br tags`() {
+        val md = "A\n\n\n\n\nB"
+        val displayed = preserveExtraBlankLinesForDisplay(md)
+        assertTrue(displayed.contains("<br>"))
+        assertEquals(5, Regex("<br>").findAll(displayed).count())
+        assertFalse(displayed.contains("A\n\n\n\n\nB"))
+    }
+
+    @Test
+    fun `prepareNoteContentForDisplay preserves multiple blank lines from empty divs`() {
+        val oneBlank = "A<div><br></div><div>B</div>"
+        val fiveBlanks =
+            "A" +
+                "<div><br></div>".repeat(5) +
+                "<div>B</div>"
+        val one = prepareNoteContentForDisplay(oneBlank, null)
+        val five = prepareNoteContentForDisplay(fiveBlanks, null)
+        val brOne = Regex("<br>").findAll(one).count()
+        val brFive = Regex("<br>").findAll(five).count()
+        assertTrue("expected more <br> for 5 blank divs than 1, got $brFive vs $brOne", brFive > brOne)
+    }
+
+    @Test
     fun `prepareNoteContentForDisplay preserves newlines from webview divs`() {
         val html = "Hov1 svensk<div>Viva La Bam</div><div>Boyka</div>"
         val displayed = prepareNoteContentForDisplay(html, null)

@@ -291,7 +291,8 @@ fun convertHtmlStructuralElementsToMarkdown(content: String): String {
     result =
         result.replace(htmlParagraphPattern) { match ->
             val text = htmlInlineToMarkdown(match.groupValues[1])
-            if (text.isBlank()) "\n\n" else "\n\n$text\n\n"
+            // Empty <p><br></p> is one Enter blank line (same as empty div).
+            if (text.isBlank()) "\n" else "\n\n$text\n\n"
         }
     result =
         result.replace(htmlDivPattern) { match ->
@@ -300,7 +301,26 @@ fun convertHtmlStructuralElementsToMarkdown(content: String): String {
             if (text.isBlank()) "\n" else "\n$text\n"
         }
     result = result.replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
-    return result.replace(Regex("""\n{3,}"""), "\n\n").trim()
+    // Do not collapse \n{3,} here — multiple Enter blank lines must survive for display/save.
+    return result.trim()
+}
+
+/**
+ * CommonMark/Markwon treat any run of blank lines like a single paragraph break.
+ * Turn extra newlines into `<br>` so 1 vs 5 blank lines stay visibly different in [NoteView].
+ */
+fun preserveExtraBlankLinesForDisplay(content: String): String {
+    if (!content.contains('\n')) {
+        return content
+    }
+    return content.replace(Regex("\n{2,}")) { match ->
+        val count = match.value.length
+        buildString(count * 5) {
+            repeat(count) {
+                append("<br>\n")
+            }
+        }
+    }
 }
 
 /** Prevents `# heading| col |` from being parsed as one giant heading in Markwon. */
@@ -479,5 +499,6 @@ fun prepareWysiwygHtmlForMarkdown(content: String): String {
     result = result.replace(tagPattern, "")
     result = decodeBasicHtmlEntities(result)
     result = separateMarkdownHeadingsFromTables(result)
-    return result.replace(Regex("""\n{3,}"""), "\n\n").trim()
+    // Keep multiple blank lines (do not collapse \n{3,} → \n\n); view mode maps them to <br>.
+    return result.trim()
 }

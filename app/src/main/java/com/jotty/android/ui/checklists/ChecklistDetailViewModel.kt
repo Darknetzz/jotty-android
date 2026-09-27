@@ -155,6 +155,21 @@ class ChecklistDetailViewModel(
         }
     }
 
+    fun changeCategory(
+        currentTitle: String,
+        newCategory: String,
+        onUpdated: (Checklist) -> Unit,
+        onFailed: () -> Unit,
+    ) {
+        renameChecklist(
+            currentCategory = "",
+            newTitle = currentTitle,
+            newCategory = newCategory,
+            onUpdated = onUpdated,
+            onFailed = onFailed,
+        )
+    }
+
     fun setCanUseKanbanBoard(value: Boolean) {
         _canUseKanbanBoard.value = value
     }

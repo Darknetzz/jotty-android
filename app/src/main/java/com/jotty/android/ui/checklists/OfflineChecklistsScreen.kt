@@ -22,6 +22,7 @@ fun OfflineChecklistsScreen(
     swipeToDeleteEnabled: Boolean = false,
     tabReselectToken: Int = 0,
     onOpenPendingSync: () -> Unit = {},
+    onManageCategories: () -> Unit = {},
 ) {
     val application = LocalContext.current.applicationContext as Application
     val vmFactory =
@@ -48,6 +49,7 @@ fun OfflineChecklistsScreen(
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                 tabReselectToken = tabReselectToken,
                 onOpenPendingSync = onOpenPendingSync,
+                onManageCategories = onManageCategories,
             )
         },
         onlineContent = {
@@ -57,6 +59,7 @@ fun OfflineChecklistsScreen(
                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                 serverCapabilitiesKey = instanceId,
                 tabReselectToken = tabReselectToken,
+                onManageCategories = onManageCategories,
             )
         },
     )

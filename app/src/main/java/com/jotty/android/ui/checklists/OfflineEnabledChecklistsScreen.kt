@@ -45,6 +45,8 @@ import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.ConfirmDiscardPendingSyncDialog
 import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.CloneCategoryDialog
+import com.jotty.android.ui.common.ChangeCategoryDialog
+import com.jotty.android.ui.common.ChangeCategoryDropdownMenuItem
 import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
@@ -94,11 +96,13 @@ fun OfflineEnabledChecklistsScreen(
     swipeToDeleteEnabled: Boolean = false,
     tabReselectToken: Int = 0,
     onOpenPendingSync: () -> Unit = {},
+    onManageCategories: () -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
     val showChecklistEmojis by settingsRepository.showChecklistEmojis.collectAsStateWithLifecycle(initialValue = true)
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
+    val defaultChecklistCategory by settingsRepository.defaultChecklistCategory.collectAsStateWithLifecycle(initialValue = null)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
     val vm: OfflineEnabledChecklistsViewModel =
@@ -150,6 +154,8 @@ fun OfflineEnabledChecklistsScreen(
     val cloneFailedMsg = stringResource(R.string.clone_failed)
 
     var pendingCloneChecklist by remember { mutableStateOf<Checklist?>(null) }
+    var pendingChangeCategoryChecklist by remember { mutableStateOf<Checklist?>(null) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
     var cloneLoading by remember { mutableStateOf(false) }
 
     suspend fun offlineDeleteWithUndo(list: Checklist) {
@@ -285,6 +291,7 @@ fun OfflineEnabledChecklistsScreen(
                     lastSyncError = lastSyncError,
                     pendingSyncCount = dirtyChecklistIds.size,
                     onManagePendingSync = onOpenPendingSync,
+                    onManageCategories = onManageCategories,
                     onRefresh = { requestSync(showLoading = false) },
                     onAdd = { vm.setShowCreateDialog(true) },
                 )
@@ -417,6 +424,7 @@ fun OfflineEnabledChecklistsScreen(
                                             checklist = list,
                                             onClick = { vm.setSelectedList(list) },
                                             onClone = { pendingCloneChecklist = list },
+                                            onChangeCategory = { pendingChangeCategoryChecklist = list },
                                             onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
                                             showPendingSync = list.id in dirtyChecklistIds,
                                         )
@@ -426,6 +434,7 @@ fun OfflineEnabledChecklistsScreen(
                                         checklist = list,
                                         onClick = { vm.setSelectedList(list) },
                                         onClone = { pendingCloneChecklist = list },
+                                        onChangeCategory = { pendingChangeCategoryChecklist = list },
                                         onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
                                         showPendingSync = list.id in dirtyChecklistIds,
                                     )
@@ -443,6 +452,7 @@ fun OfflineEnabledChecklistsScreen(
     if (showCreateDialog) {
         ChecklistCreateDialog(
             categorySuggestions = checklistCategories,
+            initialCategory = defaultChecklistCategory.orEmpty(),
             onDismiss = { vm.setShowCreateDialog(false) },
             onCreate = { newTitle, isProjectType, newCategory ->
                 scope.launch {
@@ -459,6 +469,34 @@ fun OfflineEnabledChecklistsScreen(
                     } else {
                         snackbarHostState.showSnackbar(saveFailedMsg)
                     }
+                }
+            },
+        )
+    }
+
+    pendingChangeCategoryChecklist?.let { targetChecklist ->
+        ChangeCategoryDialog(
+            initialCategory = targetChecklist.category,
+            categorySuggestions = checklistCategories,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) pendingChangeCategoryChecklist = null
+            },
+            onConfirm = { newCategory ->
+                scope.launch {
+                    changeCategoryLoading = true
+                    offlineRepository
+                        .updateChecklist(
+                            targetChecklist.id,
+                            targetChecklist.title,
+                            newCategory,
+                        ).onSuccess {
+                            pendingChangeCategoryChecklist = null
+                            if (!isOnline) snackbarHostState.showSnackbar(savedLocallyMsg)
+                        }.onFailure {
+                            snackbarHostState.showSnackbar(saveFailedMsg)
+                        }
+                    changeCategoryLoading = false
                 }
             },
         )
@@ -503,6 +541,7 @@ private fun OfflineChecklistCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onClone: () -> Unit = {},
+    onChangeCategory: () -> Unit = {},
     showPendingSync: Boolean = false,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -567,6 +606,12 @@ private fun OfflineChecklistCard(
                         onClick()
                     },
                 )
+                ChangeCategoryDropdownMenuItem(
+                    onClick = {
+                        menuExpanded = false
+                        onChangeCategory()
+                    },
+                )
                 CloneDropdownMenuItem(
                     labelRes = R.string.clone_checklist,
                     onClick = {
@@ -623,6 +668,8 @@ private fun OfflineChecklistDetailContent(
 
     var newItemText by remember { mutableStateOf("") }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showChangeCategory by remember { mutableStateOf(false) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
     var showManageStatusesDialog by remember { mutableStateOf(false) }
     var showDiscardPendingSyncDialog by remember { mutableStateOf(false) }
@@ -752,6 +799,34 @@ private fun OfflineChecklistDetailContent(
             },
         )
     }
+    if (showChangeCategory) {
+        ChangeCategoryDialog(
+            initialCategory = liveChecklist.category,
+            categorySuggestions = categorySuggestions,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) showChangeCategory = false
+            },
+            onConfirm = { newCategory ->
+                changeCategoryLoading = true
+                scope.launch {
+                    offlineRepository
+                        .updateChecklist(
+                            liveChecklist.id,
+                            liveChecklist.title,
+                            newCategory,
+                        ).onSuccess { updated ->
+                            showChangeCategory = false
+                            onUpdate(updated)
+                            if (!isOnline) onSavedLocally()
+                        }.onFailure {
+                            onSaveFailed()
+                        }
+                    changeCategoryLoading = false
+                }
+            },
+        )
+    }
     if (showManageStatusesDialog) {
         ManageTaskStatusesDialog(
             statuses = taskStatuses,
@@ -790,6 +865,7 @@ private fun OfflineChecklistDetailContent(
             title = liveChecklist.title,
             onBack = onBack,
             onRename = { showRenameDialog = true },
+            onChangeCategory = { showChangeCategory = true },
             onDelete = onDelete,
             onClone = { onClone(liveChecklist.copy(items = items)) },
             onShare = { showShareDialog = true },

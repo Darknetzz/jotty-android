@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -68,6 +69,7 @@ fun SettingsScreen(
     settingsRepository: SettingsRepository,
     onDisconnect: () -> Unit,
     onManageInstances: () -> Unit = {},
+    onManageCategories: () -> Unit = {},
     onAppearance: () -> Unit = {},
     onDashboard: () -> Unit = {},
     onBehavior: () -> Unit = {},
@@ -191,6 +193,23 @@ fun SettingsScreen(
                                 )
                             },
                             modifier = Modifier.clickable(onClick = onManageInstances),
+                        )
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.manage_categories)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.manage_categories_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Outlined.Category,
+                                    contentDescription = stringResource(R.string.manage_categories),
+                                )
+                            },
+                            modifier = Modifier.clickable(onClick = onManageCategories),
                         )
                         HorizontalDivider()
                         ListItem(

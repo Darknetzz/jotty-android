@@ -8,10 +8,14 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Change category** — Notes and checklists can change category from detail and list ⋮ menus (without renaming or entering full edit mode). Uses existing item update APIs.
+- **Manage categories** — Browse note and checklist categories (path and counts) from Settings or the notes/checklists list overflow. Folder create/rename/delete awaits a Jotty REST API.
+- **Default checklist category** — Settings → Behavior prefills the category when creating a checklist (parity with new notes).
 - **Visual editor table editing** — When the cursor is inside a table, add row/column and exit-table actions appear in the toolbar (quick buttons by default, full menu on the table button). Tab moves between cells; Enter or arrow down from the last row exits below the table. Settings → Behavior → **Compact table toolbar** hides the quick buttons.
 
 ### Changed
 
+- **Online checklist category suggestions** — The online checklists screen loads categories from `GET /api/categories` (same as notes), not only from currently loaded list items.
 - **New notes open in the editor** — Tapping + (or the home-screen widget / share-into-app) creates an Untitled note with your default category and opens it in edit mode immediately, instead of a title/category dialog.
 - **Dependencies** — AGP 9.4.0 ([#100](https://github.com/Darknetzz/jotty-android/pull/100)), KSP 2.3.11, Bouncy Castle 1.85.2, fragment-ktx 1.9.0, and Gradle 9.7.1 (safe subset of [#98](https://github.com/Darknetzz/jotty-android/pull/98) via [#99](https://github.com/Darknetzz/jotty-android/pull/99)). Compose BOM stays on 2026.06.01 and navigation-compose on 2.9.8 until compileSdk 37; Kotlin stays on 2.3.21 until a coordinated 2.4 upgrade; Lifecycle stays on 2.10 (2.11 needs compileSdk 37); compose-markdown stays on 0.5.8 (0.6+ needs Coil 3).
 - **Dependabot** — Ignore rules now cover Kotlin Gradle plugin ids (not only `org.jetbrains.kotlin:*`), exclude Kotlin from grouped weekly/major PRs, and block Lifecycle 2.11+, Compose BOM 2026.08+, navigation-compose 2.10+, compose-markdown 0.6+, until their prerequisites land (see closed [#85](https://github.com/Darknetzz/jotty-android/pull/85), [#98](https://github.com/Darknetzz/jotty-android/pull/98)).
@@ -26,6 +30,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Documentation
 
+- **Category folder CRUD** — Noted that empty-folder create/rename/delete is web-only until Jotty exposes REST; Android assigns categories via item create/update and browse via **Manage categories** ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 - **Jotty 1.27.0 compatibility** — Documented that Kanban card comments (and TipTap description editing) are web/server-action only with no public REST yet; Android needs no client change for REST compatibility ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 
 ---

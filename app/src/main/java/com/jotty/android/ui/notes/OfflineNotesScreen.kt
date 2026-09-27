@@ -36,6 +36,7 @@ fun OfflineNotesScreen(
     customHeaders: Map<String, String> = emptyMap(),
     tabReselectToken: Int = 0,
     onOpenPendingSync: () -> Unit = {},
+    onManageCategories: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val application = context.applicationContext as Application
@@ -72,6 +73,7 @@ fun OfflineNotesScreen(
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,
                 onOpenPendingSync = onOpenPendingSync,
+                onManageCategories = onManageCategories,
             )
         },
         onlineContent = {
@@ -90,6 +92,7 @@ fun OfflineNotesScreen(
                 serverCapabilitiesKey = instanceId,
                 biometricStore = biometricStore,
                 tabReselectToken = tabReselectToken,
+                onManageCategories = onManageCategories,
             )
         },
     )

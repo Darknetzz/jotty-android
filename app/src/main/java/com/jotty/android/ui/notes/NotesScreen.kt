@@ -35,6 +35,7 @@ import com.jotty.android.data.encryption.BiometricPassphraseStore
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.ChangeCategoryDialog
 import com.jotty.android.ui.common.ListFilterHeader
 import com.jotty.android.ui.common.CloneCategoryDialog
 import com.jotty.android.ui.common.ListDetailContainer
@@ -67,6 +68,7 @@ fun NotesScreen(
     serverCapabilitiesKey: String? = null,
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
+    onManageCategories: () -> Unit = {},
 ) {
     val application = LocalContext.current.applicationContext as Application
     val context = LocalContext.current
@@ -125,6 +127,8 @@ fun NotesScreen(
     val undoActionLabel = stringResource(R.string.undo)
 
     var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
+    var pendingChangeCategoryNote by remember { mutableStateOf<Note?>(null) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
     var pendingCloneNote by remember { mutableStateOf<Note?>(null) }
     var cloneLoading by remember { mutableStateOf(false) }
     var shareServerNote by remember { mutableStateOf<Note?>(null) }
@@ -220,6 +224,7 @@ fun NotesScreen(
                     isOnline = true,
                     isSyncing = loading,
                     lastSyncAttemptEpochMs = null,
+                    onManageCategories = onManageCategories,
                     onRefresh = { vm.loadNotes() },
                     onAdd = { createAndOpenNote() },
                 )
@@ -321,6 +326,7 @@ fun NotesScreen(
                                                 }
                                             },
                                             onArchive = { pendingArchiveNote = n },
+                                            onChangeCategory = { pendingChangeCategoryNote = n },
                                             onClone = { pendingCloneNote = n },
                                             showShare = true,
                                             onShare = { shareServerNote = n },
@@ -447,6 +453,36 @@ fun NotesScreen(
                     scope.launch { snackbarHostState.showSnackbar(shareEncryptedLockedMsg) }
                 }
                 shareServerNote = null
+            },
+        )
+    }
+
+    pendingChangeCategoryNote?.let { targetNote ->
+        ChangeCategoryDialog(
+            initialCategory = targetNote.category,
+            categorySuggestions = noteCategories,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) pendingChangeCategoryNote = null
+            },
+            onConfirm = { newCategory ->
+                scope.launch {
+                    changeCategoryLoading = true
+                    listNoteActions
+                        .updateNote(
+                            noteId = targetNote.id,
+                            title = targetNote.title,
+                            content = targetNote.content,
+                            category = newCategory,
+                            originalCategory = targetNote.category,
+                        ).onSuccess {
+                            pendingChangeCategoryNote = null
+                            vm.loadNotes()
+                        }.onFailure {
+                            snackbarHostState.showSnackbar(saveFailedMsg)
+                        }
+                    changeCategoryLoading = false
+                }
             },
         )
     }

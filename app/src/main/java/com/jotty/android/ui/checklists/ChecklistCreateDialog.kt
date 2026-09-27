@@ -33,10 +33,11 @@ fun ChecklistCreateDialog(
     onDismiss: () -> Unit,
     onCreate: (title: String, isProjectType: Boolean, category: String) -> Unit,
     categorySuggestions: List<String> = emptyList(),
+    initialCategory: String = "",
 ) {
     var title by remember { mutableStateOf("") }
     var isProjectType by remember { mutableStateOf(false) }
-    var category by remember { mutableStateOf("") }
+    var category by remember(initialCategory) { mutableStateOf(initialCategory) }
     val untitled = stringResource(R.string.untitled)
 
     AlertDialog(

@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -45,10 +44,8 @@ class ChecklistsViewModel(
     private val _selectedCategory = MutableStateFlow<String?>(null)
     val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
 
-    val checklistCategories: StateFlow<List<String>> =
-        _checklists
-            .map { lists -> lists.map { it.category }.distinct().sorted() }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _checklistCategories = MutableStateFlow<List<String>>(emptyList())
+    val checklistCategories: StateFlow<List<String>> = _checklistCategories.asStateFlow()
 
     val filteredChecklists: StateFlow<List<Checklist>> =
         combine(_checklists, _searchQuery, _selectedCategory) { lists, query, category ->
@@ -82,12 +79,25 @@ class ChecklistsViewModel(
             try {
                 _checklists.value = api.getChecklists().checklists
                 AppLog.d("checklists", "Loaded ${_checklists.value.size} checklists")
+                loadCategories()
             } catch (e: Exception) {
                 AppLog.e("checklists", "Load failed", e)
                 _error.value = ApiErrorHelper.userMessage(getApplication(), e)
+                _checklistCategories.value =
+                    _checklists.value.map { it.category }.distinct().sorted()
             } finally {
                 _loading.value = false
             }
+        }
+    }
+
+    private suspend fun loadCategories() {
+        try {
+            _checklistCategories.value =
+                api.getCategories().categories.checklists.map { it.name }.distinct().sorted()
+        } catch (_: Exception) {
+            _checklistCategories.value =
+                _checklists.value.map { it.category }.distinct().sorted()
         }
     }
 

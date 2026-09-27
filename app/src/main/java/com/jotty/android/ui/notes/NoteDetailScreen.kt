@@ -74,6 +74,8 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.encryption.ParsedNoteContent
 import androidx.compose.material.icons.filled.Share
 import com.jotty.android.ui.common.ArchiveDropdownMenuItem
+import com.jotty.android.ui.common.ChangeCategoryDialog
+import com.jotty.android.ui.common.ChangeCategoryDropdownMenuItem
 import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
@@ -196,6 +198,8 @@ internal fun NoteDetailScreen(
     var biometricAutoTriggered by rememberSaveable(note.id) { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showChangeCategory by remember { mutableStateOf(false) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
     var showShareServerDialog by remember { mutableStateOf(false) }
     var showArchiveConfirm by remember { mutableStateOf(false) }
     var showRestoreSnapshots by remember { mutableStateOf(false) }
@@ -500,6 +504,32 @@ internal fun NoteDetailScreen(
         )
     }
 
+    if (showChangeCategory) {
+        ChangeCategoryDialog(
+            initialCategory = category,
+            categorySuggestions = categorySuggestions,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) showChangeCategory = false
+            },
+            onConfirm = { newCategory ->
+                changeCategoryLoading = true
+                detailVm.changeCategory(
+                    newCategory = newCategory,
+                    onSuccess = { updated ->
+                        changeCategoryLoading = false
+                        showChangeCategory = false
+                        onUpdate(updated)
+                    },
+                    onFailure = {
+                        changeCategoryLoading = false
+                        onSaveFailed()
+                    },
+                )
+            },
+        )
+    }
+
     if (showArchiveConfirm) {
         val archived = isArchivedCategory(category)
         AlertDialog(
@@ -797,6 +827,14 @@ internal fun NoteDetailScreen(
                                     onClick = {
                                         menuExpanded = false
                                         showShareServerDialog = true
+                                    },
+                                )
+                            }
+                            if (!isEditing) {
+                                ChangeCategoryDropdownMenuItem(
+                                    onClick = {
+                                        menuExpanded = false
+                                        showChangeCategory = true
                                     },
                                 )
                             }

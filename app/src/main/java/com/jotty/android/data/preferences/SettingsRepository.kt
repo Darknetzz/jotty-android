@@ -207,6 +207,12 @@ class SettingsRepository(
             prefs[KEY_DEFAULT_NOTE_CATEGORY].takeIf { !it.isNullOrBlank() }
         }.catch { emit(null) }
 
+    /** Default category for new checklists; blank = uncategorized. */
+    val defaultChecklistCategory: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_DEFAULT_CHECKLIST_CATEGORY].takeIf { !it.isNullOrBlank() }
+        }.catch { emit(null) }
+
     /** Content padding: "compact" (8dp vertical) or "comfortable" (16dp vertical). Default "comfortable". */
     val contentPaddingMode: Flow<String> =
         context.jottySettingsDataStore.data.map { prefs ->
@@ -507,6 +513,17 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setDefaultChecklistCategory(value: String?) {
+        context.jottySettingsDataStore.edit {
+            val trimmed = value?.trim().orEmpty()
+            if (trimmed.isBlank()) {
+                it.remove(KEY_DEFAULT_CHECKLIST_CATEGORY)
+            } else {
+                it[KEY_DEFAULT_CHECKLIST_CATEGORY] = trimmed
+            }
+        }
+    }
+
     suspend fun setContentPaddingMode(value: String) {
         context.jottySettingsDataStore.edit {
             if (value == "comfortable") it.remove(KEY_CONTENT_PADDING) else it[KEY_CONTENT_PADDING] = value
@@ -746,6 +763,7 @@ class SettingsRepository(
         private val KEY_OPEN_NOTES_IN_EDIT_MODE = booleanPreferencesKey("open_notes_in_edit_mode")
         private val KEY_DEFAULT_NOTE_EDIT_MODE = stringPreferencesKey("default_note_edit_mode")
         private val KEY_DEFAULT_NOTE_CATEGORY = stringPreferencesKey("default_note_category")
+        private val KEY_DEFAULT_CHECKLIST_CATEGORY = stringPreferencesKey("default_checklist_category")
 
         const val DEFAULT_NOTE_PREVIEW_MAX_LINES = 2
         private val NOTE_PREVIEW_MAX_LINES_OPTIONS = setOf(0, 1, 2, 4)

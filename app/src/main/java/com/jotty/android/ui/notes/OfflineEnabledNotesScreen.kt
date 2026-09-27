@@ -29,6 +29,7 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.ChangeCategoryDialog
 import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.CloneCategoryDialog
 import com.jotty.android.ui.common.ShareServerDialog
@@ -78,6 +79,7 @@ fun OfflineEnabledNotesScreen(
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
     onOpenPendingSync: () -> Unit = {},
+    onManageCategories: () -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -155,6 +157,8 @@ fun OfflineEnabledNotesScreen(
     val conflictActionLabel = stringResource(R.string.view_conflicts)
 
     var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
+    var pendingChangeCategoryNote by remember { mutableStateOf<Note?>(null) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
     var pendingCloneNote by remember { mutableStateOf<Note?>(null) }
     var cloneLoading by remember { mutableStateOf(false) }
     var shareServerNote by remember { mutableStateOf<Note?>(null) }
@@ -351,6 +355,7 @@ fun OfflineEnabledNotesScreen(
                     lastSyncError = lastSyncError,
                     pendingSyncCount = dirtyNoteIds.size,
                     onManagePendingSync = onOpenPendingSync,
+                    onManageCategories = onManageCategories,
                     onRefresh = { requestSync(showLoading = false) },
                     onAdd = { createAndOpenNote() },
                 )
@@ -480,6 +485,7 @@ fun OfflineEnabledNotesScreen(
                                                 }
                                             },
                                             onArchive = { pendingArchiveNote = n },
+                                            onChangeCategory = { pendingChangeCategoryNote = n },
                                             onClone = { pendingCloneNote = n },
                                             showShare = api != null,
                                             onShare = { shareServerNote = n },
@@ -572,6 +578,37 @@ fun OfflineEnabledNotesScreen(
             dismissButton = {
                 TextButton(onClick = { pendingArchiveNote = null }) {
                     Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    pendingChangeCategoryNote?.let { targetNote ->
+        ChangeCategoryDialog(
+            initialCategory = targetNote.category,
+            categorySuggestions = noteCategories,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) pendingChangeCategoryNote = null
+            },
+            onConfirm = { newCategory ->
+                scope.launch {
+                    changeCategoryLoading = true
+                    offlineRepository
+                        .updateNote(
+                            noteId = targetNote.id,
+                            title = targetNote.title,
+                            content = targetNote.content,
+                            category = newCategory,
+                        ).onSuccess {
+                            pendingChangeCategoryNote = null
+                            if (!isOnline) {
+                                snackbarHostState.showSnackbar(savedLocallyMsg)
+                            }
+                        }.onFailure {
+                            snackbarHostState.showSnackbar(saveFailedMsg)
+                        }
+                    changeCategoryLoading = false
                 }
             },
         )

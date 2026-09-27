@@ -44,6 +44,8 @@ import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.local.itemAtPath
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.ChangeCategoryDialog
+import com.jotty.android.ui.common.ChangeCategoryDropdownMenuItem
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
@@ -90,6 +92,7 @@ fun ChecklistsScreen(
     swipeToDeleteEnabled: Boolean = false,
     serverCapabilitiesKey: String? = null,
     tabReselectToken: Int = 0,
+    onManageCategories: () -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -103,6 +106,7 @@ fun ChecklistsScreen(
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
     val showChecklistEmojis by settingsRepository.showChecklistEmojis.collectAsStateWithLifecycle(initialValue = true)
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
+    val defaultChecklistCategory by settingsRepository.defaultChecklistCategory.collectAsStateWithLifecycle(initialValue = null)
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
     val sortedChecklists = remember(filteredChecklists, sortOption) { filteredChecklists.sortedBy(sortOption) }
@@ -123,6 +127,8 @@ fun ChecklistsScreen(
 
     var pendingCloneChecklist by remember { mutableStateOf<Checklist?>(null) }
     var cloneLoading by remember { mutableStateOf(false) }
+    var pendingChangeCategoryChecklist by remember { mutableStateOf<Checklist?>(null) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
 
     suspend fun deleteWithUndoForList(list: Checklist) {
         try {
@@ -170,6 +176,7 @@ fun ChecklistsScreen(
                     isOnline = true,
                     isSyncing = loading,
                     lastSyncAttemptEpochMs = null,
+                    onManageCategories = onManageCategories,
                     onRefresh = { vm.loadChecklists() },
                     onAdd = { vm.setShowCreateDialog(true) },
                 )
@@ -267,6 +274,7 @@ fun ChecklistsScreen(
                                             checklist = list,
                                             onClick = { vm.setSelectedList(list) },
                                             onClone = { pendingCloneChecklist = list },
+                                            onChangeCategory = { pendingChangeCategoryChecklist = list },
                                             onDelete = { scope.launch { deleteWithUndoForList(list) } },
                                         )
                                     }
@@ -275,6 +283,7 @@ fun ChecklistsScreen(
                                         checklist = list,
                                         onClick = { vm.setSelectedList(list) },
                                         onClone = { pendingCloneChecklist = list },
+                                        onChangeCategory = { pendingChangeCategoryChecklist = list },
                                         onDelete = { scope.launch { deleteWithUndoForList(list) } },
                                     )
                                 }
@@ -291,6 +300,7 @@ fun ChecklistsScreen(
     if (showCreateDialog) {
         ChecklistCreateDialog(
             categorySuggestions = checklistCategories,
+            initialCategory = defaultChecklistCategory.orEmpty(),
             onDismiss = { vm.setShowCreateDialog(false) },
             onCreate = { newTitle, isProjectType, newCategory ->
                 vm.createChecklist(
@@ -299,6 +309,41 @@ fun ChecklistsScreen(
                     category = newCategory,
                     onFailure = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                 )
+            },
+        )
+    }
+
+    pendingChangeCategoryChecklist?.let { targetChecklist ->
+        ChangeCategoryDialog(
+            initialCategory = targetChecklist.category,
+            categorySuggestions = checklistCategories,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) pendingChangeCategoryChecklist = null
+            },
+            onConfirm = { newCategory ->
+                scope.launch {
+                    changeCategoryLoading = true
+                    try {
+                        val response =
+                            api.updateChecklist(
+                                targetChecklist.id,
+                                UpdateChecklistRequest(
+                                    title = targetChecklist.title,
+                                    category = newCategory,
+                                ),
+                            )
+                        if (response.success) {
+                            pendingChangeCategoryChecklist = null
+                            vm.loadChecklists()
+                        } else {
+                            snackbarHostState.showSnackbar(saveFailedMsg)
+                        }
+                    } catch (_: Exception) {
+                        snackbarHostState.showSnackbar(saveFailedMsg)
+                    }
+                    changeCategoryLoading = false
+                }
             },
         )
     }
@@ -339,6 +384,7 @@ private fun ChecklistCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onClone: () -> Unit = {},
+    onChangeCategory: () -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
@@ -400,6 +446,12 @@ private fun ChecklistCard(
                         onClick()
                     },
                 )
+                ChangeCategoryDropdownMenuItem(
+                    onClick = {
+                        menuExpanded = false
+                        onChangeCategory()
+                    },
+                )
                 CloneDropdownMenuItem(
                     labelRes = R.string.clone_checklist,
                     onClick = {
@@ -452,6 +504,8 @@ private fun ChecklistDetailScreen(
     val showShareDialog by detailVm.showShareDialog.collectAsStateWithLifecycle()
     var richFieldsSupported by remember { mutableStateOf(false) }
     var newItemText by remember { mutableStateOf("") }
+    var showChangeCategory by remember { mutableStateOf(false) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -510,6 +564,32 @@ private fun ChecklistDetailScreen(
             },
         )
     }
+    if (showChangeCategory) {
+        ChangeCategoryDialog(
+            initialCategory = checklist.category,
+            categorySuggestions = categorySuggestions,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) showChangeCategory = false
+            },
+            onConfirm = { newCategory ->
+                changeCategoryLoading = true
+                detailVm.changeCategory(
+                    currentTitle = displayTitle,
+                    newCategory = newCategory,
+                    onUpdated = {
+                        changeCategoryLoading = false
+                        showChangeCategory = false
+                        onUpdate(it)
+                    },
+                    onFailed = {
+                        changeCategoryLoading = false
+                        onSaveFailed()
+                    },
+                )
+            },
+        )
+    }
     if (showManageStatusesDialog) {
         ManageTaskStatusesDialog(
             statuses = taskStatuses,
@@ -539,6 +619,7 @@ private fun ChecklistDetailScreen(
             title = displayTitle,
             onBack = onBack,
             onRename = { detailVm.setShowRenameDialog(true) },
+            onChangeCategory = { showChangeCategory = true },
             onDelete = onDelete,
             onClone = { onClone(checklist.copy(items = items)) },
             onShare = { detailVm.setShowShareDialog(true) },

@@ -10,8 +10,12 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.CloudQueue
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +52,7 @@ class MainTabTopBarState(
     val lastSyncError: String? = null,
     val pendingSyncCount: Int = 0,
     val onManagePendingSync: (() -> Unit)? = null,
+    val onManageCategories: (() -> Unit)? = null,
     val onRefresh: () -> Unit,
     val onAdd: () -> Unit,
     val showSyncStatus: Boolean = true,
@@ -411,5 +416,32 @@ fun MainTabTopBarActions(state: MainTabTopBarState) {
     }
     IconButton(onClick = state.onAdd) {
         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
+    }
+    state.onManageCategories?.let { onManageCategories ->
+        var menuExpanded by remember { mutableStateOf(false) }
+        IconButton(onClick = { menuExpanded = true }) {
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = stringResource(R.string.more_options),
+            )
+        }
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.manage_categories)) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Outlined.Category,
+                        contentDescription = stringResource(R.string.cd_manage_categories),
+                    )
+                },
+                onClick = {
+                    menuExpanded = false
+                    onManageCategories()
+                },
+            )
+        }
     }
 }

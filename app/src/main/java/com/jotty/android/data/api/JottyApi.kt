@@ -174,4 +174,10 @@ interface JottyApi {
         @Path("itemId") itemId: String,
         @Body body: UpdateShareInfoRequest,
     ): ShareInfoResponse
+
+    /** Linked notes/checklists for an item (404 on older Jotty without relations index). */
+    @GET("api/relations/{itemId}")
+    suspend fun getRelations(
+        @Path("itemId") itemId: String,
+    ): RelationsResponse
 }

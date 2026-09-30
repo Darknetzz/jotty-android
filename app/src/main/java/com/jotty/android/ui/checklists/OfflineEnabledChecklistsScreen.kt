@@ -97,6 +97,8 @@ fun OfflineEnabledChecklistsScreen(
     tabReselectToken: Int = 0,
     onOpenPendingSync: () -> Unit = {},
     onManageCategories: () -> Unit = {},
+    initialChecklistId: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -152,6 +154,38 @@ fun OfflineEnabledChecklistsScreen(
     val discardPendingSyncDoneMsg = stringResource(R.string.discard_pending_sync_done)
     val checklistClonedMsg = stringResource(R.string.checklist_cloned)
     val cloneFailedMsg = stringResource(R.string.clone_failed)
+    val checklistNotFoundMsg = stringResource(R.string.checklist_not_found)
+
+    var deepLinkResolved by remember(initialChecklistId) { mutableStateOf(false) }
+    LaunchedEffect(initialChecklistId, checklists, deepLinkResolved) {
+        val id = initialChecklistId ?: return@LaunchedEffect
+        if (deepLinkResolved) return@LaunchedEffect
+
+        fun openList(list: Checklist) {
+            vm.setSelectedList(list)
+            onDeepLinkConsumed()
+            deepLinkResolved = true
+        }
+
+        checklists.find { it.id == id }?.let {
+            openList(it)
+            return@LaunchedEffect
+        }
+
+        val fetched =
+            if (isOnline) {
+                runCatching { api.getChecklists().checklists.find { it.id == id } }.getOrNull()
+            } else {
+                null
+            }
+        if (fetched != null) {
+            openList(fetched)
+            return@LaunchedEffect
+        }
+        snackbarHostState.showSnackbar(checklistNotFoundMsg)
+        onDeepLinkConsumed()
+        deepLinkResolved = true
+    }
 
     var pendingCloneChecklist by remember { mutableStateOf<Checklist?>(null) }
     var pendingChangeCategoryChecklist by remember { mutableStateOf<Checklist?>(null) }

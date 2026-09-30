@@ -93,6 +93,8 @@ fun ChecklistsScreen(
     serverCapabilitiesKey: String? = null,
     tabReselectToken: Int = 0,
     onManageCategories: () -> Unit = {},
+    initialChecklistId: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
@@ -123,7 +125,34 @@ fun ChecklistsScreen(
     val undoLabel = stringResource(R.string.undo)
     val checklistClonedMsg = stringResource(R.string.checklist_cloned)
     val cloneFailedMsg = stringResource(R.string.clone_failed)
+    val checklistNotFoundMsg = stringResource(R.string.checklist_not_found)
     val context = LocalContext.current
+
+    var deepLinkResolved by remember(initialChecklistId) { mutableStateOf(false) }
+    LaunchedEffect(initialChecklistId, checklists, loading, deepLinkResolved) {
+        val id = initialChecklistId ?: return@LaunchedEffect
+        if (deepLinkResolved) return@LaunchedEffect
+
+        fun openList(list: Checklist) {
+            vm.setSelectedList(list)
+            onDeepLinkConsumed()
+            deepLinkResolved = true
+        }
+
+        checklists.find { it.id == id }?.let {
+            openList(it)
+            return@LaunchedEffect
+        }
+        if (loading) return@LaunchedEffect
+
+        vm.resolveChecklistForDeepLink(id)?.let {
+            openList(it)
+            return@LaunchedEffect
+        }
+        snackbarHostState.showSnackbar(checklistNotFoundMsg)
+        onDeepLinkConsumed()
+        deepLinkResolved = true
+    }
 
     var pendingCloneChecklist by remember { mutableStateOf<Checklist?>(null) }
     var cloneLoading by remember { mutableStateOf(false) }

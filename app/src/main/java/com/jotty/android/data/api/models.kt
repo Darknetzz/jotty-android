@@ -228,6 +228,8 @@ data class SearchResponse(
     val query: String? = null,
     val total: Int? = null,
     val results: List<SearchResult> = emptyList(),
+    /** True while Jotty 1.28+ builds its search index; ranked search may return empty. */
+    val indexing: Boolean? = null,
 )
 
 data class SearchResult(
@@ -238,6 +240,13 @@ data class SearchResult(
     val category: String = API_CATEGORY_UNCATEGORIZED,
     val excerpt: String? = null,
 )
+
+/**
+ * Prefer [SearchResult.uuid] (Jotty 1.28+); fall back to [SearchResult.id] on older servers
+ * where `id` is still the item uuid.
+ */
+fun SearchResult.addressableId(): String =
+    uuid?.takeIf { it.isNotBlank() } ?: id
 
 // ─── Notes ──────────────────────────────────────────────────────────────────
 
@@ -369,4 +378,27 @@ data class SummaryTasks(
     val inProgress: Int? = null,
     val todo: Int? = null,
     val completionRate: Int? = null,
+)
+
+// ─── Relations (Jotty 1.28+; 404 on older servers) ───────────────────────────
+
+data class RelationsResponse(
+    val uuid: String? = null,
+    val type: String? = null,
+    val title: String? = null,
+    val category: String? = null,
+    val status: String? = null,
+    val tags: List<String> = emptyList(),
+    val backlinks: List<RelatedItem> = emptyList(),
+    val links: List<RelatedItem> = emptyList(),
+    val unwritten: List<String> = emptyList(),
+)
+
+data class RelatedItem(
+    val uuid: String,
+    val type: String,
+    val title: String,
+    val category: String = API_CATEGORY_UNCATEGORIZED,
+    val kind: String? = null,
+    val owner: String? = null,
 )

@@ -28,7 +28,14 @@ import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.api.ShareInfoResponse
 import com.jotty.android.data.api.UpdateShareInfoRequest
+import com.jotty.android.data.api.RelationsResponse
+import com.jotty.android.data.api.ReorderItemsRequest
+import com.jotty.android.data.api.SearchResponse
+import com.jotty.android.data.api.TaskItemResponse
+import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.api.UpdateTaskStatusRequest
+import java.time.Instant
+import okhttp3.RequestBody
 
 /**
  * Test double for [JottyApi] — only note paths are configurable; other endpoints return minimal stubs.
@@ -227,4 +234,6 @@ internal class FakeJottyApi(
         itemId: String,
         body: UpdateShareInfoRequest,
     ): ShareInfoResponse = ShareInfoResponse(success = false)
+
+    override suspend fun getRelations(itemId: String): RelationsResponse = RelationsResponse()
 }

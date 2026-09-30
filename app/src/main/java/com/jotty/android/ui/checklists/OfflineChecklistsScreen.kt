@@ -23,6 +23,8 @@ fun OfflineChecklistsScreen(
     tabReselectToken: Int = 0,
     onOpenPendingSync: () -> Unit = {},
     onManageCategories: () -> Unit = {},
+    initialChecklistId: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
 ) {
     val application = LocalContext.current.applicationContext as Application
     val vmFactory =
@@ -50,6 +52,8 @@ fun OfflineChecklistsScreen(
                 tabReselectToken = tabReselectToken,
                 onOpenPendingSync = onOpenPendingSync,
                 onManageCategories = onManageCategories,
+                initialChecklistId = initialChecklistId,
+                onDeepLinkConsumed = onDeepLinkConsumed,
             )
         },
         onlineContent = {
@@ -60,6 +64,8 @@ fun OfflineChecklistsScreen(
                 serverCapabilitiesKey = instanceId,
                 tabReselectToken = tabReselectToken,
                 onManageCategories = onManageCategories,
+                initialChecklistId = initialChecklistId,
+                onDeepLinkConsumed = onDeepLinkConsumed,
             )
         },
     )

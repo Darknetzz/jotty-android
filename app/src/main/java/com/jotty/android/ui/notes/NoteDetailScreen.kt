@@ -83,6 +83,8 @@ import com.jotty.android.ui.common.MainNestedScaffoldContentWindowInsets
 import com.jotty.android.ui.common.NoteDetailDateSubtitle
 import com.jotty.android.ui.common.ShareDropdownMenuItem
 import com.jotty.android.ui.common.ShareServerDialog
+import com.jotty.android.util.JottyItemRef
+import com.jotty.android.util.buildWikilinkTitleMap
 import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.isArchivedCategory
 import com.jotty.android.util.JOTTY_ARCHIVE_CATEGORY
@@ -97,6 +99,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import retrofit2.HttpException
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -127,6 +130,9 @@ internal fun NoteDetailScreen(
     api: JottyApi? = null,
     isOnline: Boolean = true,
     onClone: (() -> Unit)? = null,
+    /** Local notes for unique-title wikilink resolution when relations API is unavailable. */
+    localNotesForLinks: List<Note> = emptyList(),
+    onOpenJottyItem: ((com.jotty.android.util.JottyItemRef) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     val snapshotRepository =
@@ -191,6 +197,38 @@ internal fun NoteDetailScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    var relationLinks by remember(note.id) { mutableStateOf<List<Pair<String, JottyItemRef>>>(emptyList()) }
+    LaunchedEffect(note.id, api, isOnline) {
+        if (!isOnline || api == null) {
+            relationLinks = emptyList()
+            return@LaunchedEffect
+        }
+        relationLinks =
+            runCatching {
+                val relations = api.getRelations(note.id)
+                relations.links.mapNotNull { item ->
+                    val type =
+                        when (item.type.lowercase()) {
+                            "note" -> JottyItemRef.Type.NOTE
+                            "checklist" -> JottyItemRef.Type.CHECKLIST
+                            else -> return@mapNotNull null
+                        }
+                    item.title.trim().takeIf { it.isNotEmpty() }?.let { title ->
+                        title to JottyItemRef(type, item.uuid)
+                    }
+                }
+            }.getOrElse { error ->
+                if (error is HttpException && error.code() == 404) emptyList() else emptyList()
+            }
+    }
+    val titleToItem =
+        remember(relationLinks, localNotesForLinks) {
+            buildWikilinkTitleMap(
+                relationLinks = relationLinks,
+                localNotes = localNotesForLinks.map { it.title to it.id },
+            )
+        }
 
     var hasBiometricPassphrase by remember(note.id) {
         mutableStateOf(biometricStore?.hasPassphrase(note.id) == true)
@@ -988,6 +1026,8 @@ internal fun NoteDetailScreen(
                                 content = viewContent,
                                 imageLoader = imageLoader,
                                 jottyServerUrl = jottyServerUrl,
+                                titleToItem = titleToItem,
+                                onOpenJottyItem = onOpenJottyItem,
                                 modifier = Modifier.fillMaxSize(),
                             )
                             if (isEncrypted && isDecrypted && legacyEncryptionDetected) {

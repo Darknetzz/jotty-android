@@ -271,4 +271,7 @@ private class MinimalChecklistApi : JottyApi {
         itemId: String,
         body: com.jotty.android.data.api.UpdateShareInfoRequest,
     ): com.jotty.android.data.api.ShareInfoResponse = com.jotty.android.data.api.ShareInfoResponse(success = false)
+
+    override suspend fun getRelations(itemId: String): com.jotty.android.data.api.RelationsResponse =
+        com.jotty.android.data.api.RelationsResponse()
 }

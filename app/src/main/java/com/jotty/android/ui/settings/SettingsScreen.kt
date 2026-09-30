@@ -51,6 +51,7 @@ import com.jotty.android.ui.common.UpdateStatusAlert
 import com.jotty.android.ui.common.UpdateStatusAlertVariant
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.DebugLogExporter
+import com.jotty.android.util.JottyServerVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -758,6 +759,14 @@ private fun AboutDialog(
                     ) {
                         Text(stringResource(R.string.server_version), style = MaterialTheme.typography.bodyMedium)
                         Text(version, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (JottyServerVersion.isNewerThanCompatCeiling(version)) {
+                        Text(
+                            text = stringResource(R.string.server_version_newer_warning, version),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
                     }
                 }
                 HorizontalDivider()

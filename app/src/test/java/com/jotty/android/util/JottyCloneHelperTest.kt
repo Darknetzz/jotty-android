@@ -15,6 +15,7 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.NotesResponse
 import com.jotty.android.data.api.ReorderItemsRequest
+import com.jotty.android.data.api.RelationsResponse
 import com.jotty.android.data.api.SearchResponse
 import com.jotty.android.data.api.ShareInfoResponse
 import com.jotty.android.data.api.SuccessResponse
@@ -300,6 +301,8 @@ class JottyCloneHelperTest {
             itemId: String,
             body: UpdateShareInfoRequest,
         ): ShareInfoResponse = unsupported()
+
+        override suspend fun getRelations(itemId: String): RelationsResponse = unsupported()
 
         private fun <T> unsupported(): T = throw UnsupportedOperationException()
     }

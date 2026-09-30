@@ -69,6 +69,7 @@ fun NotesScreen(
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
     onManageCategories: () -> Unit = {},
+    onOpenChecklist: (String) -> Unit = {},
 ) {
     val application = LocalContext.current.applicationContext as Application
     val context = LocalContext.current
@@ -123,6 +124,7 @@ fun NotesScreen(
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
+    val linkedItemNotFoundMsg = stringResource(R.string.linked_item_not_found)
     val noteDeletedMsg = stringResource(R.string.note_deleted)
     val undoActionLabel = stringResource(R.string.undo)
 
@@ -380,6 +382,18 @@ fun NotesScreen(
                         markdownEditorMonospace = markdownEditorMonospace,
                         api = api,
                         onClone = { pendingCloneNote = note },
+                        localNotesForLinks = notes,
+                        onOpenJottyItem = { ref ->
+                            scope.openLinkedJottyItem(
+                                ref = ref,
+                                notes = notes,
+                                api = api,
+                                isOnline = true,
+                                setSelectedNote = { vm.setSelectedNote(it) },
+                                onOpenChecklist = onOpenChecklist,
+                                showNotFound = { snackbarHostState.showSnackbar(linkedItemNotFoundMsg) },
+                            )
+                        },
                     )
                 }
             }

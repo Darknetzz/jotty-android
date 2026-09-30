@@ -80,6 +80,7 @@ fun OfflineEnabledNotesScreen(
     tabReselectToken: Int = 0,
     onOpenPendingSync: () -> Unit = {},
     onManageCategories: () -> Unit = {},
+    onOpenChecklist: (String) -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -150,6 +151,7 @@ fun OfflineEnabledNotesScreen(
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
+    val linkedItemNotFoundMsg = stringResource(R.string.linked_item_not_found)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
     val noteDeletedMsg = stringResource(R.string.note_deleted)
     val undoActionLabel = stringResource(R.string.undo)
@@ -536,6 +538,18 @@ fun OfflineEnabledNotesScreen(
                         markdownEditorMonospace = markdownEditorMonospace,
                         api = api,
                         onClone = { pendingCloneNote = note },
+                        localNotesForLinks = notes,
+                        onOpenJottyItem = { ref ->
+                            scope.openLinkedJottyItem(
+                                ref = ref,
+                                notes = notes,
+                                api = api,
+                                isOnline = isOnline,
+                                setSelectedNote = { vm.setSelectedNote(it) },
+                                onOpenChecklist = onOpenChecklist,
+                                showNotFound = { snackbarHostState.showSnackbar(linkedItemNotFoundMsg) },
+                            )
+                        },
                     )
                 }
             }

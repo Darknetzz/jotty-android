@@ -51,6 +51,8 @@ fun OfflineNoteDetailScreen(
     markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
     onClone: (() -> Unit)? = null,
+    localNotesForLinks: List<Note> = emptyList(),
+    onOpenJottyItem: ((com.jotty.android.util.JottyItemRef) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val allNotes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -112,6 +114,8 @@ fun OfflineNoteDetailScreen(
             api = api,
             isOnline = isOnline,
             onClone = onClone,
+            localNotesForLinks = localNotesForLinks,
+            onOpenJottyItem = onOpenJottyItem,
         )
     }
 }

@@ -141,6 +141,8 @@
     <string name="no_notes_yet">No notes yet</string>
     <string name="tap_add_note">Tap + to add a note</string>
     <string name="note_not_found">Note not found</string>
+    <string name="checklist_not_found">Checklist not found</string>
+    <string name="linked_item_not_found">Linked item not found</string>
     <string name="note_not_synced_yet">This note is not on this device yet. Connect and sync to download it.</string>
     <string name="save_failed_restore_backup">Couldn\'t save. Restore a local backup?</string>
     <string name="restore_backup_action">Restore backup</string>
@@ -585,6 +587,7 @@
     <!-- Dashboard -->
     <string name="user_label">User</string>
     <string name="server_version">Server version</string>
+    <string name="server_version_newer_warning">This Jotty server (%1$s) is newer than the version this app has been checked against. Core features should still work; some new server features may be missing or behave differently.</string>
     <string name="stat_notes">Notes</string>
     <string name="stat_checklists">Checklists</string>
     <string name="stat_users">Users</string>

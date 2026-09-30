@@ -85,6 +85,7 @@ fun MainScreen(
     var startDestination by rememberSaveable { mutableStateOf<String?>(null) }
     var checklistsTabReselectToken by rememberSaveable { mutableIntStateOf(0) }
     var notesTabReselectToken by rememberSaveable { mutableIntStateOf(0) }
+    var deepLinkChecklistId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
         if (startDestination == null) {
             startDestination = settingsRepository.startTab.first() ?: MainRoute.Checklists.route
@@ -94,6 +95,16 @@ fun MainScreen(
         val id = deepLinkNoteId?.value
         if (!id.isNullOrBlank()) {
             navController.navigate(MainRoute.Notes.route) {
+                popUpTo(MainRoute.Checklists.route) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+    LaunchedEffect(deepLinkChecklistId) {
+        val id = deepLinkChecklistId
+        if (!id.isNullOrBlank()) {
+            navController.navigate(MainRoute.Checklists.route) {
                 popUpTo(MainRoute.Checklists.route) { saveState = true }
                 launchSingleTop = true
                 restoreState = true
@@ -327,6 +338,8 @@ fun MainScreen(
                                 tabReselectToken = checklistsTabReselectToken,
                                 onOpenPendingSync = { navController.navigate(ROUTE_PENDING_SYNC) },
                                 onManageCategories = { navController.navigate(ROUTE_MANAGE_CATEGORIES) },
+                                initialChecklistId = deepLinkChecklistId,
+                                onDeepLinkConsumed = { deepLinkChecklistId = null },
                             )
                         } else {
                             LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
@@ -357,6 +370,9 @@ fun MainScreen(
                                 tabReselectToken = notesTabReselectToken,
                                 onOpenPendingSync = { navController.navigate(ROUTE_PENDING_SYNC) },
                                 onManageCategories = { navController.navigate(ROUTE_MANAGE_CATEGORIES) },
+                                onOpenChecklist = { checklistId ->
+                                    deepLinkChecklistId = checklistId
+                                },
                             )
                         } else {
                             LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))

@@ -6,8 +6,18 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Jotty 1.28 search** — Unified search prefers each hit’s `uuid` (1.28 puts the filename slug in deprecated `id`), falls back to list/`q` while the search index is building or when ranked ids cannot hydrate, and keeps older-server behavior when `uuid` is absent.
+- **Visual editor newlines** — Pressing Enter after existing text no longer glues the next line onto the previous one when viewing or saving (WebView `<div>` line breaks are converted with a proper newline). Multiple blank lines (several Enters) are preserved in view mode instead of collapsing to a single gap.
+- **Offline note duplicates on reconnect** — Sync for a given instance is process-wide (UI + background worker share one lock). Local-only creates are re-checked in Room before `POST /api/notes`, so flaky reconnects no longer spawn multiple copies of the same offline note.
+- **Visual editor table toolbar on Android** — Table edit controls now appear for any note that contains a table (detected from note content, not only when the cursor is inside a cell). The table button opens the row/column/exit menu instead of “Insert table” on existing table notes. Delete row/column are enabled correctly for Jotty web tables (cells wrapped in `<p>` tags).
+- **Compose lint (LocalContext resources)** — Category-filter empty snackbars use `LocalResources` instead of `LocalContext.getString`, satisfying the new Compose lint check from the BOM/AGP bump.
+
 ### Added
 
+- **In-note item links (Jotty 1.28+)** — In note view mode, `/note/{uuid}`, `/checklist/{uuid}`, legacy `/jotty/{uuid}`, and resolved `[[wikilinks]]` open the linked note or checklist in the app. Unresolved titles stay plain text. Older servers without relations keep unique local-title fallback.
+- **Server version compatibility warning** — Settings → About warns (non-blocking) when the Jotty server’s major.minor is newer than 1.28.
 - **Change category** — Notes and checklists can change category from detail and list ⋮ menus (without renaming or entering full edit mode). Uses existing item update APIs.
 - **Manage categories** — Browse note and checklist categories (path and counts) from Settings or the notes/checklists list overflow. Folder create/rename/delete awaits a Jotty REST API.
 - **Default checklist category** — Settings → Behavior prefills the category when creating a checklist (parity with new notes).
@@ -21,15 +31,9 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Dependabot** — Ignore rules now cover Kotlin Gradle plugin ids (not only `org.jetbrains.kotlin:*`), exclude Kotlin from grouped weekly/major PRs, and block Lifecycle 2.11+, Compose BOM 2026.08+, navigation-compose 2.10+, compose-markdown 0.6+, until their prerequisites land (see closed [#85](https://github.com/Darknetzz/jotty-android/pull/85), [#98](https://github.com/Darknetzz/jotty-android/pull/98)).
 - **GitHub Actions** — `actions/checkout` v7, `android-emulator-runner` 2.38 ([#79](https://github.com/Darknetzz/jotty-android/pull/79)), and `actions/setup-java` 6.0.0 ([#97](https://github.com/Darknetzz/jotty-android/pull/97)).
 
-### Fixed
-
-- **Visual editor newlines** — Pressing Enter after existing text no longer glues the next line onto the previous one when viewing or saving (WebView `<div>` line breaks are converted with a proper newline). Multiple blank lines (several Enters) are preserved in view mode instead of collapsing to a single gap.
-- **Offline note duplicates on reconnect** — Sync for a given instance is process-wide (UI + background worker share one lock). Local-only creates are re-checked in Room before `POST /api/notes`, so flaky reconnects no longer spawn multiple copies of the same offline note.
-- **Visual editor table toolbar on Android** — Table edit controls now appear for any note that contains a table (detected from note content, not only when the cursor is inside a cell). The table button opens the row/column/exit menu instead of “Insert table” on existing table notes. Delete row/column are enabled correctly for Jotty web tables (cells wrapped in `<p>` tags).
-- **Compose lint (LocalContext resources)** — Category-filter empty snackbars use `LocalResources` instead of `LocalContext.getString`, satisfying the new Compose lint check from the BOM/AGP bump.
-
 ### Documentation
 
+- **Jotty 1.28.0 compatibility** — Documented search uuid preference, in-note links / relations, admin overview removal, and the Settings version ceiling warning ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 - **Category folder CRUD** — Noted that empty-folder create/rename/delete is web-only until Jotty exposes REST; Android assigns categories via item create/update and browse via **Manage categories** ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 - **Jotty 1.27.0 compatibility** — Documented that Kanban card comments (and TipTap description editing) are web/server-action only with no public REST yet; Android needs no client change for REST compatibility ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 

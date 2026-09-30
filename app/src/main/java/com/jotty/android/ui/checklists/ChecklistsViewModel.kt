@@ -101,6 +101,14 @@ class ChecklistsViewModel(
         }
     }
 
+    /** Lookup by id ignoring the active list category/search filter (for in-app item links). */
+    suspend fun resolveChecklistForDeepLink(checklistId: String): Checklist? {
+        _checklists.value.find { it.id == checklistId }?.let { return it }
+        return runCatching {
+            api.getChecklists().checklists.find { it.id == checklistId }
+        }.getOrNull()
+    }
+
     fun deleteChecklist(
         id: String,
         onError: () -> Unit,

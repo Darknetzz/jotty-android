@@ -33,6 +33,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Documentation
 
+- **Release scripts** — `release.ps1` and `release.sh` now share the same dry-run validation, changelog promotion, line-ending preservation, and version-link insertion behavior.
 - **Jotty 1.28.0 compatibility** — Documented search uuid preference, in-note links / relations, admin overview removal, and the Settings version ceiling warning ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 - **Category folder CRUD** — Noted that empty-folder create/rename/delete is web-only until Jotty exposes REST; Android assigns categories via item create/update and browse via **Manage categories** ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 - **Jotty 1.27.0 compatibility** — Documented that Kanban card comments (and TipTap description editing) are web/server-action only with no public REST yet; Android needs no client change for REST compatibility ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).

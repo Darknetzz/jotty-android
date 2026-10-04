@@ -4,10 +4,13 @@ set -euo pipefail
 usage() {
   echo "Usage: $0 [version] [--date YYYY-MM-DD] [--dry-run]"
   echo "Example: $0 1.3.1 --date 2026-05-05"
+  echo
+  echo "Prepares a stable release by bumping gradle.properties and promoting"
+  echo "CHANGELOG.md [dev-latest] to a dated [VERSION] section."
+  echo "Equivalent to release.ps1 (-Version / -Date / -DryRun)."
 }
 
 VERSION=""
-
 DATE="$(date +%F)"
 DRY_RUN=0
 
@@ -55,6 +58,7 @@ cd "$SCRIPT_DIR"
 
 GRADLE_FILE="gradle.properties"
 CHANGELOG_FILE="CHANGELOG.md"
+DEV_LATEST_URL="https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest"
 
 [[ -f "$GRADLE_FILE" ]] || { echo "Missing $GRADLE_FILE" >&2; exit 1; }
 [[ -f "$CHANGELOG_FILE" ]] || { echo "Missing $CHANGELOG_FILE" >&2; exit 1; }
@@ -89,6 +93,83 @@ CURRENT_CODE="$(sed -n 's/^VERSION_CODE=\([0-9][0-9]*\)$/\1/p' "$GRADLE_FILE" | 
 [[ -n "$CURRENT_CODE" ]] || { echo "Could not parse VERSION_CODE from $GRADLE_FILE" >&2; exit 1; }
 NEXT_CODE=$((CURRENT_CODE + 1))
 
+promote_changelog() {
+  local write_flag="$1"
+  python3 - "$CHANGELOG_FILE" "$VERSION" "$DATE" "$DEV_LATEST_URL" "$write_flag" <<'PY'
+import re
+import sys
+
+path, version, date, dev_latest_url, write_flag = sys.argv[1:6]
+should_write = write_flag == "1"
+text = open(path, "r", encoding="utf-8").read()
+line_ending = "\r\n" if "\r\n" in text else "\n"
+
+dev_heading = re.compile(
+    r"^## \[(?:dev-latest|[^\]]+-dev)\](?:\([^\)]+\))?(?: - \[[^\]]+\]\([^\)]+\))?\s*$",
+    re.M,
+)
+dev_match = dev_heading.search(text)
+if not dev_match:
+    raise SystemExit(
+        "Could not find a rolling dev changelog section (## [dev-latest] or ## [VERSION-dev]) in CHANGELOG.md"
+    )
+
+if re.search(rf"^## \[{re.escape(version)}\] - ", text, re.M):
+    raise SystemExit(f"CHANGELOG.md already contains version {version}")
+
+after_dev = dev_match.end()
+next_stable = re.compile(r"^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}\s*$", re.M)
+next_match = next_stable.search(text, after_dev)
+if not next_match:
+    raise SystemExit(
+        "Could not find the next dated stable section after the dev section in CHANGELOG.md"
+    )
+
+dev_body = text[after_dev:next_match.start()].strip()
+# After strip(), body typically starts with --- (no leading newline).
+dev_body = re.sub(r"^---\r?\n", "", dev_body)
+dev_body = re.sub(r"\r?\n---\s*$", "", dev_body)
+
+new_dev = f"## [dev-latest]({dev_latest_url})"
+release_header = f"## [{version}] - {date}"
+promoted = (
+    f"{new_dev}{line_ending}{line_ending}"
+    f"---{line_ending}{line_ending}"
+    f"{release_header}{line_ending}{line_ending}"
+    f"{dev_body}{line_ending}{line_ending}"
+    f"---{line_ending}{line_ending}"
+)
+
+new_text = text[: dev_match.start()] + promoted + text[next_match.start() :]
+
+link = f"[{version}]: https://github.com/Darknetzz/jotty-android/releases/tag/v{version}"
+if not re.search(rf"^\[{re.escape(version)}\]:\s+", new_text, flags=re.M):
+    link_pattern = re.compile(
+        r"(?m)^\[\d+\.\d+(?:\.\d+)*(?:-[^\]]+)?\]:\s+"
+        r"https://github\.com/Darknetzz/jotty-android/releases/tag/v[^\r\n]+$"
+    )
+    link_match = link_pattern.search(new_text)
+    if link_match:
+        new_text = (
+            new_text[: link_match.start()]
+            + link
+            + line_ending
+            + new_text[link_match.start() :]
+        )
+    else:
+        new_text = new_text.rstrip() + line_ending + line_ending + link + line_ending
+
+if not should_write:
+    sys.exit(0)
+
+with open(path, "w", encoding="utf-8", newline="") as fh:
+    fh.write(new_text)
+PY
+}
+
+# Validate changelog before any writes (parity with release.ps1 dry-run / preflight).
+promote_changelog 0
+
 if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "[DryRun] Would set VERSION_NAME=$VERSION"
   echo "[DryRun] Would increment VERSION_CODE $CURRENT_CODE -> $NEXT_CODE"
@@ -100,68 +181,7 @@ sed -i.bak -E "s/^VERSION_NAME=.*/VERSION_NAME=${VERSION}/" "$GRADLE_FILE"
 sed -i.bak -E "s/^VERSION_CODE=.*/VERSION_CODE=${NEXT_CODE}/" "$GRADLE_FILE"
 rm -f "${GRADLE_FILE}.bak"
 
-if grep -q "^## \\[${VERSION}\\]" "$CHANGELOG_FILE"; then
-  echo "CHANGELOG.md already contains version ${VERSION}" >&2
-  exit 1
-fi
-
-DEV_LATEST_URL="https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest"
-
-python3 - "$CHANGELOG_FILE" "$VERSION" "$DATE" "$DEV_LATEST_URL" <<'PY'
-import re
-import sys
-
-path, version, date, dev_latest_url = sys.argv[1:5]
-text = open(path, "r", encoding="utf-8").read()
-
-dev_heading = re.compile(
-    r"^## \[(?:dev-latest|[^\]]+-dev)\](?:\([^\)]+\))?(?: - \[[^\]]+\]\([^\)]+\))?\s*$",
-    re.M,
-)
-dev_match = dev_heading.search(text)
-if not dev_match:
-    raise SystemExit(
-        "Could not find a rolling dev changelog section (## [dev-latest] or ## [VERSION-dev])"
-    )
-
-if re.search(rf"^## \[{re.escape(version)}\] - ", text, re.M):
-    raise SystemExit(f"CHANGELOG.md already contains version {version}")
-
-after_dev = dev_match.end()
-next_stable = re.compile(r"^## \[[^\]]+\] - \d{4}-\d{2}-\d{2}\s*$", re.M)
-next_match = next_stable.search(text, after_dev)
-if not next_match:
-    raise SystemExit("Could not find the next dated stable section after the dev section")
-
-dev_body = text[after_dev:next_match.start()].strip()
-dev_body = re.sub(r"^\n---\n", "", dev_body)
-dev_body = re.sub(r"\n---\s*$", "", dev_body)
-
-new_dev = f"## [dev-latest]({dev_latest_url})"
-release_header = f"## [{version}] - {date}"
-promoted = f"{new_dev}\n\n---\n\n{release_header}\n\n{dev_body}\n\n---\n\n"
-
-new_text = text[: dev_match.start()] + promoted + text[next_match.start() :]
-
-link = f"[{version}]: https://github.com/Darknetzz/jotty-android/releases/tag/v{version}"
-if not re.search(rf"^\[{re.escape(version)}\]:\s+", new_text, flags=re.M):
-    lines = new_text.splitlines()
-    insert_at = next(
-        (
-            i
-            for i, line in enumerate(lines)
-            if re.match(r"^\[\d+\.\d+(?:\.\d+)*(?:-[^\]]+)?\]:\s+", line)
-        ),
-        None,
-    )
-    if insert_at is None:
-        new_text = new_text.rstrip() + "\n\n" + link + "\n"
-    else:
-        lines.insert(insert_at, link)
-        new_text = "\n".join(lines) + ("\n" if text.endswith("\n") else "")
-
-open(path, "w", encoding="utf-8", newline="\n").write(new_text)
-PY
+promote_changelog 1
 
 echo "Release prep complete:"
 echo "  VERSION_NAME=$VERSION"

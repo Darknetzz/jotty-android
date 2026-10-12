@@ -133,7 +133,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.8.5")
 
     // WorkManager for background sync
-    implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
 
     // Glance for home-screen widgets
     implementation("androidx.glance:glance-appwidget:1.1.1")
@@ -150,7 +150,7 @@ dependencies {
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")
     // FragmentActivity is required by BiometricPrompt; declared explicitly to avoid relying on transitive resolution.
-    implementation("androidx.fragment:fragment-ktx:1.9.0")
+    implementation("androidx.fragment:fragment-ktx:1.9.1")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")

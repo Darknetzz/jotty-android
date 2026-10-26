@@ -285,6 +285,8 @@ fun OfflineEnabledNotesScreen(
 
     val untitledTitle = stringResource(R.string.untitled)
     var isCreatingNote by remember { mutableStateOf(false) }
+    var showTemplateDialog by remember { mutableStateOf(false) }
+
     fun createAndOpenNote(content: String = "") {
         if (isCreatingNote) return
         scope.launch {
@@ -306,6 +308,31 @@ fun OfflineEnabledNotesScreen(
                     } else {
                         snackbarHostState.showSnackbar(saveFailedMsg)
                     }
+                } else {
+                    snackbarHostState.showSnackbar(saveFailedMsg)
+                }
+            } finally {
+                isCreatingNote = false
+            }
+        }
+    }
+
+    fun createAndOpenNoteFromTemplate(templateId: String, title: String) {
+        if (!isOnline || isCreatingNote) return
+        scope.launch {
+            isCreatingNote = true
+            try {
+                val created =
+                    createNoteOnline(
+                        api = api,
+                        title = title,
+                        content = "",
+                        category = resolveNewNoteCategory(defaultNoteCategory),
+                        templateId = templateId,
+                    )
+                if (created != null) {
+                    offlineRepository.adoptServerNote(created)
+                    vm.setSelectedNote(created, openInEditMode = true)
                 } else {
                     snackbarHostState.showSnackbar(saveFailedMsg)
                 }
@@ -358,6 +385,12 @@ fun OfflineEnabledNotesScreen(
                     pendingSyncCount = dirtyNoteIds.size,
                     onManagePendingSync = onOpenPendingSync,
                     onManageCategories = onManageCategories,
+                    onNewFromTemplate =
+                        if (isOnline) {
+                            { showTemplateDialog = true }
+                        } else {
+                            null
+                        },
                     onRefresh = { requestSync(showLoading = false) },
                     onAdd = { createAndOpenNote() },
                 )
@@ -669,6 +702,7 @@ fun OfflineEnabledNotesScreen(
                 itemTitle = displayTitle,
                 api = api,
                 capabilitiesKey = serverCapabilitiesKey,
+                baseUrl = jottyServerUrl,
                 onDismiss = { shareServerNote = null },
                 onExportText = {
                     val exported =
@@ -684,6 +718,20 @@ fun OfflineEnabledNotesScreen(
                 },
             )
         }
+    }
+
+    if (showTemplateDialog && isOnline) {
+        NoteFromTemplateDialog(
+            api = api,
+            onDismiss = { showTemplateDialog = false },
+            onSelect = { template ->
+                showTemplateDialog = false
+                createAndOpenNoteFromTemplate(
+                    templateId = template.id,
+                    title = template.title.ifBlank { untitledTitle },
+                )
+            },
+        )
     }
 
 }

@@ -237,6 +237,24 @@ class OfflineChecklistsRepository(
     /**
      * Overwrite local with the server copy. Backs up the local payload first.
      */
+    /**
+     * Replaces the local clean copy of a checklist with a server snapshot
+     * (e.g. after [sortChecklistItems]). Refuses when the local row is dirty.
+     */
+    suspend fun applyServerChecklistSnapshot(checklist: Checklist): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val resolved = resolveChecklistId(checklist.id)
+                val entity = checklistDao.getByIdIncludingDeleted(resolved)
+                if (entity != null && (entity.isDirty || entity.isDeleted || entity.pendingOps().isNotEmpty())) {
+                    throw IllegalStateException(appContext.getString(R.string.sort_items_pending_sync))
+                }
+                val snapshot = checklist.copy(id = resolved)
+                checklistDao.insert(snapshot.toEntity(instanceId))
+                snapshot
+            }
+        }
+
     suspend fun pullFromServer(checklistId: String): Result<Checklist?> =
         withContext(Dispatchers.IO) {
             runCatching {

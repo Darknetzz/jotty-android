@@ -237,6 +237,7 @@ fun ChecklistsScreen(
                 ChecklistDetailScreen(
                     checklist = currentList,
                     api = api,
+                    settingsRepository = settingsRepository,
                     categorySuggestions = checklistCategories,
                     dragReorderEnabled = checklistDragReorderEnabled,
                     showChecklistEmojis = showChecklistEmojis,
@@ -254,6 +255,7 @@ fun ChecklistsScreen(
                         serverCapabilitiesKey?.let { ServerCapabilities.markItemPatchLimited(it) }
                         scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) }
                     },
+                    onUserMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                     serverCapabilitiesKey = serverCapabilitiesKey,
                 )
                 } else {
@@ -504,6 +506,7 @@ private fun ChecklistCard(
 private fun ChecklistDetailScreen(
     checklist: Checklist,
     api: JottyApi,
+    settingsRepository: SettingsRepository,
     categorySuggestions: List<String> = emptyList(),
     dragReorderEnabled: Boolean = true,
     showChecklistEmojis: Boolean = true,
@@ -515,6 +518,7 @@ private fun ChecklistDetailScreen(
     onSaveFailed: () -> Unit = {},
     onDeleteFailed: () -> Unit = {},
     onRenameUnsupported: () -> Unit = {},
+    onUserMessage: (String) -> Unit = {},
     serverCapabilitiesKey: String? = null,
 ) {
     val detailVm: ChecklistDetailViewModel =
@@ -535,8 +539,11 @@ private fun ChecklistDetailScreen(
     var newItemText by remember { mutableStateOf("") }
     var showChangeCategory by remember { mutableStateOf(false) }
     var changeCategoryLoading by remember { mutableStateOf(false) }
+    var showSortDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val sortNotSupportedMsg = stringResource(R.string.sort_items_not_supported)
+    val sortFailedMsg = stringResource(R.string.sort_items_failed)
 
     LaunchedEffect(checklist.id, checklist.title, checklist.items) {
         detailVm.syncFromChecklist(checklist)
@@ -652,6 +659,7 @@ private fun ChecklistDetailScreen(
             onDelete = onDelete,
             onClone = { onClone(checklist.copy(items = items)) },
             onShare = { detailVm.setShowShareDialog(true) },
+            onSortItems = if (!isProject) {{ showSortDialog = true }} else null,
             isArchived = checklist.isArchived(),
             onArchiveToggle = {
                 scope.launch {
@@ -678,14 +686,42 @@ private fun ChecklistDetailScreen(
             },
         )
 
+        if (showSortDialog) {
+            SortChecklistItemsDialog(
+                onDismiss = { showSortDialog = false },
+                onConfirm = { sort, direction ->
+                    showSortDialog = false
+                    scope.launch {
+                        try {
+                            val sorted =
+                                com.jotty.android.util.sortChecklistItemsOnline(
+                                    api = api,
+                                    listId = checklist.id,
+                                    sort = sort,
+                                    direction = direction,
+                                )
+                            onUpdate(sorted)
+                            detailVm.syncFromChecklist(sorted)
+                        } catch (_: UnsupportedOperationException) {
+                            onUserMessage(sortNotSupportedMsg)
+                        } catch (_: Exception) {
+                            onUserMessage(sortFailedMsg)
+                        }
+                    }
+                },
+            )
+        }
+
         if (showShareDialog) {
             val exportTitle = stringResource(R.string.share_checklist)
+            val jottyServerUrl by settingsRepository.serverUrl.collectAsStateWithLifecycle(initialValue = null)
             ShareServerDialog(
                 itemType = "checklist",
                 itemId = checklist.id,
                 itemTitle = displayTitle,
                 api = api,
                 capabilitiesKey = serverCapabilitiesKey,
+                baseUrl = jottyServerUrl,
                 onDismiss = { detailVm.setShowShareDialog(false) },
                 onExportText = {
                     val text = exportChecklistAsPlainText(checklist.copy(items = items, title = displayTitle), taskStatuses)

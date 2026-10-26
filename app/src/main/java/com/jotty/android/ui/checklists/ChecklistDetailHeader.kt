@@ -37,6 +37,7 @@ import com.jotty.android.ui.common.ConfirmDiscardPendingSyncDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.DiscardPendingSyncDropdownMenuItem
 import com.jotty.android.ui.common.RenameDropdownMenuItem
+import com.jotty.android.ui.common.SortItemsDropdownMenuItem
 
 @Composable
 fun ChecklistDetailHeader(
@@ -49,6 +50,7 @@ fun ChecklistDetailHeader(
     onClone: (() -> Unit)? = null,
     onDiscardPendingSync: (() -> Unit)? = null,
     onShare: (() -> Unit)? = null,
+    onSortItems: (() -> Unit)? = null,
     isArchived: Boolean = false,
     onArchiveToggle: (() -> Unit)? = null,
 ) {
@@ -145,6 +147,14 @@ fun ChecklistDetailHeader(
                     onClick = {
                         menuExpanded = false
                         onShare()
+                    },
+                )
+            }
+            if (onSortItems != null) {
+                SortItemsDropdownMenuItem(
+                    onClick = {
+                        menuExpanded = false
+                        onSortItems()
                     },
                 )
             }

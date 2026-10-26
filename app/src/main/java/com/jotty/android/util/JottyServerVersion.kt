@@ -13,7 +13,7 @@ data class JottyServerVersion(
 
     companion object {
         /** Highest Jotty server major.minor this app release has been checked against. */
-        val COMPAT_CEILING = JottyServerVersion(1, 28)
+        val COMPAT_CEILING = JottyServerVersion(1, 29)
 
         private val VERSION_PREFIX =
             Regex("""^v?(\d+)\.(\d+)(?:\.|\D|$)""", RegexOption.IGNORE_CASE)

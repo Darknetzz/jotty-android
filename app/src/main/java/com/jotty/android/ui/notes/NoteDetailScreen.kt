@@ -621,6 +621,7 @@ internal fun NoteDetailScreen(
             itemTitle = displayTitle,
             api = api,
             capabilitiesKey = serverCapabilitiesKey,
+            baseUrl = jottyServerUrl,
             onDismiss = { showShareServerDialog = false },
             onExportText = {
                 val text =

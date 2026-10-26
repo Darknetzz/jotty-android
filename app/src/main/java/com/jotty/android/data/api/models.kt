@@ -140,6 +140,26 @@ data class ReorderItemsRequest(
     val isDropInto: Boolean? = null,
 )
 
+/** Body for PUT /api/checklists/{listId}/items/sort (Jotty 1.29+; simple checklists only). */
+object ChecklistItemSortMode {
+    const val ALPHABETICAL = "alphabetical"
+    const val CREATED = "created"
+    const val MODIFIED = "modified"
+    const val SHUFFLE = "shuffle"
+
+    val ALL = listOf(ALPHABETICAL, CREATED, MODIFIED, SHUFFLE)
+}
+
+object ChecklistItemSortDirection {
+    const val ASC = "asc"
+    const val DESC = "desc"
+}
+
+data class SortItemsRequest(
+    val sort: String,
+    val direction: String = ChecklistItemSortDirection.ASC,
+)
+
 // ─── Task checklists (Kanban) ───────────────────────────────────────────────
 
 /** Kanban column definition for a task checklist. */
@@ -291,6 +311,19 @@ data class CreateNoteRequest(
     val title: String,
     val content: String? = "",
     val category: String? = API_CATEGORY_UNCATEGORIZED,
+    /** Jotty 1.29+: start from a template; leave [content] empty when set. */
+    val templateId: String? = null,
+)
+
+data class NoteTemplate(
+    val id: String,
+    val title: String,
+    val encrypted: Boolean? = null,
+    val updatedAt: String? = null,
+)
+
+data class TemplatesResponse(
+    val templates: List<NoteTemplate> = emptyList(),
 )
 
 data class UpdateNoteRequest(
@@ -300,25 +333,80 @@ data class UpdateNoteRequest(
     val originalCategory: String? = null,
 )
 
-// ─── Sharing (optional REST; may 404 on current Jotty servers) ─────────────
+// ─── Sharing (Jotty 1.29+ /api/shares; 404 on older servers) ───────────────
 
-data class ShareInfoResponse(
-    val success: Boolean = true,
-    val data: ShareInfo? = null,
+/** Permission codes for PUT /api/shares/{itemId}. */
+object SharePermission {
+    const val READ = "r"
+    const val WRITE = "rw"
+    const val DELETE = "rwd"
+
+    /** Username that enables/disables the read-only public link. */
+    const val PUBLIC_USER = "public"
+
+    val ALL = listOf(READ, WRITE, DELETE)
+}
+
+data class SharePermissions(
+    val canRead: Boolean = true,
+    val canEdit: Boolean = false,
+    val canDelete: Boolean = false,
+    val canCreate: Boolean? = null,
 )
 
-data class ShareInfo(
+data class ShareHolder(
+    val username: String,
+    val permissions: SharePermissions = SharePermissions(),
+)
+
+/** PUT/DELETE /api/shares/{itemId} response body under `data`. */
+data class ItemShares(
     val id: String,
     val type: String,
-    val isPubliclyShared: Boolean = false,
-    val publicUrl: String? = null,
-    val sharedWith: List<String> = emptyList(),
+    val isPublic: Boolean = false,
+    val sharedWith: List<ShareHolder> = emptyList(),
 )
 
-data class UpdateShareInfoRequest(
-    val isPubliclyShared: Boolean? = null,
-    val sharedWith: List<String>? = null,
+data class ItemSharesResponse(
+    val success: Boolean = true,
+    val data: ItemShares? = null,
 )
+
+data class ShareGrantRequest(
+    val username: String,
+    val permission: String = SharePermission.READ,
+)
+
+/** GET /api/shares list entry (withMe / byMe). */
+data class ShareListing(
+    val uuid: String,
+    val type: String,
+    val title: String = "",
+    val category: String = API_CATEGORY_UNCATEGORIZED,
+    val direction: String? = null,
+    val viaCategory: String? = null,
+    val permissions: SharePermissions? = null,
+    val isPublic: Boolean? = null,
+    val sharedWith: List<ShareHolder>? = null,
+)
+
+data class SharesListResponse(
+    val shares: List<ShareListing> = emptyList(),
+    val total: Int? = null,
+)
+
+/** Maps a byMe listing (or empty) into the grant view used by the share dialog. */
+fun itemSharesFromListing(
+    itemId: String,
+    itemType: String,
+    listing: ShareListing?,
+): ItemShares =
+    ItemShares(
+        id = listing?.uuid?.takeIf { it.isNotBlank() } ?: itemId,
+        type = listing?.type?.takeIf { it.isNotBlank() } ?: itemType,
+        isPublic = listing?.isPublic == true,
+        sharedWith = listing?.sharedWith.orEmpty(),
+    )
 
 // ─── Categories ─────────────────────────────────────────────────────────────
 

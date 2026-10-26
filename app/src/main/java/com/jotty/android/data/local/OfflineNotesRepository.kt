@@ -300,6 +300,18 @@ class OfflineNotesRepository(
     fun remappedNoteId(localId: String): String? = localToServerIdRemap[localId]
 
     /**
+     * Inserts a note already created on the server (e.g. from a template) into the local cache.
+     */
+    suspend fun adoptServerNote(note: Note): Result<Note> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val normalized = note.normalizedForClient()
+                noteDao.insertNote(normalized.toEntity(instanceId, isDirty = false))
+                normalized
+            }
+        }
+
+    /**
      * Create a new note (works offline).
      */
     suspend fun createNote(

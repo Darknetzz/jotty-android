@@ -4,7 +4,7 @@ import com.jotty.android.data.api.JottyApi
 import retrofit2.HttpException
 import java.util.concurrent.ConcurrentHashMap
 
-/** Cached per-instance result of probing optional Jotty sharing REST endpoints. */
+/** Cached per-instance result of probing optional Jotty sharing REST endpoints (`/api/shares`). */
 object JottySharingProbe {
     private val supportedKeys = ConcurrentHashMap.newKeySet<String>()
     private val unsupportedKeys = ConcurrentHashMap.newKeySet<String>()
@@ -17,7 +17,7 @@ object JottySharingProbe {
         if (capabilitiesKey in supportedKeys) return true
         if (capabilitiesKey in unsupportedKeys) return false
         return try {
-            api.getSharingInfo("note", "00000000-0000-0000-0000-000000000000")
+            api.getShares()
             supportedKeys.add(capabilitiesKey)
             true
         } catch (e: HttpException) {
@@ -25,7 +25,7 @@ object JottySharingProbe {
                 unsupportedKeys.add(capabilitiesKey)
                 false
             } else {
-                // Endpoint exists (400/403/etc.) even if probe id is invalid.
+                // Endpoint exists (400/403/etc.) even if the probe request is rejected.
                 supportedKeys.add(capabilitiesKey)
                 true
             }

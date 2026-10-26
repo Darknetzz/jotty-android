@@ -169,7 +169,12 @@ fun NotesScreen(
 
     val untitledTitle = stringResource(R.string.untitled)
     var isCreatingNote by remember { mutableStateOf(false) }
-    fun createAndOpenNote(content: String = "") {
+    var showTemplateDialog by remember { mutableStateOf(false) }
+    fun createAndOpenNote(
+        content: String = "",
+        title: String = untitledTitle,
+        templateId: String? = null,
+    ) {
         if (isCreatingNote) return
         scope.launch {
             isCreatingNote = true
@@ -177,9 +182,10 @@ fun NotesScreen(
                 val created =
                     createNoteOnline(
                         api = api,
-                        title = untitledTitle,
+                        title = title,
                         content = content,
                         category = resolveNewNoteCategory(defaultNoteCategory),
+                        templateId = templateId,
                     )
                 if (created != null) {
                     vm.loadNotes()
@@ -227,6 +233,7 @@ fun NotesScreen(
                     isSyncing = loading,
                     lastSyncAttemptEpochMs = null,
                     onManageCategories = onManageCategories,
+                    onNewFromTemplate = { showTemplateDialog = true },
                     onRefresh = { vm.loadNotes() },
                     onAdd = { createAndOpenNote() },
                 )
@@ -446,6 +453,20 @@ fun NotesScreen(
         )
     }
 
+    if (showTemplateDialog) {
+        NoteFromTemplateDialog(
+            api = api,
+            onDismiss = { showTemplateDialog = false },
+            onSelect = { template ->
+                showTemplateDialog = false
+                createAndOpenNote(
+                    title = template.title.ifBlank { untitledTitle },
+                    templateId = template.id,
+                )
+            },
+        )
+    }
+
     shareServerNote?.let { shareNote ->
         val displayTitle = shareNote.title.ifBlank { stringResource(R.string.untitled) }
         val exportTitle = stringResource(R.string.export_note)
@@ -455,6 +476,7 @@ fun NotesScreen(
             itemTitle = displayTitle,
             api = api,
             capabilitiesKey = serverCapabilitiesKey,
+            baseUrl = jottyServerUrl,
             onDismiss = { shareServerNote = null },
             onExportText = {
                 val exported =

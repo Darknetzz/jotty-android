@@ -22,12 +22,13 @@ class JottyServerVersionTest {
     }
 
     @Test
-    fun ceilingWarningOnlyAbove128() {
+    fun ceilingWarningOnlyAbove129() {
+        assertFalse(JottyServerVersion.isNewerThanCompatCeiling("1.29.0"))
+        assertFalse(JottyServerVersion.isNewerThanCompatCeiling("1.29.9"))
         assertFalse(JottyServerVersion.isNewerThanCompatCeiling("1.28.0"))
-        assertFalse(JottyServerVersion.isNewerThanCompatCeiling("1.28.9"))
         assertFalse(JottyServerVersion.isNewerThanCompatCeiling("1.27.0"))
         assertFalse(JottyServerVersion.isNewerThanCompatCeiling(null))
-        assertTrue(JottyServerVersion.isNewerThanCompatCeiling("1.29.0"))
+        assertTrue(JottyServerVersion.isNewerThanCompatCeiling("1.30.0"))
         assertTrue(JottyServerVersion.isNewerThanCompatCeiling("2.0.0"))
     }
 }

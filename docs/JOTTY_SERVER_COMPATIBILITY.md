@@ -48,8 +48,8 @@ The app probes `GET /api/tasks/{taskId}/items/{itemIndex}` on first item detail 
 ## Notes
 
 - Encrypted notes (XChaCha20) match the Jotty web format; PGP notes are view-only in-app.
-- Note images: relative URLs such as `/api/image/...` are resolved against the instance base URL (RFC 3986) before Markdown render; HTML `<img src>` attributes are rewritten too. Absolute Jotty media URLs that use a different host than the configured instance (e.g. LAN IP vs hostname) are rewritten to the instance origin.
-- **Image authentication:** Jotty’s `/api/image/` and `/api/file/` routes authenticate via **browser session cookies**, not `x-api-key`. The Android app sends `x-api-key` on same-origin media requests, but **standard Jotty server versions return HTTP 401** for private images unless `SERVE_PUBLIC_IMAGES=yes` is set on the server. Notes/checklists API calls are unaffected. Upstream Jotty would need API-key support on media routes for private images to load in-app without that env var. When image auth fails, note detail shows a dismissible banner (same condition as above).
+- Note images: relative URLs such as `/api/attachment/...` (Jotty 1.29+) or legacy `/api/image|file|video/...` are resolved against the instance base URL (RFC 3986) before Markdown render; HTML `<img src>` attributes are rewritten too. Absolute Jotty media URLs that use a different host than the configured instance (e.g. LAN IP vs hostname) are rewritten to the instance origin.
+- **Image authentication (Jotty 1.29+):** `/api/attachment/{noteUuid}/{name}` accepts `x-api-key` (and browser session). Legacy `/api/image|file|video/` routes still use browser session cookies; after the attachments migration, `SERVE_PUBLIC_IMAGES` (and related env vars) are ignored. Encrypted notes are skipped by the migration, so they can keep legacy URLs that still 401 under API-key-only clients. When image auth fails, note detail shows a dismissible banner.
 - **Archive (notes/checklists):** Jotty web moves items to category **`Archive`** (`ARCHIVED_DIR_NAME`). The Android app archives via `PUT /api/notes/{id}` or `PUT /api/checklists/{id}` with `category: "Archive"`. Archived items are hidden from the default list and shown under the **Archived** filter chip.
 - **Categories:** Public REST exposes only `GET /api/categories`. Assigning a category on create/update of a note or checklist creates the folder as a side effect. Creating empty categories, renaming, or deleting category folders is web-only (Next.js server actions) — not available with `x-api-key`. Android’s **Manage categories** screen is browse-only until folder CRUD is added to the public API.
 - **Save with HTML/images:** The app saves note body as written (no HTML→Markdown conversion on write). Display-only conversion runs when viewing.
@@ -67,16 +67,37 @@ The app probes `GET /api/tasks/{taskId}/items/{itemIndex}` on first item detail 
 
 ## Server version warning
 
-Settings → About shows `GET /api/health` `version` when available. If the parsed major.minor is **newer than 1.28**, a non-blocking warning explains that this app build has not been fully checked against that server. Connecting is never blocked. Bump [`JottyServerVersion.COMPAT_CEILING`](../app/src/main/java/com/jotty/android/util/JottyServerVersion.kt) when a release is validated against a newer Jotty.
+Settings → About shows `GET /api/health` `version` when available. If the parsed major.minor is **newer than 1.29**, a non-blocking warning explains that this app build has not been fully checked against that server. Connecting is never blocked. Bump [`JottyServerVersion.COMPAT_CEILING`](../app/src/main/java/com/jotty/android/util/JottyServerVersion.kt) when a release is validated against a newer Jotty.
 
-## Sharing
+## Sharing (Jotty 1.29+)
 
-| Capability | Jotty web | Jotty OpenAPI (`public/api/paths`) | Android behavior |
-|------------|-----------|-------------------------------------|------------------|
-| Share with users / public link | Server Actions (`app/_server/actions/sharing/`) | **Not documented** (no `sharing.yaml` in OpenAPI as of Jotty `main`) | Probes `GET /api/sharing/items/{type}/{id}`; on 404 shows export fallback + web-app hint |
-| Text export | N/A | N/A | Checklists/Kanban: plain-text export via Share; notes: existing Share action |
+| Capability | Android behavior |
+|------------|------------------|
+| `GET /api/shares` | Probe + list; filter with `item` + `direction=byMe` for one note/checklist |
+| `PUT /api/shares/{itemId}` | Grant access (`username`, `permission` `r`/`rw`/`rwd`); username `public` enables the public link |
+| `DELETE /api/shares/{itemId}/{username}` | Revoke; `public` turns the link off |
+| Public link URL | Built client-side as `{origin}/note/{uuid}` or `/checklist/{uuid}` (API does not return `publicUrl`) |
+| Missing route (404/405) | Text export fallback + web-app hint |
+| Folder shares (`viaCategory`) | Shown as holders when present; granting/revoking item shares may detach from folder shares |
 
-When Jotty adds REST sharing endpoints, the client uses [`ShareServerDialog`](../app/src/main/java/com/jotty/android/ui/common/ShareServerDialog.kt) and [`JottySharingProbe`](../app/src/main/java/com/jotty/android/util/JottySharingProbe.kt).
+[`ShareServerDialog`](../app/src/main/java/com/jotty/android/ui/common/ShareServerDialog.kt) and [`JottySharingProbe`](../app/src/main/java/com/jotty/android/util/JottySharingProbe.kt) target `/api/shares` (not the old undocumented `/api/sharing/items/...` path).
+
+## Checklist item sort (Jotty 1.29+)
+
+| Capability | Android behavior |
+|------------|------------------|
+| `PUT /api/checklists/{id}/items/sort` | Simple checklists only; modes alphabetical / created / modified / shuffle |
+| Kanban boards | Server returns 400; menu action is hidden for project/Kanban lists |
+| Pending offline edits | Sort is refused until sync finishes |
+| Older servers (404/405) | Snackbar that sort needs Jotty 1.29+ |
+
+## Note templates (Jotty 1.29+)
+
+| Capability | Android behavior |
+|------------|------------------|
+| `GET /api/templates` | Notes overflow → **New from template** (online only) |
+| `POST /api/notes` with `templateId` | Creates from template; encrypted templates are skipped in the picker |
+| Offline | Action hidden; `templateId` is never queued in the pending-sync store |
 
 ## Kanban card comments (Jotty 1.27+)
 
@@ -95,6 +116,18 @@ TipTap for Kanban item descriptions (also 1.27+) is web-only; the server still s
 | `GET /api/admin/overview` | Removed upstream; dashboard already ignores failure and uses `GET /api/summary` |
 | Tags / brain / batch / MCP | Not used by the Android client yet |
 | Relations / wikilinks | View-mode link taps + optional `GET /api/relations/{id}` (see Notes / Search above) |
+
+## Jotty 1.29.x (through 1.29.2)
+
+| Capability | Android behavior |
+|------------|------------------|
+| Attachment migration (`/api/attachment/...`) | Media path recognition + host rewrite; API-key auth on new route |
+| REST sharing (`/api/shares`) | Share dialog (see Sharing above) |
+| Checklist item sort | Simple checklist ⋮ menu (see above) |
+| Note templates | Notes overflow picker (see above) |
+| Live collaboration / HA / MCP agents | Not used by the Android client |
+| `GET /api/theme`, `POST /api/markdown/from-html` | Not used yet |
+| Kanban `assignee` / `agent` | On `/api/kanban/...` and markdown; not exposed on `/api/tasks` item mapper the app uses |
 
 ## Kanban item archive
 

@@ -24,14 +24,16 @@ internal suspend fun createNoteOnline(
     title: String,
     content: String,
     category: String,
+    templateId: String? = null,
 ): Note? =
     try {
         val resp =
             api.createNote(
                 CreateNoteRequest(
                     title = title,
-                    content = content,
+                    content = if (templateId.isNullOrBlank()) content else "",
                     category = category,
+                    templateId = templateId?.takeIf { it.isNotBlank() },
                 ),
             )
         if (resp.success) resp.data else null

@@ -53,6 +53,8 @@ class MainTabTopBarState(
     val pendingSyncCount: Int = 0,
     val onManagePendingSync: (() -> Unit)? = null,
     val onManageCategories: (() -> Unit)? = null,
+    /** Optional: create a note from a Jotty template (notes tab, online). */
+    val onNewFromTemplate: (() -> Unit)? = null,
     val onRefresh: () -> Unit,
     val onAdd: () -> Unit,
     val showSyncStatus: Boolean = true,
@@ -417,7 +419,9 @@ fun MainTabTopBarActions(state: MainTabTopBarState) {
     IconButton(onClick = state.onAdd) {
         Icon(Icons.Default.Add, contentDescription = stringResource(R.string.cd_add))
     }
-    state.onManageCategories?.let { onManageCategories ->
+    val onManageCategories = state.onManageCategories
+    val onNewFromTemplate = state.onNewFromTemplate
+    if (onManageCategories != null || onNewFromTemplate != null) {
         var menuExpanded by remember { mutableStateOf(false) }
         IconButton(onClick = { menuExpanded = true }) {
             Icon(
@@ -429,19 +433,30 @@ fun MainTabTopBarActions(state: MainTabTopBarState) {
             expanded = menuExpanded,
             onDismissRequest = { menuExpanded = false },
         ) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.manage_categories)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Outlined.Category,
-                        contentDescription = stringResource(R.string.cd_manage_categories),
-                    )
-                },
-                onClick = {
-                    menuExpanded = false
-                    onManageCategories()
-                },
-            )
+            if (onNewFromTemplate != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.new_from_template)) },
+                    onClick = {
+                        menuExpanded = false
+                        onNewFromTemplate()
+                    },
+                )
+            }
+            if (onManageCategories != null) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.manage_categories)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Outlined.Category,
+                            contentDescription = stringResource(R.string.cd_manage_categories),
+                        )
+                    },
+                    onClick = {
+                        menuExpanded = false
+                        onManageCategories()
+                    },
+                )
+            }
         }
     }
 }

@@ -357,6 +357,7 @@ fun OfflineEnabledChecklistsScreen(
                 OfflineChecklistDetailContent(
                     checklist = currentList,
                     api = api,
+                    settingsRepository = settingsRepository,
                     offlineRepository = offlineRepository,
                     categorySuggestions = checklistCategories,
                     dragReorderEnabled = checklistDragReorderEnabled,
@@ -367,6 +368,7 @@ fun OfflineEnabledChecklistsScreen(
                     onRetrySync = { requestSync(showLoading = true) },
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = { vm.setSelectedList(it) },
+                    onUserMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                     onDelete = {
                         scope.launch {
                             val result = offlineRepository.deleteChecklist(currentList.id)
@@ -671,6 +673,7 @@ private fun OfflineChecklistCard(
 private fun OfflineChecklistDetailContent(
     checklist: Checklist,
     api: JottyApi,
+    settingsRepository: SettingsRepository,
     offlineRepository: OfflineChecklistsRepository,
     categorySuggestions: List<String> = emptyList(),
     dragReorderEnabled: Boolean = true,
@@ -686,6 +689,7 @@ private fun OfflineChecklistDetailContent(
     onSaveFailed: () -> Unit,
     onSavedLocally: () -> Unit,
     onRenameUnsupported: () -> Unit,
+    onUserMessage: (String) -> Unit = {},
     onDiscardPendingSyncFailed: (Throwable) -> Unit = {},
     onDiscardPendingSyncDone: () -> Unit = {},
     serverCapabilitiesKey: String? = null,
@@ -705,8 +709,12 @@ private fun OfflineChecklistDetailContent(
     var showChangeCategory by remember { mutableStateOf(false) }
     var changeCategoryLoading by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var showSortDialog by remember { mutableStateOf(false) }
     var showManageStatusesDialog by remember { mutableStateOf(false) }
     var showDiscardPendingSyncDialog by remember { mutableStateOf(false) }
+    val sortNotSupportedMsg = stringResource(R.string.sort_items_not_supported)
+    val sortPendingSyncMsg = stringResource(R.string.sort_items_pending_sync)
+    val sortFailedMsg = stringResource(R.string.sort_items_failed)
     var discardConfirmIsLocalOnly by remember { mutableStateOf(false) }
     var editingItemKey by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
     var taskStatuses by remember(liveChecklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
@@ -903,6 +911,18 @@ private fun OfflineChecklistDetailContent(
             onDelete = onDelete,
             onClone = { onClone(liveChecklist.copy(items = items)) },
             onShare = { showShareDialog = true },
+            onSortItems =
+                if (!isProject && isOnline) {
+                    {
+                        if (hasPendingSync) {
+                            onUserMessage(sortPendingSyncMsg)
+                        } else {
+                            showSortDialog = true
+                        }
+                    }
+                } else {
+                    null
+                },
             isArchived = liveChecklist.isArchived(),
             onArchiveToggle = {
                 scope.launch {
@@ -935,13 +955,52 @@ private fun OfflineChecklistDetailContent(
                 },
         )
 
+        if (showSortDialog) {
+            SortChecklistItemsDialog(
+                onDismiss = { showSortDialog = false },
+                onConfirm = { sort, direction ->
+                    showSortDialog = false
+                    if (hasPendingSync) {
+                        onUserMessage(sortPendingSyncMsg)
+                        return@SortChecklistItemsDialog
+                    }
+                    scope.launch {
+                        try {
+                            val sorted =
+                                com.jotty.android.util.sortChecklistItemsOnline(
+                                    api = api,
+                                    listId = liveChecklist.id,
+                                    sort = sort,
+                                    direction = direction,
+                                )
+                            val applied = offlineRepository.applyServerChecklistSnapshot(sorted)
+                            if (applied.isFailure) {
+                                onUserMessage(
+                                    applied.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
+                                        ?: sortPendingSyncMsg,
+                                )
+                            } else {
+                                onUpdate(applied.getOrThrow())
+                            }
+                        } catch (_: UnsupportedOperationException) {
+                            onUserMessage(sortNotSupportedMsg)
+                        } catch (_: Exception) {
+                            onUserMessage(sortFailedMsg)
+                        }
+                    }
+                },
+            )
+        }
+
         if (showShareDialog) {
+            val jottyServerUrl by settingsRepository.serverUrl.collectAsStateWithLifecycle(initialValue = null)
             ShareServerDialog(
                 itemType = "checklist",
                 itemId = liveChecklist.id,
                 itemTitle = liveChecklist.title,
                 api = api,
                 capabilitiesKey = serverCapabilitiesKey,
+                baseUrl = jottyServerUrl,
                 onDismiss = { showShareDialog = false },
                 onExportText = {
                     val text =

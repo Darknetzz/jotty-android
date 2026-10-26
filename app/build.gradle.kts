@@ -120,12 +120,12 @@ dependencies {
     // Retrofit for REST API
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
     implementation("com.squareup.retrofit2:converter-gson:3.0.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // 5.x deferred — align with Retrofit OkHttp (Dependabot PR #58)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.1") // 5.x deferred — align with Retrofit OkHttp (Dependabot PR #58)
 
     // Secure storage for API key
     implementation("androidx.security:security-crypto:1.1.0")
 
-    implementation("androidx.datastore:datastore-preferences:1.2.1")
+    implementation("androidx.datastore:datastore-preferences:1.3.0")
 
     // Room for offline storage
     implementation("androidx.room:room-runtime:2.8.5")
@@ -133,7 +133,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.8.5")
 
     // WorkManager for background sync
-    implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
 
     // Glance for home-screen widgets
     implementation("androidx.glance:glance-appwidget:1.1.1")
@@ -150,7 +150,7 @@ dependencies {
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")
     // FragmentActivity is required by BiometricPrompt; declared explicitly to avoid relying on transitive resolution.
-    implementation("androidx.fragment:fragment-ktx:1.9.0")
+    implementation("androidx.fragment:fragment-ktx:1.9.1")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")

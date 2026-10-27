@@ -2,7 +2,7 @@
 
 Dark flat-vector branding for README / GitLab avatar / social share.
 
-**Accent:** custom per-repo · canvas `#0f1419` · symbolic / SFW only.
+**Palette:** accent `#8b5cf6` · secondary `#c4b5fd` · canvas `#12081f`
 
 ## Layouts
 
@@ -25,8 +25,6 @@ Dark flat-vector branding for README / GitLab avatar / social share.
 | `ai/` | Optional AI atmospheric banner |
 
 ## Regenerate
-
-From `_tools`:
 
 ```bash
 python batch_generate.py --only jotty-android

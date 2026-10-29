@@ -2,13 +2,13 @@
 
 ## Status
 
-**Supported** on Jotty **develop** (merged via [PR #523](https://github.com/fccview/jotty/pull/523); not yet on stable `main` until the next Jotty release). The Android app targets these endpoints and degrades gracefully on older servers:
+**Supported** since Jotty **1.25.0** (endpoints from [PR #523](https://github.com/fccview/jotty/pull/523)), which is the app's minimum supported server version:
 
-| Feature | Develop Jotty | Stable `main` Jotty (today) |
-|---------|---------------|------------------------------|
-| `GET /api/search` | Relevance-ranked search | Falls back to `GET /api/notes?q=` / local filter |
-| `PUT …/items/reorder` | Up/down reorder buttons | Hidden (no endpoint); web reorder still syncs on pull |
-| `PATCH …/items/{index}` | Inline rename, including parents | Leaf rename via legacy delete+recreate fallback |
+| Feature | Jotty 1.25.0+ |
+|---------|---------------|
+| `GET /api/search` | Relevance-ranked search (falls back to `GET /api/notes?q=` / local filter if unavailable) |
+| `PUT …/items/reorder` | Up/down reorder buttons |
+| `PATCH …/items/{index}` | Inline rename of any item, including parents and nested paths like `0.1` |
 
 The Android app uses:
 
@@ -42,7 +42,7 @@ Semantics match the web UI server action [`reorder.ts`](https://github.com/fccvi
 
 ## Older / stable servers
 
-Until Jotty ships the next release, run **develop** if you want search, PATCH rename (including parent items), and in-app reorder. On stable `main`, search and leaf rename still work via fallbacks; reorder and parent rename need develop or the web app.
+The app requires Jotty **1.25.0** or newer. Connecting an instance whose `GET /api/health` reports an older version is refused with an error; a missing or unparsable version does not block the connection.
 
 ## References
 

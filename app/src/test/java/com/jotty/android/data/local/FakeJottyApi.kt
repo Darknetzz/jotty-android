@@ -26,9 +26,19 @@ import com.jotty.android.data.api.TaskStatusesResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateNoteRequest
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
-import com.jotty.android.data.api.ShareInfoResponse
-import com.jotty.android.data.api.UpdateShareInfoRequest
+import com.jotty.android.data.api.ItemSharesResponse
+import com.jotty.android.data.api.RelationsResponse
+import com.jotty.android.data.api.ReorderItemsRequest
+import com.jotty.android.data.api.SearchResponse
+import com.jotty.android.data.api.ShareGrantRequest
+import com.jotty.android.data.api.SharesListResponse
+import com.jotty.android.data.api.SortItemsRequest
+import com.jotty.android.data.api.TaskItemResponse
+import com.jotty.android.data.api.TemplatesResponse
+import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.api.UpdateTaskStatusRequest
+import java.time.Instant
+import okhttp3.RequestBody
 
 /**
  * Test double for [JottyApi] — only note paths are configurable; other endpoints return minimal stubs.
@@ -93,6 +103,11 @@ internal class FakeJottyApi(
         listId: String,
         body: com.jotty.android.data.api.ReorderItemsRequest,
     ): SuccessResponse = error("not used in OfflineNotesRepository tests")
+
+    override suspend fun sortChecklistItems(
+        listId: String,
+        body: SortItemsRequest,
+    ): ApiResponse<Checklist> = error("not used in OfflineNotesRepository tests")
 
     override suspend fun search(
         query: String,
@@ -217,14 +232,24 @@ internal class FakeJottyApi(
         body: UpdateTaskItemStatusRequest,
     ): SuccessResponse = SuccessResponse(true)
 
-    override suspend fun getSharingInfo(
-        itemType: String,
-        itemId: String,
-    ): ShareInfoResponse = ShareInfoResponse(success = false)
+    override suspend fun getTemplates(): TemplatesResponse = TemplatesResponse()
 
-    override suspend fun updateSharingInfo(
-        itemType: String,
+    override suspend fun getShares(
+        direction: String?,
+        type: String?,
+        item: String?,
+        user: String?,
+    ): SharesListResponse = SharesListResponse()
+
+    override suspend fun grantShare(
         itemId: String,
-        body: UpdateShareInfoRequest,
-    ): ShareInfoResponse = ShareInfoResponse(success = false)
+        body: ShareGrantRequest,
+    ): ItemSharesResponse = ItemSharesResponse(success = false)
+
+    override suspend fun revokeShare(
+        itemId: String,
+        username: String,
+    ): ItemSharesResponse = ItemSharesResponse(success = false)
+
+    override suspend fun getRelations(itemId: String): RelationsResponse = RelationsResponse()
 }

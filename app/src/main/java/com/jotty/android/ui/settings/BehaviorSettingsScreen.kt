@@ -29,6 +29,7 @@ fun BehaviorSettingsScreen(
     val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
     val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val compactTableToolbar by settingsRepository.compactTableToolbarEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
     val notePreviewMaxLines by settingsRepository.notePreviewMaxLines.collectAsStateWithLifecycle(
         initialValue = SettingsRepository.DEFAULT_NOTE_PREVIEW_MAX_LINES,
@@ -37,6 +38,7 @@ fun BehaviorSettingsScreen(
     val openNotesInEditMode by settingsRepository.openNotesInEditMode.collectAsStateWithLifecycle(initialValue = false)
     val defaultNoteEditMode by settingsRepository.defaultNoteEditMode.collectAsStateWithLifecycle(initialValue = "markdown")
     val defaultNoteCategory by settingsRepository.defaultNoteCategory.collectAsStateWithLifecycle(initialValue = null)
+    val defaultChecklistCategory by settingsRepository.defaultChecklistCategory.collectAsStateWithLifecycle(initialValue = null)
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
     val cardColors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
@@ -201,6 +203,29 @@ fun BehaviorSettingsScreen(
                     )
                 },
             )
+            HorizontalDivider()
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.default_checklist_category)) },
+                supportingContent = {
+                    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                        Text(
+                            stringResource(R.string.default_checklist_category_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        OutlinedTextField(
+                            value = defaultChecklistCategory.orEmpty(),
+                            onValueChange = { newValue ->
+                                scope.launch {
+                                    settingsRepository.setDefaultChecklistCategory(newValue)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            singleLine = true,
+                            placeholder = { Text(stringResource(R.string.category)) },
+                        )
+                    }
+                },
+            )
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -247,6 +272,28 @@ fun BehaviorSettingsScreen(
                     )
                 },
             )
+            if (richNoteEditorEnabled) {
+                HorizontalDivider()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.compact_table_toolbar)) },
+                    supportingContent = {
+                        Text(
+                            stringResource(R.string.compact_table_toolbar_description),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = compactTableToolbar,
+                            onCheckedChange = {
+                                scope.launch {
+                                    settingsRepository.setCompactTableToolbarEnabled(it)
+                                }
+                            },
+                        )
+                    },
+                )
+            }
             HorizontalDivider()
             ListItem(
                 headlineContent = { Text(stringResource(R.string.note_list_preview)) },

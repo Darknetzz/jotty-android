@@ -135,6 +135,12 @@ class SettingsRepository(
             prefs[KEY_VISUAL_EDITOR_SAVE_AS_MARKDOWN] ?: false
         }.catch { emit(false) }
 
+    /** Hide quick table toolbar buttons; table actions appear in the menu only. Default false. */
+    val compactTableToolbarEnabled: Flow<Boolean> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_COMPACT_TABLE_TOOLBAR] ?: false
+        }.catch { emit(false) }
+
     /** Hide Kanban columns with no tasks on project boards. Default false. */
     val kanbanHideEmptyColumns: Flow<Boolean> =
         context.jottySettingsDataStore.data.map { prefs ->
@@ -199,6 +205,12 @@ class SettingsRepository(
     val defaultNoteCategory: Flow<String?> =
         context.jottySettingsDataStore.data.map { prefs ->
             prefs[KEY_DEFAULT_NOTE_CATEGORY].takeIf { !it.isNullOrBlank() }
+        }.catch { emit(null) }
+
+    /** Default category for new checklists; blank = uncategorized. */
+    val defaultChecklistCategory: Flow<String?> =
+        context.jottySettingsDataStore.data.map { prefs ->
+            prefs[KEY_DEFAULT_CHECKLIST_CATEGORY].takeIf { !it.isNullOrBlank() }
         }.catch { emit(null) }
 
     /** Content padding: "compact" (8dp vertical) or "comfortable" (16dp vertical). Default "comfortable". */
@@ -416,6 +428,12 @@ class SettingsRepository(
         }
     }
 
+    suspend fun setCompactTableToolbarEnabled(value: Boolean) {
+        context.jottySettingsDataStore.edit {
+            if (value) it[KEY_COMPACT_TABLE_TOOLBAR] = true else it.remove(KEY_COMPACT_TABLE_TOOLBAR)
+        }
+    }
+
     suspend fun setKanbanHideEmptyColumns(value: Boolean) {
         context.jottySettingsDataStore.edit {
             if (value) it[KEY_KANBAN_HIDE_EMPTY_COLUMNS] = true else it.remove(KEY_KANBAN_HIDE_EMPTY_COLUMNS)
@@ -492,6 +510,17 @@ class SettingsRepository(
         context.jottySettingsDataStore.edit {
             val trimmed = value?.trim().orEmpty()
             if (trimmed.isBlank()) it.remove(KEY_DEFAULT_NOTE_CATEGORY) else it[KEY_DEFAULT_NOTE_CATEGORY] = trimmed
+        }
+    }
+
+    suspend fun setDefaultChecklistCategory(value: String?) {
+        context.jottySettingsDataStore.edit {
+            val trimmed = value?.trim().orEmpty()
+            if (trimmed.isBlank()) {
+                it.remove(KEY_DEFAULT_CHECKLIST_CATEGORY)
+            } else {
+                it[KEY_DEFAULT_CHECKLIST_CATEGORY] = trimmed
+            }
         }
     }
 
@@ -720,6 +749,7 @@ class SettingsRepository(
         private val KEY_RICH_NOTE_EDITOR = booleanPreferencesKey("rich_note_editor_enabled")
         private val KEY_VISUAL_EDITOR_SAVE_AS_MARKDOWN =
             booleanPreferencesKey("visual_editor_save_as_markdown_enabled")
+        private val KEY_COMPACT_TABLE_TOOLBAR = booleanPreferencesKey("compact_table_toolbar_enabled")
         private val KEY_CHECKLIST_DRAG_REORDER = booleanPreferencesKey("checklist_drag_reorder_enabled")
         private val KEY_SHOW_CHECKLIST_EMOJIS = booleanPreferencesKey("show_checklist_emojis")
         private val KEY_KANBAN_HIDE_EMPTY_COLUMNS = booleanPreferencesKey("kanban_hide_empty_columns")
@@ -733,6 +763,7 @@ class SettingsRepository(
         private val KEY_OPEN_NOTES_IN_EDIT_MODE = booleanPreferencesKey("open_notes_in_edit_mode")
         private val KEY_DEFAULT_NOTE_EDIT_MODE = stringPreferencesKey("default_note_edit_mode")
         private val KEY_DEFAULT_NOTE_CATEGORY = stringPreferencesKey("default_note_category")
+        private val KEY_DEFAULT_CHECKLIST_CATEGORY = stringPreferencesKey("default_checklist_category")
 
         const val DEFAULT_NOTE_PREVIEW_MAX_LINES = 2
         private val NOTE_PREVIEW_MAX_LINES_OPTIONS = setOf(0, 1, 2, 4)

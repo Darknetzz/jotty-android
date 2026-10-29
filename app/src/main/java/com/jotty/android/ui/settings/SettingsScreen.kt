@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Update
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -50,6 +51,7 @@ import com.jotty.android.ui.common.UpdateStatusAlert
 import com.jotty.android.ui.common.UpdateStatusAlertVariant
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.DebugLogExporter
+import com.jotty.android.util.JottyServerVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -68,6 +70,7 @@ fun SettingsScreen(
     settingsRepository: SettingsRepository,
     onDisconnect: () -> Unit,
     onManageInstances: () -> Unit = {},
+    onManageCategories: () -> Unit = {},
     onAppearance: () -> Unit = {},
     onDashboard: () -> Unit = {},
     onBehavior: () -> Unit = {},
@@ -191,6 +194,23 @@ fun SettingsScreen(
                                 )
                             },
                             modifier = Modifier.clickable(onClick = onManageInstances),
+                        )
+                        HorizontalDivider()
+                        ListItem(
+                            headlineContent = { Text(stringResource(R.string.manage_categories)) },
+                            supportingContent = {
+                                Text(
+                                    stringResource(R.string.manage_categories_description),
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Outlined.Category,
+                                    contentDescription = stringResource(R.string.manage_categories),
+                                )
+                            },
+                            modifier = Modifier.clickable(onClick = onManageCategories),
                         )
                         HorizontalDivider()
                         ListItem(
@@ -739,6 +759,14 @@ private fun AboutDialog(
                     ) {
                         Text(stringResource(R.string.server_version), style = MaterialTheme.typography.bodyMedium)
                         Text(version, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (JottyServerVersion.isNewerThanCompatCeiling(version)) {
+                        Text(
+                            text = stringResource(R.string.server_version_newer_warning, version),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
                     }
                 }
                 HorizontalDivider()

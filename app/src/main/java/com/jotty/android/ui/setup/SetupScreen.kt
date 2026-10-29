@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.NetworkCheck
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
@@ -31,7 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jotty.android.R
-import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
@@ -41,8 +41,10 @@ import com.jotty.android.ui.common.ServerUrlInputField
 import com.jotty.android.ui.common.accentColor
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.ConnectionDiagnostics
 import com.jotty.android.util.CustomHttpHeaders
 import com.jotty.android.util.browserUrlFromServerUrl
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -321,6 +323,24 @@ private fun InstanceForm(
     val connectionFailedFmt = stringResource(R.string.connection_failed)
     val invalidHeaderFmt = stringResource(R.string.custom_header_invalid)
     var showAdvancedFields by remember(initialInstance) { mutableStateOf(initialInstance != null) }
+    var testState by remember(initialInstance) { mutableStateOf<ConnectionTestState>(ConnectionTestState.Idle) }
+    val busy = loading || testState == ConnectionTestState.Running
+
+    // A previous test result is stale once the connection inputs change.
+    LaunchedEffect(serverUrl, apiKey, customHeaders) {
+        if (!loading && testState is ConnectionTestState.Done) testState = ConnectionTestState.Idle
+    }
+
+    /** Normalized headers, or null after surfacing a validation error. */
+    fun validatedHeaders(): Map<String, String>? {
+        error = null
+        val headers = CustomHttpHeaders.normalize(customHeaders)
+        CustomHttpHeaders.firstInvalid(headers)?.let { (badName, _) ->
+            error = String.format(invalidHeaderFmt, badName)
+            return null
+        }
+        return headers
+    }
 
     val instanceColors: List<Long?> =
         listOf(
@@ -573,6 +593,27 @@ private fun InstanceForm(
             )
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedButton(
+            onClick = {
+                val headers = validatedHeaders() ?: return@OutlinedButton
+                scope.launch {
+                    testState = ConnectionTestState.Running
+                    testState =
+                        ConnectionTestState.Done(
+                            ConnectionDiagnostics.run(serverUrl.trim(), apiKey.trim(), headers),
+                        )
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !busy && serverUrl.trim().isNotBlank() && apiKey.trim().isNotBlank(),
+        ) {
+            Icon(Icons.Default.NetworkCheck, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(stringResource(R.string.conn_test_button))
+        }
+        ConnectionTestResultCard(state = testState)
+
         Spacer(modifier = Modifier.height(24.dp))
 
         Row(
@@ -589,28 +630,23 @@ private fun InstanceForm(
             }
             Button(
                 onClick = {
+                    val url = serverUrl.trim()
+                    val key = apiKey.trim()
+                    if (url.isBlank() || key.isBlank()) {
+                        error = fillUrlAndKeyMsg
+                        return@Button
+                    }
+                    val headers = validatedHeaders() ?: return@Button
                     scope.launch {
                         loading = true
-                        error = null
+                        testState = ConnectionTestState.Running
                         try {
-                            val url = serverUrl.trim()
-                            val key = apiKey.trim()
-                            if (url.isBlank() || key.isBlank()) {
-                                error = fillUrlAndKeyMsg
+                            val result = ConnectionDiagnostics.run(url, key, headers)
+                            if (result !is ConnectionDiagnostics.Result.Success) {
+                                testState = ConnectionTestState.Done(result)
                                 return@launch
                             }
-
-                            val headers = CustomHttpHeaders.normalize(customHeaders)
-                            CustomHttpHeaders.firstInvalid(headers)?.let { (badName, _) ->
-                                error = String.format(invalidHeaderFmt, badName)
-                                return@launch
-                            }
-
-                            val api = ApiClient.create(url, key, headers)
-                            api.health()
-                            // health() is unauthenticated; verify the API key with an
-                            // authenticated endpoint so a wrong key fails here instead of later.
-                            api.getSummary()
+                            testState = ConnectionTestState.Idle
 
                             val instance =
                                 JottyInstance(
@@ -629,7 +665,10 @@ private fun InstanceForm(
                             } else {
                                 onSaved?.invoke()
                             }
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
+                            testState = ConnectionTestState.Idle
                             error = String.format(connectionFailedFmt, ApiErrorHelper.userMessage(context, e))
                         } finally {
                             loading = false
@@ -637,7 +676,7 @@ private fun InstanceForm(
                     }
                 },
                 modifier = Modifier.weight(1f),
-                enabled = !loading && serverUrl.trim().isNotBlank() && apiKey.trim().isNotBlank(),
+                enabled = !busy && serverUrl.trim().isNotBlank() && apiKey.trim().isNotBlank(),
             ) {
                 if (loading) {
                     CircularProgressIndicator(

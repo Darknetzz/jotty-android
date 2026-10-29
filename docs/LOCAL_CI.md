@@ -80,6 +80,8 @@ git commit -m "Release vX.Y.Z"
 .\scripts\publish-release.ps1 -LocalBuild
 ```
 
+On Unix, `./release.sh` is equivalent (`[version]`, `--date`, `--dry-run`). Both scripts validate changelog promotion during `--dry-run` / `-DryRun` before writing.
+
 `-LocalBuild` runs `build-release-apk.ps1` and uploads the APK with `gh release upload` instead of waiting for `release-apk.yml`.
 
 **Option B — build only:**

@@ -22,7 +22,10 @@ import androidx.compose.ui.unit.isUnspecified
 import androidx.compose.ui.unit.sp
 import coil.ImageLoader
 import com.jotty.android.R
+import com.jotty.android.util.JottyItemRef
+import com.jotty.android.util.parseJottyItemUri
 import com.jotty.android.util.prepareNoteContentForDisplay
+import com.jotty.android.util.rewriteJottyItemLinksForDisplay
 import dev.jeziellago.compose.markdowntext.MarkdownText
 
 /** Reader text scale (font multiplier) for note content; provided from app-level settings. */
@@ -33,6 +36,8 @@ internal fun NoteView(
     content: String,
     imageLoader: ImageLoader? = null,
     jottyServerUrl: String? = null,
+    titleToItem: Map<String, JottyItemRef> = emptyMap(),
+    onOpenJottyItem: ((JottyItemRef) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val scrollState = rememberScrollState()
@@ -61,8 +66,11 @@ internal fun NoteView(
             )
         }
     val displayMarkdown =
-        remember(content, jottyServerUrl) {
-            prepareNoteContentForDisplay(content, jottyServerUrl)
+        remember(content, jottyServerUrl, titleToItem) {
+            rewriteJottyItemLinksForDisplay(
+                prepareNoteContentForDisplay(content, jottyServerUrl),
+                titleToItem,
+            )
         }
     val markdownImageLoaderKey = imageLoader.hashCode()
     Column(
@@ -83,7 +91,14 @@ internal fun NoteView(
                     imageLoader = imageLoader,
                     isTextSelectable = true,
                     textSelectionColors = LocalTextSelectionColors.current,
-                    onLinkClicked = { url -> uriHandler.openUri(url) },
+                    onLinkClicked = { url ->
+                        val item = parseJottyItemUri(url)
+                        if (item != null && onOpenJottyItem != null) {
+                            onOpenJottyItem(item)
+                        } else {
+                            runCatching { uriHandler.openUri(url) }
+                        }
+                    },
                 )
             }
         } else {

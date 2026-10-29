@@ -5,8 +5,9 @@ import java.net.URI
 
 /**
  * Resolves note image URLs for Coil / Markdown rendering.
- * Jotty stores paths such as `/api/image/{user}/{file}` (root-relative) or absolute URLs
- * from another host the user used in the web app.
+ * Jotty stores paths such as `/api/attachment/{noteUuid}/{file}` (1.29+), legacy
+ * `/api/image|file|video/{user}/{file}` (root-relative), or absolute URLs from another
+ * host the user used in the web app.
  */
 internal fun resolveNoteImageUrl(
     src: String,
@@ -29,7 +30,8 @@ internal fun resolveNoteImageUrl(
 
 internal fun isJottyMediaPath(path: String?): Boolean {
     if (path.isNullOrBlank()) return false
-    return path.startsWith("/api/image/") ||
+    return path.startsWith("/api/attachment/") ||
+        path.startsWith("/api/image/") ||
         path.startsWith("/api/file/") ||
         path.startsWith("/api/video/")
 }
@@ -105,10 +107,11 @@ internal fun resolveNoteImageUrlsInMarkdown(
     }
 }
 
-/** True when [content] references Jotty-hosted media (e.g. `/api/image/...`). */
+/** True when [content] references Jotty-hosted media (e.g. `/api/attachment/...`). */
 internal fun noteContainsJottyMediaUrls(content: String): Boolean {
     if (content.isBlank()) return false
-    return content.contains("/api/image/", ignoreCase = true) ||
+    return content.contains("/api/attachment/", ignoreCase = true) ||
+        content.contains("/api/image/", ignoreCase = true) ||
         content.contains("/api/file/", ignoreCase = true) ||
         content.contains("/api/video/", ignoreCase = true)
 }
@@ -128,5 +131,6 @@ internal fun prepareNoteContentForDisplay(
     val withTables = convertHtmlTablesToGfm(withImages)
     val withStructure = convertHtmlStructuralElementsToMarkdown(withTables)
     val separated = separateMarkdownHeadingsFromTables(withStructure)
-    return resolveNoteImageUrlsInMarkdown(separated, jottyServerUrl)
+    val withBreaks = preserveExtraBlankLinesForDisplay(separated)
+    return resolveNoteImageUrlsInMarkdown(withBreaks, jottyServerUrl)
 }

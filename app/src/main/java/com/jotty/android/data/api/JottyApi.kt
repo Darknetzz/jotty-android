@@ -74,6 +74,13 @@ interface JottyApi {
         @Body body: ReorderItemsRequest,
     ): SuccessResponse
 
+    /** Sort simple checklist items (Jotty 1.29+). Kanban boards return 400; older servers 404/405. */
+    @PUT("api/checklists/{listId}/items/sort")
+    suspend fun sortChecklistItems(
+        @Path("listId") listId: String,
+        @Body body: SortItemsRequest,
+    ): ApiResponse<Checklist>
+
     @GET("api/tasks/{taskId}")
     suspend fun getTask(
         @Path("taskId") taskId: String,
@@ -139,6 +146,10 @@ interface JottyApi {
         @Body body: CreateNoteRequest,
     ): ApiResponse<Note>
 
+    /** Note templates (Jotty 1.29+). Pass a template id as [CreateNoteRequest.templateId]. */
+    @GET("api/templates")
+    suspend fun getTemplates(): TemplatesResponse
+
     @PUT("api/notes/{noteId}")
     suspend fun updateNote(
         @Path("noteId") noteId: String,
@@ -161,17 +172,33 @@ interface JottyApi {
     @GET("api/summary")
     suspend fun getSummary(): SummaryResponse
 
-    /** Optional: server sharing metadata (404 on older Jotty without REST sharing). */
-    @GET("api/sharing/items/{itemType}/{itemId}")
-    suspend fun getSharingInfo(
-        @Path("itemType") itemType: String,
-        @Path("itemId") itemId: String,
-    ): ShareInfoResponse
+    /**
+     * List shares (Jotty 1.29+). Probe without filters; load one item with
+     * `item` + `direction=byMe`. 404/405 on older servers.
+     */
+    @GET("api/shares")
+    suspend fun getShares(
+        @Query("direction") direction: String? = null,
+        @Query("type") type: String? = null,
+        @Query("item") item: String? = null,
+        @Query("user") user: String? = null,
+    ): SharesListResponse
 
-    @PUT("api/sharing/items/{itemType}/{itemId}")
-    suspend fun updateSharingInfo(
-        @Path("itemType") itemType: String,
+    @PUT("api/shares/{itemId}")
+    suspend fun grantShare(
         @Path("itemId") itemId: String,
-        @Body body: UpdateShareInfoRequest,
-    ): ShareInfoResponse
+        @Body body: ShareGrantRequest,
+    ): ItemSharesResponse
+
+    @DELETE("api/shares/{itemId}/{username}")
+    suspend fun revokeShare(
+        @Path("itemId") itemId: String,
+        @Path("username") username: String,
+    ): ItemSharesResponse
+
+    /** Linked notes/checklists for an item (404 on older Jotty without relations index). */
+    @GET("api/relations/{itemId}")
+    suspend fun getRelations(
+        @Path("itemId") itemId: String,
+    ): RelationsResponse
 }

@@ -59,6 +59,24 @@ class WysiwygFormatStateTest {
     }
 
     @Test
+    fun parseWysiwygFormatStateJson_readsTableState() {
+        val json =
+            """
+            {
+              "inTable": true,
+              "tableRows": 3,
+              "tableCols": 4
+            }
+            """.trimIndent()
+
+        val state = parseWysiwygFormatStateJson(json)
+
+        assertTrue(state.inTable)
+        assertEquals(3, state.tableRows)
+        assertEquals(4, state.tableCols)
+    }
+
+    @Test
     fun parseWysiwygFormatStateJson_invalidJson_returnsDefaults() {
         val state = parseWysiwygFormatStateJson("not-json")
         assertEquals(WysiwygFormatState(), state)

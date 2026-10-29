@@ -15,11 +15,11 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v6.1.0
         with:
           distribution: temurin
           java-version: 17

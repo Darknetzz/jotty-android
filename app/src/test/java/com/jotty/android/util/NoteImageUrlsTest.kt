@@ -21,6 +21,17 @@ class NoteImageUrlsTest {
     }
 
     @Test
+    fun resolveNoteImageUrl_resolvesAttachmentPath() {
+        assertEquals(
+            "https://jotty.example.com/api/attachment/9f1c2a7e-4b3d-4c8e-9a61-2f5d7e0b8c14/photo.png",
+            resolveNoteImageUrl(
+                "/api/attachment/9f1c2a7e-4b3d-4c8e-9a61-2f5d7e0b8c14/photo.png",
+                "https://jotty.example.com",
+            ),
+        )
+    }
+
+    @Test
     fun resolveNoteImageUrl_resolvesRootRelativePathAgainstSubpathBase() {
         assertEquals(
             "https://example.com/api/image/user/photo.png",
@@ -72,6 +83,17 @@ class NoteImageUrlsTest {
     }
 
     @Test
+    fun rewriteJottyMediaHostToInstance_rewritesAttachmentLanHost() {
+        assertEquals(
+            "http://jotty.local:3000/api/attachment/9f1c2a7e-4b3d-4c8e-9a61-2f5d7e0b8c14/photo.png",
+            rewriteJottyMediaHostToInstance(
+                "http://192.168.1.50:3000/api/attachment/9f1c2a7e-4b3d-4c8e-9a61-2f5d7e0b8c14/photo.png",
+                "http://jotty.local:3000",
+            ),
+        )
+    }
+
+    @Test
     fun rewriteJottyMediaHostToInstance_leavesExternalUrlsUnchanged() {
         val url = "https://cdn.example.com/assets/pic.png"
         assertEquals(url, rewriteJottyMediaHostToInstance(url, "https://jotty.example.com"))
@@ -103,6 +125,11 @@ class NoteImageUrlsTest {
         assertTrue(noteContainsJottyMediaUrls("![x](/api/image/1)"))
         assertTrue(noteContainsJottyMediaUrls("""<img src="/api/image/a.png">"""))
         assertTrue(noteContainsJottyMediaUrls("file at /api/file/doc.pdf"))
+        assertTrue(
+            noteContainsJottyMediaUrls(
+                "![x](/api/attachment/9f1c2a7e-4b3d-4c8e-9a61-2f5d7e0b8c14/photo.png)",
+            ),
+        )
         assertFalse(noteContainsJottyMediaUrls("![x](https://cdn.example.com/p.png)"))
         assertFalse(noteContainsJottyMediaUrls("plain text"))
     }

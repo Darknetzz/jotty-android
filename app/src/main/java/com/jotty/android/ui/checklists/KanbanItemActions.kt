@@ -6,7 +6,6 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.local.itemAtPath
-import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanRichFieldsPatch
 import com.jotty.android.util.updateChecklistItemDescription
 import com.jotty.android.util.updateChecklistItemRichFields
@@ -55,7 +54,6 @@ class ApiKanbanItemActions(
     private val itemPath: String,
     private val items: () -> List<ChecklistItem>,
     private val onRefresh: suspend () -> Unit,
-    private val onPatchUnavailable: (() -> Unit)? = null,
     private val performMoveToStatus: suspend (String) -> Result<Unit>,
     private val richFieldsSupported: Boolean = false,
 ) : KanbanItemActions {
@@ -75,8 +73,6 @@ class ApiKanbanItemActions(
                 listId = checklistId,
                 path = itemPath,
                 text = text.trim(),
-                items = items(),
-                onPatchUnavailable = onPatchUnavailable,
             )
             onRefresh()
         }
@@ -119,7 +115,6 @@ class ApiKanbanItemActions(
                 listId = checklistId,
                 path = itemPath,
                 patch = patch,
-                onPatchUnavailable = onPatchUnavailable,
             )
             onRefresh()
         }
@@ -150,8 +145,6 @@ class ApiKanbanItemActions(
                 listId = checklistId,
                 path = subPath,
                 text = text.trim(),
-                items = items(),
-                onPatchUnavailable = onPatchUnavailable,
             )
             onRefresh()
         }
@@ -252,7 +245,6 @@ fun apiKanbanItemActions(
     itemPath: String,
     items: () -> List<ChecklistItem>,
     onRefresh: suspend () -> Unit,
-    serverCapabilitiesKey: String?,
     performMoveToStatus: suspend (String) -> Result<Unit>,
     richFieldsSupported: Boolean = false,
 ): KanbanItemActions =
@@ -262,10 +254,6 @@ fun apiKanbanItemActions(
         itemPath = itemPath,
         items = items,
         onRefresh = onRefresh,
-        onPatchUnavailable =
-            serverCapabilitiesKey?.let { key ->
-                { ServerCapabilities.markItemPatchLimited(key) }
-            },
         performMoveToStatus = performMoveToStatus,
         richFieldsSupported = richFieldsSupported,
     )

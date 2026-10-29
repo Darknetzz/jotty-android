@@ -105,8 +105,9 @@ fun InlineAlert(
     }
 }
 
+/** (container, content, border) colors for [variant]; shared with richer alert-style cards. */
 @Composable
-private fun inlineAlertColors(variant: InlineAlertVariant): Triple<Color, Color, Color?> {
+fun inlineAlertColors(variant: InlineAlertVariant): Triple<Color, Color, Color?> {
     val scheme = MaterialTheme.colorScheme
     return when (variant) {
         InlineAlertVariant.Info ->

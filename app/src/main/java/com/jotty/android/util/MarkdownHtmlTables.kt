@@ -265,7 +265,13 @@ private val htmlDivPattern =
 private val htmlStrikePattern =
     Regex("""<(?:strike|s|del)\b[^>]*>(.*?)</(?:strike|s|del)>""", regexDotIgnoreCase)
 
-/** Converts block-level HTML from WYSIWYG saves into markdown before table/image conversion. */
+/**
+ * Converts block-level HTML from WYSIWYG saves into markdown before table/image conversion.
+ *
+ * Android WebView contenteditable often wraps Enter in `<div>` (or `<p>`) after bare text.
+ * Replacements must include a leading newline so `Hello<div>World</div>` does not become
+ * `HelloWorld`.
+ */
 fun convertHtmlStructuralElementsToMarkdown(content: String): String {
     if (!content.contains('<')) {
         return content
@@ -276,7 +282,7 @@ fun convertHtmlStructuralElementsToMarkdown(content: String): String {
             val level = match.groupValues[1].toIntOrNull() ?: 1
             val prefix = "#".repeat(level.coerceIn(1, 6))
             val text = htmlInlineToMarkdown(match.groupValues[2])
-            "$prefix $text\n\n"
+            "\n\n$prefix $text\n\n"
         }
     result =
         result.replace(htmlStrikePattern) { match ->
@@ -285,15 +291,36 @@ fun convertHtmlStructuralElementsToMarkdown(content: String): String {
     result =
         result.replace(htmlParagraphPattern) { match ->
             val text = htmlInlineToMarkdown(match.groupValues[1])
-            if (text.isBlank()) "" else "$text\n\n"
+            // Empty <p><br></p> is one Enter blank line (same as empty div).
+            if (text.isBlank()) "\n" else "\n\n$text\n\n"
         }
     result =
         result.replace(htmlDivPattern) { match ->
             val text = htmlInlineToMarkdown(match.groupValues[1])
-            if (text.isBlank()) "" else "$text\n"
+            // Empty divs (often `<div><br></div>`) are blank lines from Enter.
+            if (text.isBlank()) "\n" else "\n$text\n"
         }
     result = result.replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
+    // Do not collapse \n{3,} here — multiple Enter blank lines must survive for display/save.
     return result.trim()
+}
+
+/**
+ * CommonMark/Markwon treat any run of blank lines like a single paragraph break.
+ * Turn extra newlines into `<br>` so 1 vs 5 blank lines stay visibly different in [NoteView].
+ */
+fun preserveExtraBlankLinesForDisplay(content: String): String {
+    if (!content.contains('\n')) {
+        return content
+    }
+    return content.replace(Regex("\n{2,}")) { match ->
+        val count = match.value.length
+        buildString(count * 5) {
+            repeat(count) {
+                append("<br>\n")
+            }
+        }
+    }
 }
 
 /** Prevents `# heading| col |` from being parsed as one giant heading in Markwon. */
@@ -419,6 +446,10 @@ fun prepareNoteContentForWysiwyg(content: String): String {
 fun noteNeedsRichEditor(content: String): Boolean =
     noteContentContainsRawHtml(content) || contentContainsGfmTable(content)
 
+/** True when the note body contains a markdown or HTML table. */
+fun contentHasTable(content: String): Boolean =
+    content.contains("<table", ignoreCase = true) || contentContainsGfmTable(content)
+
 private val htmlListItemPattern = Regex("""<li\b[^>]*>(.*?)</li>""", regexDotIgnoreCase)
 
 /** Converts HTML lists from the WYSIWYG editor into markdown list lines. */
@@ -468,5 +499,6 @@ fun prepareWysiwygHtmlForMarkdown(content: String): String {
     result = result.replace(tagPattern, "")
     result = decodeBasicHtmlEntities(result)
     result = separateMarkdownHeadingsFromTables(result)
-    return result.replace(Regex("""\n{3,}"""), "\n\n").trim()
+    // Keep multiple blank lines (do not collapse \n{3,} → \n\n); view mode maps them to <br>.
+    return result.trim()
 }

@@ -110,52 +110,53 @@ dependencies {
     implementation(libs.reorderable)
 
     implementation("androidx.core:core-ktx:1.18.0") // 1.19+ requires compileSdk 37 (see Dependabot PR #54)
-    implementation("androidx.lifecycle:lifecycle-process:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-process:2.10.0") // 2.11+ requires compileSdk 37
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
     implementation("androidx.activity:activity-compose:1.13.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0") // 2.11+ requires compileSdk 37
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
-    implementation("androidx.navigation:navigation-compose:2.9.8")
+    implementation("androidx.navigation:navigation-compose:2.9.8") // 2.10+ requires compileSdk 37 (see Dependabot PR #98)
 
     // Retrofit for REST API
     implementation("com.squareup.retrofit2:retrofit:3.0.0")
     implementation("com.squareup.retrofit2:converter-gson:3.0.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0") // 5.x deferred — align with Retrofit OkHttp (Dependabot PR #58)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.1") // 5.x deferred — align with Retrofit OkHttp (Dependabot PR #58)
 
     // Secure storage for API key
     implementation("androidx.security:security-crypto:1.1.0")
 
-    implementation("androidx.datastore:datastore-preferences:1.2.1")
+    implementation("androidx.datastore:datastore-preferences:1.3.0")
 
     // Room for offline storage
-    implementation("androidx.room:room-runtime:2.8.4")
-    implementation("androidx.room:room-ktx:2.8.4")
-    ksp("androidx.room:room-compiler:2.8.4")
+    implementation("androidx.room:room-runtime:2.8.5")
+    implementation("androidx.room:room-ktx:2.8.5")
+    ksp("androidx.room:room-compiler:2.8.5")
 
     // WorkManager for background sync
-    implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation("androidx.work:work-runtime-ktx:2.12.0")
 
     // Glance for home-screen widgets
     implementation("androidx.glance:glance-appwidget:1.1.1")
     implementation("androidx.glance:glance-material3:1.1.1")
 
     // Markdown rendering for notes (images via Coil)
+    // 0.6+ migrates to Coil 3; stay on 0.5.x until NoteImageLoader / Coil are upgraded together
     implementation("com.github.jeziellago:compose-markdown:0.5.8")
     implementation("io.coil-kt:coil:2.7.0")
 
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
 
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")
     // FragmentActivity is required by BiometricPrompt; declared explicitly to avoid relying on transitive resolution.
-    implementation("androidx.fragment:fragment-ktx:1.8.9")
+    implementation("androidx.fragment:fragment-ktx:1.9.1")
 
     // Unit tests
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.test:core:1.7.0")
-    testImplementation("androidx.room:room-testing:2.8.4")
-    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("androidx.room:room-testing:2.8.5")
+    testImplementation("org.robolectric:robolectric:4.17")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

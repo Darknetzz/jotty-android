@@ -23,7 +23,7 @@ class MainActivity : FragmentActivity() {
     /** Shared mutable state for deep-link note ID, updated by both onCreate and onNewIntent. */
     private val deepLinkNoteId = mutableStateOf<String?>(null)
 
-    /** Text shared into the app via ACTION_SEND; drives a prefilled create-note dialog. */
+    /** Text shared into the app via ACTION_SEND or quick-add; creates and opens a new note. */
     private val sharedNoteText = mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,14 +75,14 @@ class MainActivity : FragmentActivity() {
     }
 
     companion object {
-        /** Extra set by the home-screen widget to open the create-note dialog. */
+        /** Extra set by the home-screen widget to open a new note in the editor. */
         const val EXTRA_QUICK_ADD_NOTE = "com.jotty.android.action.QUICK_ADD_NOTE"
 
         /** Parses note id from jotty-android://open/note/{id} */
         fun parseDeepLinkNoteId(intent: Intent?): String? = intent?.data?.lastPathSegment?.takeIf { it.isNotBlank() && it != "note" }
 
         /**
-         * Returns the text that should prefill a new note (opening the create dialog), or null when
+         * Returns the text that should prefill a new note (opening it in the editor), or null when
          * the intent is neither a share nor a quick-add. Quick-add yields an empty (non-null) string.
          */
         fun parseNoteCreationText(intent: Intent?): String? {

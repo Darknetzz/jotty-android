@@ -1,10 +1,22 @@
 param(
     [string]$Version,
     [string]$Date = (Get-Date -Format "yyyy-MM-dd"),
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$Help
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($Help) {
+    Write-Host @"
+Usage: .\release.ps1 [-Version X.Y.Z] [-Date YYYY-MM-DD] [-DryRun] [-Help]
+
+Prepares a stable release by bumping gradle.properties and promoting
+CHANGELOG.md [dev-latest] to a dated [VERSION] section.
+Equivalent to ./release.sh [version] [--date YYYY-MM-DD] [--dry-run].
+"@
+    exit 0
+}
 
 $DevLatestSectionKey = "dev-latest"
 $DevLatestUrl = "https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest"
@@ -102,7 +114,8 @@ function Update-Changelog {
     }
 
     $devBody = $content.Substring($afterDevHeading, $nextMatch.Index).Trim()
-    $devBody = $devBody -replace '^\r?\n---\r?\n', ''
+    # After Trim(), body typically starts with --- (no leading newline).
+    $devBody = $devBody -replace '^---\r?\n', ''
     $devBody = $devBody -replace '\r?\n---\s*$', ''
 
     $newDevHeading = Get-DevSectionHeadingLine

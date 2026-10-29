@@ -21,6 +21,16 @@ class WysiwygEditorDocumentTest {
         assertTrue(doc.contains("setEditorTheme"))
         assertTrue(doc.contains("getFormatState"))
         assertTrue(doc.contains("onFormatStateChanged"))
+        assertTrue(doc.contains("addTableRow"))
+        assertTrue(doc.contains("addTableColumn"))
+        assertTrue(doc.contains("deleteTableRow"))
+        assertTrue(doc.contains("deleteTableColumn"))
+        assertTrue(doc.contains("exitTable"))
+        assertTrue(doc.contains("inTable"))
+        assertTrue(doc.contains("getTableRowFromCell"))
+        assertTrue(doc.contains("seedTableUiFromContent"))
+        assertTrue(doc.contains("handleTableKeydown"))
+        assertTrue(doc.contains("defaultParagraphSeparator"))
     }
 
     @Test

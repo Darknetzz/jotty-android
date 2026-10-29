@@ -165,6 +165,88 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
+    fun `convertHtmlStructuralElementsToMarkdown keeps newline after bare text before div`() {
+        // Android WebView contenteditable: Enter after plain text wraps the new line in <div>.
+        val html = "Hov1 svensk<div>Viva La Bam</div><div>Boyka</div>"
+        val md = convertHtmlStructuralElementsToMarkdown(html)
+        assertFalse("must not glue lines", md.contains("svenskViva"))
+        assertTrue(md.contains("Hov1 svensk"))
+        assertTrue(md.contains("Viva La Bam"))
+        assertTrue(md.contains("Boyka"))
+        assertTrue(md.indexOf("Hov1 svensk") < md.indexOf("Viva La Bam"))
+        assertTrue(md.indexOf("Viva La Bam") < md.indexOf("Boyka"))
+        assertTrue(md.contains("svensk\n"))
+    }
+
+    @Test
+    fun `convertHtmlStructuralElementsToMarkdown keeps blank line from empty div`() {
+        val html = "Hov1 svensk<div><br></div><div>Viva La Bam</div>"
+        val md = convertHtmlStructuralElementsToMarkdown(html)
+        assertFalse(md.contains("svenskViva"))
+        assertTrue(md.contains("Hov1 svensk\n\nViva La Bam") || md.contains("Hov1 svensk\nViva La Bam"))
+    }
+
+    @Test
+    fun `convertHtmlStructuralElementsToMarkdown preserves multiple empty div blank lines`() {
+        val oneBlank = "A<div><br></div><div>B</div>"
+        val fiveBlanks =
+            "A" +
+                "<div><br></div>".repeat(5) +
+                "<div>B</div>"
+        val one = convertHtmlStructuralElementsToMarkdown(oneBlank)
+        val five = convertHtmlStructuralElementsToMarkdown(fiveBlanks)
+        val newlinesOne = one.substringAfter("A").substringBefore("B").count { it == '\n' }
+        val newlinesFive = five.substringAfter("A").substringBefore("B").count { it == '\n' }
+        assertTrue(
+            "expected more newlines for 5 blank divs than 1, got $newlinesFive vs $newlinesOne",
+            newlinesFive > newlinesOne,
+        )
+        assertTrue(newlinesFive >= 5)
+    }
+
+    @Test
+    fun `preserveExtraBlankLinesForDisplay turns extra newlines into br tags`() {
+        val md = "A\n\n\n\n\nB"
+        val displayed = preserveExtraBlankLinesForDisplay(md)
+        assertTrue(displayed.contains("<br>"))
+        assertEquals(5, Regex("<br>").findAll(displayed).count())
+        assertFalse(displayed.contains("A\n\n\n\n\nB"))
+    }
+
+    @Test
+    fun `prepareNoteContentForDisplay preserves multiple blank lines from empty divs`() {
+        val oneBlank = "A<div><br></div><div>B</div>"
+        val fiveBlanks =
+            "A" +
+                "<div><br></div>".repeat(5) +
+                "<div>B</div>"
+        val one = prepareNoteContentForDisplay(oneBlank, null)
+        val five = prepareNoteContentForDisplay(fiveBlanks, null)
+        val brOne = Regex("<br>").findAll(one).count()
+        val brFive = Regex("<br>").findAll(five).count()
+        assertTrue("expected more <br> for 5 blank divs than 1, got $brFive vs $brOne", brFive > brOne)
+    }
+
+    @Test
+    fun `prepareNoteContentForDisplay preserves newlines from webview divs`() {
+        val html = "Hov1 svensk<div>Viva La Bam</div><div>Boyka</div>"
+        val displayed = prepareNoteContentForDisplay(html, null)
+        assertFalse(displayed.contains("svenskViva"))
+        assertTrue(displayed.contains("Hov1 svensk"))
+        assertTrue(displayed.contains("Viva La Bam"))
+        assertTrue(displayed.contains("Boyka"))
+    }
+
+    @Test
+    fun `prepareWysiwygHtmlForMarkdown preserves newlines from webview divs`() {
+        val html = "Hov1 svensk<div>Viva La Bam</div><div>Boyka</div>"
+        val md = prepareWysiwygHtmlForMarkdown(html)
+        assertFalse(md.contains("svenskViva"))
+        assertTrue(md.lines().any { it.contains("Hov1 svensk") })
+        assertTrue(md.lines().any { it.contains("Viva La Bam") })
+    }
+
+    @Test
     fun `prepareNoteContentForDisplay converts table wrapped in paragraph`() {
         val html =
             """
@@ -325,5 +407,12 @@ class MarkdownHtmlTablesTest {
         val html = prepareNoteContentForWysiwyg(md)
         assertTrue(html.contains("<h1>test</h1>"))
         assertTrue(html.contains("<table"))
+    }
+
+    @Test
+    fun `contentHasTable detects html and gfm tables`() {
+        assertTrue(contentHasTable("<table><tr><td>a</td></tr></table>"))
+        assertTrue(contentHasTable("| a | b |\n| --- | --- |\n| 1 | 2 |"))
+        assertFalse(contentHasTable("# hello\n\nplain text"))
     }
 }

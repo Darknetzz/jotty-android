@@ -26,9 +26,9 @@ import com.jotty.android.MainActivity
 import com.jotty.android.R
 
 /**
- * Home-screen widget with a single tap target that opens Jotty straight into a new-note dialog.
+ * Home-screen widget with a single tap target that opens Jotty straight into a new note editor.
  * The tap launches [MainActivity] with [MainActivity.EXTRA_QUICK_ADD_NOTE]; the app reuses the
- * share-in flow to open the create-note dialog.
+ * share-in flow to create a blank note and open it in edit mode.
  */
 class QuickAddNoteWidget : GlanceAppWidget() {
     override suspend fun provideGlance(

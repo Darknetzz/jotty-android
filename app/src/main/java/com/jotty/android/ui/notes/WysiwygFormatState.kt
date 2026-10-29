@@ -17,6 +17,9 @@ internal data class WysiwygFormatState(
     val blockquote: Boolean = false,
     val code: Boolean = false,
     val link: Boolean = false,
+    val inTable: Boolean = false,
+    val tableRows: Int = 0,
+    val tableCols: Int = 0,
 )
 
 private val wysiwygFormatStateGson = Gson()

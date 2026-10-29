@@ -21,6 +21,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
@@ -44,6 +45,8 @@ import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.ConfirmDiscardPendingSyncDialog
 import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.CloneCategoryDialog
+import com.jotty.android.ui.common.ChangeCategoryDialog
+import com.jotty.android.ui.common.ChangeCategoryDropdownMenuItem
 import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
 import com.jotty.android.ui.common.EditDropdownMenuItem
@@ -72,7 +75,6 @@ import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.exportChecklistAsPlainText
 import com.jotty.android.util.isArchived
 import com.jotty.android.util.KanbanItemFieldsProbe
-import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
 import com.jotty.android.util.defaultKanbanItemStatus
 import com.jotty.android.util.kanbanCardReorderRequest
@@ -93,11 +95,15 @@ fun OfflineEnabledChecklistsScreen(
     swipeToDeleteEnabled: Boolean = false,
     tabReselectToken: Int = 0,
     onOpenPendingSync: () -> Unit = {},
+    onManageCategories: () -> Unit = {},
+    initialChecklistId: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val checklistDragReorderEnabled by settingsRepository.checklistDragReorderEnabled.collectAsStateWithLifecycle(initialValue = true)
     val showChecklistEmojis by settingsRepository.showChecklistEmojis.collectAsStateWithLifecycle(initialValue = true)
     val kanbanHideEmptyColumns by settingsRepository.kanbanHideEmptyColumns.collectAsStateWithLifecycle(initialValue = false)
+    val defaultChecklistCategory by settingsRepository.defaultChecklistCategory.collectAsStateWithLifecycle(initialValue = null)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
     val vm: OfflineEnabledChecklistsViewModel =
@@ -132,11 +138,11 @@ fun OfflineEnabledChecklistsScreen(
     val checklistListDisplay = rememberStaleListWhileRefresh(sortedChecklists, listRefreshing)
 
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
-    val renameLeafOnlyMsg = stringResource(R.string.rename_leaf_only)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
@@ -146,8 +152,42 @@ fun OfflineEnabledChecklistsScreen(
     val discardPendingSyncDoneMsg = stringResource(R.string.discard_pending_sync_done)
     val checklistClonedMsg = stringResource(R.string.checklist_cloned)
     val cloneFailedMsg = stringResource(R.string.clone_failed)
+    val checklistNotFoundMsg = stringResource(R.string.checklist_not_found)
+
+    var deepLinkResolved by remember(initialChecklistId) { mutableStateOf(false) }
+    LaunchedEffect(initialChecklistId, checklists, deepLinkResolved) {
+        val id = initialChecklistId ?: return@LaunchedEffect
+        if (deepLinkResolved) return@LaunchedEffect
+
+        fun openList(list: Checklist) {
+            vm.setSelectedList(list)
+            onDeepLinkConsumed()
+            deepLinkResolved = true
+        }
+
+        checklists.find { it.id == id }?.let {
+            openList(it)
+            return@LaunchedEffect
+        }
+
+        val fetched =
+            if (isOnline) {
+                runCatching { api.getChecklists().checklists.find { it.id == id } }.getOrNull()
+            } else {
+                null
+            }
+        if (fetched != null) {
+            openList(fetched)
+            return@LaunchedEffect
+        }
+        snackbarHostState.showSnackbar(checklistNotFoundMsg)
+        onDeepLinkConsumed()
+        deepLinkResolved = true
+    }
 
     var pendingCloneChecklist by remember { mutableStateOf<Checklist?>(null) }
+    var pendingChangeCategoryChecklist by remember { mutableStateOf<Checklist?>(null) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
     var cloneLoading by remember { mutableStateOf(false) }
 
     suspend fun offlineDeleteWithUndo(list: Checklist) {
@@ -240,7 +280,7 @@ fun OfflineEnabledChecklistsScreen(
     LaunchedEffect(Unit) {
         vm.categoryFilterEmptyEvents.collect { category ->
             snackbarHostState.showSnackbar(
-                message = context.getString(R.string.offline_category_filter_empty, category),
+                message = resources.getString(R.string.offline_category_filter_empty, category),
             )
         }
     }
@@ -283,6 +323,7 @@ fun OfflineEnabledChecklistsScreen(
                     lastSyncError = lastSyncError,
                     pendingSyncCount = dirtyChecklistIds.size,
                     onManagePendingSync = onOpenPendingSync,
+                    onManageCategories = onManageCategories,
                     onRefresh = { requestSync(showLoading = false) },
                     onAdd = { vm.setShowCreateDialog(true) },
                 )
@@ -314,6 +355,7 @@ fun OfflineEnabledChecklistsScreen(
                 OfflineChecklistDetailContent(
                     checklist = currentList,
                     api = api,
+                    settingsRepository = settingsRepository,
                     offlineRepository = offlineRepository,
                     categorySuggestions = checklistCategories,
                     dragReorderEnabled = checklistDragReorderEnabled,
@@ -324,6 +366,7 @@ fun OfflineEnabledChecklistsScreen(
                     onRetrySync = { requestSync(showLoading = true) },
                     onBack = { vm.setSelectedList(null) },
                     onUpdate = { vm.setSelectedList(it) },
+                    onUserMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                     onDelete = {
                         scope.launch {
                             val result = offlineRepository.deleteChecklist(currentList.id)
@@ -338,10 +381,6 @@ fun OfflineEnabledChecklistsScreen(
                     onClone = { pendingCloneChecklist = it },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
-                    onRenameUnsupported = {
-                        ServerCapabilities.markItemPatchLimited(serverCapabilitiesKey)
-                        scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) }
-                    },
                     serverCapabilitiesKey = serverCapabilitiesKey,
                     onDiscardPendingSyncFailed = {
                         scope.launch {
@@ -415,6 +454,7 @@ fun OfflineEnabledChecklistsScreen(
                                             checklist = list,
                                             onClick = { vm.setSelectedList(list) },
                                             onClone = { pendingCloneChecklist = list },
+                                            onChangeCategory = { pendingChangeCategoryChecklist = list },
                                             onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
                                             showPendingSync = list.id in dirtyChecklistIds,
                                         )
@@ -424,6 +464,7 @@ fun OfflineEnabledChecklistsScreen(
                                         checklist = list,
                                         onClick = { vm.setSelectedList(list) },
                                         onClone = { pendingCloneChecklist = list },
+                                        onChangeCategory = { pendingChangeCategoryChecklist = list },
                                         onDelete = { scope.launch { offlineDeleteWithUndo(list) } },
                                         showPendingSync = list.id in dirtyChecklistIds,
                                     )
@@ -441,6 +482,7 @@ fun OfflineEnabledChecklistsScreen(
     if (showCreateDialog) {
         ChecklistCreateDialog(
             categorySuggestions = checklistCategories,
+            initialCategory = defaultChecklistCategory.orEmpty(),
             onDismiss = { vm.setShowCreateDialog(false) },
             onCreate = { newTitle, isProjectType, newCategory ->
                 scope.launch {
@@ -457,6 +499,34 @@ fun OfflineEnabledChecklistsScreen(
                     } else {
                         snackbarHostState.showSnackbar(saveFailedMsg)
                     }
+                }
+            },
+        )
+    }
+
+    pendingChangeCategoryChecklist?.let { targetChecklist ->
+        ChangeCategoryDialog(
+            initialCategory = targetChecklist.category,
+            categorySuggestions = checklistCategories,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) pendingChangeCategoryChecklist = null
+            },
+            onConfirm = { newCategory ->
+                scope.launch {
+                    changeCategoryLoading = true
+                    offlineRepository
+                        .updateChecklist(
+                            targetChecklist.id,
+                            targetChecklist.title,
+                            newCategory,
+                        ).onSuccess {
+                            pendingChangeCategoryChecklist = null
+                            if (!isOnline) snackbarHostState.showSnackbar(savedLocallyMsg)
+                        }.onFailure {
+                            snackbarHostState.showSnackbar(saveFailedMsg)
+                        }
+                    changeCategoryLoading = false
                 }
             },
         )
@@ -501,6 +571,7 @@ private fun OfflineChecklistCard(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onClone: () -> Unit = {},
+    onChangeCategory: () -> Unit = {},
     showPendingSync: Boolean = false,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -565,6 +636,12 @@ private fun OfflineChecklistCard(
                         onClick()
                     },
                 )
+                ChangeCategoryDropdownMenuItem(
+                    onClick = {
+                        menuExpanded = false
+                        onChangeCategory()
+                    },
+                )
                 CloneDropdownMenuItem(
                     labelRes = R.string.clone_checklist,
                     onClick = {
@@ -590,6 +667,7 @@ private fun OfflineChecklistCard(
 private fun OfflineChecklistDetailContent(
     checklist: Checklist,
     api: JottyApi,
+    settingsRepository: SettingsRepository,
     offlineRepository: OfflineChecklistsRepository,
     categorySuggestions: List<String> = emptyList(),
     dragReorderEnabled: Boolean = true,
@@ -604,7 +682,7 @@ private fun OfflineChecklistDetailContent(
     onClone: (Checklist) -> Unit = {},
     onSaveFailed: () -> Unit,
     onSavedLocally: () -> Unit,
-    onRenameUnsupported: () -> Unit,
+    onUserMessage: (String) -> Unit = {},
     onDiscardPendingSyncFailed: (Throwable) -> Unit = {},
     onDiscardPendingSyncDone: () -> Unit = {},
     serverCapabilitiesKey: String? = null,
@@ -621,9 +699,15 @@ private fun OfflineChecklistDetailContent(
 
     var newItemText by remember { mutableStateOf("") }
     var showRenameDialog by remember { mutableStateOf(false) }
+    var showChangeCategory by remember { mutableStateOf(false) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
+    var showSortDialog by remember { mutableStateOf(false) }
     var showManageStatusesDialog by remember { mutableStateOf(false) }
     var showDiscardPendingSyncDialog by remember { mutableStateOf(false) }
+    val sortNotSupportedMsg = stringResource(R.string.sort_items_not_supported)
+    val sortPendingSyncMsg = stringResource(R.string.sort_items_pending_sync)
+    val sortFailedMsg = stringResource(R.string.sort_items_failed)
     var discardConfirmIsLocalOnly by remember { mutableStateOf(false) }
     var editingItemKey by remember(liveChecklist.id) { mutableStateOf<String?>(null) }
     var taskStatuses by remember(liveChecklist.id) { mutableStateOf(DEFAULT_TASK_STATUSES) }
@@ -750,6 +834,34 @@ private fun OfflineChecklistDetailContent(
             },
         )
     }
+    if (showChangeCategory) {
+        ChangeCategoryDialog(
+            initialCategory = liveChecklist.category,
+            categorySuggestions = categorySuggestions,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) showChangeCategory = false
+            },
+            onConfirm = { newCategory ->
+                changeCategoryLoading = true
+                scope.launch {
+                    offlineRepository
+                        .updateChecklist(
+                            liveChecklist.id,
+                            liveChecklist.title,
+                            newCategory,
+                        ).onSuccess { updated ->
+                            showChangeCategory = false
+                            onUpdate(updated)
+                            if (!isOnline) onSavedLocally()
+                        }.onFailure {
+                            onSaveFailed()
+                        }
+                    changeCategoryLoading = false
+                }
+            },
+        )
+    }
     if (showManageStatusesDialog) {
         ManageTaskStatusesDialog(
             statuses = taskStatuses,
@@ -788,9 +900,22 @@ private fun OfflineChecklistDetailContent(
             title = liveChecklist.title,
             onBack = onBack,
             onRename = { showRenameDialog = true },
+            onChangeCategory = { showChangeCategory = true },
             onDelete = onDelete,
             onClone = { onClone(liveChecklist.copy(items = items)) },
             onShare = { showShareDialog = true },
+            onSortItems =
+                if (!isProject && isOnline) {
+                    {
+                        if (hasPendingSync) {
+                            onUserMessage(sortPendingSyncMsg)
+                        } else {
+                            showSortDialog = true
+                        }
+                    }
+                } else {
+                    null
+                },
             isArchived = liveChecklist.isArchived(),
             onArchiveToggle = {
                 scope.launch {
@@ -823,13 +948,52 @@ private fun OfflineChecklistDetailContent(
                 },
         )
 
+        if (showSortDialog) {
+            SortChecklistItemsDialog(
+                onDismiss = { showSortDialog = false },
+                onConfirm = { sort, direction ->
+                    showSortDialog = false
+                    if (hasPendingSync) {
+                        onUserMessage(sortPendingSyncMsg)
+                        return@SortChecklistItemsDialog
+                    }
+                    scope.launch {
+                        try {
+                            val sorted =
+                                com.jotty.android.util.sortChecklistItemsOnline(
+                                    api = api,
+                                    listId = liveChecklist.id,
+                                    sort = sort,
+                                    direction = direction,
+                                )
+                            val applied = offlineRepository.applyServerChecklistSnapshot(sorted)
+                            if (applied.isFailure) {
+                                onUserMessage(
+                                    applied.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
+                                        ?: sortPendingSyncMsg,
+                                )
+                            } else {
+                                onUpdate(applied.getOrThrow())
+                            }
+                        } catch (_: UnsupportedOperationException) {
+                            onUserMessage(sortNotSupportedMsg)
+                        } catch (_: Exception) {
+                            onUserMessage(sortFailedMsg)
+                        }
+                    }
+                },
+            )
+        }
+
         if (showShareDialog) {
+            val jottyServerUrl by settingsRepository.serverUrl.collectAsStateWithLifecycle(initialValue = null)
             ShareServerDialog(
                 itemType = "checklist",
                 itemId = liveChecklist.id,
                 itemTitle = liveChecklist.title,
                 api = api,
                 capabilitiesKey = serverCapabilitiesKey,
+                baseUrl = jottyServerUrl,
                 onDismiss = { showShareDialog = false },
                 onExportText = {
                     val text =
@@ -853,13 +1017,6 @@ private fun OfflineChecklistDetailContent(
             onRetrySync = onRetrySync,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
-
-        serverCapabilitiesKey?.let { key ->
-            ChecklistPatchCapabilityBanner(
-                capabilitiesKey = key,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-        }
 
         Spacer(modifier = Modifier.height(8.dp))
 

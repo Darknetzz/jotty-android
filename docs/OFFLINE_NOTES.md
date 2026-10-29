@@ -27,7 +27,7 @@ The app continuously monitors your internet connection status and displays this 
 The app uses an intelligent sync strategy with **conflict detection and local copy creation**:
 
 1. **Creating notes offline**: Notes are created with a temporary local ID and marked as dirty
-2. **When coming online**: The app automatically syncs all pending changes
+2. **When coming online**: The app automatically syncs all pending changes (UI and background WorkManager share one per-instance lock so a single offline create is not posted twice)
 3. **Server reconciliation**: After pushing local changes, the app fetches the latest from the server
 4. **Conflict detection**: If a note was edited both locally and remotely, the app detects the conflict
 5. **Conflict resolution**: 

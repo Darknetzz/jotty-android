@@ -693,7 +693,7 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
-    fun renameLeafItem_whenOffline_replacesItemWithNewText() =
+    fun updateItemText_whenOffline_keepsPositionAndCheckedState() =
         runTest {
             val existingItems =
                 listOf(
@@ -726,7 +726,7 @@ class OfflineChecklistsRepositoryTest {
                     useSharedConnectivity = false,
                 )
 
-            val result = repo.renameLeafItem("list-1", "1", "Renamed")
+            val result = repo.updateItemText("list-1", "1", "Renamed")
 
             assertTrue(result.isSuccess)
             val updatedItems = result.getOrNull()?.items.orEmpty()
@@ -737,7 +737,7 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
-    fun renameLeafItem_withChildren_updatesParentText() =
+    fun updateItemText_withChildren_updatesParentTextAndQueuesPatch() =
         runTest {
             val existingItems =
                 listOf(
@@ -773,12 +773,14 @@ class OfflineChecklistsRepositoryTest {
                     useSharedConnectivity = false,
                 )
 
-            val result = repo.renameLeafItem("list-1", "0", "Renamed")
+            val result = repo.updateItemText("list-1", "0", "Renamed")
 
             assertTrue(result.isSuccess)
             val updatedItems = result.getOrNull()?.items.orEmpty()
             assertEquals("Renamed", updatedItems.firstOrNull()?.text)
             assertEquals("Child", updatedItems.firstOrNull()?.children?.firstOrNull()?.text)
+            val queued = database.checklistDao().getById("list-1")?.pendingOps().orEmpty()
+            assertEquals(listOf(PendingItemOp(type = "UPDATE", path = "0", text = "Renamed")), queued)
         }
 
     @Test
@@ -1031,6 +1033,11 @@ private class FakeChecklistApi(
         body: com.jotty.android.data.api.ReorderItemsRequest,
     ): SuccessResponse = SuccessResponse(true)
 
+    override suspend fun sortChecklistItems(
+        listId: String,
+        body: com.jotty.android.data.api.SortItemsRequest,
+    ): ApiResponse<Checklist> = error("not used in checklist tests")
+
     override suspend fun search(
         query: String,
         type: String?,
@@ -1045,6 +1052,9 @@ private class FakeChecklistApi(
         ApiResponse(false, Note("", "", content = "", createdAt = "", updatedAt = ""))
 
     override suspend fun createNote(body: CreateNoteRequest): ApiResponse<Note> = error("not used in checklist tests")
+
+    override suspend fun getTemplates(): com.jotty.android.data.api.TemplatesResponse =
+        com.jotty.android.data.api.TemplatesResponse()
 
     override suspend fun updateNote(
         noteId: String,
@@ -1114,14 +1124,25 @@ private class FakeChecklistApi(
         body: UpdateTaskItemStatusRequest,
     ): SuccessResponse = SuccessResponse(true)
 
-    override suspend fun getSharingInfo(
-        itemType: String,
-        itemId: String,
-    ): com.jotty.android.data.api.ShareInfoResponse = com.jotty.android.data.api.ShareInfoResponse(success = false)
+    override suspend fun getShares(
+        direction: String?,
+        type: String?,
+        item: String?,
+        user: String?,
+    ): com.jotty.android.data.api.SharesListResponse = com.jotty.android.data.api.SharesListResponse()
 
-    override suspend fun updateSharingInfo(
-        itemType: String,
+    override suspend fun grantShare(
         itemId: String,
-        body: com.jotty.android.data.api.UpdateShareInfoRequest,
-    ): com.jotty.android.data.api.ShareInfoResponse = com.jotty.android.data.api.ShareInfoResponse(success = false)
+        body: com.jotty.android.data.api.ShareGrantRequest,
+    ): com.jotty.android.data.api.ItemSharesResponse =
+        com.jotty.android.data.api.ItemSharesResponse(success = false)
+
+    override suspend fun revokeShare(
+        itemId: String,
+        username: String,
+    ): com.jotty.android.data.api.ItemSharesResponse =
+        com.jotty.android.data.api.ItemSharesResponse(success = false)
+
+    override suspend fun getRelations(itemId: String): com.jotty.android.data.api.RelationsResponse =
+        com.jotty.android.data.api.RelationsResponse()
 }

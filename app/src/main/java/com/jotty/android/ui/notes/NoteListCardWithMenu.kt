@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import com.jotty.android.R
 import com.jotty.android.data.api.Note
 import com.jotty.android.ui.common.ArchiveDropdownMenuItem
+import com.jotty.android.ui.common.ChangeCategoryDropdownMenuItem
 import com.jotty.android.ui.common.CloneDropdownMenuItem
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import com.jotty.android.ui.common.DeleteDropdownMenuItem
@@ -29,6 +30,7 @@ internal fun NoteListCardWithMenu(
     onClick: () -> Unit,
     onDelete: () -> Unit,
     onArchive: () -> Unit,
+    onChangeCategory: () -> Unit = {},
     onClone: () -> Unit = {},
     showShare: Boolean = false,
     onShare: () -> Unit = {},
@@ -83,6 +85,12 @@ internal fun NoteListCardWithMenu(
                     },
                 )
             }
+            ChangeCategoryDropdownMenuItem(
+                onClick = {
+                    menuExpanded = false
+                    onChangeCategory()
+                },
+            )
             CloneDropdownMenuItem(
                 labelRes = R.string.clone_note,
                 onClick = {

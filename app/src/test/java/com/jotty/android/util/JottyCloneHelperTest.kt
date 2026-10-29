@@ -15,18 +15,22 @@ import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.NotesResponse
 import com.jotty.android.data.api.ReorderItemsRequest
+import com.jotty.android.data.api.RelationsResponse
 import com.jotty.android.data.api.SearchResponse
-import com.jotty.android.data.api.ShareInfoResponse
+import com.jotty.android.data.api.ItemSharesResponse
+import com.jotty.android.data.api.ShareGrantRequest
+import com.jotty.android.data.api.SharesListResponse
+import com.jotty.android.data.api.SortItemsRequest
 import com.jotty.android.data.api.SuccessResponse
 import com.jotty.android.data.api.SummaryResponse
 import com.jotty.android.data.api.TaskItemResponse
 import com.jotty.android.data.api.TaskResponse
 import com.jotty.android.data.api.TaskStatus
 import com.jotty.android.data.api.TaskStatusesResponse
+import com.jotty.android.data.api.TemplatesResponse
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.data.api.UpdateNoteRequest
-import com.jotty.android.data.api.UpdateShareInfoRequest
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.api.UpdateTaskStatusRequest
 import kotlinx.coroutines.test.runTest
@@ -218,6 +222,11 @@ class JottyCloneHelperTest {
             body: ReorderItemsRequest,
         ): SuccessResponse = unsupported()
 
+        override suspend fun sortChecklistItems(
+            listId: String,
+            body: SortItemsRequest,
+        ): ApiResponse<Checklist> = unsupported()
+
         override suspend fun getTask(taskId: String): TaskResponse = unsupported()
 
         override suspend fun getTaskItem(
@@ -277,6 +286,8 @@ class JottyCloneHelperTest {
             )
         }
 
+        override suspend fun getTemplates(): TemplatesResponse = unsupported()
+
         override suspend fun updateNote(
             noteId: String,
             body: UpdateNoteRequest,
@@ -290,16 +301,24 @@ class JottyCloneHelperTest {
 
         override suspend fun getSummary(): SummaryResponse = unsupported()
 
-        override suspend fun getSharingInfo(
-            itemType: String,
-            itemId: String,
-        ): ShareInfoResponse = unsupported()
+        override suspend fun getShares(
+            direction: String?,
+            type: String?,
+            item: String?,
+            user: String?,
+        ): SharesListResponse = unsupported()
 
-        override suspend fun updateSharingInfo(
-            itemType: String,
+        override suspend fun grantShare(
             itemId: String,
-            body: UpdateShareInfoRequest,
-        ): ShareInfoResponse = unsupported()
+            body: ShareGrantRequest,
+        ): ItemSharesResponse = unsupported()
+
+        override suspend fun revokeShare(
+            itemId: String,
+            username: String,
+        ): ItemSharesResponse = unsupported()
+
+        override suspend fun getRelations(itemId: String): RelationsResponse = unsupported()
 
         private fun <T> unsupported(): T = throw UnsupportedOperationException()
     }

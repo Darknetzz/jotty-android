@@ -44,12 +44,15 @@ fun OfflineNoteDetailScreen(
     categorySuggestions: List<String> = emptyList(),
     richEditorEnabled: Boolean = false,
     visualEditorSaveAsMarkdown: Boolean = false,
+    compactTableToolbar: Boolean = false,
     noteSnapshotsEnabled: Boolean = true,
     openNotesInEditMode: Boolean = false,
     defaultNoteEditMode: String = "markdown",
     markdownEditorMonospace: Boolean = false,
     api: JottyApi? = null,
     onClone: (() -> Unit)? = null,
+    localNotesForLinks: List<Note> = emptyList(),
+    onOpenJottyItem: ((com.jotty.android.util.JottyItemRef) -> Unit)? = null,
 ) {
     val scope = rememberCoroutineScope()
     val allNotes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -103,6 +106,7 @@ fun OfflineNoteDetailScreen(
             categorySuggestions = categorySuggestions,
             richEditorEnabled = richEditorEnabled,
             visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
+            compactTableToolbar = compactTableToolbar,
             noteSnapshotsEnabled = noteSnapshotsEnabled,
             openNotesInEditMode = openNotesInEditMode,
             defaultNoteEditMode = defaultNoteEditMode,
@@ -110,6 +114,8 @@ fun OfflineNoteDetailScreen(
             api = api,
             isOnline = isOnline,
             onClone = onClone,
+            localNotesForLinks = localNotesForLinks,
+            onOpenJottyItem = onOpenJottyItem,
         )
     }
 }

@@ -1,6 +1,7 @@
 package com.jotty.android.ui.common
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Unarchive
@@ -20,6 +21,18 @@ fun ShareDropdownMenuItem(
     DropdownMenuItem(
         text = { Text(label) },
         leadingIcon = { Icon(Icons.Default.Share, contentDescription = label) },
+        onClick = onClick,
+    )
+}
+
+@Composable
+fun SortItemsDropdownMenuItem(
+    onClick: () -> Unit,
+) {
+    val label = stringResource(R.string.sort_checklist_items)
+    DropdownMenuItem(
+        text = { Text(label) },
+        leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = label) },
         onClick = onClick,
     )
 }

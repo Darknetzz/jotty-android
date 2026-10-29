@@ -239,6 +239,39 @@ class NoteDetailViewModel(
         _category.value = value
     }
 
+    /** Persist a category change immediately (detail menu), without entering edit mode. */
+    fun changeCategory(
+        newCategory: String,
+        onSuccess: (Note) -> Unit,
+        onFailure: () -> Unit,
+    ) {
+        if (newCategory == persistedCategory) {
+            _category.value = newCategory
+            return
+        }
+        viewModelScope.launch {
+            _saving.value = true
+            _saveFailed.value = false
+            val result =
+                actions.updateNote(
+                    noteId = activeNoteId,
+                    title = _title.value,
+                    content = contentForServerUpdate(),
+                    category = newCategory,
+                    originalCategory = persistedCategory,
+                )
+            if (result.isSuccess) {
+                _category.value = newCategory
+                persistedCategory = newCategory
+                completePersist(result.getOrThrow(), onSuccess)
+            } else {
+                _saveFailed.value = true
+                onFailure()
+            }
+            _saving.value = false
+        }
+    }
+
     fun startEditing() {
         editBaselineTitle = _title.value
         editBaselineContent = _content.value

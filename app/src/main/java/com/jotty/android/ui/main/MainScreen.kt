@@ -29,6 +29,7 @@ import com.jotty.android.data.api.ApiClient
 import com.jotty.android.data.local.SyncBackupKind
 import com.jotty.android.data.preferences.JottyInstance
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.categories.ManageCategoriesScreen
 import com.jotty.android.ui.checklists.OfflineChecklistsScreen
 import com.jotty.android.ui.common.LoadingState
 import com.jotty.android.ui.common.LocalReducedMotionEnabled
@@ -53,6 +54,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 private const val ROUTE_MANAGE_INSTANCES = "manage_instances"
+private const val ROUTE_MANAGE_CATEGORIES = "manage_categories"
 private const val ROUTE_APPEARANCE = "appearance"
 private const val ROUTE_DASHBOARD = "dashboard"
 private const val ROUTE_BEHAVIOR = "behavior"
@@ -83,6 +85,7 @@ fun MainScreen(
     var startDestination by rememberSaveable { mutableStateOf<String?>(null) }
     var checklistsTabReselectToken by rememberSaveable { mutableIntStateOf(0) }
     var notesTabReselectToken by rememberSaveable { mutableIntStateOf(0) }
+    var deepLinkChecklistId by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
         if (startDestination == null) {
             startDestination = settingsRepository.startTab.first() ?: MainRoute.Checklists.route
@@ -92,6 +95,16 @@ fun MainScreen(
         val id = deepLinkNoteId?.value
         if (!id.isNullOrBlank()) {
             navController.navigate(MainRoute.Notes.route) {
+                popUpTo(MainRoute.Checklists.route) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        }
+    }
+    LaunchedEffect(deepLinkChecklistId) {
+        val id = deepLinkChecklistId
+        if (!id.isNullOrBlank()) {
+            navController.navigate(MainRoute.Checklists.route) {
                 popUpTo(MainRoute.Checklists.route) { saveState = true }
                 launchSingleTop = true
                 restoreState = true
@@ -122,6 +135,7 @@ fun MainScreen(
     val selectedRoute =
         when {
             currentRoute == ROUTE_MANAGE_INSTANCES ||
+                currentRoute == ROUTE_MANAGE_CATEGORIES ||
                 currentRoute == ROUTE_APPEARANCE ||
                 currentRoute == ROUTE_DASHBOARD ||
                 currentRoute == ROUTE_BEHAVIOR ||
@@ -135,6 +149,7 @@ fun MainScreen(
             currentRoute == MainRoute.Notes.route -> MainRoute.Notes.titleRes
             currentRoute == MainRoute.Settings.route -> MainRoute.Settings.titleRes
             currentRoute == ROUTE_MANAGE_INSTANCES -> R.string.manage_instances
+            currentRoute == ROUTE_MANAGE_CATEGORIES -> R.string.manage_categories
             currentRoute == ROUTE_APPEARANCE -> R.string.appearance
             currentRoute == ROUTE_DASHBOARD -> R.string.dashboard_overview
             currentRoute == ROUTE_BEHAVIOR -> R.string.settings_category_behavior
@@ -202,6 +217,7 @@ fun MainScreen(
                     navigationIcon = {
                         if (
                             currentRoute == ROUTE_MANAGE_INSTANCES ||
+                                currentRoute == ROUTE_MANAGE_CATEGORIES ||
                                 currentRoute == ROUTE_APPEARANCE ||
                                 currentRoute == ROUTE_DASHBOARD ||
                                 currentRoute == ROUTE_BEHAVIOR ||
@@ -321,6 +337,9 @@ fun MainScreen(
                                 swipeToDeleteEnabled = swipeToDeleteEnabled,
                                 tabReselectToken = checklistsTabReselectToken,
                                 onOpenPendingSync = { navController.navigate(ROUTE_PENDING_SYNC) },
+                                onManageCategories = { navController.navigate(ROUTE_MANAGE_CATEGORIES) },
+                                initialChecklistId = deepLinkChecklistId,
+                                onDeepLinkConsumed = { deepLinkChecklistId = null },
                             )
                         } else {
                             LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
@@ -350,6 +369,10 @@ fun MainScreen(
                                 customHeaders = currentInstance?.customHeaders.orEmpty(),
                                 tabReselectToken = notesTabReselectToken,
                                 onOpenPendingSync = { navController.navigate(ROUTE_PENDING_SYNC) },
+                                onManageCategories = { navController.navigate(ROUTE_MANAGE_CATEGORIES) },
+                                onOpenChecklist = { checklistId ->
+                                    deepLinkChecklistId = checklistId
+                                },
                             )
                         } else {
                             LoadingState(Modifier.fillMaxSize(), stringResource(R.string.loading))
@@ -361,6 +384,7 @@ fun MainScreen(
                             settingsRepository = settingsRepository,
                             onDisconnect = onDisconnect,
                             onManageInstances = { navController.navigate(ROUTE_MANAGE_INSTANCES) },
+                            onManageCategories = { navController.navigate(ROUTE_MANAGE_CATEGORIES) },
                             onAppearance = { navController.navigate(ROUTE_APPEARANCE) },
                             onDashboard = { navController.navigate(ROUTE_DASHBOARD) },
                             onBehavior = { navController.navigate(ROUTE_BEHAVIOR) },
@@ -434,6 +458,14 @@ fun MainScreen(
                             standaloneMode = true,
                             onBack = { navController.popBackStack() },
                         )
+                    }
+                    composable(ROUTE_MANAGE_CATEGORIES) {
+                        val categoriesApi = currentApi
+                        if (categoriesApi != null) {
+                            ManageCategoriesScreen(api = categoriesApi)
+                        } else {
+                            LoadingState(modifier = Modifier.fillMaxSize(), message = stringResource(R.string.loading))
+                        }
                     }
                 }
         }

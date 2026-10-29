@@ -1,60 +1,23 @@
 package com.jotty.android.util
 
-import com.jotty.android.data.api.AddItemRequest
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateItemRequest
 import com.google.gson.GsonBuilder
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
-import retrofit2.HttpException
 
 /**
- * Updates checklist item text via PATCH when the server supports it (Jotty develop / next release).
- * Falls back to delete-and-recreate for **leaf** items on older stable Jotty servers.
+ * Updates checklist item text in place via `PATCH /api/checklists/{listId}/items/{path}` (Jotty 1.25+).
+ * [path] may be nested (e.g. `0.1`); position, completion state, and children are preserved.
  */
 suspend fun updateChecklistItemText(
     api: JottyApi,
     listId: String,
     path: String,
     text: String,
-    items: List<ChecklistItem>,
-    onPatchUnavailable: (() -> Unit)? = null,
 ) {
-    runCatching {
-        api.updateItem(listId, path, UpdateItemRequest(text = text))
-    }.getOrElse { error ->
-        if (error is HttpException && error.code() in UNSUPPORTED_PATCH_CODES) {
-            onPatchUnavailable?.invoke()
-            legacyRenameLeafItem(api, listId, path, text, items)
-        } else {
-            throw error
-        }
-    }
-}
-
-private suspend fun legacyRenameLeafItem(
-    api: JottyApi,
-    listId: String,
-    path: String,
-    text: String,
-    items: List<ChecklistItem>,
-) {
-    val item =
-        itemAtPath(items, path)
-            ?: throw IllegalArgumentException("Checklist item not found: $path")
-    if (item.children.orEmpty().isNotEmpty()) {
-        throw UnsupportedOperationException("Parent item rename requires Jotty develop or newer")
-    }
-    val parentIndex = parentPath(path)
-    val deletedItems = deleteAtPath(items, path)
-    val newPath = appendedPath(deletedItems, parentIndex)
-    api.deleteItem(listId, path)
-    api.addChecklistItem(
-        listId,
-        AddItemRequest(text = text, status = item.status, parentIndex = parentIndex),
-    )
-    if (item.completed) api.checkItem(listId, newPath)
+    api.updateItem(listId, path, UpdateItemRequest(text = text))
 }
 
 /**
@@ -128,17 +91,9 @@ suspend fun updateChecklistItemRichFields(
     listId: String,
     path: String,
     patch: Map<String, Any?>,
-    onPatchUnavailable: (() -> Unit)? = null,
 ) {
     if (patch.isEmpty()) return
-    runCatching {
-        api.updateItemPatch(listId, path, patch.toPatchRequestBody())
-    }.getOrElse { error ->
-        if (error is HttpException && error.code() in UNSUPPORTED_PATCH_CODES) {
-            onPatchUnavailable?.invoke()
-        }
-        throw error
-    }
+    api.updateItemPatch(listId, path, patch.toPatchRequestBody())
 }
 
 private fun Map<String, Any?>.toPatchRequestBody() =
@@ -147,5 +102,3 @@ private fun Map<String, Any?>.toPatchRequestBody() =
 private val patchGson = GsonBuilder().serializeNulls().create()
 
 private fun normalizeOptionalDate(value: String?): String? = value?.trim()?.takeIf { it.isNotEmpty() }
-
-private val UNSUPPORTED_PATCH_CODES = setOf(404, 405)

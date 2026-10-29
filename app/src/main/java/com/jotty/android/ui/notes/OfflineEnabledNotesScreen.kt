@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -28,6 +29,7 @@ import com.jotty.android.data.encryption.NoteEncryption
 import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.ui.common.ChangeCategoryDialog
 import com.jotty.android.ui.common.ConflictCopiesBanner
 import com.jotty.android.ui.common.CloneCategoryDialog
 import com.jotty.android.ui.common.ShareServerDialog
@@ -77,6 +79,8 @@ fun OfflineEnabledNotesScreen(
     biometricStore: BiometricPassphraseStore? = null,
     tabReselectToken: Int = 0,
     onOpenPendingSync: () -> Unit = {},
+    onManageCategories: () -> Unit = {},
+    onOpenChecklist: (String) -> Unit = {},
 ) {
     val contentPaddingMode by settingsRepository.contentPaddingMode.collectAsStateWithLifecycle(initialValue = "comfortable")
     val noteListPreviewEnabled by settingsRepository.noteListPreviewEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -93,6 +97,7 @@ fun OfflineEnabledNotesScreen(
     val defaultNoteCategory by settingsRepository.defaultNoteCategory.collectAsStateWithLifecycle(initialValue = null)
     val richNoteEditorEnabled by settingsRepository.richNoteEditorEnabled.collectAsStateWithLifecycle(initialValue = false)
     val visualEditorSaveAsMarkdown by settingsRepository.visualEditorSaveAsMarkdownEnabled.collectAsStateWithLifecycle(initialValue = false)
+    val compactTableToolbar by settingsRepository.compactTableToolbarEnabled.collectAsStateWithLifecycle(initialValue = false)
     val noteSnapshotsEnabled by settingsRepository.noteSnapshotsEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricAutoUnlockEnabled by settingsRepository.biometricAutoUnlockEnabled.collectAsStateWithLifecycle(initialValue = true)
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
@@ -115,8 +120,8 @@ fun OfflineEnabledNotesScreen(
     val lastSyncError by offlineRepository.lastSyncError.collectAsStateWithLifecycle()
 
     val selectedNote by vm.selectedNote.collectAsStateWithLifecycle()
+    val openSelectedInEditMode by vm.openSelectedInEditMode.collectAsStateWithLifecycle()
     val screenState = rememberListScreenState()
-    val showCreateDialog by vm.showCreateDialog.collectAsStateWithLifecycle()
     val searchQuery by vm.searchQuery.collectAsStateWithLifecycle()
     val selectedCategory by vm.selectedCategory.collectAsStateWithLifecycle()
     val noteCategories by vm.noteCategories.collectAsStateWithLifecycle()
@@ -141,10 +146,12 @@ fun OfflineEnabledNotesScreen(
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
+    val linkedItemNotFoundMsg = stringResource(R.string.linked_item_not_found)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
     val noteDeletedMsg = stringResource(R.string.note_deleted)
     val undoActionLabel = stringResource(R.string.undo)
@@ -152,6 +159,8 @@ fun OfflineEnabledNotesScreen(
     val conflictActionLabel = stringResource(R.string.view_conflicts)
 
     var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
+    var pendingChangeCategoryNote by remember { mutableStateOf<Note?>(null) }
+    var changeCategoryLoading by remember { mutableStateOf(false) }
     var pendingCloneNote by remember { mutableStateOf<Note?>(null) }
     var cloneLoading by remember { mutableStateOf(false) }
     var shareServerNote by remember { mutableStateOf<Note?>(null) }
@@ -208,7 +217,7 @@ fun OfflineEnabledNotesScreen(
     LaunchedEffect(Unit) {
         vm.categoryFilterEmptyEvents.collect { category ->
             snackbarHostState.showSnackbar(
-                message = context.getString(R.string.offline_category_filter_empty, category),
+                message = resources.getString(R.string.offline_category_filter_empty, category),
             )
         }
     }
@@ -274,13 +283,70 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
-    var pendingSharedText by remember { mutableStateOf<String?>(null) }
+    val untitledTitle = stringResource(R.string.untitled)
+    var isCreatingNote by remember { mutableStateOf(false) }
+    var showTemplateDialog by remember { mutableStateOf(false) }
+
+    fun createAndOpenNote(content: String = "") {
+        if (isCreatingNote) return
+        scope.launch {
+            isCreatingNote = true
+            try {
+                val result =
+                    offlineRepository.createNote(
+                        title = untitledTitle,
+                        content = content,
+                        category = resolveNewNoteCategory(defaultNoteCategory),
+                    )
+                if (result.isSuccess) {
+                    val created = result.getOrNull()
+                    if (created != null) {
+                        vm.setSelectedNote(created, openInEditMode = true)
+                        if (!isOnline) {
+                            snackbarHostState.showSnackbar(savedLocallyMsg)
+                        }
+                    } else {
+                        snackbarHostState.showSnackbar(saveFailedMsg)
+                    }
+                } else {
+                    snackbarHostState.showSnackbar(saveFailedMsg)
+                }
+            } finally {
+                isCreatingNote = false
+            }
+        }
+    }
+
+    fun createAndOpenNoteFromTemplate(templateId: String, title: String) {
+        if (!isOnline || isCreatingNote) return
+        scope.launch {
+            isCreatingNote = true
+            try {
+                val created =
+                    createNoteOnline(
+                        api = api,
+                        title = title,
+                        content = "",
+                        category = resolveNewNoteCategory(defaultNoteCategory),
+                        templateId = templateId,
+                    )
+                if (created != null) {
+                    offlineRepository.adoptServerNote(created)
+                    vm.setSelectedNote(created, openInEditMode = true)
+                } else {
+                    snackbarHostState.showSnackbar(saveFailedMsg)
+                }
+            } finally {
+                isCreatingNote = false
+            }
+        }
+    }
+
     LaunchedEffect(sharedText) {
         if (sharedText != null) {
-            pendingSharedText = sharedText
-            vm.setSelectedNote(null)
-            vm.setShowCreateDialog(true)
+            val content = sharedText
             onSharedTextConsumed()
+            createAndOpenNote(content = content)
         }
     }
 
@@ -318,8 +384,15 @@ fun OfflineEnabledNotesScreen(
                     lastSyncError = lastSyncError,
                     pendingSyncCount = dirtyNoteIds.size,
                     onManagePendingSync = onOpenPendingSync,
+                    onManageCategories = onManageCategories,
+                    onNewFromTemplate =
+                        if (isOnline) {
+                            { showTemplateDialog = true }
+                        } else {
+                            null
+                        },
                     onRefresh = { requestSync(showLoading = false) },
-                    onAdd = { vm.setShowCreateDialog(true) },
+                    onAdd = { createAndOpenNote() },
                 )
             } else {
                 null
@@ -447,6 +520,7 @@ fun OfflineEnabledNotesScreen(
                                                 }
                                             },
                                             onArchive = { pendingArchiveNote = n },
+                                            onChangeCategory = { pendingChangeCategoryNote = n },
                                             onClone = { pendingCloneNote = n },
                                             showShare = api != null,
                                             onShare = { shareServerNote = n },
@@ -490,12 +564,25 @@ fun OfflineEnabledNotesScreen(
                         categorySuggestions = noteCategories,
                         richEditorEnabled = richNoteEditorEnabled,
                         visualEditorSaveAsMarkdown = visualEditorSaveAsMarkdown,
+                        compactTableToolbar = compactTableToolbar,
                         noteSnapshotsEnabled = noteSnapshotsEnabled,
-                        openNotesInEditMode = openNotesInEditMode,
+                        openNotesInEditMode = openNotesInEditMode || openSelectedInEditMode,
                         defaultNoteEditMode = defaultNoteEditMode,
                         markdownEditorMonospace = markdownEditorMonospace,
                         api = api,
                         onClone = { pendingCloneNote = note },
+                        localNotesForLinks = notes,
+                        onOpenJottyItem = { ref ->
+                            scope.openLinkedJottyItem(
+                                ref = ref,
+                                notes = notes,
+                                api = api,
+                                isOnline = isOnline,
+                                setSelectedNote = { vm.setSelectedNote(it) },
+                                onOpenChecklist = onOpenChecklist,
+                                showNotFound = { snackbarHostState.showSnackbar(linkedItemNotFoundMsg) },
+                            )
+                        },
                     )
                 }
             }
@@ -543,6 +630,37 @@ fun OfflineEnabledNotesScreen(
         )
     }
 
+    pendingChangeCategoryNote?.let { targetNote ->
+        ChangeCategoryDialog(
+            initialCategory = targetNote.category,
+            categorySuggestions = noteCategories,
+            loading = changeCategoryLoading,
+            onDismiss = {
+                if (!changeCategoryLoading) pendingChangeCategoryNote = null
+            },
+            onConfirm = { newCategory ->
+                scope.launch {
+                    changeCategoryLoading = true
+                    offlineRepository
+                        .updateNote(
+                            noteId = targetNote.id,
+                            title = targetNote.title,
+                            content = targetNote.content,
+                            category = newCategory,
+                        ).onSuccess {
+                            pendingChangeCategoryNote = null
+                            if (!isOnline) {
+                                snackbarHostState.showSnackbar(savedLocallyMsg)
+                            }
+                        }.onFailure {
+                            snackbarHostState.showSnackbar(saveFailedMsg)
+                        }
+                    changeCategoryLoading = false
+                }
+            },
+        )
+    }
+
     pendingCloneNote?.let { sourceNote ->
         CloneCategoryDialog(
             initialCategory = sourceNote.category,
@@ -584,6 +702,7 @@ fun OfflineEnabledNotesScreen(
                 itemTitle = displayTitle,
                 api = api,
                 capabilitiesKey = serverCapabilitiesKey,
+                baseUrl = jottyServerUrl,
                 onDismiss = { shareServerNote = null },
                 onExportText = {
                     val exported =
@@ -601,36 +720,18 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
-    // Create note dialog
-    if (showCreateDialog) {
-        CreateNoteDialog(
-            onDismiss = {
-                vm.setShowCreateDialog(false)
-                pendingSharedText = null
-            },
-            categorySuggestions = noteCategories,
-            initialContent = pendingSharedText.orEmpty(),
-            initialCategory = defaultNoteCategory.orEmpty(),
-            onCreate = { title, content, category ->
-                scope.launch {
-                    val result =
-                        offlineRepository.createNote(
-                            title = title,
-                            content = content,
-                            category = category,
-                        )
-                    if (result.isSuccess) {
-                        pendingSharedText = null
-                        vm.setSelectedNote(result.getOrNull())
-                        vm.setShowCreateDialog(false)
-                        if (!isOnline) {
-                            snackbarHostState.showSnackbar(savedLocallyMsg)
-                        }
-                    } else {
-                        snackbarHostState.showSnackbar(saveFailedMsg)
-                    }
-                }
+    if (showTemplateDialog && isOnline) {
+        NoteFromTemplateDialog(
+            api = api,
+            onDismiss = { showTemplateDialog = false },
+            onSelect = { template ->
+                showTemplateDialog = false
+                createAndOpenNoteFromTemplate(
+                    templateId = template.id,
+                    title = template.title.ifBlank { untitledTitle },
+                )
             },
         )
     }
+
 }

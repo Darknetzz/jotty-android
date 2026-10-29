@@ -22,7 +22,7 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 - **Appearance** — System/light/dark theme, color palettes, custom accent hex, reader text size, and content padding.
 - **Settings & dashboard** — Health check, behavior toggles, server summary overview, security controls, and exportable debug logs.
 - **Deep links** — `jotty-android://open/note/{id}` opens a note directly in the app.
-- **Connect** — Works with any self-hosted Jotty instance via server URL and API key.
+- **Connect** — Works with self-hosted Jotty **1.25.0 or newer** via server URL and API key.
 
 ## Screenshots
 
@@ -222,6 +222,7 @@ Or, after setup: `git pull --tags origin dev`. To refresh only the tag: `.\scrip
 - JDK 17+
 - Android SDK 36
 - Min SDK 26 (Android 8.0)
+- Jotty server **1.25.0** or newer (older servers are refused when connecting)
 
 ### Gradle Wrapper
 

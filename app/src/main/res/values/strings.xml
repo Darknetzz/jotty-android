@@ -132,8 +132,6 @@
     <string name="delete_task_confirm">Delete this task? This cannot be undone.</string>
     <string name="delete_task_named_confirm">Delete \"%1$s\"? This cannot be undone.</string>
     <string name="delete_note_confirm">Delete \"%1$s\"? This cannot be undone.</string>
-    <string name="rename_leaf_only">Renaming items with subtasks requires a newer Jotty server with PATCH support.</string>
-    <string name="checklist_rename_leaf_only_hint">Rename is available for leaf items only. Parent/project items cannot be renamed in-app, and renamed items may move to the end.</string>
 
     <!-- Notes -->
     <string name="new_note">New note</string>
@@ -662,7 +660,6 @@
     <string name="update_dev_to_stable_fresh_install_required">Fresh install required: your dev build uses version code %1$d, which is higher than stable %2$s. Android cannot install stable on top. Uninstall Jotty once (your Jotty server data is not affected), then install the stable APK from GitHub releases.</string>
     <string name="update_dev_to_stable_downgrade_blocked">In-app install blocked: your dev build (version code %1$d) is newer than this stable APK. Uninstall Jotty once, then install from GitHub releases.</string>
     <string name="update_dev_downgrade_blocked">In-app install blocked: your dev build (version code %1$d) is newer than the published dev APK. You may already have a newer local build — try “Open release page” or rebuild from the latest `dev` branch.</string>
-    <string name="server_patch_limited_banner">This server does not support checklist item PATCH. Leaf edits still sync, but more slowly. Renaming items that have subtasks needs a newer Jotty server.</string>
     <string name="update_dev_channel_hint">Dev builds are bleeding edge and may contain bugs.</string>
     <string name="open_release_page">Open release page</string>
     <string name="whats_new">What\'s new</string>

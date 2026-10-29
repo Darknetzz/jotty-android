@@ -32,11 +32,16 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Checklist item rename** — Renaming any checklist or Kanban item, including parent/project items and nested subtasks, now updates it in place via `PATCH /api/checklists/{id}/items/{index}`, keeping its position and checked state. Offline renames are queued and replayed as the same PATCH.
 - **Online checklist category suggestions** — The online checklists screen loads categories from `GET /api/categories` (same as notes), not only from currently loaded list items.
 - **New notes open in the editor** — Tapping + (or the home-screen widget / share-into-app) creates an Untitled note with your default category and opens it in edit mode immediately, instead of a title/category dialog.
 - **Dependencies** — AGP 9.4.0 ([#100](https://github.com/Darknetzz/jotty-android/pull/100)), KSP 2.3.11, Bouncy Castle 1.85.2, fragment-ktx 1.9.0, and Gradle 9.7.1 (safe subset of [#98](https://github.com/Darknetzz/jotty-android/pull/98) via [#99](https://github.com/Darknetzz/jotty-android/pull/99)). Compose BOM stays on 2026.06.01 and navigation-compose on 2.9.8 until compileSdk 37; Kotlin stays on 2.3.21 until a coordinated 2.4 upgrade; Lifecycle stays on 2.10 (2.11 needs compileSdk 37); compose-markdown stays on 0.5.8 (0.6+ needs Coil 3).
 - **Dependabot** — Ignore rules now cover Kotlin Gradle plugin ids (not only `org.jetbrains.kotlin:*`), exclude Kotlin from grouped weekly/major PRs, and block Lifecycle 2.11+, Compose BOM 2026.08+, navigation-compose 2.10+, compose-markdown 0.6+, until their prerequisites land (see closed [#85](https://github.com/Darknetzz/jotty-android/pull/85), [#98](https://github.com/Darknetzz/jotty-android/pull/98)).
 - **GitHub Actions** — `actions/checkout` v7, `android-emulator-runner` 2.38 ([#79](https://github.com/Darknetzz/jotty-android/pull/79)), and `actions/setup-java` 6.0.0 ([#97](https://github.com/Darknetzz/jotty-android/pull/97)).
+
+### Removed
+
+- **Old-server rename workaround** — Dropped the add-and-delete rename fallback for servers without item PATCH (from v1.3.6, [#33](https://github.com/Darknetzz/jotty-android/issues/33)), the “leaf items only” rename hints, and the server PATCH compatibility banner.
 
 ### Documentation
 

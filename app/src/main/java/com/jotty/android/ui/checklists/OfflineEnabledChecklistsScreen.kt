@@ -75,7 +75,6 @@ import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.exportChecklistAsPlainText
 import com.jotty.android.util.isArchived
 import com.jotty.android.util.KanbanItemFieldsProbe
-import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.buildKanbanColumns
 import com.jotty.android.util.defaultKanbanItemStatus
 import com.jotty.android.util.kanbanCardReorderRequest
@@ -144,7 +143,6 @@ fun OfflineEnabledChecklistsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
-    val renameLeafOnlyMsg = stringResource(R.string.rename_leaf_only)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
     val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
     val conflictActionLabel = stringResource(R.string.view_conflicts)
@@ -383,10 +381,6 @@ fun OfflineEnabledChecklistsScreen(
                     onClone = { pendingCloneChecklist = it },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onSavedLocally = { scope.launch { snackbarHostState.showSnackbar(savedLocallyMsg) } },
-                    onRenameUnsupported = {
-                        ServerCapabilities.markItemPatchLimited(serverCapabilitiesKey)
-                        scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) }
-                    },
                     serverCapabilitiesKey = serverCapabilitiesKey,
                     onDiscardPendingSyncFailed = {
                         scope.launch {
@@ -688,7 +682,6 @@ private fun OfflineChecklistDetailContent(
     onClone: (Checklist) -> Unit = {},
     onSaveFailed: () -> Unit,
     onSavedLocally: () -> Unit,
-    onRenameUnsupported: () -> Unit,
     onUserMessage: (String) -> Unit = {},
     onDiscardPendingSyncFailed: (Throwable) -> Unit = {},
     onDiscardPendingSyncDone: () -> Unit = {},
@@ -1024,13 +1017,6 @@ private fun OfflineChecklistDetailContent(
             onRetrySync = onRetrySync,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
         )
-
-        serverCapabilitiesKey?.let { key ->
-            ChecklistPatchCapabilityBanner(
-                capabilitiesKey = key,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-        }
 
         Spacer(modifier = Modifier.height(8.dp))
 

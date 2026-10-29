@@ -8,6 +8,9 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Test connection** — The add/edit instance form has a **Test connection** button that checks the server and API key without saving. Success shows a green check with the signed-in user, Jotty version and response time; failures explain what went wrong (server not found, refused, TLS/certificate, proxy login page, rejected key, too-old server, …) with a short list of things to check. Saving runs the same check and shows the same diagnostics.
+- **Minimum Jotty version (1.25.0)** — Adding or editing an instance checks the `GET /api/health` version and refuses servers older than 1.25.0 with “This app requires Jotty 1.25.0 or newer.” Servers that do not report a version can still connect.
+
 - **Jotty 1.29 sharing** — Share notes and checklists with users or a public link via `GET`/`PUT`/`DELETE /api/shares` (Jotty 1.29+). Older servers keep the text-export fallback.
 - **Checklist item sort** — Simple checklist detail ⋮ → **Sort items** (alphabetical, created, modified, or shuffle) via `PUT /api/checklists/{id}/items/sort`.
 - **Notes from templates** — Notes list overflow → **New from template** loads `GET /api/templates` and creates with `templateId` (online only; encrypted templates skipped).
@@ -29,11 +32,16 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Changed
 
+- **Checklist item rename** — Renaming any checklist or Kanban item, including parent/project items and nested subtasks, now updates it in place via `PATCH /api/checklists/{id}/items/{index}`, keeping its position and checked state. Offline renames are queued and replayed as the same PATCH.
 - **Online checklist category suggestions** — The online checklists screen loads categories from `GET /api/categories` (same as notes), not only from currently loaded list items.
 - **New notes open in the editor** — Tapping + (or the home-screen widget / share-into-app) creates an Untitled note with your default category and opens it in edit mode immediately, instead of a title/category dialog.
 - **Dependencies** — AGP 9.4.0 ([#100](https://github.com/Darknetzz/jotty-android/pull/100)), KSP 2.3.11, Bouncy Castle 1.85.2, fragment-ktx 1.9.0, and Gradle 9.7.1 (safe subset of [#98](https://github.com/Darknetzz/jotty-android/pull/98) via [#99](https://github.com/Darknetzz/jotty-android/pull/99)). Compose BOM stays on 2026.06.01 and navigation-compose on 2.9.8 until compileSdk 37; Kotlin stays on 2.3.21 until a coordinated 2.4 upgrade; Lifecycle stays on 2.10 (2.11 needs compileSdk 37); compose-markdown stays on 0.5.8 (0.6+ needs Coil 3).
 - **Dependabot** — Ignore rules now cover Kotlin Gradle plugin ids (not only `org.jetbrains.kotlin:*`), exclude Kotlin from grouped weekly/major PRs, and block Lifecycle 2.11+, Compose BOM 2026.08+, navigation-compose 2.10+, compose-markdown 0.6+, until their prerequisites land (see closed [#85](https://github.com/Darknetzz/jotty-android/pull/85), [#98](https://github.com/Darknetzz/jotty-android/pull/98)).
 - **GitHub Actions** — `actions/checkout` v7, `android-emulator-runner` 2.38 ([#79](https://github.com/Darknetzz/jotty-android/pull/79)), and `actions/setup-java` 6.0.0 ([#97](https://github.com/Darknetzz/jotty-android/pull/97)).
+
+### Removed
+
+- **Old-server rename workaround** — Dropped the add-and-delete rename fallback for servers without item PATCH (from v1.3.6, [#33](https://github.com/Darknetzz/jotty-android/issues/33)), the “leaf items only” rename hints, and the server PATCH compatibility banner.
 
 ### Documentation
 

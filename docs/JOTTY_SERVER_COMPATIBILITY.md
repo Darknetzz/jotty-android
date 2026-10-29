@@ -2,6 +2,10 @@
 
 This document describes how **jotty-android** behaves against different Jotty server versions. The web app on [Jotty](https://jotty.page/) evolves on `main` and tagged releases; the Android app targets the public REST API.
 
+## Minimum server version
+
+The app requires **Jotty 1.25.0** or newer ([`JottyServerVersion.MIN_SUPPORTED`](../app/src/main/java/com/jotty/android/util/JottyServerVersion.kt)). When adding or editing an instance, Setup reads `version` from `GET /api/health`; if it parses to an older major.minor, the connection is refused with *"This app requires Jotty 1.25.0 or newer."* A missing (`null`) or unparsable version does not block the connection.
+
 ## Checklist item emojis
 
 | Capability | Android behavior |
@@ -15,11 +19,9 @@ This document describes how **jotty-android** behaves against different Jotty se
 
 | Capability | Android behavior |
 |------------|------------------|
-| `PATCH /api/checklists/{id}/items/{index}` | Preferred: in-place text update via [`updateChecklistItemText`](../app/src/main/java/com/jotty/android/util/ChecklistItemUpdate.kt). |
-| PATCH missing (HTTP 404/405) | Falls back to **delete + recreate** for **leaf** items only. |
-| Parent / project row with children | Rename throws `UnsupportedOperationException`; user sees **rename_leaf_only** and a dismissible banner when PATCH is unavailable. |
-
-Older stable Jotty installs without PATCH still work for leaf renames; parent renames need a server with PATCH support (Jotty develop / upcoming release).
+| `PATCH /api/checklists/{id}/items/{index}` (Jotty 1.25+) | In-place text update via [`updateChecklistItemText`](../app/src/main/java/com/jotty/android/util/ChecklistItemUpdate.kt). Position, checked state, and children are preserved. |
+| Parent / project rows and nested paths (`0.1`) | Renamed the same way as leaf items. |
+| Offline | Queued as an `UPDATE` pending op and replayed as the same PATCH on reconnect. |
 
 ## Project / Kanban boards
 
@@ -132,10 +134,6 @@ TipTap for Kanban item descriptions (also 1.27+) is web-only; the server still s
 ## Kanban item archive
 
 Kanban **item** archive/unarchive in the web app uses server actions (`archiveItem` / `unarchiveItem` on checklist items). There is **no REST equivalent** in OpenAPI today. Android does not expose per-item archive until upstream adds PATCH fields (e.g. `isArchived`) or a dedicated endpoint.
-
-## In-app signals
-
-When PATCH is unavailable for an instance, the app sets a per-instance flag and may show **server_patch_limited_banner** on checklist detail until dismissed.
 
 ## References
 

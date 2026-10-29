@@ -693,7 +693,7 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
-    fun renameLeafItem_whenOffline_replacesItemWithNewText() =
+    fun updateItemText_whenOffline_keepsPositionAndCheckedState() =
         runTest {
             val existingItems =
                 listOf(
@@ -726,7 +726,7 @@ class OfflineChecklistsRepositoryTest {
                     useSharedConnectivity = false,
                 )
 
-            val result = repo.renameLeafItem("list-1", "1", "Renamed")
+            val result = repo.updateItemText("list-1", "1", "Renamed")
 
             assertTrue(result.isSuccess)
             val updatedItems = result.getOrNull()?.items.orEmpty()
@@ -737,7 +737,7 @@ class OfflineChecklistsRepositoryTest {
         }
 
     @Test
-    fun renameLeafItem_withChildren_updatesParentText() =
+    fun updateItemText_withChildren_updatesParentTextAndQueuesPatch() =
         runTest {
             val existingItems =
                 listOf(
@@ -773,12 +773,14 @@ class OfflineChecklistsRepositoryTest {
                     useSharedConnectivity = false,
                 )
 
-            val result = repo.renameLeafItem("list-1", "0", "Renamed")
+            val result = repo.updateItemText("list-1", "0", "Renamed")
 
             assertTrue(result.isSuccess)
             val updatedItems = result.getOrNull()?.items.orEmpty()
             assertEquals("Renamed", updatedItems.firstOrNull()?.text)
             assertEquals("Child", updatedItems.firstOrNull()?.children?.firstOrNull()?.text)
+            val queued = database.checklistDao().getById("list-1")?.pendingOps().orEmpty()
+            assertEquals(listOf(PendingItemOp(type = "UPDATE", path = "0", text = "Renamed")), queued)
         }
 
     @Test

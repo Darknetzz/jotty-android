@@ -62,7 +62,6 @@ import com.jotty.android.ui.common.RegisterMainTabTopBar
 import com.jotty.android.ui.common.SwipeToDeleteContainer
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.util.KanbanItemFieldsProbe
-import com.jotty.android.util.ServerCapabilities
 import android.content.Intent
 import com.jotty.android.ui.common.ShareServerDialog
 import com.jotty.android.ui.common.CloneCategoryDialog
@@ -120,7 +119,6 @@ fun ChecklistsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
-    val renameLeafOnlyMsg = stringResource(R.string.rename_leaf_only)
     val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
     val undoLabel = stringResource(R.string.undo)
     val checklistClonedMsg = stringResource(R.string.checklist_cloned)
@@ -251,10 +249,6 @@ fun ChecklistsScreen(
                     onClone = { pendingCloneChecklist = it },
                     onSaveFailed = { scope.launch { snackbarHostState.showSnackbar(saveFailedMsg) } },
                     onDeleteFailed = { scope.launch { snackbarHostState.showSnackbar(deleteFailedMsg) } },
-                    onRenameUnsupported = {
-                        serverCapabilitiesKey?.let { ServerCapabilities.markItemPatchLimited(it) }
-                        scope.launch { snackbarHostState.showSnackbar(renameLeafOnlyMsg) }
-                    },
                     onUserMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                     serverCapabilitiesKey = serverCapabilitiesKey,
                 )
@@ -517,7 +511,6 @@ private fun ChecklistDetailScreen(
     onClone: (Checklist) -> Unit = {},
     onSaveFailed: () -> Unit = {},
     onDeleteFailed: () -> Unit = {},
-    onRenameUnsupported: () -> Unit = {},
     onUserMessage: (String) -> Unit = {},
     serverCapabilitiesKey: String? = null,
 ) {
@@ -736,13 +729,6 @@ private fun ChecklistDetailScreen(
             )
         }
 
-        serverCapabilitiesKey?.let { key ->
-            ChecklistPatchCapabilityBanner(
-                capabilitiesKey = key,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-            )
-        }
-
         val flatItems = remember(items) { flattenChecklistItems(items) }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -906,14 +892,8 @@ private fun ChecklistDetailScreen(
                                 listId = checklist.id,
                                 path = apiPath,
                                 text = text,
-                                items = items,
-                                onPatchUnavailable = {
-                                    serverCapabilitiesKey?.let { ServerCapabilities.markItemPatchLimited(it) }
-                                },
                             )
                             refresh()
-                        } catch (e: UnsupportedOperationException) {
-                            onRenameUnsupported()
                         } catch (_: Exception) {
                             onSaveFailed()
                         }
@@ -940,7 +920,6 @@ private fun ChecklistDetailScreen(
                                 onRefresh = {
                                     detailVm.pullItemsFromServer(onUpdated = onUpdate, onFailed = onSaveFailed)
                                 },
-                                serverCapabilitiesKey = serverCapabilitiesKey,
                                 richFieldsSupported = richFieldsSupported,
                                 performMoveToStatus = { statusId ->
                                     try {
@@ -1032,14 +1011,8 @@ private fun ChecklistDetailScreen(
                                     listId = checklist.id,
                                     path = flat.apiPath,
                                     text = text,
-                                    items = items,
-                                    onPatchUnavailable = {
-                                        serverCapabilitiesKey?.let { ServerCapabilities.markItemPatchLimited(it) }
-                                    },
                                 )
                                 refresh()
-                            } catch (e: UnsupportedOperationException) {
-                                onRenameUnsupported()
                             } catch (_: Exception) {
                                 onSaveFailed()
                             }

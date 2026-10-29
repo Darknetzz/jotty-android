@@ -16,7 +16,6 @@ import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
-import com.jotty.android.util.ServerCapabilities
 import com.jotty.android.util.updateChecklistItemDescription
 import com.jotty.android.util.updateChecklistItemRichFields
 import com.jotty.android.util.updateChecklistItemText
@@ -553,12 +552,6 @@ class OfflineChecklistsRepository(
             }
         }
 
-    suspend fun renameLeafItem(
-        checklistId: String,
-        path: String,
-        text: String,
-    ): Result<Checklist> = updateItemText(checklistId, path, text)
-
     suspend fun updateItemText(
         checklistId: String,
         path: String,
@@ -572,17 +565,12 @@ class OfflineChecklistsRepository(
                     if (itemText.isEmpty()) {
                         throw IllegalArgumentException("Item text cannot be empty")
                     }
-                    val checklist =
-                        checklistDao.getById(resolvedId)?.toChecklist()
-                            ?: throw Exception("Checklist not found: $checklistId")
                     if (isOnline.value && !needsLocalItemMutations(resolvedId)) {
                         updateChecklistItemText(
                             api = api,
                             listId = resolvedId,
                             path = path,
                             text = itemText,
-                            items = checklist.items,
-                            onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
                         )
                         return@withItemMutation refreshFromServer(resolvedId)
                     } else {
@@ -642,7 +630,6 @@ class OfflineChecklistsRepository(
                             listId = resolvedId,
                             path = path,
                             patch = patch,
-                            onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
                         )
                         return@withItemMutation refreshFromServer(resolvedId)
                     } else {
@@ -902,36 +889,21 @@ class OfflineChecklistsRepository(
                 )
             "DELETE" -> api.deleteItem(entity.id, op.path!!)
             "UPDATE" -> {
+                val path = requireNotNull(op.path) { "UPDATE op missing path" }
                 val richPatch = op.toRichFieldsPatch()
                 if (richPatch != null) {
                     updateChecklistItemRichFields(
                         api = api,
                         listId = entity.id,
-                        path = op.path!!,
+                        path = path,
                         patch = richPatch,
-                        onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
                     )
                 } else {
-                    runCatching {
-                        api.updateItem(
-                            entity.id,
-                            op.path!!,
-                            UpdateItemRequest(text = op.text, description = op.description),
-                        )
-                    }.getOrElse { error ->
-                        if (error is retrofit2.HttpException && error.code() in setOf(404, 405)) {
-                            updateChecklistItemText(
-                                api = api,
-                                listId = entity.id,
-                                path = op.path!!,
-                                text = op.text ?: "",
-                                items = entity.items(),
-                                onPatchUnavailable = { ServerCapabilities.markItemPatchLimited(instanceId) },
-                            )
-                        } else {
-                            throw error
-                        }
-                    }
+                    api.updateItem(
+                        entity.id,
+                        path,
+                        UpdateItemRequest(text = op.text, description = op.description),
+                    )
                 }
             }
             "REORDER" ->

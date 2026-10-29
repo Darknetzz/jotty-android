@@ -15,6 +15,12 @@ data class JottyServerVersion(
         /** Highest Jotty server major.minor this app release has been checked against. */
         val COMPAT_CEILING = JottyServerVersion(1, 29)
 
+        /** Oldest Jotty server this app supports (in-place item PATCH landed in 1.25.0). */
+        val MIN_SUPPORTED = JottyServerVersion(1, 25)
+
+        /** Display form of [MIN_SUPPORTED] for user-facing messages. */
+        const val MIN_SUPPORTED_LABEL = "1.25.0"
+
         private val VERSION_PREFIX =
             Regex("""^v?(\d+)\.(\d+)(?:\.|\D|$)""", RegexOption.IGNORE_CASE)
 
@@ -31,6 +37,12 @@ data class JottyServerVersion(
         fun isNewerThanCompatCeiling(raw: String?): Boolean {
             val parsed = parse(raw) ?: return false
             return parsed > COMPAT_CEILING
+        }
+
+        /** True when [raw] is a known version older than [MIN_SUPPORTED]. Missing/unparsable versions are allowed. */
+        fun isBelowMinimum(raw: String?): Boolean {
+            val parsed = parse(raw) ?: return false
+            return parsed < MIN_SUPPORTED
         }
     }
 }

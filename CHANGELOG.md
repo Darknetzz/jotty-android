@@ -8,6 +8,9 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Test connection** — The add/edit instance form has a **Test connection** button that checks the server and API key without saving. Success shows a green check with the signed-in user, Jotty version and response time; failures explain what went wrong (server not found, refused, TLS/certificate, proxy login page, rejected key, too-old server, …) with a short list of things to check. Saving runs the same check and shows the same diagnostics.
+- **Minimum Jotty version (1.25.0)** — Adding or editing an instance checks the `GET /api/health` version and refuses servers older than 1.25.0 with “This app requires Jotty 1.25.0 or newer.” Servers that do not report a version can still connect.
+
 - **Jotty 1.29 sharing** — Share notes and checklists with users or a public link via `GET`/`PUT`/`DELETE /api/shares` (Jotty 1.29+). Older servers keep the text-export fallback.
 - **Checklist item sort** — Simple checklist detail ⋮ → **Sort items** (alphabetical, created, modified, or shuffle) via `PUT /api/checklists/{id}/items/sort`.
 - **Notes from templates** — Notes list overflow → **New from template** loads `GET /api/templates` and creates with `templateId` (online only; encrypted templates skipped).

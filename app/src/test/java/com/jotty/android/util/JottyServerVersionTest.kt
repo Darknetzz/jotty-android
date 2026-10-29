@@ -31,4 +31,14 @@ class JottyServerVersionTest {
         assertTrue(JottyServerVersion.isNewerThanCompatCeiling("1.30.0"))
         assertTrue(JottyServerVersion.isNewerThanCompatCeiling("2.0.0"))
     }
+
+    @Test
+    fun isBelowMinimum_blocksOnlyKnownOldVersions() {
+        assertTrue(JottyServerVersion.isBelowMinimum("1.24.9"))
+        assertTrue(JottyServerVersion.isBelowMinimum("v1.20.0"))
+        assertFalse(JottyServerVersion.isBelowMinimum("1.25.0"))
+        assertFalse(JottyServerVersion.isBelowMinimum("1.29.2"))
+        assertFalse(JottyServerVersion.isBelowMinimum(null))
+        assertFalse(JottyServerVersion.isBelowMinimum("dev"))
+    }
 }

@@ -38,14 +38,13 @@ The app requires **Jotty 1.25.0** or newer ([`JottyServerVersion.MIN_SUPPORTED`]
 | Field | REST GET | REST PATCH | Android behavior |
 |-------|----------|------------|------------------|
 | Title (`text`) | Yes | Yes | Editable in item detail |
-| Description | Yes on develop+ | Yes | Editable; full read-back when server exposes item fields |
+| Description | Yes (1.25+) | Yes | Editable with full read-back |
 | Subtasks (`children`) | Yes | Via item CRUD + check/uncheck | Full CRUD in item detail |
 | Status (column) | Yes | `PUT /api/tasks/…/items/…/status` | Status picker in detail (online) |
-| Priority, score, start/target date, estimated time | Yes on develop+ | Yes on develop+ | Editable when `GET /api/tasks/{id}/items/{path}` probe succeeds or list GET returns rich fields |
-| Item metadata (created/modified, status history) | Yes on develop+ | Read-only | Shown when rich fields supported |
-| Older stable Jotty | Partial (no rich GET) | Description PATCH only | Disabled placeholders; description save without read-back |
+| Priority, score, start/target date, estimated time | Yes (1.25+) | Yes (1.25+) | Editable when `GET /api/tasks/{id}/items/{path}` probe succeeds or list GET returns rich fields |
+| Item metadata (created/modified, status history) | Yes (1.25+) | Read-only | Shown when rich fields supported |
 
-The app probes `GET /api/tasks/{taskId}/items/{itemIndex}` on first item detail open per instance (cached). If the route returns 404/405, legacy placeholders are shown. See [fccview/jotty develop](https://github.com/fccview/jotty) and [#52](https://github.com/Darknetzz/jotty-android/issues/52#issuecomment-4699477716).
+All of these routes ship in Jotty 1.25.0, the minimum supported version. The app still probes `GET /api/tasks/{taskId}/items/{itemIndex}` on first item detail open per instance (cached); if the route unexpectedly returns 404/405 (e.g. a proxy blocking it), the rich fields show disabled placeholders. See [#52](https://github.com/Darknetzz/jotty-android/issues/52#issuecomment-4699477716).
 
 ## Notes
 
@@ -69,7 +68,7 @@ The app probes `GET /api/tasks/{taskId}/items/{itemIndex}` on first item detail 
 
 ## Server version warning
 
-Settings → About shows `GET /api/health` `version` when available. If the parsed major.minor is **newer than 1.29**, a non-blocking warning explains that this app build has not been fully checked against that server. Connecting is never blocked. Bump [`JottyServerVersion.COMPAT_CEILING`](../app/src/main/java/com/jotty/android/util/JottyServerVersion.kt) when a release is validated against a newer Jotty.
+Settings → About shows `GET /api/health` `version` when available. If the parsed major.minor is **newer than 1.29**, a non-blocking warning explains that this app build has not been fully checked against that server. A newer server never blocks connecting (only servers older than 1.25.0 are refused; see [Minimum server version](#minimum-server-version)). Bump [`JottyServerVersion.COMPAT_CEILING`](../app/src/main/java/com/jotty/android/util/JottyServerVersion.kt) when a release is validated against a newer Jotty.
 
 ## Sharing (Jotty 1.29+)
 

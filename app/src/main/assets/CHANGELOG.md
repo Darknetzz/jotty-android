@@ -45,6 +45,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Documentation
 
+- **Jotty 1.25.0 minimum** — [JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md) now documents the minimum server version, PATCH-only checklist rename, and that rich Kanban item fields are available on every supported server.
 - **Release scripts** — `release.ps1` and `release.sh` now share the same dry-run validation, changelog promotion, line-ending preservation, and version-link insertion behavior.
 - **Jotty 1.29.2 compatibility** — Documented `/api/attachment/` media, `/api/shares`, checklist item sort, note templates, and raised the Settings version ceiling to 1.29 ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 - **Jotty 1.28.0 compatibility** — Documented search uuid preference, in-note links / relations, admin overview removal, and the Settings version ceiling warning ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).

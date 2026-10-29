@@ -72,4 +72,4 @@ The web UI updates items via **Next.js Server Actions** with browser session coo
 
 ## Android client impact
 
-Shipped upstream on Jotty **develop** (see [fccview comment on jotty-android #52](https://github.com/Darknetzz/jotty-android/issues/52#issuecomment-4699477716)). jotty-android enables Priority, Score, Start/target dates, Estimated time, Metadata, and description read-back when the server probe succeeds.
+Shipped upstream in Jotty **1.25.0** (see [fccview comment on jotty-android #52](https://github.com/Darknetzz/jotty-android/issues/52#issuecomment-4699477716)). jotty-android enables Priority, Score, Start/target dates, Estimated time, Metadata, and description read-back when the server probe succeeds.

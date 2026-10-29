@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
@@ -59,6 +60,7 @@ fun ShareServerDialog(
     onExportText: () -> Unit,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var loading by remember { mutableStateOf(true) }
     var busy by remember { mutableStateOf(false) }
@@ -99,8 +101,8 @@ fun ShareServerDialog(
                     errorMessage =
                         when {
                             error is HttpException && error.code() == 403 ->
-                                context.getString(R.string.share_forbidden)
-                            else -> context.getString(R.string.share_server_load_failed)
+                                resources.getString(R.string.share_forbidden)
+                            else -> resources.getString(R.string.share_server_load_failed)
                         }
                 }.getOrNull()
         }
@@ -182,9 +184,9 @@ fun ShareServerDialog(
                                             errorMessage =
                                                 when {
                                                     error is HttpException && error.code() == 403 ->
-                                                        context.getString(R.string.share_forbidden)
+                                                        resources.getString(R.string.share_forbidden)
                                                     else ->
-                                                        context.getString(R.string.share_update_failed)
+                                                        resources.getString(R.string.share_update_failed)
                                                 }
                                         }
                                         busy = false
@@ -250,9 +252,9 @@ fun ShareServerDialog(
                                                     errorMessage =
                                                         when {
                                                             error is HttpException && error.code() == 403 ->
-                                                                context.getString(R.string.share_forbidden)
+                                                                resources.getString(R.string.share_forbidden)
                                                             else ->
-                                                                context.getString(R.string.share_update_failed)
+                                                                resources.getString(R.string.share_update_failed)
                                                         }
                                                 }
                                                 busy = false
@@ -349,9 +351,9 @@ fun ShareServerDialog(
                                         errorMessage =
                                             when {
                                                 error is HttpException && error.code() == 403 ->
-                                                    context.getString(R.string.share_forbidden)
+                                                    resources.getString(R.string.share_forbidden)
                                                 else ->
-                                                    context.getString(R.string.share_update_failed)
+                                                    resources.getString(R.string.share_update_failed)
                                             }
                                     }
                                     busy = false

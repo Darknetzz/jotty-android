@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+---
+
+## [1.10.0] - 2026-10-29
+
 ### Added
 
 - **Test connection** — The add/edit instance form has a **Test connection** button that checks the server and API key without saving. Success shows a green check with the signed-in user, Jotty version and response time; failures explain what went wrong (server not found, refused, TLS/certificate, proxy login page, rejected key, too-old server, …) with a short list of things to check. Saving runs the same check and shows the same diagnostics.
@@ -50,6 +54,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Jotty 1.28.0 compatibility** — Documented search uuid preference, in-note links / relations, admin overview removal, and the Settings version ceiling warning ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 - **Category folder CRUD** — Noted that empty-folder create/rename/delete is web-only until Jotty exposes REST; Android assigns categories via item create/update and browse via **Manage categories** ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
 - **Jotty 1.27.0 compatibility** — Documented that Kanban card comments (and TipTap description editing) are web/server-action only with no public REST yet; Android needs no client change for REST compatibility ([docs/JOTTY_SERVER_COMPATIBILITY.md](docs/JOTTY_SERVER_COMPATIBILITY.md)).
+
 
 ---
 
@@ -1176,3 +1181,5 @@ Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes 
 [1.8.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.8.0
 
 [1.9.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.9.0
+
+[1.10.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.10.0

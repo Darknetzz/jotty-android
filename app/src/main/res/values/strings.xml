@@ -417,9 +417,9 @@
     <string name="theme_custom">Custom</string>
     <string name="theme_custom_pick_color">Accent color</string>
     <string name="theme_custom_hex_label">Hex color</string>
-    <string name="theme_custom_hex_hint">#6366F1</string>
+    <string name="theme_custom_hex_hint">#9E5DF8</string>
     <string name="theme_custom_hex_help">Tap a swatch or enter #RRGGBB</string>
-    <string name="theme_custom_hex_invalid">Enter a valid hex color (e.g. #6366F1)</string>
+    <string name="theme_custom_hex_invalid">Enter a valid hex color (e.g. #9E5DF8)</string>
     <string name="theme_custom_background_style">Background style</string>
     <string name="theme_custom_background_neutral">Neutral</string>
     <string name="theme_custom_background_tinted">Tinted</string>

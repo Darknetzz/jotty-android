@@ -6,6 +6,11 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Changed
+
+- **New app icon** — Jotty-purple launcher icon with the Jotty “J” and a check mark (also used for the themed/monochrome icon).
+- **Jotty purple accent** — The default theme and default custom accent now use Jotty purple (`#9E5DF8`) instead of indigo; indigo stays available as a custom accent preset.
+
 ---
 
 ## [1.10.0] - 2026-10-29

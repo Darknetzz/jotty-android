@@ -36,9 +36,9 @@ import com.jotty.android.ui.theme.resolveCustomAccentColor
 /** Preset swatches offered for quick custom accent selection. */
 internal val CUSTOM_ACCENT_PRESETS =
     listOf(
+        "#9E5DF8",
         "#6366F1",
         "#2563EB",
-        "#7C3AED",
         "#DB2777",
         "#B91C3C",
         "#EA580C",

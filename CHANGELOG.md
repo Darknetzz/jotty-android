@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Changed
+
+- **New app icon** — Jotty-purple launcher icon with the Jotty “J” and a check mark (also used for the themed/monochrome icon).
+
 ---
 
 ## [1.10.0] - 2026-10-29

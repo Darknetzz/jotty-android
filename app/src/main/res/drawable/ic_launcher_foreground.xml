@@ -4,10 +4,20 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M44,32L44,76L64,54L44,32ZM48,68L48,40L58,54L48,68Z"/>
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M54,44L76,44L65,54L76,64L54,64L54,44ZM58,58L58,50L68,54L58,58Z"/>
+    <!-- Jotty "J" (from the Jotty logo, 884-unit space) with a check mark, fit to the 66dp safe zone -->
+    <group
+        android:scaleX="0.082"
+        android:scaleY="0.082"
+        android:translateX="23.66"
+        android:translateY="17.67">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M601.62,120.7v417.41q0,94.1 -66.78,160.89 -66.79,66.78 -160.89,66.78l-37.95,-151.78h37.95q31.11,0 53.12,-22.01 22.77,-22.77 22.77,-53.88v-265.62h-166.96v-151.79z" />
+        <path
+            android:pathData="M170,445L262,537L410,352"
+            android:strokeColor="#E4D4FF"
+            android:strokeWidth="64"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+    </group>
 </vector>

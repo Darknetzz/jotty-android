@@ -1,5 +1,5 @@
-# After release.ps1: push dev, open dev→main PR, merge, publish GitHub release.
-# Use -LocalBuild to build and upload the APK locally (no GitHub Actions).
+# After release.ps1: push dev, open dev→main PR, merge, push tag vX.Y.Z (GitLab CI publishes the
+# GitHub release + APK). Use -LocalBuild to create the release and upload the APK from this machine.
 param(
     [string]$Version,
     [switch]$DryRun,
@@ -139,8 +139,11 @@ if ($DryRun) {
     if (-not $SkipPr) { Write-Host "[DryRun] Would: gh pr create --base main --head dev --title Release $Version" }
     if (-not $SkipMerge) { Write-Host "[DryRun] Would: gh pr merge (after checks)" }
     if (-not $SkipRelease) {
-        Write-Host "[DryRun] Would: gh release create $tag --target main"
-        if ($LocalBuild) { Write-Host "[DryRun] Would: build and upload APK locally" }
+        if ($LocalBuild) {
+            Write-Host "[DryRun] Would: gh release create $tag --target main + build and upload APK locally"
+        } else {
+            Write-Host "[DryRun] Would: git push origin main + tag $tag (GitLab CI publishes the release)"
+        }
     }
     exit 0
 }
@@ -167,8 +170,8 @@ Stable release **v$Version** (`gradle.properties` / CHANGELOG).
 
 - [ ] CI green on this PR
 - [ ] Merge to ``main``
-- [ ] GitHub release ``$tag`` published (Release APK workflow attaches APK)
-- [ ] ``dev`` fast-forwards to ``main`` via sync-dev-with-main workflow
+- [ ] GitHub release ``$tag`` published (GitLab CI ``github-release`` job attaches APK)
+- [ ] ``dev`` fast-forwards to ``main`` (sync-dev-with-main)
 
 See [CHANGELOG.md](https://github.com/Darknetzz/jotty-android/blob/dev/CHANGELOG.md) on ``dev`` for full notes.
 "@
@@ -193,7 +196,15 @@ if (-not $SkipMerge -and $prNumber) {
     git fetch origin main
 }
 
-if (-not $SkipRelease) {
+if (-not $SkipRelease -and -not $LocalBuild) {
+    # GitLab CI (github-release job) builds the APK and publishes the GitHub release for the tag.
+    git fetch origin main
+    git rev-parse -q --verify "refs/tags/$tag" | Out-Null
+    if ($LASTEXITCODE -ne 0) { git tag $tag origin/main }
+    git push origin "refs/remotes/origin/main:refs/heads/main" "refs/tags/$tag"
+    if ($LASTEXITCODE -ne 0) { throw "Failed to push $tag" }
+    Write-Host "Pushed $tag; GitLab CI will publish https://github.com/Darknetzz/jotty-android/releases/tag/$tag"
+} elseif (-not $SkipRelease) {
     Set-Content -LiteralPath $releaseNotesPath -Value $releaseNotes -NoNewline
     try {
         $prevEap = $ErrorActionPreference
@@ -209,27 +220,22 @@ if (-not $SkipRelease) {
             gh release create $tag --target main --title $tag --notes-file $releaseNotesPath
         }
         Write-Host "Release: https://github.com/Darknetzz/jotty-android/releases/tag/$tag"
-        if ($LocalBuild) {
-            Write-Host "Building release APK locally..."
-            $apkPath = & (Join-Path $repoRoot "scripts/build-release-apk.ps1") -OutputDir $repoRoot | Select-Object -Last 1
-            if (-not (Test-Path -LiteralPath $apkPath)) {
-                throw "Build did not produce APK at: $apkPath"
-            }
-            Write-Host "Uploading $apkPath to $tag..."
-            gh release upload $tag $apkPath --clobber
-            Write-Host "APK attached to release."
-        } else {
-            Write-Host "APK workflow should attach jotty-android-$Version.apk when complete."
-            Write-Host "Tip: use -LocalBuild to build and upload the APK without GitHub Actions."
+        Write-Host "Building release APK locally..."
+        $apkPath = & (Join-Path $repoRoot "scripts/build-release-apk.ps1") -OutputDir $repoRoot | Select-Object -Last 1
+        if (-not (Test-Path -LiteralPath $apkPath)) {
+            throw "Build did not produce APK at: $apkPath"
         }
+        Write-Host "Uploading $apkPath to $tag..."
+        gh release upload $tag $apkPath --clobber
+        Write-Host "APK attached to release."
     } finally {
         Remove-Item -LiteralPath $releaseNotesPath -ErrorAction SilentlyContinue
     }
 }
 
-if ($LocalBuild -and -not $SkipMerge) {
+if (-not $SkipMerge) {
     Write-Host "Syncing dev to main locally..."
     & (Join-Path $repoRoot "scripts/sync-dev-with-main.ps1")
 } else {
-    Write-Host "Done. Run .\scripts\sync-dev-with-main.ps1 after main updates (or enable sync-dev-with-main workflow)."
+    Write-Host "Done. Run .\scripts\sync-dev-with-main.ps1 after main updates."
 }

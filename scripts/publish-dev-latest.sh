@@ -34,9 +34,11 @@ if [[ ! -f "$APK_PATH" ]]; then
   echo "Build did not produce APK at: $APK_PATH" >&2
   exit 1
 fi
-REPO="$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "OWNER/REPO")"
+REPO="${GH_REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "OWNER/REPO")}"
+BUILT_BY="built locally"
+[[ -n "${CI_PIPELINE_URL:-}" ]] && BUILT_BY="built by [GitLab CI](${CI_PIPELINE_URL})"
 
-BODY="Rolling pre-release build from \`dev\` (built locally).
+BODY="Rolling pre-release build from \`dev\` (${BUILT_BY}).
 ⚠️ This preview build may contain unstable or breaking bugs.
 
 Commit: ${SHA}
@@ -66,7 +68,7 @@ trap 'rm -f "$notes_file"' EXIT
 printf '%s\n' "$BODY" >"$notes_file"
 
 gh release create dev-latest \
-  --target "$(git branch --show-current)" \
+  --target "$SHA" \
   --title "Dev Latest" \
   --notes-file "$notes_file" \
   --prerelease \

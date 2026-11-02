@@ -1,0 +1,92 @@
+# GitLab CI for jotty-android (gitlab.roste.org). GitHub stays the public home: commits reach both
+# remotes via dual push on `origin`, and the publish jobs create GitHub tags/releases with gh.
+#   - every push / MR: unit tests, lint, ktlint
+#   - push to dev:     rolling dev-latest pre-release on GitHub
+#   - tag vX.Y.Z:      stable GitHub release with release-signed APK + CHANGELOG notes
+# Setup (CI variables, dual push): docs/LOCAL_CI.md#gitlab-cicd
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+stages:
+  - test
+  - publish
+
+variables:
+  # Full history: dev versionCode is derived from `git rev-list --count HEAD`.
+  GIT_DEPTH: "0"
+  GH_REPO: Darknetzz/jotty-android
+  GH_CLI_VERSION: "2.103.3"
+  GRADLE_USER_HOME: $CI_PROJECT_DIR/.gradle-home
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+
+default:
+  image: ghcr.io/cirruslabs/android-sdk:36
+  interruptible: true
+  before_script:
+    # Image may not export JAVA_HOME; gradle-env.sh needs it.
+    - export JAVA_HOME="${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")}"
+  cache:
+    key:
+      files:
+        - gradle/wrapper/gradle-wrapper.properties
+        - gradle/libs.versions.toml
+    paths:
+      - .gradle-home/caches/
+      - .gradle-home/wrapper/
+
+test:
+  stage: test
+  script:
+    - bash scripts/ci-local.sh --skip-release
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - app/build/reports/
+    reports:
+      junit: app/build/test-results/**/TEST-*.xml
+
+.publish:
+  stage: publish
+  # Never cancel mid-publish: the GitHub release is deleted and recreated.
+  interruptible: false
+  before_script:
+    - export JAVA_HOME="${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")}"
+    - bash scripts/ci/setup-publish-env.sh
+
+dev-latest:
+  extends: .publish
+  resource_group: dev-latest
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev" && $CI_PIPELINE_SOURCE == "push"
+  script:
+    - |
+      set +e
+      bash scripts/ci/wait-for-github-ref.sh dev "$CI_COMMIT_SHA"
+      rc=$?
+      set -e
+      if [ "$rc" -eq 3 ]; then echo "Skipping: a newer dev commit will publish."; exit 0; fi
+      [ "$rc" -eq 0 ] || exit "$rc"
+    - bash scripts/publish-dev-latest.sh
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - jotty-android-*-dev.apk
+
+github-release:
+  extends: .publish
+  resource_group: github-release
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/
+  script:
+    - bash scripts/ci/publish-github-release.sh "$CI_COMMIT_TAG"
+  artifacts:
+    expire_in: 1 month
+    paths:
+      - jotty-android-*.apk

@@ -1,4 +1,5 @@
-# Push to origin/dev. With setup-repo-git, pre-push publishes dev-latest after a successful push.
+# Push to origin/dev (GitHub + GitLab via dual push); GitLab CI publishes dev-latest.
+# With git config jotty.autoPublishDev true, the pre-push hook also publishes locally (-SkipPublish skips it).
 # Usage: .\scripts\push-dev.ps1 [-SkipPublish] [-- extra git push args]
 
 param(

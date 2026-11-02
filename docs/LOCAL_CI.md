@@ -1,114 +1,95 @@
-# Local CI and builds (no GitHub Actions)
+# CI/CD and local builds
 
-Run tests, lint, and APK builds on your machine instead of GitHub-hosted runners. This avoids Actions billing and keeps the same checks under your control.
+Day-to-day CI/CD runs on **GitLab CI** ([`.gitlab-ci.yml`](../.gitlab-ci.yml), `gitlab.roste.org`). GitHub stays the public home: commits reach both remotes through a dual push URL on `origin`, and the GitLab publish jobs create the GitHub tags and releases with `gh`.
 
-GitHub Actions workflows in `.github/workflows/` are set to **manual trigger only** (`workflow_dispatch`). Use the scripts below for day-to-day work.
+GitHub Actions workflows in `.github/workflows/` are **manual-only** (`workflow_dispatch`) fallbacks. The local scripts below still work when GitLab is unavailable.
 
 ## Quick reference
 
-| GitHub workflow | Local replacement |
-|-----------------|-------------------|
-| [ci.yml](../.github/workflows/ci.yml) | `.\scripts\ci-local.ps1` / `./scripts/ci-local.sh` |
-| [dev-latest.yml](../.github/workflows/dev-latest.yml) | Auto: `setup-repo-git` + `git push origin dev` (pre-push hook). Manual: `publish-dev-latest.ps1` / `.sh` |
-| [release-apk.yml](../.github/workflows/release-apk.yml) | `.\scripts\build-release-apk.ps1` + `gh release upload`, or `publish-release.ps1 -LocalBuild` |
-| [sync-dev-with-main.yml](../.github/workflows/sync-dev-with-main.yml) | `.\scripts\sync-dev-with-main.ps1` / `./scripts/sync-dev-with-main.sh` |
+| What | GitLab CI job | Local fallback |
+|------|---------------|----------------|
+| Tests, lint, ktlint | `test` (every push / MR) | `.\scripts\ci-local.ps1` / `./scripts/ci-local.sh` |
+| Rolling [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) | `dev-latest` (push to `dev`) | `publish-dev-latest.ps1` / `.sh`, or opt-in pre-push hook |
+| Stable release `vX.Y.Z` | `github-release` (tag `vX.Y.Z`) | `publish-release.ps1 -LocalBuild` / `.sh --local-build` |
+| Sync `dev` with `main` | — | `.\scripts\sync-dev-with-main.ps1` / `.sh` |
 
-## Requirements
+## GitLab CI/CD
 
-- **JDK 17+** (Android Studio JBR is fine)
-- **Android SDK 36** (`local.properties` or `ANDROID_HOME`)
-- **Release signing (optional but recommended):** copy `keystore.properties.example` → `keystore.properties`
-- **Publishing releases:** [GitHub CLI](https://cli.github.com/) (`gh auth login`) — uses the API only; no Actions minutes
+### Pipeline
 
-## CI (tests, lint, ktlint, release assemble)
+- **`test`** — `scripts/ci-local.sh --skip-release` (unit tests, lint, ktlint). JUnit results and lint reports are attached to the pipeline.
+- **`dev-latest`** — on push to `dev`: waits until GitHub `dev` is at the same commit (skips if a newer commit superseded it), builds the release-signed dev APK (`build-dev-apk.sh`), then recreates the `dev-latest` tag and pre-release on GitHub (`publish-dev-latest.sh`). Serialized with `resource_group`.
+- **`github-release`** — on tag `vX.Y.Z`: checks the tag matches `VERSION_NAME`, builds `jotty-android-X.Y.Z.apk`, creates (or updates) the GitHub release with notes from `CHANGELOG.md`, and uploads the APK. Safe to re-run.
 
-```powershell
-.\scripts\ci-local.ps1
-```
+Publish jobs refuse to run without the release keystore: debug-signed APKs break in-place updates (issue #9). Image: `ghcr.io/cirruslabs/android-sdk:36` (Docker runner); `gh` version is pinned by `GH_CLI_VERSION`.
+
+### One-time setup
+
+1. **GitLab project:** create `kriss/jotty-android` on `gitlab.roste.org` (blank, no README).
+2. **Protect** branches `dev` and `main` and tags `v*` (Settings → Repository → Protected branches / tags), so protected variables reach the publish jobs.
+3. **CI/CD variables** (Settings → CI/CD → Variables, *Protected* + *Masked*):
+
+   | Variable | Value |
+   |----------|-------|
+   | `GH_TOKEN` | GitHub fine-grained PAT for `Darknetzz/jotty-android` with **Contents: read and write** |
+   | `ANDROID_KEYSTORE_B64` | base64 of the release keystore (see `keystore.properties.example`) |
+   | `ANDROID_KEYSTORE_PASSWORD` | store password |
+   | `ANDROID_KEY_ALIAS` | key alias |
+   | `ANDROID_KEY_PASSWORD` | key password |
+
+4. **Dual push** (per clone): one `git push origin …` updates GitHub first, then GitLab. Fetches still come from GitHub.
+
+   ```bash
+   git remote set-url --add --push origin git@github.com:Darknetzz/jotty-android.git
+   git remote set-url --add --push origin git@gitlab.roste.org:kriss/jotty-android.git
+   git push origin main dev
+   ```
+
+5. Run `.\scripts\setup-repo-git.ps1` / `./scripts/setup-repo-git.sh` once per clone (force-fetch for the moving `dev-latest` tag, `.githooks`).
+
+### Dev builds
 
 ```bash
-./scripts/ci-local.sh
-```
-
-Options:
-
-- `-SkipRelease` / `--skip-release` — skip `assembleRelease` (faster iteration)
-- `-SkipLint` / `--skip-lint` — skip lint and ktlint
-- `-SmokeTest` / `--smoke-test` — run instrumentation tests (start an AVD first)
-
-Reports land under `app/build/reports/` like on CI.
-
-## Dev APK (rolling dev-latest)
-
-Build only:
-
-```powershell
-.\scripts\build-dev-apk.ps1
-```
-
-Build and publish to the [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) pre-release (no Actions):
-
-```powershell
-.\scripts\publish-dev-latest.ps1
-```
-
-### Automatic dev-latest on push (local, no Actions)
-
-After **one-time** `.\scripts\setup-repo-git.ps1` (or `./scripts/setup-repo-git.sh`), the **pre-push** hook builds and publishes **dev-latest** in the background after every successful `git push` to `origin/dev` (same end result as the old Actions workflow, but on your machine).
-
-```powershell
 git push origin dev
-# or
-.\scripts\push-dev.ps1
 ```
 
-- Log: `.git/jotty-dev-publish.log`
-- Skip once: `git push --no-verify origin dev` or `JOTTY_SKIP_DEV_PUBLISH=1 git push origin dev`
-- Disable: `git config jotty.autoPublishDev false`
-- Manual publish still works: `.\scripts\publish-dev-latest.ps1`
+The dev APK `versionName` is `VERSION_NAME-dev+<7-char-sha>`; `versionCode` is `VERSION_CODE * 10000 + (git rev-list --count HEAD) % 10000`, so the pipeline clones with full history (`GIT_DEPTH: 0`).
 
-Requires `gh auth login`, JDK/Android SDK, and `keystore.properties` for release-signed dev APKs (recommended for in-app updates).
-
-## Stable release APK
-
-**Option A — full publish with local APK** (recommended when avoiding Actions):
+### Stable releases
 
 ```powershell
 .\release.ps1
 git add gradle.properties CHANGELOG.md
 git commit -m "Release vX.Y.Z"
-.\scripts\publish-release.ps1 -LocalBuild
+.\scripts\publish-release.ps1
 ```
 
-On Unix, `./release.sh` is equivalent (`[version]`, `--date`, `--dry-run`). Both scripts validate changelog promotion during `--dry-run` / `-DryRun` before writing.
+`publish-release` pushes `dev`, opens and merges the `dev` → `main` PR on GitHub, tags the merged `main` as `vX.Y.Z`, pushes `main` + the tag to both remotes, and syncs `dev` with `main`. The GitLab `github-release` job then publishes the GitHub release and APK. On Unix, `./release.sh` and `./scripts/publish-release.sh` are equivalent; both release scripts validate changelog promotion with `--dry-run` / `-DryRun`.
 
-`-LocalBuild` runs `build-release-apk.ps1` and uploads the APK with `gh release upload` instead of waiting for `release-apk.yml`.
+## Local fallbacks
 
-**Option B — build only:**
+### Requirements
+
+- **JDK 17+** (Android Studio JBR is fine)
+- **Android SDK 36** (`local.properties` or `ANDROID_HOME`)
+- **Release signing:** copy `keystore.properties.example` → `keystore.properties`
+- **Publishing:** [GitHub CLI](https://cli.github.com/) (`gh auth login`)
+
+### CI checks
 
 ```powershell
-.\scripts\build-release-apk.ps1
-gh release upload vX.Y.Z jotty-android-X.Y.Z.apk --clobber
+.\scripts\ci-local.ps1
 ```
 
-After merge to `main`, sync branches locally:
+Options: `-SkipRelease` / `--skip-release` (skip `assembleRelease`), `-SkipLint` / `--skip-lint`, `-SmokeTest` / `--smoke-test` (instrumentation tests; start an AVD first). Reports land under `app/build/reports/`.
 
-```powershell
-.\scripts\sync-dev-with-main.ps1
-```
+### Dev APK
 
-## Disable GitHub Actions entirely (optional)
+- Build only: `.\scripts\build-dev-apk.ps1`
+- Build and publish dev-latest: `.\scripts\publish-dev-latest.ps1`
+- Auto-publish on every push from this machine (opt-in, e.g. while GitLab is down): `git config jotty.autoPublishDev true`. The pre-push hook then publishes in the background after `origin/dev` updates (log: `.git/jotty-dev-publish.log`). Skip once with `git push --no-verify` or `JOTTY_SKIP_DEV_PUBLISH=1`; `push-dev.ps1 -SkipPublish` / `push-dev.sh --skip-publish` does the same.
 
-In the repo on GitHub: **Settings → Actions → General → Disable actions**. Local scripts and `gh` still work for releases.
+### Stable release APK
 
-To re-enable cloud CI later, restore `on: push` / `pull_request` triggers in the workflow YAML files.
-
-## Optional: run workflow YAML with [act](https://github.com/nektos/act)
-
-If you prefer executing the YAML locally:
-
-```bash
-act pull_request -j unit-tests
-```
-
-Android/emulator jobs need Docker and extra setup; the scripts above are simpler for this project.
+- Full publish without GitLab: `.\scripts\publish-release.ps1 -LocalBuild` (creates the GitHub release and uploads the APK from this machine).
+- Build only: `.\scripts\build-release-apk.ps1`, then `gh release upload vX.Y.Z jotty-android-X.Y.Z.apk --clobber`.

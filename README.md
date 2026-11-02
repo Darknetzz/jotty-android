@@ -178,7 +178,7 @@ Release scripts (two steps):
 3. `.\scripts\publish-release.ps1 -LocalBuild` (or `./scripts/publish-release.sh --local-build`).
 4. **`dev` is synced to `main`** via `.\scripts\sync-dev-with-main.ps1` (included when using `-LocalBuild`).
 
-**Dev builds:** run `.\scripts\setup-repo-git.ps1` once per clone, then `git push origin dev` (or `.\scripts\push-dev.ps1`) — a pre-push hook publishes [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest) in the background. Manual fallback: `.\scripts\publish-dev-latest.ps1`.
+**Dev builds:** run `.\scripts\setup-repo-git.ps1` once per clone and add the GitLab push URL (see [docs/LOCAL_CI.md](docs/LOCAL_CI.md#gitlab-cicd)), then `git push origin dev` — GitLab CI publishes [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest). Manual fallback: `.\scripts\publish-dev-latest.ps1`.
 
 See [docs/LOCAL_CI.md](docs/LOCAL_CI.md) for all local workflow commands. GitHub Actions in `.github/workflows/` are **manual-only** (`workflow_dispatch`); disable Actions entirely in repo settings if you prefer.
 

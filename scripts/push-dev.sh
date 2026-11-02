@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Push to origin/dev. With setup-repo-git, pre-push publishes dev-latest after a successful push.
+# Push to origin/dev (GitHub + GitLab via dual push); GitLab CI publishes dev-latest.
+# With git config jotty.autoPublishDev true, the pre-push hook also publishes locally (--skip-publish skips it).
 set -euo pipefail
 
 skip_publish=0

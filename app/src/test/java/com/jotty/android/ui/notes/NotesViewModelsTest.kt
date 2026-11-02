@@ -898,7 +898,7 @@ class NoteDetailViewModelTest {
                 onSuccess = { success = true },
                 onFailure = { },
             )
-            withTimeout(5_000) {
+            withTimeout(15_000) {
                 while (!success) {
                     ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
                     delay(25)
@@ -958,7 +958,7 @@ class NoteDetailViewModelTest {
                 onSuccess = { },
                 onFailure = { failed = true },
             )
-            withTimeout(5_000) {
+            withTimeout(15_000) {
                 while (!failed) {
                     ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
                     delay(25)

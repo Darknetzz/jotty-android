@@ -17,7 +17,7 @@ GitHub Actions workflows in `.github/workflows/` are **manual-only** (`workflow_
 
 ### Pipeline
 
-- **`test`** — `scripts/ci-local.sh --skip-release` (unit tests, lint, ktlint). JUnit results and lint reports are attached to the pipeline.
+- **`test`** — `scripts/ci-local.sh --skip-release` (unit tests, lint, ktlint). On `main` and release tags it checks debug and release variants; on `dev`, other branches and MRs it adds `--debug-only` (debug unit tests + `lintDebug`), roughly halving the time. JUnit results and lint reports are attached to the pipeline.
 - **`dev-latest`** — on push to `dev`: waits until GitHub `dev` is at the same commit (skips if a newer commit superseded it), builds the release-signed dev APK (`build-dev-apk.sh`), then recreates the `dev-latest` tag and pre-release on GitHub (`publish-dev-latest.sh`). Serialized with `resource_group`.
 - **`github-release`** — on tag `vX.Y.Z`: checks the tag matches `VERSION_NAME`, builds `jotty-android-X.Y.Z.apk`, creates (or updates) the GitHub release with notes from `CHANGELOG.md`, and uploads the APK. Safe to re-run.
 
@@ -81,7 +81,7 @@ git commit -m "Release vX.Y.Z"
 .\scripts\ci-local.ps1
 ```
 
-Options: `-SkipRelease` / `--skip-release` (skip `assembleRelease`), `-SkipLint` / `--skip-lint`, `-SmokeTest` / `--smoke-test` (instrumentation tests; start an AVD first). Reports land under `app/build/reports/`.
+Options: `-SkipRelease` / `--skip-release` (skip `assembleRelease`), `-SkipLint` / `--skip-lint`, `-SmokeTest` / `--smoke-test` (instrumentation tests; start an AVD first), `-DebugOnly` / `--debug-only` (debug unit tests + `lintDebug` only). Reports land under `app/build/reports/`.
 
 ### Dev APK
 

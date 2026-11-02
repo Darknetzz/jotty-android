@@ -1,6 +1,6 @@
 # GitLab CI for jotty-android (gitlab.roste.org). GitHub stays the public home: commits reach both
 # remotes via dual push on `origin`, and the publish jobs create GitHub tags/releases with gh.
-#   - every push / MR: unit tests, lint, ktlint
+#   - every push / MR: unit tests, lint, ktlint (release variant only on main and tags)
 #   - push to dev:     rolling dev-latest pre-release on GitHub
 #   - tag vX.Y.Z:      stable GitHub release with release-signed APK + CHANGELOG notes
 # Setup (CI variables, dual push): docs/LOCAL_CI.md#gitlab-cicd
@@ -42,8 +42,16 @@ default:
 
 test:
   stage: test
+  # Full checks (debug + release variants) on main and release tags; debug-only elsewhere (~2x faster).
+  rules:
+    - if: $CI_COMMIT_TAG || $CI_COMMIT_BRANCH == "main"
+      variables:
+        CI_LOCAL_ARGS: "--skip-release"
+    - when: on_success
+      variables:
+        CI_LOCAL_ARGS: "--skip-release --debug-only"
   script:
-    - bash scripts/ci-local.sh --skip-release
+    - bash scripts/ci-local.sh $CI_LOCAL_ARGS
   artifacts:
     when: always
     expire_in: 1 week

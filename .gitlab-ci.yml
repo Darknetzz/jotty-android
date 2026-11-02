@@ -24,6 +24,8 @@ variables:
   GH_CLI_VERSION: "2.103.3"
   GRADLE_USER_HOME: $CI_PROJECT_DIR/.gradle-home
   GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+  # Google's Maven Central mirror: repo1.maven.org returns 429 for the ~150 MB Robolectric jars.
+  ROBOLECTRIC_DEPENDENCY_REPO_URL: https://maven-central.storage-download.googleapis.com/maven2
 
 default:
   image: ghcr.io/cirruslabs/android-sdk:36

@@ -31,6 +31,8 @@ default:
   before_script:
     # Image may not export JAVA_HOME; gradle-env.sh needs it.
     - export JAVA_HOME="${JAVA_HOME:-$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")}"
+    # Robolectric downloads android-all jars into ~/.m2 at test time; keep them in the cached project dir.
+    - mkdir -p "$CI_PROJECT_DIR/.m2" && ln -sfn "$CI_PROJECT_DIR/.m2" "$HOME/.m2"
   cache:
     key:
       files:
@@ -39,6 +41,7 @@ default:
     paths:
       - .gradle-home/caches/
       - .gradle-home/wrapper/
+      - .m2/repository/
 
 test:
   stage: test

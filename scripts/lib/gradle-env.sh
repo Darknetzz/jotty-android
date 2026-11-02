@@ -120,8 +120,10 @@ get_apk_version_info() {
   local apk_path="$1"
   local aapt
   aapt="$(find_aapt_executable)" || { echo "Android build-tools aapt not found" >&2; return 1; }
-  local line
-  line="$("$aapt" dump badging "$apk_path" 2>/dev/null | grep -m1 '^package:')" || {
+  # Capture the full dump before grepping: piping into `grep -m1` under pipefail SIGPIPEs aapt and fails at random.
+  local badging line
+  badging="$("$aapt" dump badging "$apk_path" 2>/dev/null || true)"
+  line="$(grep -m1 '^package:' <<<"$badging")" || {
     echo "Could not read APK metadata from: $apk_path" >&2
     return 1
   }

@@ -596,7 +596,7 @@
     <string name="pending_sync_ops_count">%1$d queued change(s)</string>
     <string name="pending_sync_detail_title">Pending item</string>
     <string name="pending_sync_diff_heading">Local vs server</string>
-    <string name="pending_sync_diff_legend">Green lines are local additions; red lines are removed vs the server (or baseline).</string>
+    <string name="pending_sync_diff_legend">Green lines are local additions; red lines are removed vs the server (or baseline). Bold highlights mark the changed words.</string>
     <string name="pending_sync_ops_heading">Queued checklist operations</string>
     <string name="pending_sync_no_server_version">(No server version available — local-only or offline)</string>
     <string name="pending_sync_encrypted_body">[Encrypted — unlock the note to compare body text]</string>

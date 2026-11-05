@@ -52,6 +52,9 @@ class NoteDetailViewModel(
     private var editBaselineDecryptedContent: String? = null
     private var editBaselineCategory: String? = null
 
+    // Newest stored note received while editing; applied when editing ends so it can't replace the draft.
+    private var deferredSnapshot: Note? = null
+
     private val _isEditing = MutableStateFlow(false)
     val isEditing: StateFlow<Boolean> = _isEditing.asStateFlow()
 
@@ -172,6 +175,11 @@ class NoteDetailViewModel(
     }
 
     fun onNoteSnapshotUpdated(updated: Note) {
+        if (_isEditing.value) {
+            deferredSnapshot = updated
+            return
+        }
+        deferredSnapshot = null
         invalidateDecryptedIfServerContentChanged(updated.content)
         resetFromNote(updated)
         loadSessionDecryptedContent()
@@ -298,11 +306,17 @@ class NoteDetailViewModel(
         editBaselineCategory?.let { _category.value = it }
         clearEditBaseline()
         _isEditing.value = false
+        applyDeferredSnapshot()
     }
 
     fun cancelEditing() {
         clearEditBaseline()
         _isEditing.value = false
+        applyDeferredSnapshot()
+    }
+
+    private fun applyDeferredSnapshot() {
+        deferredSnapshot?.let(::onNoteSnapshotUpdated)
     }
 
     private fun clearEditBaseline() {
@@ -380,6 +394,7 @@ class NoteDetailViewModel(
                 persistedCategory = _category.value
                 completePersist(result.getOrThrow(), onSuccess)
                 clearEditBaseline()
+                deferredSnapshot = null
                 _isEditing.value = false
             } else {
                 _saveFailed.value = true

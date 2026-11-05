@@ -157,6 +157,75 @@ class NoteDetailViewModelTest {
             assertEquals(false, vm.isEditing.value)
         }
 
+    private fun editingTestNote() =
+        Note(
+            id = "n1",
+            title = "Title",
+            category = API_CATEGORY_UNCATEGORIZED,
+            content = "body",
+            createdAt = "c",
+            updatedAt = "u",
+        )
+
+    private fun noopActions(note: Note) =
+        object : NoteDetailActions {
+            override suspend fun updateNote(
+                noteId: String,
+                title: String,
+                content: String,
+                category: String,
+                originalCategory: String,
+            ): Result<Note> = Result.success(note.copy(title = title, content = content))
+
+            override suspend fun deleteNote(noteId: String): Result<Unit> = Result.success(Unit)
+        }
+
+    @Test
+    fun noteSnapshot_whileEditing_keepsDraftAndEditMode() =
+        runTest {
+            val note = editingTestNote()
+            val vm = NoteDetailViewModel(note, noopActions(note))
+            vm.startEditing()
+            vm.setContent("my draft")
+
+            vm.onNoteSnapshotUpdated(note)
+            vm.onNoteSnapshotUpdated(note.copy(content = "from sync", updatedAt = "u2"))
+
+            assertTrue(vm.isEditing.value)
+            assertEquals("my draft", vm.content.value)
+        }
+
+    @Test
+    fun discardEditing_appliesSnapshotDeferredWhileEditing() =
+        runTest {
+            val note = editingTestNote()
+            val vm = NoteDetailViewModel(note, noopActions(note))
+            vm.startEditing()
+            vm.setContent("my draft")
+            vm.onNoteSnapshotUpdated(note.copy(content = "from sync", updatedAt = "u2"))
+
+            vm.discardEditing()
+
+            assertFalse(vm.isEditing.value)
+            assertEquals("from sync", vm.content.value)
+        }
+
+    @Test
+    fun saveEdit_dropsSnapshotDeferredWhileEditing() =
+        runTest {
+            val note = editingTestNote()
+            val vm = NoteDetailViewModel(note, noopActions(note))
+            vm.startEditing()
+            vm.setContent("my draft")
+            vm.onNoteSnapshotUpdated(note.copy(content = "from sync", updatedAt = "u2"))
+
+            vm.saveEdit(onSuccess = {}, onFailure = {})
+            advanceUntilIdle()
+
+            assertFalse(vm.isEditing.value)
+            assertEquals("my draft", vm.content.value)
+        }
+
     @Test
     fun saveEdit_onFailure_keepsEditMode() =
         runTest {

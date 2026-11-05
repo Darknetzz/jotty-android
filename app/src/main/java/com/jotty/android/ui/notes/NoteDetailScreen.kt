@@ -921,7 +921,7 @@ internal fun NoteDetailScreen(
                     )
                 isEditing -> {
                     val editBody = currentEditBody()
-                    val editorReloadKey = "${note.id}:${note.updatedAt}:$editorReloadNonce"
+                    val editorReloadKey = "${note.id}:$editorReloadNonce"
                     Column(modifier = Modifier.fillMaxSize()) {
                         NoteEditModeToggle(
                             mode = noteEditMode,
@@ -960,6 +960,7 @@ internal fun NoteDetailScreen(
                                     showHtmlSaveHint = noteContentContainsRawHtml(editBody),
                                     onEditorWebView = { wysiwygWebView = it },
                                     onEditorBridge = { wysiwygBridge = it },
+                                    onEditorRendererGone = { editorReloadNonce++ },
                                     jottyServerUrl = jottyServerUrl,
                                     apiKey = apiKey,
                                     customHeaders = customHeaders,

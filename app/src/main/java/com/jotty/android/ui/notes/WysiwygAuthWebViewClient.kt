@@ -1,5 +1,6 @@
 package com.jotty.android.ui.notes
 
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
@@ -18,6 +19,7 @@ internal class WysiwygAuthWebViewClient(
     capabilitiesKey: String?,
     customHeaders: Map<String, String> = emptyMap(),
     private val onPageFinished: (WebView?) -> Unit,
+    private val onRendererGone: () -> Unit,
 ) : WebViewClient() {
     private val authClient = createNoteImageAuthClient(baseUrl, apiKey, capabilitiesKey, customHeaders)
 
@@ -26,6 +28,14 @@ internal class WysiwygAuthWebViewClient(
         url: String?,
     ) {
         onPageFinished(view)
+    }
+
+    override fun onRenderProcessGone(
+        view: WebView?,
+        detail: RenderProcessGoneDetail?,
+    ): Boolean {
+        onRendererGone()
+        return true
     }
 
     override fun shouldInterceptRequest(

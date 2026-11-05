@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Note edits lost after switching apps** — Unsaved edits now stay in the editor when a sync finishes or the screen is rebuilt. The rich editor also reloads your text if Android reclaims its WebView in the background, instead of closing the app.
+
 ### Changed
 
 - **Clearer pending sync diffs** — The Local vs server diff splits HTML notes (web-editor `<div>`/`<p>`/`<br>` blocks) into separate lines, so only the changed blocks show up instead of the whole note. Edited lines get word-level highlighting, and additions now show in green instead of the accent color.

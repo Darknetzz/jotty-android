@@ -86,6 +86,10 @@
     <string name="kanban_unsaved_changes_message">You have unsaved title or task detail changes.</string>
     <string name="note_unsaved_changes_title">Save changes?</string>
     <string name="note_unsaved_changes_message">You have unsaved note edits.</string>
+    <string name="note_draft_restore_title">Restore unsaved draft?</string>
+    <string name="note_draft_restore_message">Edits autosaved on %1$s were never saved to this note.</string>
+    <string name="note_draft_restore_message_note_changed">Edits autosaved on %1$s were never saved to this note, and the note has changed since. Saving the draft will replace those changes.</string>
+    <string name="note_draft_restore_action">Restore</string>
     <string name="discard">Discard</string>
     <string name="kanban_item_description">Description</string>
     <string name="kanban_item_description_placeholder">No description</string>

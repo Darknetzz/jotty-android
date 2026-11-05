@@ -218,6 +218,11 @@ fun NotesScreen(
     }
 
     BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
+    RestoreOpenNoteEffect(
+        selectedNoteId = selectedNote?.id,
+        resolveNote = vm::resolveNoteForDeepLink,
+        onRestore = { if (vm.selectedNote.value == null) vm.setSelectedNote(it) },
+    )
     LaunchedEffect(tabReselectToken) {
         if (selectedNote != null) {
             vm.setSelectedNote(null)

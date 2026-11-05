@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Draft autosave** — Edits to unencrypted notes are autosaved on this device, separately from the note, until you save or discard them. If edits are left behind (for example, Android closed the app), the note reopens where you left it and offers to restore them, with a warning if the note has changed since. Encrypted notes are not autosaved, so their text never reaches storage.
+
 ### Fixed
 
 - **Note edits lost after switching apps** — Unsaved edits now stay in the editor when a sync finishes or the screen is rebuilt. The rich editor also reloads your text if Android reclaims its WebView in the background, instead of closing the app.

@@ -47,6 +47,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
+import com.jotty.android.data.local.NoteDraftStore
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -144,16 +147,21 @@ internal fun NoteDetailScreen(
                 )
             }
         }
+    val draftStore =
+        remember(serverCapabilitiesKey) {
+            serverCapabilitiesKey?.let { NoteDraftStore.forInstance(context.applicationContext, it) }
+        }
     val detailVm: NoteDetailViewModel =
         viewModel(
             key = note.id,
-            factory = NoteDetailViewModel.Factory(note, actions, snapshotRepository),
+            factory = NoteDetailViewModel.Factory(note, actions, snapshotRepository, draftStore),
         )
 
     val title by detailVm.title.collectAsStateWithLifecycle()
     val content by detailVm.content.collectAsStateWithLifecycle()
     val category by detailVm.category.collectAsStateWithLifecycle()
     val isEditing by detailVm.isEditing.collectAsStateWithLifecycle()
+    val pendingDraft by detailVm.pendingDraft.collectAsStateWithLifecycle()
     val saving by detailVm.saving.collectAsStateWithLifecycle()
     val decryptedContent by detailVm.decryptedContent.collectAsStateWithLifecycle()
     val showDecryptDialog by detailVm.showDecryptDialog.collectAsStateWithLifecycle()
@@ -302,6 +310,14 @@ internal fun NoteDetailScreen(
 
     LaunchedEffect(note.id, note.content, note.updatedAt, note.encrypted) {
         detailVm.onNoteSnapshotUpdated(note)
+    }
+
+    LaunchedEffect(note.id) {
+        detailVm.loadDraft()
+    }
+
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) {
+        detailVm.flushDraft()
     }
 
     LaunchedEffect(note.id, biometricStore) {
@@ -537,6 +553,7 @@ internal fun NoteDetailScreen(
             onDismiss = { showDeleteConfirm = false },
             onConfirm = {
                 showDeleteConfirm = false
+                detailVm.clearDraft()
                 onDelete()
             },
         )
@@ -1196,6 +1213,36 @@ internal fun NoteDetailScreen(
             decryptError = decryptError,
             decryptErrorDetail = decryptErrorDetail,
             onDecryptError = { main, detail -> detailVm.onDecryptError(main, detail) },
+        )
+    }
+
+    pendingDraft?.let { pending ->
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.note_draft_restore_title)) },
+            text = {
+                val savedAt = formatSnapshotLabel(pending.draft.savedAtEpochMs)
+                Text(
+                    stringResource(
+                        if (pending.noteChangedSince) {
+                            R.string.note_draft_restore_message_note_changed
+                        } else {
+                            R.string.note_draft_restore_message
+                        },
+                        savedAt,
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = detailVm::restoreDraft) {
+                    Text(stringResource(R.string.note_draft_restore_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = detailVm::discardDraft) {
+                    Text(stringResource(R.string.discard))
+                }
+            },
         )
     }
 

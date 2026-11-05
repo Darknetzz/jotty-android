@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.api.normalizedForClient
+import com.jotty.android.data.local.NoteDraft
+import com.jotty.android.data.local.NoteDraftStore
 import com.jotty.android.data.local.NoteSnapshotRepository
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.encryption.NotePassphraseSession
@@ -19,16 +21,29 @@ import com.jotty.android.util.decodeJsonUnicodeEscapes
 import com.jotty.android.util.stripInvisibleFromEdges
 import com.jotty.android.util.stripInvisibleUnicode
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+
+/** An autosaved draft found when opening a note, waiting for the user to restore or discard it. */
+data class PendingNoteDraft(
+    val draft: NoteDraft,
+    /** True when the stored note changed after the draft's edit began. */
+    val noteChangedSince: Boolean,
+)
 
 class NoteDetailViewModel(
     private val note: Note,
     private val actions: NoteDetailActions,
     private val snapshotRepository: NoteSnapshotRepository? = null,
+    private val draftStore: NoteDraftStore? = null,
 ) : ViewModel() {
     /** Tracks server id after a local-only note syncs; [note.id] may still be the temporary UUID. */
     private var activeNoteId = note.id
@@ -54,6 +69,12 @@ class NoteDetailViewModel(
 
     // Newest stored note received while editing; applied when editing ends so it can't replace the draft.
     private var deferredSnapshot: Note? = null
+
+    private var storedUpdatedAt = note.updatedAt
+    private val draftMutex = Mutex()
+
+    private val _pendingDraft = MutableStateFlow<PendingNoteDraft?>(null)
+    val pendingDraft: StateFlow<PendingNoteDraft?> = _pendingDraft.asStateFlow()
 
     private val _isEditing = MutableStateFlow(false)
     val isEditing: StateFlow<Boolean> = _isEditing.asStateFlow()
@@ -112,6 +133,19 @@ class NoteDetailViewModel(
         return failed
     }
 
+    init {
+        if (draftStore != null) {
+            viewModelScope.launch { autosaveDrafts() }
+        }
+    }
+
+    @OptIn(FlowPreview::class)
+    private suspend fun autosaveDrafts() {
+        combine(_title, _content, _category, _isEditing) { _, _, _, _ -> }
+            .debounce(DRAFT_AUTOSAVE_DEBOUNCE_MS)
+            .collect { saveDraftNow() }
+    }
+
     val parsed: ParsedNoteContent
         get() = NoteEncryption.parse(_content.value)
 
@@ -140,6 +174,7 @@ class NoteDetailViewModel(
         _content.value = normalizeStoredContent(updated.content)
         _category.value = updated.category
         persistedCategory = updated.category
+        storedUpdatedAt = updated.updatedAt
         _isEditing.value = false
         _saveFailed.value = false
         _legacyEncryptionDetected.value = false
@@ -306,13 +341,81 @@ class NoteDetailViewModel(
         editBaselineCategory?.let { _category.value = it }
         clearEditBaseline()
         _isEditing.value = false
+        clearDraft()
         applyDeferredSnapshot()
     }
 
     fun cancelEditing() {
         clearEditBaseline()
         _isEditing.value = false
+        clearDraft()
         applyDeferredSnapshot()
+    }
+
+    /** Writes the current edits to the draft store; encrypted notes are never written. */
+    suspend fun saveDraftNow() {
+        val store = draftStore ?: return
+        draftMutex.withLock {
+            if (!_isEditing.value || isEncrypted || _pendingDraft.value != null) return
+            if (hasUnsavedChanges()) {
+                store.save(
+                    activeNoteId,
+                    NoteDraft(
+                        title = _title.value,
+                        content = _content.value,
+                        category = _category.value,
+                        baseUpdatedAt = storedUpdatedAt,
+                        savedAtEpochMs = System.currentTimeMillis(),
+                    ),
+                )
+            } else {
+                store.delete(activeNoteId)
+            }
+        }
+    }
+
+    fun flushDraft() {
+        viewModelScope.launch { saveDraftNow() }
+    }
+
+    /** Looks for a draft left behind by an earlier session; a note being edited already has its edits. */
+    suspend fun loadDraft() {
+        val store = draftStore ?: return
+        draftMutex.withLock {
+            if (_isEditing.value) return
+            val draft = store.load(activeNoteId) ?: return
+            val sameAsNote =
+                draft.title == _title.value && draft.content == _content.value && draft.category == _category.value
+            if (isEncrypted || sameAsNote) {
+                store.delete(activeNoteId)
+                return
+            }
+            _pendingDraft.value = PendingNoteDraft(draft, noteChangedSince = draft.baseUpdatedAt != storedUpdatedAt)
+        }
+    }
+
+    fun restoreDraft() {
+        val draft = _pendingDraft.value?.draft ?: return
+        startEditing()
+        _title.value = draft.title
+        _content.value = draft.content
+        _category.value = draft.category
+        _pendingDraft.value = null
+    }
+
+    fun discardDraft() {
+        _pendingDraft.value = null
+        clearDraft()
+    }
+
+    fun clearDraft() {
+        val store = draftStore ?: return
+        viewModelScope.launch {
+            draftMutex.withLock {
+                store.delete(activeNoteId)
+                if (note.id != activeNoteId) store.delete(note.id)
+            }
+        }
     }
 
     private fun applyDeferredSnapshot() {
@@ -396,6 +499,7 @@ class NoteDetailViewModel(
                 clearEditBaseline()
                 deferredSnapshot = null
                 _isEditing.value = false
+                clearDraft()
             } else {
                 _saveFailed.value = true
                 onFailure()
@@ -649,6 +753,7 @@ class NoteDetailViewModel(
                         // Anchor before onSuccess so a parent refresh does not spuriously re-lock (#67).
                         sessionSourceFingerprint = contentFingerprint(persisted.content)
                         completePersist(persisted, onSuccess)
+                        clearDraft()
                         dismissEncryptDialog()
                     } else {
                         _saveFailed.value = true
@@ -799,9 +904,14 @@ class NoteDetailViewModel(
         private val note: Note,
         private val actions: NoteDetailActions,
         private val snapshotRepository: NoteSnapshotRepository? = null,
+        private val draftStore: NoteDraftStore? = null,
     ) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")
         override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T =
-            NoteDetailViewModel(note, actions, snapshotRepository) as T
+            NoteDetailViewModel(note, actions, snapshotRepository, draftStore) as T
+    }
+
+    private companion object {
+        private const val DRAFT_AUTOSAVE_DEBOUNCE_MS = 1_000L
     }
 }

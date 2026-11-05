@@ -38,6 +38,7 @@ import com.jotty.android.util.ListDateFormat
 import com.jotty.android.util.defaultUnarchiveCategory
 import com.jotty.android.util.isArchivedCategory
 import com.jotty.android.ui.common.ListFilterHeader
+import com.jotty.android.data.local.NoteDraftStore
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
 import com.jotty.android.ui.common.rememberStaleListWhileRefresh
@@ -103,9 +104,14 @@ fun OfflineEnabledNotesScreen(
     val biometricSaveOfferEnabled by settingsRepository.biometricSaveOfferEnabled.collectAsStateWithLifecycle(initialValue = true)
     val contentVerticalDp = if (contentPaddingMode == "compact") 8 else 16
 
+    val appContext = LocalContext.current.applicationContext
     val vm: OfflineEnabledNotesViewModel =
         viewModel {
-            OfflineEnabledNotesViewModel(offlineRepository, api)
+            OfflineEnabledNotesViewModel(
+                offlineRepository,
+                api,
+                serverCapabilitiesKey?.let { NoteDraftStore.forInstance(appContext, it) },
+            )
         }
 
     // Observe notes from local database
@@ -366,6 +372,11 @@ fun OfflineEnabledNotesScreen(
     }
 
     BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
+    RestoreOpenNoteEffect(
+        selectedNoteId = selectedNote?.id,
+        resolveNote = offlineRepository::getNoteById,
+        onRestore = { if (vm.selectedNote.value == null) vm.setSelectedNote(it) },
+    )
     LaunchedEffect(tabReselectToken) {
         if (selectedNote != null) {
             vm.setSelectedNote(null)

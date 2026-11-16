@@ -151,7 +151,7 @@ dependencies {
     implementation("io.coil-kt:coil:2.7.0")
 
     // Encryption: Argon2 + XChaCha20 (for Jotty encrypted notes)
-    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.87")
 
     // Biometric authentication (note passphrase protection)
     implementation("androidx.biometric:biometric:1.1.0")

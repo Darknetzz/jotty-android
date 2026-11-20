@@ -100,6 +100,7 @@ fun KanbanItemDetailScreen(
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showDiscardConfirm by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
+    var showRepeatDialog by remember { mutableStateOf(false) }
 
     fun detailsChanged(): Boolean {
         val descChanged = descriptionText.trim() != item.description.orEmpty().trim()
@@ -232,6 +233,17 @@ fun KanbanItemDetailScreen(
                 actions.updateDescription(descriptionText)
             }
         }
+    }
+
+    if (showRepeatDialog) {
+        RepeatItemDialog(
+            initial = metadataItem.recurrence,
+            onDismiss = { showRepeatDialog = false },
+            onSave = { input ->
+                showRepeatDialog = false
+                runAction { actions.updateRecurrence(input) }
+            },
+        )
     }
 
     if (showDeleteConfirm) {
@@ -384,6 +396,14 @@ fun KanbanItemDetailScreen(
                     ) {
                         Text(stringResource(R.string.kanban_item_save_description))
                     }
+                }
+
+                if (!itemPath.contains('.')) {
+                    RepeatSettingRow(
+                        recurrence = metadataItem.recurrence,
+                        enabled = !saving,
+                        onClick = { showRepeatDialog = true },
+                    )
                 }
 
                 Text(
@@ -591,7 +611,7 @@ private fun KanbanItemMetadataSection(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun KanbanDateField(
+internal fun KanbanDateField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,

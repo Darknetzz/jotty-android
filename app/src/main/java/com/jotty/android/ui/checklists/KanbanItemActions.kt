@@ -2,11 +2,13 @@ package com.jotty.android.ui.checklists
 
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.ItemRecurrenceInput
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateTaskItemStatusRequest
 import com.jotty.android.data.local.OfflineChecklistsRepository
 import com.jotty.android.data.local.itemAtPath
 import com.jotty.android.util.buildKanbanRichFieldsPatch
+import com.jotty.android.util.recurrencePatch
 import com.jotty.android.util.updateChecklistItemDescription
 import com.jotty.android.util.updateChecklistItemRichFields
 import com.jotty.android.util.updateChecklistItemText
@@ -32,6 +34,9 @@ interface KanbanItemActions {
         targetDate: String?,
         estimatedTime: Double?,
     ): Result<Unit>
+
+    /** Sets, or with null stops, the card's repeat rule (Jotty 1.30+). */
+    suspend fun updateRecurrence(input: ItemRecurrenceInput?): Result<Unit>
 
     suspend fun moveToStatus(statusId: String): Result<Unit>
 
@@ -115,6 +120,17 @@ class ApiKanbanItemActions(
                 listId = checklistId,
                 path = itemPath,
                 patch = patch,
+            )
+            onRefresh()
+        }
+
+    override suspend fun updateRecurrence(input: ItemRecurrenceInput?): Result<Unit> =
+        runCatching {
+            updateChecklistItemRichFields(
+                api = api,
+                listId = checklistId,
+                path = itemPath,
+                patch = recurrencePatch(input),
             )
             onRefresh()
         }
@@ -211,6 +227,9 @@ class OfflineKanbanItemActions(
             ) ?: return Result.success(Unit)
         return applyChecklistResult(offlineRepository.updateItemRichFields(checklistId, itemPath, patch))
     }
+
+    override suspend fun updateRecurrence(input: ItemRecurrenceInput?): Result<Unit> =
+        applyChecklistResult(offlineRepository.updateItemRichFields(checklistId, itemPath, recurrencePatch(input)))
 
     override suspend fun moveToStatus(statusId: String): Result<Unit> {
         val mover = moveToStatusOnline ?: return Result.failure(Exception("offline"))

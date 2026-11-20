@@ -79,6 +79,8 @@ import com.jotty.android.util.moveChecklistItemDownRequest
 import com.jotty.android.util.moveChecklistItemUpRequest
 import com.jotty.android.util.visibleKanbanColumns
 import com.jotty.android.util.updateChecklistItemText
+import com.jotty.android.util.updateChecklistItemRichFields
+import com.jotty.android.util.recurrencePatch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -1018,6 +1020,26 @@ private fun ChecklistDetailScreen(
                             }
                         }
                     },
+                    onSetRecurrence =
+                        if (flat.depth == 0) {
+                            { input ->
+                                scope.launch {
+                                    try {
+                                        updateChecklistItemRichFields(
+                                            api = api,
+                                            listId = checklist.id,
+                                            path = flat.apiPath,
+                                            patch = recurrencePatch(input),
+                                        )
+                                        refresh()
+                                    } catch (_: Exception) {
+                                        onSaveFailed()
+                                    }
+                                }
+                            }
+                        } else {
+                            null
+                        },
                     onMoveUp =
                         flat.item.id?.let { itemId ->
                             moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }

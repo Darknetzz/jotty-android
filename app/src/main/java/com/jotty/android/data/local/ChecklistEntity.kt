@@ -8,6 +8,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.jotty.android.data.api.Checklist
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.ItemRecurrenceInput
 import com.jotty.android.data.api.isCompletedForApi
 import com.jotty.android.data.api.normalizedForLocal
 import com.jotty.android.util.reorderChecklistItems
@@ -39,6 +40,8 @@ data class PendingItemOp(
     val startDate: String? = null,
     val targetDate: String? = null,
     val estimatedTime: Double? = null,
+    /** UPDATE — repeat rule when `recurrence` is in [patchKeys]; null there stops repeating (Jotty 1.30+). */
+    val recurrence: ItemRecurrenceInput? = null,
     /** When true, [priority]/[score]/dates/[estimatedTime] were explicitly set (including clear). */
     val richFieldsTouched: Boolean = false,
     /** REORDER */
@@ -192,6 +195,12 @@ fun applyOpToItems(
                             } else {
                                 item.estimatedTime
                             },
+                        recurrence =
+                            if (op.patchKeys?.contains("recurrence") == true) {
+                                op.recurrence?.toRecurrence()
+                            } else {
+                                item.recurrence
+                            },
                     )
                 }
             } ?: items
@@ -232,6 +241,7 @@ fun Map<String, Any?>.toPendingItemOp(path: String): PendingItemOp =
         startDate = if (containsKey("startDate")) this["startDate"] as? String else null,
         targetDate = if (containsKey("targetDate")) this["targetDate"] as? String else null,
         estimatedTime = if (containsKey("estimatedTime")) (this["estimatedTime"] as? Number)?.toDouble() else null,
+        recurrence = this["recurrence"] as? ItemRecurrenceInput,
         richFieldsTouched =
             containsKey("priority") ||
                 containsKey("score") ||
@@ -267,6 +277,7 @@ fun PendingItemOp.toRichFieldsPatch(): Map<String, Any?>? {
             "startDate" -> patch["startDate"] = startDate
             "targetDate" -> patch["targetDate"] = targetDate
             "estimatedTime" -> patch["estimatedTime"] = estimatedTime
+            "recurrence" -> patch["recurrence"] = recurrence
         }
     }
     return patch.takeIf { it.isNotEmpty() }

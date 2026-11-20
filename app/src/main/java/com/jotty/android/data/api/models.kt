@@ -95,7 +95,18 @@ data class ItemRecurrenceInput(
     val rrule: String,
     val dtstart: String,
     val until: String? = null,
-)
+) {
+    /** PATCH body value; leaves out [until] when unset (the server refuses `null` there). */
+    fun toJsonMap(): Map<String, String> =
+        buildMap {
+            put("rrule", rrule)
+            put("dtstart", dtstart)
+            until?.let { put("until", it) }
+        }
+
+    /** Local copy until the server fills in `nextDue` on the next refresh. */
+    fun toRecurrence(): ItemRecurrence = ItemRecurrence(rrule = rrule, dtstart = dtstart, until = until)
+}
 
 /** True when the server returned any expanded Kanban item field (writable or metadata). */
 fun ChecklistItem.hasAnyRichField(): Boolean =

@@ -8,6 +8,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ### Added
 
+- **Repeating items** (Jotty 1.30+) — Set an item to repeat daily, weekly (on chosen weekdays), monthly or yearly, every N periods, with a start and optional end date: **Repeat…** in a top-level checklist item's ⋮ menu, or the **Repeat** row in a Kanban card's details. Repeating items and cards show the rule and next due date. Works offline and syncs later.
 - **Draft autosave** — Edits to unencrypted notes are autosaved on this device, separately from the note, until you save or discard them. If edits are left behind (for example, Android closed the app), the note reopens where you left it and offers to restore them, with a warning if the note has changed since. Encrypted notes are not autosaved, so their text never reaches storage.
 
 ### Fixed

@@ -458,6 +458,7 @@ private fun KanbanTaskCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                RepeatBadge(recurrence = card.item.recurrence, modifier = Modifier.padding(top = 4.dp))
                 if (subtaskTotal > 0) {
                     LinearProgressIndicator(
                         progress = { subtaskProgress },

@@ -1,6 +1,7 @@
 package com.jotty.android.ui.checklists
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -42,6 +44,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.ItemRecurrenceInput
 import com.jotty.android.ui.common.ConfirmDeleteDialog
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 
@@ -58,6 +61,8 @@ fun ChecklistItemRow(
     onDelete: () -> Unit,
     onUpdate: (String) -> Unit,
     onAddSubItem: (() -> Unit)? = null,
+    /** Top-level items only (Jotty 1.30+); null hides the Repeat menu entry. */
+    onSetRecurrence: ((ItemRecurrenceInput?) -> Unit)? = null,
     onMoveUp: (() -> Unit)? = null,
     onMoveDown: (() -> Unit)? = null,
     reorderableScope: ReorderableCollectionItemScope? = null,
@@ -75,6 +80,8 @@ fun ChecklistItemRow(
     val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     var menuExpanded by remember { mutableStateOf(false) }
+    var showRepeatDialog by remember { mutableStateOf(false) }
+    val canRepeat = onSetRecurrence != null && depth == 0
 
     LaunchedEffect(isEditing, itemKey) {
         if (isEditing) focusRequester.requestFocus()
@@ -87,6 +94,17 @@ fun ChecklistItemRow(
             onConfirm = {
                 showDeleteConfirm = false
                 onDelete()
+            },
+        )
+    }
+
+    if (showRepeatDialog && onSetRecurrence != null) {
+        RepeatItemDialog(
+            initial = item.recurrence,
+            onDismiss = { showRepeatDialog = false },
+            onSave = { input ->
+                showRepeatDialog = false
+                onSetRecurrence(input)
             },
         )
     }
@@ -146,16 +164,7 @@ fun ChecklistItemRow(
             val displayText =
                 checklistDisplayText(item.text, showChecklistEmojis)
                     .ifBlank { stringResource(R.string.item_placeholder) }
-            Text(
-                text = displayText,
-                style = MaterialTheme.typography.bodyLarge,
-                textDecoration = if (item.completed) TextDecoration.LineThrough else null,
-                color =
-                    if (item.completed) {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+            Column(
                 modifier =
                     Modifier
                         .weight(1f)
@@ -163,9 +172,23 @@ fun ChecklistItemRow(
                             onEditingItemKeyChange(itemKey)
                             editText = item.text
                         },
-            )
+            ) {
+                Text(
+                    text = displayText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    textDecoration = if (item.completed) TextDecoration.LineThrough else null,
+                    color =
+                        if (item.completed) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                )
+                RepeatBadge(recurrence = item.recurrence)
+            }
         }
-        val hasSecondaryActions = onMoveUp != null || onMoveDown != null || (isProject && depth == 0 && onAddSubItem != null)
+        val hasSecondaryActions =
+            onMoveUp != null || onMoveDown != null || canRepeat || (isProject && depth == 0 && onAddSubItem != null)
         if (hasSecondaryActions) {
             IconButton(onClick = { menuExpanded = true }, modifier = Modifier.size(actionIconSize)) {
                 Icon(
@@ -205,6 +228,17 @@ fun ChecklistItemRow(
                                 contentDescription = moveDownLabel,
                             )
                         },
+                    )
+                }
+                if (canRepeat) {
+                    val repeatLabel = stringResource(R.string.repeat_item)
+                    DropdownMenuItem(
+                        text = { Text(repeatLabel) },
+                        onClick = {
+                            menuExpanded = false
+                            showRepeatDialog = true
+                        },
+                        leadingIcon = { Icon(Icons.Default.Repeat, contentDescription = repeatLabel) },
                     )
                 }
                 if (isProject && depth == 0 && onAddSubItem != null) {

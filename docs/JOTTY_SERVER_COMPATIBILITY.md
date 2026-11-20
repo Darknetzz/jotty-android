@@ -134,7 +134,7 @@ TipTap for Kanban item descriptions (also 1.27+) is web-only; the server still s
 
 | Capability | Android behavior |
 |------------|------------------|
-| Recurring items (`recurrence` on checklist items / Kanban cards) | Parsed and kept in the local copy; re-sent on top-level items when checklists are replayed (clone, undo delete, offline-created lists). No in-app editor or indicator yet |
+| Recurring items (`recurrence` on checklist items / Kanban cards) | Parsed and kept in the local copy; re-sent on top-level items when checklists are replayed (clone, undo delete, offline-created lists). Badge (rule + next due) on rows and cards; editor via item ⋮ **Repeat…** and Kanban detail **Repeat** row, sent as `PATCH .../items/{index}` `{ recurrence }` (null stops). Offline edits queue as `UPDATE` ops with `patchKeys` `recurrence`. FREQ/INTERVAL/BYDAY are editable; other rule parts (COUNT, WKST) are kept as-is. Older servers reject the PATCH (400), which shows the usual save error |
 | Server rolls completed recurring items on `GET` / check | Handled as a normal server change: the item comes back unticked after refresh/sync |
 | Checklist items containing ` | ` | Server-side fix; nothing to change in the app |
 | Public page restyle, ToC, kanban public view | Web-only; share links from the app open them unchanged |

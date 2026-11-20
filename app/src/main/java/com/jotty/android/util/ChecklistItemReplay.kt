@@ -15,7 +15,8 @@ fun apiChecklistTypeFrom(checklistType: String): String =
     }
 
 /**
- * Re-adds [items] depth-first under [parentPath], preserving order and completion state.
+ * Re-adds [items] depth-first under [parentPath], preserving order, completion state and
+ * top-level recurrence (Jotty 1.30+).
  * Used when cloning checklists and when restoring a checklist after delete-undo.
  */
 suspend fun replayChecklistItemsToServer(
@@ -28,7 +29,12 @@ suspend fun replayChecklistItemsToServer(
         val path = if (parentPath == null) "$index" else "$parentPath.$index"
         api.addChecklistItem(
             listId,
-            AddItemRequest(text = item.text, status = item.status, parentIndex = parentPath),
+            AddItemRequest(
+                text = item.text,
+                status = item.status,
+                parentIndex = parentPath,
+                recurrence = if (parentPath == null) item.recurrence?.toInput() else null,
+            ),
         )
         val children = item.children.orEmpty()
         if (children.isNotEmpty()) {

@@ -67,7 +67,34 @@ data class ChecklistItem(
     val lastModifiedBy: String? = null,
     val lastModifiedAt: String? = null,
     val history: List<ItemStatusChange>? = null,
+    /** Repeat rule (Jotty 1.30+; top-level items only). Kept so local copies and replays don't drop it. */
+    val recurrence: ItemRecurrence? = null,
     val children: List<ChecklistItem>? = null,
+)
+
+/**
+ * Item recurrence as returned by Jotty 1.30+. [nextDue] and [lastCompleted] are server-computed;
+ * use [toInput] when sending it back.
+ */
+data class ItemRecurrence(
+    val rrule: String? = null,
+    val dtstart: String? = null,
+    val until: String? = null,
+    val nextDue: String? = null,
+    val lastCompleted: String? = null,
+) {
+    /** Writable subset for create/update bodies, or null when the rule is incomplete. */
+    fun toInput(): ItemRecurrenceInput? {
+        val rule = rrule?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val start = dtstart?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        return ItemRecurrenceInput(rrule = rule, dtstart = start, until = until?.trim()?.takeIf { it.isNotEmpty() })
+    }
+}
+
+data class ItemRecurrenceInput(
+    val rrule: String,
+    val dtstart: String,
+    val until: String? = null,
 )
 
 /** True when the server returned any expanded Kanban item field (writable or metadata). */
@@ -83,6 +110,7 @@ fun ChecklistItem.hasAnyRichField(): Boolean =
         !lastModifiedBy.isNullOrBlank() ||
         !lastModifiedAt.isNullOrBlank() ||
         !history.isNullOrEmpty() ||
+        recurrence != null ||
         children.orEmpty().any { it.hasAnyRichField() }
 
 /** Jotty may mark completion via [status] (`completed`) or [completed]; treat either as done. */
@@ -121,6 +149,8 @@ data class AddItemRequest(
     val text: String,
     val status: String? = null,
     val parentIndex: String? = null,
+    /** Jotty 1.30+; top-level items only (the server refuses it with [parentIndex]). Older servers ignore it. */
+    val recurrence: ItemRecurrenceInput? = null,
 )
 
 data class UpdateItemRequest(

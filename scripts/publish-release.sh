@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# After release.sh: push dev, open dev→main PR, merge, publish GitHub release.
-# Use --local-build to build and upload the APK locally (no GitHub Actions).
+# After release.sh: push dev, open dev→main PR, merge, push tag vX.Y.Z (GitLab CI publishes the
+# GitHub release + APK). Use --local-build to create the release and upload the APK from this machine.
 set -euo pipefail
 
 VERSION=""
@@ -61,41 +61,23 @@ BRANCH="$(git branch --show-current)"
 command -v gh >/dev/null || { echo "gh CLI required" >&2; exit 1; }
 gh auth status >/dev/null
 
-extract_changelog() {
-  python3 - "$CHANGELOG_FILE" "$VERSION" <<'PY'
-import re
-import sys
-
-path, version = sys.argv[1:3]
-text = open(path, encoding="utf-8").read()
-pattern = rf"(?ms)^## \[{re.escape(version)}\] - [^\n]+\n\n(.*?)(?=^---\n\n## |\Z)"
-m = re.search(pattern, text)
-if not m:
-    raise SystemExit(f"Could not find ## [{version}] in CHANGELOG.md")
-print(m.group(1).strip())
-PY
-}
-
-CHANGELOG_BODY="$(extract_changelog)"
+# shellcheck source=lib/release-notes.sh
+source "$SCRIPT_DIR/lib/release-notes.sh"
 NOTES_FILE=".gh-release-${VERSION}.md"
-cat > "$NOTES_FILE" <<EOF
-## Install
-
-Download **\`jotty-android-${VERSION}.apk\`** from this release.
-
-**Full changelog:** https://github.com/Darknetzz/jotty-android/blob/v${VERSION}/CHANGELOG.md
-
----
-
-${CHANGELOG_BODY}
-EOF
+write_release_notes "$REPO_ROOT" "$VERSION" "$NOTES_FILE"
 
 if [[ "$DRY_RUN" -eq 1 ]]; then
   echo "[DryRun] version=$VERSION tag=$TAG"
   [[ "$SKIP_PUSH" -eq 1 ]] || echo "[DryRun] git push origin dev"
   [[ "$SKIP_PR" -eq 1 ]] || echo "[DryRun] gh pr create dev -> main"
   [[ "$SKIP_MERGE" -eq 1 ]] || echo "[DryRun] gh pr merge"
-  [[ "$SKIP_RELEASE" -eq 1 ]] || echo "[DryRun] gh release create $TAG"
+  if [[ "$SKIP_RELEASE" -eq 0 ]]; then
+    if [[ "$LOCAL_BUILD" -eq 1 ]]; then
+      echo "[DryRun] gh release create $TAG + local APK upload"
+    else
+      echo "[DryRun] git push origin main + tag $TAG (GitLab CI publishes the release)"
+    fi
+  fi
   rm -f "$NOTES_FILE"
   exit 0
 fi
@@ -137,26 +119,28 @@ if [[ "$SKIP_MERGE" -eq 0 && -n "$PR_NUMBER" ]]; then
   git fetch origin main
 fi
 
-if [[ "$SKIP_RELEASE" -eq 0 ]]; then
+if [[ "$SKIP_RELEASE" -eq 0 && "$LOCAL_BUILD" -eq 0 ]]; then
+  # GitLab CI (github-release job) builds the APK and publishes the GitHub release for the tag.
+  git fetch origin main
+  git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || git tag "$TAG" origin/main
+  git push origin "refs/remotes/origin/main:refs/heads/main" "refs/tags/$TAG"
+  echo "Pushed $TAG; GitLab CI will publish https://github.com/Darknetzz/jotty-android/releases/tag/${TAG}"
+elif [[ "$SKIP_RELEASE" -eq 0 ]]; then
   if gh release view "$TAG" >/dev/null 2>&1; then
     gh release edit "$TAG" --notes-file "$NOTES_FILE"
   else
     gh release create "$TAG" --target main --title "$TAG" --notes-file "$NOTES_FILE"
   fi
   echo "https://github.com/Darknetzz/jotty-android/releases/tag/${TAG}"
-  if [[ "$LOCAL_BUILD" -eq 1 ]]; then
-    echo "Building release APK locally..."
-    APK_PATH="$("$SCRIPT_DIR/build-release-apk.sh" --output-dir "$REPO_ROOT")"
-    echo "Uploading $APK_PATH to $TAG..."
-    gh release upload "$TAG" "$APK_PATH" --clobber
-    echo "APK attached to release."
-  else
-    echo "Tip: use --local-build to build and upload the APK without GitHub Actions."
-  fi
+  echo "Building release APK locally..."
+  APK_PATH="$("$SCRIPT_DIR/build-release-apk.sh" --output-dir "$REPO_ROOT" | tail -n 1)"
+  echo "Uploading $APK_PATH to $TAG..."
+  gh release upload "$TAG" "$APK_PATH" --clobber
+  echo "APK attached to release."
 fi
 
 rm -f "$NOTES_FILE"
-if [[ "$LOCAL_BUILD" -eq 1 && "$SKIP_MERGE" -eq 0 ]]; then
+if [[ "$SKIP_MERGE" -eq 0 ]]; then
   "$SCRIPT_DIR/sync-dev-with-main.sh"
 else
   echo "Done. Run ./scripts/sync-dev-with-main.sh after main updates if needed."

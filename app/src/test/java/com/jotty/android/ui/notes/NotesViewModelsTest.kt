@@ -1,6 +1,7 @@
 package com.jotty.android.ui.notes
 
 import android.content.Context
+import java.nio.file.Files
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.jotty.android.data.api.API_CATEGORY_UNCATEGORIZED
@@ -14,6 +15,8 @@ import com.jotty.android.data.encryption.XChaCha20Encryptor
 import com.jotty.android.data.encryption.clearPassphrase
 import com.jotty.android.data.local.FakeJottyApi
 import com.jotty.android.data.local.JottyDatabase
+import com.jotty.android.data.local.NoteDraft
+import com.jotty.android.data.local.NoteDraftStore
 import com.jotty.android.data.local.NoteSnapshotRepository
 import com.jotty.android.data.local.OfflineNotesRepository
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -155,6 +158,157 @@ class NoteDetailViewModelTest {
 
             assertEquals("Updated", updated?.title)
             assertEquals(false, vm.isEditing.value)
+        }
+
+    private fun editingTestNote() =
+        Note(
+            id = "n1",
+            title = "Title",
+            category = API_CATEGORY_UNCATEGORIZED,
+            content = "body",
+            createdAt = "c",
+            updatedAt = "u",
+        )
+
+    private fun noopActions(note: Note) =
+        object : NoteDetailActions {
+            override suspend fun updateNote(
+                noteId: String,
+                title: String,
+                content: String,
+                category: String,
+                originalCategory: String,
+            ): Result<Note> = Result.success(note.copy(title = title, content = content))
+
+            override suspend fun deleteNote(noteId: String): Result<Unit> = Result.success(Unit)
+        }
+
+    private fun draftStore() = NoteDraftStore(Files.createTempDirectory("note-drafts").toFile())
+
+    @Test
+    fun autosavedDraft_doesNotCallUpdateNote_andRestoresInNewSession() =
+        runTest {
+            val note = editingTestNote()
+            val store = draftStore()
+            var updates = 0
+            val countingActions =
+                object : NoteDetailActions by noopActions(note) {
+                    override suspend fun updateNote(
+                        noteId: String,
+                        title: String,
+                        content: String,
+                        category: String,
+                        originalCategory: String,
+                    ): Result<Note> {
+                        updates++
+                        return Result.success(note)
+                    }
+                }
+            val first = NoteDetailViewModel(note, countingActions, draftStore = store)
+            first.startEditing()
+            first.setContent("my draft")
+            first.saveDraftNow()
+
+            val second = NoteDetailViewModel(note, countingActions, draftStore = store)
+            second.loadDraft()
+
+            assertEquals(0, updates)
+            assertEquals("body", second.content.value)
+            assertEquals(false, second.pendingDraft.value?.noteChangedSince)
+            second.restoreDraft()
+            assertTrue(second.isEditing.value)
+            assertTrue(second.hasUnsavedChanges())
+            assertEquals("my draft", second.content.value)
+            assertNull(second.pendingDraft.value)
+        }
+
+    @Test
+    fun loadDraft_flagsNoteChangedSinceDraft() =
+        runTest {
+            val note = editingTestNote()
+            val store = draftStore()
+            store.save("n1", NoteDraft("Title", "my draft", note.category, "older", 1L))
+            val vm = NoteDetailViewModel(note, noopActions(note), draftStore = store)
+
+            vm.loadDraft()
+
+            assertEquals(true, vm.pendingDraft.value?.noteChangedSince)
+        }
+
+    @Test
+    fun saveDraftNow_keepsPendingDraftUntilUserChooses() =
+        runTest {
+            val note = editingTestNote()
+            val store = draftStore()
+            val draft = NoteDraft("Title", "my draft", note.category, "u", 1L)
+            store.save("n1", draft)
+            val vm = NoteDetailViewModel(note, noopActions(note), draftStore = store)
+            vm.loadDraft()
+            vm.startEditing()
+
+            vm.saveDraftNow()
+
+            assertEquals(draft, store.load("n1"))
+        }
+
+    @Test
+    fun saveDraftNow_neverStoresEncryptedNote() =
+        runTest {
+            val encrypted = editingTestNote().copy(encrypted = true)
+            val store = draftStore()
+            val vm = NoteDetailViewModel(encrypted, noopActions(encrypted), draftStore = store)
+            vm.startEditing()
+            vm.setDecryptedContent("secret")
+
+            vm.saveDraftNow()
+
+            assertNull(store.load("n1"))
+        }
+
+    @Test
+    fun noteSnapshot_whileEditing_keepsDraftAndEditMode() =
+        runTest {
+            val note = editingTestNote()
+            val vm = NoteDetailViewModel(note, noopActions(note))
+            vm.startEditing()
+            vm.setContent("my draft")
+
+            vm.onNoteSnapshotUpdated(note)
+            vm.onNoteSnapshotUpdated(note.copy(content = "from sync", updatedAt = "u2"))
+
+            assertTrue(vm.isEditing.value)
+            assertEquals("my draft", vm.content.value)
+        }
+
+    @Test
+    fun discardEditing_appliesSnapshotDeferredWhileEditing() =
+        runTest {
+            val note = editingTestNote()
+            val vm = NoteDetailViewModel(note, noopActions(note))
+            vm.startEditing()
+            vm.setContent("my draft")
+            vm.onNoteSnapshotUpdated(note.copy(content = "from sync", updatedAt = "u2"))
+
+            vm.discardEditing()
+
+            assertFalse(vm.isEditing.value)
+            assertEquals("from sync", vm.content.value)
+        }
+
+    @Test
+    fun saveEdit_dropsSnapshotDeferredWhileEditing() =
+        runTest {
+            val note = editingTestNote()
+            val vm = NoteDetailViewModel(note, noopActions(note))
+            vm.startEditing()
+            vm.setContent("my draft")
+            vm.onNoteSnapshotUpdated(note.copy(content = "from sync", updatedAt = "u2"))
+
+            vm.saveEdit(onSuccess = {}, onFailure = {})
+            advanceUntilIdle()
+
+            assertFalse(vm.isEditing.value)
+            assertEquals("my draft", vm.content.value)
         }
 
     @Test
@@ -898,7 +1052,7 @@ class NoteDetailViewModelTest {
                 onSuccess = { success = true },
                 onFailure = { },
             )
-            withTimeout(5_000) {
+            withTimeout(15_000) {
                 while (!success) {
                     ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
                     delay(25)
@@ -958,7 +1112,7 @@ class NoteDetailViewModelTest {
                 onSuccess = { },
                 onFailure = { failed = true },
             )
-            withTimeout(5_000) {
+            withTimeout(15_000) {
                 while (!failed) {
                     ShadowLooper.runUiThreadTasksIncludingDelayedTasks()
                     delay(25)

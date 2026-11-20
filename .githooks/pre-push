@@ -1,9 +1,11 @@
 #!/bin/sh
-# After a successful push to origin/dev, build and publish dev-latest locally (replaces Actions).
+# Optional local fallback: after a push to origin/dev, build and publish dev-latest on this machine.
+# GitLab CI publishes dev-latest by default (.gitlab-ci.yml), so this is opt-in:
+#   git config jotty.autoPublishDev true
 # Requires: setup-repo-git (core.hooksPath), gh auth, JDK/Android SDK, optional keystore.properties.
-# Skip: git push --no-verify | git config jotty.autoPublishDev false | JOTTY_SKIP_DEV_PUBLISH=1
+# Skip: git push --no-verify | JOTTY_SKIP_DEV_PUBLISH=1
 
-if [ "$(git config --get jotty.autoPublishDev 2>/dev/null)" = "false" ]; then
+if [ "$(git config --get jotty.autoPublishDev 2>/dev/null)" != "true" ]; then
   exit 0
 fi
 

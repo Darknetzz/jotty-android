@@ -13,7 +13,7 @@ data class JottyServerVersion(
 
     companion object {
         /** Highest Jotty server major.minor this app release has been checked against. */
-        val COMPAT_CEILING = JottyServerVersion(1, 29)
+        val COMPAT_CEILING = JottyServerVersion(1, 30)
 
         /** Oldest Jotty server this app supports (in-place item PATCH landed in 1.25.0). */
         val MIN_SUPPORTED = JottyServerVersion(1, 25)

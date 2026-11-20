@@ -15,8 +15,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-private val Indigo = Color(0xFF6366F1)
-private val IndigoDark = Color(0xFF818CF8)
+private val JottyPurple = Color(0xFF9E5DF8)
+private val JottyPurpleLight = Color(0xFFB98BFA)
 private val Slate900 = Color(0xFF0F172A)
 private val Slate800 = Color(0xFF1E293B)
 private val Slate100 = Color(0xFFF1F5F9)
@@ -30,9 +30,9 @@ private val SepiaOnSurface = Color(0xFF2D2A24)
 
 private val DarkColorScheme =
     darkColorScheme(
-        primary = IndigoDark,
+        primary = JottyPurpleLight,
         onPrimary = Color.White,
-        secondary = Indigo,
+        secondary = JottyPurple,
         onSecondary = Color.White,
         background = Slate900,
         surface = Slate800,
@@ -43,9 +43,9 @@ private val DarkColorScheme =
 /** True black dark scheme for OLED; same accents as dark theme. */
 private val AmoledColorScheme =
     darkColorScheme(
-        primary = IndigoDark,
+        primary = JottyPurpleLight,
         onPrimary = Color.White,
-        secondary = Indigo,
+        secondary = JottyPurple,
         onSecondary = Color.White,
         background = Color.Black,
         surface = Color.Black,
@@ -55,9 +55,9 @@ private val AmoledColorScheme =
 
 private val LightColorScheme =
     lightColorScheme(
-        primary = Indigo,
+        primary = JottyPurple,
         onPrimary = Color.White,
-        secondary = Indigo,
+        secondary = JottyPurple,
         onSecondary = Color.White,
         background = Slate100,
         surface = Color.White,
@@ -68,9 +68,9 @@ private val LightColorScheme =
 /** Warm sepia light scheme; same primary, softer background for reading. */
 private val SepiaColorScheme =
     lightColorScheme(
-        primary = Indigo,
+        primary = JottyPurple,
         onPrimary = Color.White,
-        secondary = Indigo,
+        secondary = JottyPurple,
         onSecondary = Color.White,
         background = SepiaBackground,
         surface = SepiaSurface,
@@ -201,9 +201,9 @@ private val SepiaDarkBg = Color(0xFF2A2620)
 private val SepiaDarkSurface = Color(0xFF35302A)
 private val SepiaDarkColorScheme =
     darkColorScheme(
-        primary = IndigoDark,
+        primary = JottyPurpleLight,
         onPrimary = Color.White,
-        secondary = Indigo,
+        secondary = JottyPurple,
         onSecondary = Color.White,
         background = SepiaDarkBg,
         surface = SepiaDarkSurface,

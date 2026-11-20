@@ -80,6 +80,7 @@ import com.jotty.android.util.defaultKanbanItemStatus
 import com.jotty.android.util.kanbanCardReorderRequest
 import com.jotty.android.util.moveKanbanCardInColumnRequest
 import com.jotty.android.util.visibleKanbanColumns
+import com.jotty.android.util.recurrencePatch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -1253,6 +1254,22 @@ private fun OfflineChecklistDetailContent(
                             handleResult(offlineRepository.updateItemText(liveChecklist.id, flat.apiPath, text))
                         }
                     },
+                    onSetRecurrence =
+                        if (flat.depth == 0) {
+                            { input ->
+                                scope.launch {
+                                    handleResult(
+                                        offlineRepository.updateItemRichFields(
+                                            liveChecklist.id,
+                                            flat.apiPath,
+                                            recurrencePatch(input),
+                                        ),
+                                    )
+                                }
+                            }
+                        } else {
+                            null
+                        },
                     onMoveUp =
                         flat.item.id?.let { itemId ->
                             moveChecklistItemUpRequest(items, itemId)?.let { { reorderItem(itemId, up = true) } }

@@ -3,6 +3,7 @@ package com.jotty.android.ui.notes
 import android.annotation.SuppressLint
 import android.view.View
 import android.view.ViewGroup
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.background
@@ -83,6 +84,7 @@ internal fun WysiwygNoteEditor(
     showHtmlSaveHint: Boolean = false,
     onEditorWebView: (android.webkit.WebView?) -> Unit = {},
     onEditorBridge: (WysiwygEditorBridge?) -> Unit = {},
+    onEditorRendererGone: () -> Unit = {},
     jottyServerUrl: String? = null,
     apiKey: String? = null,
     customHeaders: Map<String, String> = emptyMap(),
@@ -178,6 +180,7 @@ internal fun WysiwygNoteEditor(
                 editorBridge = it
                 onEditorBridge(it)
             },
+            onRendererGone = onEditorRendererGone,
             jottyServerUrl = jottyServerUrl,
             apiKey = apiKey,
             customHeaders = customHeaders,
@@ -579,6 +582,7 @@ private fun WysiwygWebEditor(
     onInsertImageRequested: () -> Unit,
     onWebViewReady: (WebView) -> Unit,
     onBridgeReady: (WysiwygEditorBridge) -> Unit,
+    onRendererGone: () -> Unit,
     jottyServerUrl: String? = null,
     apiKey: String? = null,
     customHeaders: Map<String, String> = emptyMap(),
@@ -648,6 +652,7 @@ private fun WysiwygWebEditor(
                                 customHeaders = customHeaders,
                                 capabilitiesKey = serverCapabilitiesKey,
                                 onPageFinished = pageFinished,
+                                onRendererGone = onRendererGone,
                             )
                         } else {
                             object : WebViewClient() {
@@ -656,6 +661,14 @@ private fun WysiwygWebEditor(
                                     url: String?,
                                 ) {
                                     pageFinished(view)
+                                }
+
+                                override fun onRenderProcessGone(
+                                    view: WebView?,
+                                    detail: RenderProcessGoneDetail?,
+                                ): Boolean {
+                                    onRendererGone()
+                                    return true
                                 }
                             }
                         }
@@ -673,6 +686,7 @@ private fun WysiwygWebEditor(
                 view.setBackgroundColor(backgroundColor)
                 onWebViewReady(view)
             },
+            onRelease = { it.destroy() },
         )
     }
 }

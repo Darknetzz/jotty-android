@@ -66,7 +66,7 @@ $notesFile = [System.IO.Path]::GetTempFileName()
 try {
     [System.IO.File]::WriteAllText($notesFile, $body)
     gh release create dev-latest `
-        --target (git branch --show-current) `
+        --target $sha `
         --title "Dev Latest" `
         --notes-file $notesFile `
         --prerelease `

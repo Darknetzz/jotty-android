@@ -86,6 +86,10 @@
     <string name="kanban_unsaved_changes_message">You have unsaved title or task detail changes.</string>
     <string name="note_unsaved_changes_title">Save changes?</string>
     <string name="note_unsaved_changes_message">You have unsaved note edits.</string>
+    <string name="note_draft_restore_title">Restore unsaved draft?</string>
+    <string name="note_draft_restore_message">Edits autosaved on %1$s were never saved to this note.</string>
+    <string name="note_draft_restore_message_note_changed">Edits autosaved on %1$s were never saved to this note, and the note has changed since. Saving the draft will replace those changes.</string>
+    <string name="note_draft_restore_action">Restore</string>
     <string name="discard">Discard</string>
     <string name="kanban_item_description">Description</string>
     <string name="kanban_item_description_placeholder">No description</string>
@@ -117,6 +121,57 @@
     <string name="kanban_item_target_date">Target date</string>
     <string name="kanban_item_estimated_time">Estimated time (hours)</string>
     <string name="kanban_item_metadata">Metadata</string>
+    <!-- Repeating items (Jotty 1.30+) -->
+    <string name="repeat_item">Repeat…</string>
+    <string name="repeat_title">Repeat</string>
+    <string name="repeat_none">Doesn\'t repeat</string>
+    <string name="repeat_every">Every</string>
+    <string name="repeat_on_days">On</string>
+    <string name="repeat_starts">Starts</string>
+    <string name="repeat_ends">Ends (optional)</string>
+    <string name="repeat_stop">Stop repeating</string>
+    <string name="repeat_requires_server">Needs Jotty 1.30 or newer. Only top-level items can repeat.</string>
+    <string name="repeat_ends_before_start">The end date must be after the start date.</string>
+    <string name="repeat_custom_rule">Custom rule: %1$s</string>
+    <string name="repeat_next_due">next %1$s</string>
+    <string name="cd_repeats">Repeats</string>
+    <plurals name="repeat_unit_days">
+        <item quantity="one">day</item>
+        <item quantity="other">days</item>
+    </plurals>
+    <plurals name="repeat_unit_weeks">
+        <item quantity="one">week</item>
+        <item quantity="other">weeks</item>
+    </plurals>
+    <plurals name="repeat_unit_months">
+        <item quantity="one">month</item>
+        <item quantity="other">months</item>
+    </plurals>
+    <plurals name="repeat_unit_years">
+        <item quantity="one">year</item>
+        <item quantity="other">years</item>
+    </plurals>
+    <string name="repeat_daily">Daily</string>
+    <string name="repeat_weekly">Weekly</string>
+    <string name="repeat_monthly">Monthly</string>
+    <string name="repeat_yearly">Yearly</string>
+    <plurals name="repeat_every_days">
+        <item quantity="one">Daily</item>
+        <item quantity="other">Every %1$d days</item>
+    </plurals>
+    <plurals name="repeat_every_weeks">
+        <item quantity="one">Weekly</item>
+        <item quantity="other">Every %1$d weeks</item>
+    </plurals>
+    <plurals name="repeat_every_months">
+        <item quantity="one">Monthly</item>
+        <item quantity="other">Every %1$d months</item>
+    </plurals>
+    <plurals name="repeat_every_years">
+        <item quantity="one">Yearly</item>
+        <item quantity="other">Every %1$d years</item>
+    </plurals>
+    <string name="repeat_summary_on_days">%1$s on %2$s</string>
     <string name="kanban_item_field_requires_server">Requires a newer Jotty server with Kanban item fields in the REST API.</string>
     <string name="kanban_item_field_unavailable">Not available on this server</string>
     <string name="done_progress">%1$d / %2$d done</string>
@@ -417,9 +472,9 @@
     <string name="theme_custom">Custom</string>
     <string name="theme_custom_pick_color">Accent color</string>
     <string name="theme_custom_hex_label">Hex color</string>
-    <string name="theme_custom_hex_hint">#6366F1</string>
+    <string name="theme_custom_hex_hint">#9E5DF8</string>
     <string name="theme_custom_hex_help">Tap a swatch or enter #RRGGBB</string>
-    <string name="theme_custom_hex_invalid">Enter a valid hex color (e.g. #6366F1)</string>
+    <string name="theme_custom_hex_invalid">Enter a valid hex color (e.g. #9E5DF8)</string>
     <string name="theme_custom_background_style">Background style</string>
     <string name="theme_custom_background_neutral">Neutral</string>
     <string name="theme_custom_background_tinted">Tinted</string>
@@ -596,7 +651,7 @@
     <string name="pending_sync_ops_count">%1$d queued change(s)</string>
     <string name="pending_sync_detail_title">Pending item</string>
     <string name="pending_sync_diff_heading">Local vs server</string>
-    <string name="pending_sync_diff_legend">Green lines are local additions; red lines are removed vs the server (or baseline).</string>
+    <string name="pending_sync_diff_legend">Green lines are local additions; red lines are removed vs the server (or baseline). Bold highlights mark the changed words.</string>
     <string name="pending_sync_ops_heading">Queued checklist operations</string>
     <string name="pending_sync_no_server_version">(No server version available — local-only or offline)</string>
     <string name="pending_sync_encrypted_body">[Encrypted — unlock the note to compare body text]</string>

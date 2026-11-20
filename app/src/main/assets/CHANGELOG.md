@@ -6,6 +6,23 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Repeating items** (Jotty 1.30+) — Set an item to repeat daily, weekly (on chosen weekdays), monthly or yearly, every N periods, with a start and optional end date: **Repeat…** in a top-level checklist item's ⋮ menu, or the **Repeat** row in a Kanban card's details. Repeating items and cards show the rule and next due date. Works offline and syncs later.
+- **Draft autosave** — Edits to unencrypted notes are autosaved on this device, separately from the note, until you save or discard them. If edits are left behind (for example, Android closed the app), the note reopens where you left it and offers to restore them, with a warning if the note has changed since. Encrypted notes are not autosaved, so their text never reaches storage.
+
+### Fixed
+
+- **Repeating items kept on copy** — Cloning a checklist, undoing a checklist delete, or syncing a checklist created offline no longer drops the repeat rule on items (Jotty 1.30+).
+- **Note edits lost after switching apps** — Unsaved edits now stay in the editor when a sync finishes or the screen is rebuilt. The rich editor also reloads your text if Android reclaims its WebView in the background, instead of closing the app.
+
+### Changed
+
+- **Jotty 1.30 support** — The app is checked against Jotty 1.30, so Settings → About no longer warns about it being newer than tested.
+- **Clearer pending sync diffs** — The Local vs server diff splits HTML notes (web-editor `<div>`/`<p>`/`<br>` blocks) into separate lines, so only the changed blocks show up instead of the whole note. Edited lines get word-level highlighting, and additions now show in green instead of the accent color.
+- **New app icon** — Jotty-purple launcher icon with the Jotty “J” and a check mark (also used for the themed/monochrome icon).
+- **Jotty purple accent** — The default theme and default custom accent now use Jotty purple (`#9E5DF8`) instead of indigo; indigo stays available as a custom accent preset.
+
 ---
 
 ## [1.10.0] - 2026-10-29

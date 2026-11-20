@@ -6,8 +6,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 
-/** Default custom accent (indigo) when none is stored. */
-const val DEFAULT_CUSTOM_ACCENT_HEX = "#6366F1"
+/** Default custom accent (Jotty purple) when none is stored. */
+const val DEFAULT_CUSTOM_ACCENT_HEX = "#9E5DF8"
 
 private val NeutralDarkBackground = Color(0xFF0F172A)
 private val NeutralDarkSurface = Color(0xFF1E293B)

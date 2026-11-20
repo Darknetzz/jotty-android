@@ -3,6 +3,7 @@ package com.jotty.android.ui.checklists
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.jotty.android.data.api.ItemRecurrenceInput
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 
 /** Checklist detail row with optional drag handle when the item has a server id. */
@@ -22,6 +23,7 @@ fun ChecklistDetailItemRow(
     onMoveUp: (() -> Unit)?,
     onMoveDown: (() -> Unit)?,
     onAddSubItem: (() -> Unit)?,
+    onSetRecurrence: ((ItemRecurrenceInput?) -> Unit)? = null,
     actionIconSize: Dp = 48.dp,
     actionGlyphSize: Dp = 22.dp,
     showChecklistEmojis: Boolean = true,
@@ -40,6 +42,7 @@ fun ChecklistDetailItemRow(
         onMoveUp = onMoveUp,
         onMoveDown = onMoveDown,
         onAddSubItem = onAddSubItem,
+        onSetRecurrence = onSetRecurrence,
         reorderableScope = if (flat.item.id != null) reorderableScope else null,
         onDragStarted = onDragStarted,
         onDragStopped = onDragStopped,

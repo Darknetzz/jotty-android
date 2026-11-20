@@ -1,6 +1,7 @@
 package com.jotty.android.util
 
 import com.jotty.android.data.api.ChecklistItem
+import com.jotty.android.data.api.ItemRecurrenceInput
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.UpdateItemRequest
 import com.google.gson.GsonBuilder
@@ -96,8 +97,13 @@ suspend fun updateChecklistItemRichFields(
     api.updateItemPatch(listId, path, patch.toPatchRequestBody())
 }
 
+/** Patch map that sets (or, with null, stops) an item's repeat rule. Jotty 1.30+, top-level items only. */
+fun recurrencePatch(input: ItemRecurrenceInput?): Map<String, Any?> = mapOf("recurrence" to input)
+
 private fun Map<String, Any?>.toPatchRequestBody() =
-    patchGson.toJson(this).toRequestBody("application/json".toMediaType())
+    patchGson
+        .toJson(mapValues { (_, value) -> if (value is ItemRecurrenceInput) value.toJsonMap() else value })
+        .toRequestBody("application/json".toMediaType())
 
 private val patchGson = GsonBuilder().serializeNulls().create()
 

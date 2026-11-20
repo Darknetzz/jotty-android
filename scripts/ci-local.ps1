@@ -3,11 +3,13 @@
 #   .\scripts\ci-local.ps1                 # unit tests, lint, ktlint, release assemble
 #   .\scripts\ci-local.ps1 -SkipRelease    # skip assembleRelease
 #   .\scripts\ci-local.ps1 -SmokeTest      # also run emulator instrumentation (needs AVD)
+#   .\scripts\ci-local.ps1 -DebugOnly      # debug unit tests + lintDebug only (faster)
 
 param(
     [switch]$SkipRelease,
     [switch]$SmokeTest,
-    [switch]$SkipLint
+    [switch]$SkipLint,
+    [switch]$DebugOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,12 +17,15 @@ $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 . (Join-Path $PSScriptRoot "lib/gradle-env.ps1")
 Initialize-JottyGradleEnv -RepoRoot $repoRoot
 
+$testTasks = if ($DebugOnly) { @("testDebugUnitTest") } else { @("test") }
+$lintTasks = if ($DebugOnly) { @("lintDebug") } else { @("lintDebug", "lintRelease") }
+
 Write-Host "=== Unit tests ===" -ForegroundColor Cyan
-Invoke-JottyGradlew -Tasks @("test")
+Invoke-JottyGradlew -Tasks $testTasks
 
 if (-not $SkipLint) {
-    Write-Host "=== Lint (debug + release) ===" -ForegroundColor Cyan
-    Invoke-JottyGradlew -Tasks @("lintDebug", "lintRelease")
+    Write-Host "=== Lint ($($lintTasks -join ', ')) ===" -ForegroundColor Cyan
+    Invoke-JottyGradlew -Tasks $lintTasks
 
     Write-Host "=== ktlint ===" -ForegroundColor Cyan
     Invoke-JottyGradlew -Tasks @("ktlintCheck")

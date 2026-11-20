@@ -75,6 +75,12 @@ extensions.configure<ApplicationExtension> {
 
     testOptions {
         unitTests.isIncludeAndroidResources = true
+        // CI points Robolectric's android-all download at a mirror (Maven Central rate-limits shared runners).
+        unitTests.all { test ->
+            System.getenv("ROBOLECTRIC_DEPENDENCY_REPO_URL")?.let {
+                test.systemProperty("robolectric.dependency.repo.url", it)
+            }
+        }
     }
 
     kotlin {

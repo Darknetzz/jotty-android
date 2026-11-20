@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
+import com.jotty.android.data.local.NoteDraftStore
 import com.jotty.android.data.local.OfflineNotesRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,7 @@ import com.jotty.android.util.filterNotesForCategory
 class OfflineEnabledNotesViewModel(
     private val offlineRepository: OfflineNotesRepository,
     private val api: JottyApi,
+    private val draftStore: NoteDraftStore? = null,
 ) : ViewModel() {
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
@@ -144,7 +146,10 @@ class OfflineEnabledNotesViewModel(
                     return@collect
                 }
                 offlineRepository.remappedNoteId(selected.id)?.let { serverId ->
-                    notes.find { it.id == serverId }?.let { _selectedNote.value = it }
+                    notes.find { it.id == serverId }?.let {
+                        draftStore?.move(selected.id, serverId)
+                        _selectedNote.value = it
+                    }
                 }
             }
         }

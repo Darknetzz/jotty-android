@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Changed
+
+- **Dependencies** — Bouncy Castle 1.87 (upstream security fixes) and updated build tooling (AGP 9.5, KSP 2.3.14, Gradle 9.9).
+
 ---
 
 ## [1.11.0] - 2026-11-20

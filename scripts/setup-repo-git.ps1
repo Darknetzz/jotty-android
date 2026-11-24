@@ -1,24 +1,23 @@
-# One-time (per clone) Git setup: hooks, and the moving dev-latest tag. dev-latest only exists on
-# GitHub (CI recreates it there with gh), not on GitLab (origin), so it is fetched from GitHub.
-# Safe to run again (idempotent).
+# One-time (per clone) Git config so the moving dev-latest tag updates on fetch/pull without
+# "would clobber existing tag". Safe to run again (idempotent).
 $ErrorActionPreference = "Stop"
 Set-Location (Join-Path $PSScriptRoot "..")
 
-$githubUrl = "https://github.com/Darknetzz/jotty-android.git"
 $refspec = "+refs/tags/dev-latest:refs/tags/dev-latest"
-# Older clones fetched origin from GitHub and had this refspec on origin; GitLab has no dev-latest.
 $existing = @(git config --get-all remote.origin.fetch 2>$null)
 if ($existing -contains $refspec) {
-    git config --unset-all remote.origin.fetch '^\+refs/tags/dev-latest:refs/tags/dev-latest$'
-    Write-Host "Removed the dev-latest refspec from remote.origin.fetch (origin is GitLab)."
+    Write-Host "Already configured: force-fetch dev-latest on origin fetch."
+} else {
+    git config --add remote.origin.fetch $refspec
+    Write-Host "Added remote.origin.fetch entry for dev-latest (force-update tag)."
 }
 
 $hooksDir = ".githooks"
 if (Test-Path $hooksDir) {
     git config core.hooksPath $hooksDir
-    Write-Host "Set core.hooksPath to $hooksDir (post-merge syncs dev-latest from GitHub on pull; pre-push local dev publish is opt-in via jotty.autoPublishDev=true)."
+    Write-Host "Set core.hooksPath to $hooksDir (post-merge syncs tag on pull; pre-push local dev publish is opt-in via jotty.autoPublishDev=true)."
 }
 
-git fetch $githubUrl $refspec
-Write-Host "Local dev-latest tag matches GitHub."
-Write-Host "You can use: git pull origin dev  (or .\scripts\pull-dev.ps1)"
+git fetch origin tag dev-latest --force
+Write-Host "Local dev-latest tag matches origin."
+Write-Host "You can use: git pull --tags origin dev  (or .\scripts\pull-dev.ps1)"

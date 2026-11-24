@@ -90,4 +90,10 @@ try {
     Remove-Item -LiteralPath $notesFile -Force -ErrorAction SilentlyContinue
 }
 
+# GitLab (origin) is the source of truth: move its dev-latest tag to the same commit, after GitHub,
+# so the push mirror finds both tags equal.
+git push --quiet --force origin "${sha}:refs/tags/dev-latest"
+if ($LASTEXITCODE -ne 0) { throw "Could not move the GitLab dev-latest tag" }
+Write-Host "GitLab tag dev-latest -> $shortSha"
+
 Write-Host "Done: https://github.com/$repo/releases/tag/dev-latest"

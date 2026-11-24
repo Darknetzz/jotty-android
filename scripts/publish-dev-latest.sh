@@ -79,4 +79,19 @@ gh release create dev-latest \
   --prerelease \
   "$APK_PATH"
 
+# GitLab (origin) is the source of truth: move its dev-latest tag to the same commit, after GitHub,
+# so the push mirror finds both tags equal. In CI this pushes with the job token ("Allow Git push
+# requests" under Settings > CI/CD > Job token permissions); locally it uses your origin credentials.
+if [[ -n "${CI_JOB_TOKEN:-}" && -n "${CI_SERVER_HOST:-}" ]]; then
+  gitlab_url="${CI_SERVER_PROTOCOL:-https}://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}:${CI_SERVER_PORT:-443}/${CI_PROJECT_PATH}.git"
+else
+  gitlab_url=origin
+fi
+if git push --quiet --force "$gitlab_url" "${SHA}:refs/tags/dev-latest"; then
+  echo "GitLab tag dev-latest -> ${SHORT_SHA}"
+else
+  echo "ERROR: could not move the GitLab dev-latest tag (job token push not allowed?)" >&2
+  exit 1
+fi
+
 echo "Done: https://github.com/${REPO}/releases/tag/dev-latest"

@@ -9,6 +9,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Fixed
 
 - **Offline sync when the server is unreachable** — With local storage & sync on, edits made while the phone has a connection but cannot reach your Jotty server (for example a home-network-only address while you are out) are now saved on the device and synced once the server answers again. Adding, checking, editing, reordering or deleting checklist items no longer fails with "Couldn't save", and saving a note no longer reports a failed save that had in fact been kept. The app shows itself as offline while the server is unreachable and reconnects on its own, usually within seconds of rejoining the network ([#115](https://github.com/Darknetzz/jotty-android/issues/115)).
+- **Raw markdown in some notes** — Notes with a blank line after a heading (or after a code block or table) showed everything below it as raw text: `##`, `**` and list dashes appeared literally and lines ran together. Blank lines inside code blocks also showed up as literal `<br>`. Both now render correctly; extra blank lines are still kept as spacing ([#116](https://github.com/Darknetzz/jotty-android/issues/116)).
 
 ### Changed
 

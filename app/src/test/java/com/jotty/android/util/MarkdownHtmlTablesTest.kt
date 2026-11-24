@@ -205,12 +205,46 @@ class MarkdownHtmlTablesTest {
     }
 
     @Test
-    fun `preserveExtraBlankLinesForDisplay turns extra newlines into br tags`() {
+    fun `preserveExtraBlankLinesForDisplay pads extra blank lines with nbsp paragraphs`() {
         val md = "A\n\n\n\n\nB"
         val displayed = preserveExtraBlankLinesForDisplay(md)
-        assertTrue(displayed.contains("<br>"))
-        assertEquals(5, Regex("<br>").findAll(displayed).count())
-        assertFalse(displayed.contains("A\n\n\n\n\nB"))
+        assertEquals("A\n\n&nbsp;\n\n&nbsp;\n\n&nbsp;\n\nB", displayed)
+    }
+
+    @Test
+    fun `preserveExtraBlankLinesForDisplay keeps single blank lines unchanged`() {
+        val md = "# Title\n\n*intro*\n\n## Section\n- **a**\n- b\n"
+        assertEquals(md, preserveExtraBlankLinesForDisplay(md))
+    }
+
+    @Test
+    fun `preserveExtraBlankLinesForDisplay leaves fenced code blocks untouched`() {
+        val md = "```\nline 1\n\n\n\nline 2\n```\n\n~~~kotlin\na\n\n\nb\n~~~"
+        assertEquals(md, preserveExtraBlankLinesForDisplay(md))
+        val padded = preserveExtraBlankLinesForDisplay("```\na\n\n\nb\n```\n\n\nafter")
+        assertEquals("```\na\n\n\nb\n```\n\n&nbsp;\n\nafter", padded)
+    }
+
+    @Test
+    fun `preserveExtraBlankLinesForDisplay does not pad leading or trailing blank lines`() {
+        val md = "\n\n\nA\n\n\n"
+        assertEquals(md, preserveExtraBlankLinesForDisplay(md))
+    }
+
+    @Test
+    fun `prepareNoteContentForDisplay keeps blank lines after headings as block separators`() {
+        // GitHub #116: a `<br>`-only line after a heading opened an HTML block that swallowed
+        // the rest of the note, so markdown showed as raw text.
+        val md = "# Title\n\n*intro*\n\n## Section\n- **a**\n- b"
+        val displayed = prepareNoteContentForDisplay(md, null)
+        assertEquals(md, displayed)
+        assertFalse(displayed.contains("<br>"))
+    }
+
+    @Test
+    fun `prepareNoteContentForDisplay does not inject br into code blocks`() {
+        val md = "```\nPS> ipconfig\n\nWindows IP Configuration\n\nEthernet adapter\n```"
+        assertEquals(md, prepareNoteContentForDisplay(md, null))
     }
 
     @Test
@@ -222,9 +256,11 @@ class MarkdownHtmlTablesTest {
                 "<div>B</div>"
         val one = prepareNoteContentForDisplay(oneBlank, null)
         val five = prepareNoteContentForDisplay(fiveBlanks, null)
-        val brOne = Regex("<br>").findAll(one).count()
-        val brFive = Regex("<br>").findAll(five).count()
-        assertTrue("expected more <br> for 5 blank divs than 1, got $brFive vs $brOne", brFive > brOne)
+        val padOne = Regex("&nbsp;").findAll(one).count()
+        val padFive = Regex("&nbsp;").findAll(five).count()
+        assertEquals(0, padOne)
+        assertEquals(4, padFive)
+        assertFalse(five.contains("<br>"))
     }
 
     @Test

@@ -1,6 +1,6 @@
 # Jotty Android
 
-<p align="center"><img src="docs/images/banner-gradient.png" alt="jotty-android" width="720"></p>
+<p align="center"><img src="docs/images/banner-icon.png" alt="Jotty Android" width="720"></p>
 
 
 [![Stable APK](https://img.shields.io/badge/Stable%20APK-latest-2ea043)](https://github.com/Darknetzz/jotty-android/releases/latest)

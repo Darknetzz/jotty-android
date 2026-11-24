@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="jotty-android">
+  <title>jotty-android</title>
+  <rect width="512" height="512" rx="112" fill="#9E5DF8"/>
+  <!-- App icon foreground (Jotty J + check mark), 884-unit space -->
+  <g transform="translate(40.25 -2.35) scale(0.5831)">
+    <path fill="#FFFFFF" d="M601.62,120.7v417.41q0,94.1 -66.78,160.89 -66.79,66.78 -160.89,66.78l-37.95,-151.78h37.95q31.11,0 53.12,-22.01 22.77,-22.77 22.77,-53.88v-265.62h-166.96v-151.79z"/>
+    <path d="M170,445L262,537L410,352" fill="none" stroke="#E4D4FF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

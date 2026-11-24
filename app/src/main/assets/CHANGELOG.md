@@ -15,6 +15,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Dependencies** — Bouncy Castle 1.87 (upstream security fixes) and updated build tooling (AGP 9.5, KSP 2.3.14, Gradle 9.9).
 
+### Documentation
+
+- **Repository artwork** — New README banner and logo in the style of the app icon (Jotty purple, J with check mark).
+
 ---
 
 ## [1.11.0] - 2026-11-20

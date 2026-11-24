@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Offline sync when the server is unreachable** — With local storage & sync on, edits made while the phone has a connection but cannot reach your Jotty server (for example a home-network-only address while you are out) are now saved on the device and synced once the server answers again. Adding, checking, editing, reordering or deleting checklist items no longer fails with "Couldn't save", and saving a note no longer reports a failed save that had in fact been kept. The app shows itself as offline while the server is unreachable and reconnects on its own, usually within seconds of rejoining the network ([#115](https://github.com/Darknetzz/jotty-android/issues/115)).
+
 ### Changed
 
 - **Dependencies** — Bouncy Castle 1.87 (upstream security fixes) and updated build tooling (AGP 9.5, KSP 2.3.14, Gradle 9.9).

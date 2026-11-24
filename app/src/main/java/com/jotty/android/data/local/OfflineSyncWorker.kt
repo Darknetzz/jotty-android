@@ -31,12 +31,17 @@ class OfflineSyncWorker(
             if (instance.serverUrl.isBlank() || instance.apiKey.isBlank()) return@forEach
             runCatching {
                 val api = ApiClient.create(instance.serverUrl, instance.apiKey, instance.customHeaders)
+                // The worker only runs with a network (CONNECTED constraint) and visits every
+                // instance, so it must not drive the app-wide online state: an unreachable
+                // background instance would otherwise switch the one on screen to offline.
                 val notesRepo =
                     OfflineNotesRepository(
                         context = applicationContext,
                         database = db,
                         instanceId = instance.id,
                         api = api,
+                        initialOnlineOverride = true,
+                        useSharedConnectivity = false,
                     )
                 val checklistsRepo =
                     OfflineChecklistsRepository(
@@ -44,6 +49,8 @@ class OfflineSyncWorker(
                         database = db,
                         instanceId = instance.id,
                         api = api,
+                        initialOnlineOverride = true,
+                        useSharedConnectivity = false,
                     )
                 try {
                     notesRepo.syncNotes()

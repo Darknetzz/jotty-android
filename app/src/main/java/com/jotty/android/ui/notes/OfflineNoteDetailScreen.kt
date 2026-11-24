@@ -15,6 +15,7 @@ import coil.ImageLoader
 import com.jotty.android.data.api.JottyApi
 import com.jotty.android.data.api.Note
 import com.jotty.android.data.encryption.BiometricPassphraseStore
+import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineNotesRepository
 import com.jotty.android.ui.common.OfflineConnectivityBanner
 import kotlinx.coroutines.launch
@@ -71,7 +72,9 @@ fun OfflineNoteDetailScreen(
         remember(offlineRepository, isOnline) {
             OfflineNoteDetailActions(
                 offlineRepository = offlineRepository,
-                isOnline = { isOnline },
+                // Read the live value after the save: the save itself may be what discovers
+                // that the server is unreachable and flips the app to offline (#115).
+                isOnline = { isOnline && NetworkConnectivityMonitor.isOnline.value },
                 onSavedLocally = onSavedLocally,
             )
         }

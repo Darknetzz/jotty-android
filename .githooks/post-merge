@@ -1,8 +1,8 @@
 #!/bin/sh
-# After merge/pull on dev, keep local dev-latest tag aligned with origin (moving CI tag).
+# After merge/pull on dev, keep local dev-latest tag aligned with GitHub (moving CI tag, GitHub only).
 branch=$(git symbolic-ref -q HEAD 2>/dev/null) || exit 0
 case "$branch" in
   refs/heads/dev) ;;
   *) exit 0 ;;
 esac
-git fetch origin tag dev-latest --force >/dev/null 2>&1 || true
+git fetch https://github.com/Darknetzz/jotty-android.git '+refs/tags/dev-latest:refs/tags/dev-latest' >/dev/null 2>&1 || true

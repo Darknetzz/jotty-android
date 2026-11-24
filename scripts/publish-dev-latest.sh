@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Build dev APK locally and publish to the dev-latest GitHub release (no Actions).
 set -euo pipefail
+# origin is GitLab, so gh can't infer the GitHub repo from the remotes.
+export GH_REPO="${GH_REPO:-Darknetzz/jotty-android}"
 
 DRY_RUN=0
 SKIP_PUBLISH=0
@@ -34,7 +36,7 @@ if [[ ! -f "$APK_PATH" ]]; then
   echo "Build did not produce APK at: $APK_PATH" >&2
   exit 1
 fi
-REPO="${GH_REPO:-$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "OWNER/REPO")}"
+REPO="$GH_REPO"
 BUILT_BY="built locally"
 [[ -n "${CI_PIPELINE_URL:-}" ]] && BUILT_BY="built by [GitLab CI](${CI_PIPELINE_URL})"
 
@@ -59,6 +61,9 @@ if [[ "$SKIP_PUBLISH" -eq 1 ]]; then
   echo "Built only (skip publish): $APK_PATH"
   exit 0
 fi
+
+# The release targets SHA on GitHub, which gets commits from the GitLab push mirror.
+bash "$SCRIPT_DIR/ci/wait-for-github-ref.sh" dev "$SHA" 600 || [[ $? -eq 3 ]]
 
 gh release delete dev-latest --cleanup-tag --yes 2>/dev/null || true
 gh api -X DELETE "repos/${REPO}/git/refs/tags/dev-latest" 2>/dev/null || true

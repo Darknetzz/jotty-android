@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Wait until a GitHub ref (branch or tag) resolves to SHA. With dual push, GitHub normally has it
-# before GitLab starts the pipeline; this covers slow or failed pushes.
+# Wait until a GitHub ref (branch or tag) resolves to SHA. GitHub gets commits from the GitLab push
+# mirror, which can lag a few minutes (GitLab waits at least 5 minutes between mirror runs).
 # Exit: 0 = matched, 3 = superseded (GitHub ref is ahead of SHA), 1 = timed out / diverged.
 set -euo pipefail
 
 ref="${1:?usage: wait-for-github-ref.sh <branch-or-tag> <sha> [timeout-seconds]}"
 sha="${2:?usage: wait-for-github-ref.sh <branch-or-tag> <sha> [timeout-seconds]}"
-timeout="${3:-180}"
+timeout="${3:-600}"
 repo="${GH_REPO:?GH_REPO not set}"
 
 deadline=$((SECONDS + timeout))
@@ -24,7 +24,7 @@ while :; do
     fi
   fi
   if [[ $SECONDS -ge $deadline ]]; then
-    echo "Timed out waiting for GitHub ${ref} = ${sha:0:7} (currently ${remote:-missing}). Was the push to GitHub successful?" >&2
+    echo "Timed out waiting for GitHub ${ref} = ${sha:0:7} (currently ${remote:-missing}). Check the GitLab push mirror (Settings > Repository > Mirroring repositories)." >&2
     exit 1
   fi
   sleep 5

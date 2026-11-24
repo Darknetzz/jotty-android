@@ -13,6 +13,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# origin is GitLab, so gh can't infer the GitHub repo from the remotes.
+if (-not $env:GH_REPO) { $env:GH_REPO = "Darknetzz/jotty-android" }
 
 function Get-RepoRoot {
     if ($PSScriptRoot) {
@@ -153,6 +155,15 @@ if (-not $SkipPush) {
     git push origin dev
 }
 
+# GitHub is a GitLab push mirror: the GitHub PR below needs GitHub dev to have the new commits.
+$devSha = (git rev-parse dev).Trim()
+$deadline = (Get-Date).AddMinutes(10)
+while ((gh api "repos/Darknetzz/jotty-android/commits/dev" --jq .sha 2>$null) -ne $devSha) {
+    if ((Get-Date) -ge $deadline) { throw "GitHub dev is not at $devSha after 10 min: check the GitLab push mirror." }
+    Write-Host "Waiting for the GitLab push mirror to copy dev to GitHub..."
+    Start-Sleep -Seconds 10
+}
+
 $prNumber = $null
 if (-not $SkipPr) {
     $existing = gh pr list --base main --head dev --state open --json number --jq '.[0].number' 2>$null
@@ -193,6 +204,12 @@ if (-not $SkipMerge -and $prNumber) {
     }
     Write-Host "Merging PR #$prNumber..."
     gh pr merge $prNumber --merge --delete-branch=false
+    if ($LASTEXITCODE -ne 0) { throw "gh pr merge failed" }
+    # The merge commit exists only on GitHub: copy it to GitLab (origin) so the mirror keeps it.
+    git fetch git@github.com:Darknetzz/jotty-android.git main
+    if ($LASTEXITCODE -ne 0) { throw "Failed to fetch main from GitHub" }
+    git push origin FETCH_HEAD:refs/heads/main
+    if ($LASTEXITCODE -ne 0) { throw "Failed to push the merged main to origin" }
     git fetch origin main
 }
 

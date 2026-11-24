@@ -1,6 +1,6 @@
 # CI/CD and local builds
 
-Day-to-day CI/CD runs on **GitLab CI** ([`.gitlab-ci.yml`](../.gitlab-ci.yml), `gitlab.roste.org`). GitHub stays the public home: commits reach both remotes through a dual push URL on `origin`, and the GitLab publish jobs create the GitHub tags and releases with `gh`.
+Day-to-day CI/CD runs on **GitLab CI** ([`.gitlab-ci.yml`](../.gitlab-ci.yml), `gitlab.roste.org`). GitHub stays the public home: `origin` is GitLab only, a GitLab push mirror copies every branch and tag to GitHub, and the GitLab publish jobs create the GitHub releases with `gh` once the mirror has delivered the ref.
 
 GitHub Actions workflows in `.github/workflows/` are **manual-only** (`workflow_dispatch`) fallbacks. The local scripts below still work when GitLab is unavailable.
 
@@ -37,12 +37,11 @@ Publish jobs refuse to run without the release keystore: debug-signed APKs break
    | `ANDROID_KEY_ALIAS` | key alias |
    | `ANDROID_KEY_PASSWORD` | key password |
 
-4. **Dual push** (per clone): one `git push origin …` updates GitHub first, then GitLab. Fetches still come from GitHub.
+4. **Remote** (per clone): `origin` is GitLab only. GitHub gets everything from the GitLab push mirror (Settings > Repository > Mirroring repositories, id 14), so never add GitHub as a remote or push URL. Until 2026-11-24 `origin` fetched from GitHub and had a dual push URL.
 
    ```bash
-   git remote set-url --add --push origin git@github.com:Darknetzz/jotty-android.git
-   git remote set-url --add --push origin git@gitlab.roste.org:kriss/jotty-android.git
-   git push origin main dev
+   git remote set-url origin git@gitlab.roste.org:kriss/jotty-android.git
+   git config --unset-all remote.origin.pushurl
    ```
 
 5. Run `.\scripts\setup-repo-git.ps1` / `./scripts/setup-repo-git.sh` once per clone (force-fetch for the moving `dev-latest` tag, `.githooks`).
@@ -64,7 +63,7 @@ git commit -m "Release vX.Y.Z"
 .\scripts\publish-release.ps1
 ```
 
-`publish-release` pushes `dev`, opens and merges the `dev` → `main` PR on GitHub, tags the merged `main` as `vX.Y.Z`, pushes `main` + the tag to both remotes, and syncs `dev` with `main`. The GitLab `github-release` job then publishes the GitHub release and APK. On Unix, `./release.sh` and `./scripts/publish-release.sh` are equivalent; both release scripts validate changelog promotion with `--dry-run` / `-DryRun`.
+`publish-release` pushes `dev`, opens and merges the `dev` → `main` PR on GitHub, tags the merged `main` as `vX.Y.Z`, copies the merged `main` from GitHub to GitLab, pushes the tag to GitLab (the mirror carries it to GitHub), and syncs `dev` with `main`. The GitLab `github-release` job then publishes the GitHub release and APK. On Unix, `./release.sh` and `./scripts/publish-release.sh` are equivalent; both release scripts validate changelog promotion with `--dry-run` / `-DryRun`.
 
 ## Local fallbacks
 

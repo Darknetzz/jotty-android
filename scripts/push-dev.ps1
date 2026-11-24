@@ -1,4 +1,4 @@
-# Push to origin/dev (GitHub + GitLab via dual push); GitLab CI publishes dev-latest.
+# Push to origin/dev (GitLab; its push mirror copies it to GitHub); GitLab CI publishes dev-latest.
 # With git config jotty.autoPublishDev true, the pre-push hook also publishes locally (-SkipPublish skips it).
 # Usage: .\scripts\push-dev.ps1 [-SkipPublish] [-- extra git push args]
 

@@ -22,6 +22,7 @@ An unofficial Android client for [Jotty](https://jotty.page/) — the self-hoste
 - **Encryption** — XChaCha20-Poly1305 encrypt and decrypt in-app; optional biometric unlock for remembered passphrases (PGP-encrypted notes require the [Jotty web app](https://jotty.page/)).
 - **Quick capture** — Home-screen widget for a new note, and "Share to Jotty" from other apps.
 - **Appearance** — System/light/dark theme, colour palettes, custom accent hex, reader text size, and content padding.
+- **Languages** — English and Norwegian Bokmål; follows the phone's language or pick one in Settings.
 - **Settings & dashboard** — Health check, behaviour toggles, server summary, security controls, exportable debug logs, and in-app update check (stable or dev channel).
 - **Deep links** — `jotty-android://open/note/{id}` opens a note directly in the app.
 - **Connect** — Works with self-hosted Jotty **1.25.0 or newer** via server URL and API key.

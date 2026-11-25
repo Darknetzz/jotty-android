@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Languages offered in the system per-app language setting (Android 13+). Keep in sync with AppLocale.SUPPORTED. -->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="nb" />
+</locale-config>

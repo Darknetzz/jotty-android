@@ -46,7 +46,7 @@ app/src/main/java/com/jotty/android/
 - **State:** `remember` / `mutableStateOf` for local UI state; `SettingsRepository` flows for persisted settings and instances.
 - **DRY:** Reuse composables and helpers (see `ui/common/`); avoid duplicating API or encryption logic.
 - **Null safety:** Prefer `?.let { }`, local `val` bindings, or `requireNotNull` over `!!`.
-- **Strings:** User-visible text in `res/values/strings.xml`; use `stringResource(R.string.…)` in composables.
+- **Strings:** User-visible text in `res/values/strings.xml`; use `stringResource(R.string.…)` in composables. Add the Norwegian text to `res/values-nb/strings.xml` in the same change (lint fails on missing translations).
 - **Line endings:** LF everywhere (`.gitattributes`; only `*.bat` is CRLF). A diff that rewrites a whole file is a line-ending flip: fix it before committing.
 - **Generated files:** `app/src/main/assets/CHANGELOG.md` is copied from the root `CHANGELOG.md` at build time (`copyChangelogToAssets`) and is gitignored; never commit it.
 
@@ -123,7 +123,8 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 | Logging / debug log export | `util/AppLog.kt`, `util/DebugLogExporter.kt`; Settings → Troubleshooting, `SettingsScreen.kt` |
 | ProGuard keep rules        | `app/proguard-rules.pro`              |
 | App version in UI          | `gradle.properties` + BuildConfig      |
-| Strings / i18n             | `res/values/strings.xml`               |
+| Strings / i18n             | `res/values/strings.xml`, `res/values-nb/strings.xml`, `util/AppLocale.kt`, `res/xml/locales_config.xml` |
+| Offline list screens (shared) | `ui/common/OfflineListScaffold.kt` (`rememberOfflineListSync`, `OfflineListHeader`, `PersistedCategoryFilterEffect`), `data/local/OfflineListSyncSource.kt` |
 | Release history             | `CHANGELOG.md`                         |
 | GitLab CI/CD                | `.gitlab-ci.yml`, `scripts/ci/*.sh`, `scripts/lib/release-notes.sh` — [docs/LOCAL_CI.md](docs/LOCAL_CI.md#gitlab-cicd) |
 | Local CI / dev APK publish  | `scripts/ci-local.*`, `scripts/build-dev-apk.*`, `scripts/publish-dev-latest.*`, `scripts/push-dev.*`, `scripts/lib/wait-and-publish-dev.sh`, `.githooks/pre-push`, `scripts/setup-repo-git.*` — [docs/LOCAL_CI.md](docs/LOCAL_CI.md) |

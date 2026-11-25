@@ -76,7 +76,7 @@ Paths are relative to `app/src/main/java/com/jotty/android/`.
 
 - **Overview:** dashboard from `api/summary`, health check (`api/health`).
 - **Manage instances**, **Manage categories** (browse-only notes and checklist categories from `GET api/categories`; also in list overflow menus).
-- **Appearance:** theme, palettes, accent hex, reader text size, content padding.
+- **Appearance:** language, theme, palettes, accent hex, reader text size, content padding.
 - **Behavior:** rich note editor, drag reorder for checklists and Kanban, swipe to delete, default note and checklist categories, **Local storage & sync**, **Manage pending** ([OFFLINE_SYNC.md](OFFLINE_SYNC.md)).
 - **Security:** biometric unlock status, auto-prompt on open, remember-passphrase offer, clear all stored passphrases.
 - **Troubleshooting:** export debug logs (the `AppLog` ring buffer, `util/DebugLogExporter.kt`).
@@ -100,3 +100,12 @@ Paths are relative to `app/src/main/java/com/jotty/android/`.
 - `util/AppLog.kt`: tagged logging into an in-memory ring buffer; `d` also goes to logcat in debug builds. Exported from Settings → Troubleshooting.
 - HTTP logging (`ApiClient`) only in debug builds.
 - ProGuard keeps Gson, Bouncy Castle and all data model classes (`app/proguard-rules.pro`).
+
+## Languages
+
+English (default, `res/values/`) and Norwegian Bokmål (`res/values-nb/`). The app follows the phone's language unless one is picked under **Settings → Appearance → Language** (`util/AppLocale.kt`):
+
+- Android 13+: the choice is stored by the system (`LocaleManager`), and the app also appears in the system's per-app language settings via `res/xml/locales_config.xml`.
+- Android 12 and older: the choice is a small preference applied in `attachBaseContext` of `MainActivity` and `JottyApp`. The activity is recreated at once; text produced through the application context (some sync and error messages) switches after the app is restarted.
+
+To add a language: add `res/values-xx/strings.xml` (same names and placeholders; leave out `translatable="false"` entries), list it in `locales_config.xml` and `AppLocale.SUPPORTED`, and add its endonym as a non-translatable `app_language_name_xx` string.

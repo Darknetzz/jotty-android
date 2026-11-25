@@ -9,6 +9,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Added
 
 - **Resolve sync conflicts side by side** — When a sync conflict saves your version as a "… (Local copy)", **Pending sync** now lists it under **Conflicts**, and the conflict banner and message open it directly. Each conflict shows the server version and yours as a diff, and you choose: **Keep my version** (replaces the server version), **Keep server version** (discards your copy) or **Keep both** (your copy becomes a separate note or checklist). For notes you can also edit a merged version, starting from either side. Works offline: your choice syncs later ([#125](https://github.com/Darknetzz/jotty-android/issues/125)).
+- **Norwegian (Bokmål) translation** — The app is now available in Norwegian Bokmål. It follows the phone's language by default; pick a language under **Settings → Appearance → Language**, or in Android 13+'s per-app language settings ([#125](https://github.com/Darknetzz/jotty-android/issues/125)).
 
 ### Fixed
 

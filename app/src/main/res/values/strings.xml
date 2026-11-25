@@ -684,6 +684,10 @@
     <string name="conflict_copy_pending">1 local copy needs review.</string>
     <string name="conflict_copies_pending">%d local copies need review.</string>
     <string name="view_conflicts">Resolve</string>
+    <string name="app_language">Language</string>
+    <string name="app_language_system">System default</string>
+    <string name="app_language_name_en" translatable="false">English</string>
+    <string name="app_language_name_nb" translatable="false">Norsk bokmål</string>
     <string name="pending_sync_conflicts_heading">Conflicts</string>
     <string name="pending_sync_conflicts_subtitle">Your version was kept as a local copy because the server changed too. Open one to compare and choose what to keep.</string>
     <string name="conflict_merge_title">Resolve conflict</string>

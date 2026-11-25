@@ -6,7 +6,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -14,6 +16,7 @@ import com.jotty.android.R
 import com.jotty.android.data.preferences.SettingsRepository
 import com.jotty.android.ui.common.mainScreenTabContentPadding
 import com.jotty.android.ui.theme.DEFAULT_CUSTOM_ACCENT_HEX
+import com.jotty.android.util.AppLocale
 import kotlinx.coroutines.launch
 
 @Composable
@@ -56,6 +59,8 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
+            AppLanguageListItem()
+            HorizontalDivider()
             ListItem(
                 headlineContent = { Text(stringResource(R.string.theme_mode_label)) },
                 supportingContent = {
@@ -361,4 +366,40 @@ fun AppearanceSettingsScreen(settingsRepository: SettingsRepository) {
         }
         Spacer(modifier = Modifier.height(32.dp))
     }
+}
+
+/** Language chips: follow the system, or one of [AppLocale.SUPPORTED]. */
+@Composable
+private fun AppLanguageListItem() {
+    val activity = LocalActivity.current
+    val context = LocalContext.current
+    val current = remember { AppLocale.current(context) }
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.app_language)) },
+        supportingContent = {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                (listOf<String?>(null) + AppLocale.SUPPORTED).forEach { tag ->
+                    FilterChip(
+                        selected = current == tag,
+                        onClick = { if (tag != current) activity?.let { AppLocale.set(it, tag) } },
+                        label = {
+                            Text(
+                                stringResource(
+                                    when (tag) {
+                                        null -> R.string.app_language_system
+                                        "nb" -> R.string.app_language_name_nb
+                                        else -> R.string.app_language_name_en
+                                    },
+                                ),
+                            )
+                        },
+                    )
+                }
+            }
+        },
+    )
 }

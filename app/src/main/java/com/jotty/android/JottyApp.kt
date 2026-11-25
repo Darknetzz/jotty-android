@@ -1,15 +1,22 @@
 package com.jotty.android
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.ProcessLifecycleOwner
 import com.jotty.android.data.encryption.NoteDecryptionSession
 import com.jotty.android.data.local.NetworkConnectivityMonitor
 import com.jotty.android.data.local.OfflineSyncWorker
 import com.jotty.android.data.preferences.SettingsRepository
+import com.jotty.android.util.AppLocale
 import com.jotty.android.util.AppLog
 
 class JottyApp : Application() {
     val settingsRepository by lazy { SettingsRepository(this) }
+
+    // Repositories and workers use the application context for messages, so it needs the app language too.
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLocale.wrap(base))
+    }
 
     override fun onCreate() {
         super.onCreate()

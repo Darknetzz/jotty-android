@@ -73,6 +73,13 @@ extensions.configure<ApplicationExtension> {
         compose = true
     }
 
+    // The in-app language picker (util/AppLocale.kt) needs every language present, not just the device's.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     testOptions {
         unitTests.isIncludeAndroidResources = true
         // CI points Robolectric's android-all download at a mirror (Maven Central rate-limits shared runners).

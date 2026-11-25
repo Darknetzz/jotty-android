@@ -120,5 +120,5 @@ With local storage on, **Manage pending** (from Sync details, or Settings → Be
 | Background sync, locks | `data/local/OfflineSyncWorker.kt`, `OfflineSyncLocks.kt`, `OfflineInitialSync.kt` |
 | Drafts and backups | `data/local/NoteDraftStore.kt`, `NoteSnapshotRepository.kt`, `SyncBackupRepository.kt` |
 | Database | `data/local/JottyDatabase.kt` |
-| Conflict copies and merge | `OfflineNotesRepository` / `OfflineChecklistsRepository` (`resolveConflict*`), `util/ChecklistReplaceOps.kt`, `ui/sync/ConflictMergeScreen.kt` |
-| UI | `ui/common/MainTabTopBar.kt` (status icon), `ui/notes/Offline*`, `ui/checklists/OfflineEnabledChecklistsScreen.kt`, `ui/sync/` (pending sync manager) |
+| Conflict copies and merge | `data/local/SyncConflicts.kt` (detection, copies), `OfflineNotesRepository` / `OfflineChecklistsRepository` (`resolveConflict*`), `util/ChecklistReplaceOps.kt`, `ui/sync/ConflictMergeScreen.kt` |
+| UI | `ui/common/MainTabTopBar.kt` (status icon), `ui/common/OfflineListScaffold.kt` (sync state, refresh, conflict snackbar and header shared by both list screens), `ui/notes/Offline*`, `ui/checklists/OfflineEnabledChecklistsScreen.kt`, `ui/sync/` (pending sync manager) |

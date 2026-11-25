@@ -1,5 +1,6 @@
 package com.jotty.android
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -18,8 +19,13 @@ import com.jotty.android.ui.common.ProvideReducedMotion
 import com.jotty.android.ui.notes.LocalReaderTextScale
 import com.jotty.android.ui.theme.DEFAULT_CUSTOM_ACCENT_HEX
 import com.jotty.android.ui.theme.JottyTheme
+import com.jotty.android.util.AppLocale
 
 class MainActivity : FragmentActivity() {
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     /** Shared mutable state for deep-link note ID, updated by both onCreate and onNewIntent. */
     private val deepLinkNoteId = mutableStateOf<String?>(null)
 

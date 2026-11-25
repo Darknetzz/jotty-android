@@ -2,21 +2,34 @@ package com.jotty.android.ui.checklists
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -25,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import com.jotty.android.R
 import com.jotty.android.data.api.ChecklistItem
 import com.jotty.android.data.api.ReorderItemsRequest
+import com.jotty.android.util.ChecklistBulkAction
 import com.jotty.android.util.reorderRequestForFlatMove
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -49,6 +63,10 @@ fun ChecklistDetailItemsList(
     modifier: Modifier = Modifier,
     dragReorderEnabled: Boolean = true,
     onReorder: (ReorderItemsRequest) -> Unit,
+    /** Section-header bulk actions; null hides the menus (e.g. Kanban list view). */
+    onBulkAction: ((ChecklistBulkAction) -> Unit)? = null,
+    /** A bulk action is running: the section menus are replaced by a progress indicator. */
+    bulkInProgress: Boolean = false,
     itemRow: @Composable (
         flat: ChecklistFlatItem,
         reorderableScope: ReorderableCollectionItemScope?,
@@ -73,6 +91,8 @@ fun ChecklistDetailItemsList(
             completed = completed,
             modifier = modifier,
             onReorder = onReorder,
+            onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
             itemRow = itemRow,
         )
     } else {
@@ -80,6 +100,8 @@ fun ChecklistDetailItemsList(
             toDo = toDo,
             completed = completed,
             modifier = modifier,
+            onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
             itemRow = itemRow,
         )
     }
@@ -90,6 +112,8 @@ private fun ChecklistDetailItemsListStatic(
     toDo: List<ChecklistFlatItem>,
     completed: List<ChecklistFlatItem>,
     modifier: Modifier,
+    onBulkAction: ((ChecklistBulkAction) -> Unit)?,
+    bulkInProgress: Boolean,
     itemRow: @Composable (ChecklistFlatItem, ReorderableCollectionItemScope?, Boolean, (() -> Unit)?, (() -> Unit)?) -> Unit,
 ) {
     LazyColumn(
@@ -100,6 +124,8 @@ private fun ChecklistDetailItemsListStatic(
             toDo = toDo,
             completed = completed,
             dragReorderEnabled = false,
+            onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
             itemRow = itemRow,
         )
     }
@@ -112,6 +138,8 @@ private fun ChecklistDetailItemsListReorderable(
     completed: List<ChecklistFlatItem>,
     modifier: Modifier,
     onReorder: (ReorderItemsRequest) -> Unit,
+    onBulkAction: ((ChecklistBulkAction) -> Unit)?,
+    bulkInProgress: Boolean,
     itemRow: @Composable (ChecklistFlatItem, ReorderableCollectionItemScope?, Boolean, (() -> Unit)?, (() -> Unit)?) -> Unit,
 ) {
     var localToDo by remember { mutableStateOf(toDo) }
@@ -231,6 +259,8 @@ private fun ChecklistDetailItemsListReorderable(
             completed = localCompleted,
             dragReorderEnabled = true,
             reorderableState = reorderableState,
+            onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
             itemRow = itemRow,
             onItemDragStarted = ::startDrag,
             onItemDragStopped = ::finishDrag,
@@ -243,12 +273,24 @@ private fun LazyListScope.checklistDetailItemRows(
     completed: List<ChecklistFlatItem>,
     dragReorderEnabled: Boolean,
     reorderableState: ReorderableLazyListState? = null,
+    onBulkAction: ((ChecklistBulkAction) -> Unit)? = null,
+    bulkInProgress: Boolean = false,
     itemRow: @Composable (ChecklistFlatItem, ReorderableCollectionItemScope?, Boolean, (() -> Unit)?, (() -> Unit)?) -> Unit,
     onItemDragStarted: ((ChecklistSection, ChecklistFlatItem) -> Unit)? = null,
     onItemDragStopped: (() -> Unit)? = null,
 ) {
     item(key = "header-todo") {
-        ChecklistSectionHeader(title = stringResource(R.string.section_to_do, toDo.size))
+        ChecklistSectionHeader(
+            title = stringResource(R.string.section_to_do, toDo.size),
+            actions =
+                if (toDo.isEmpty()) {
+                    emptyList()
+                } else {
+                    listOf(ChecklistBulkAction.CheckAll, ChecklistBulkAction.ClearToDo)
+                },
+            onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
+        )
     }
     items(
         items = toDo,
@@ -275,7 +317,17 @@ private fun LazyListScope.checklistDetailItemRows(
         }
     }
     item(key = "header-completed") {
-        ChecklistSectionHeader(title = stringResource(R.string.section_completed, completed.size))
+        ChecklistSectionHeader(
+            title = stringResource(R.string.section_completed, completed.size),
+            actions =
+                if (completed.isEmpty()) {
+                    emptyList()
+                } else {
+                    listOf(ChecklistBulkAction.UncheckAll, ChecklistBulkAction.ClearCompleted)
+                },
+            onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
+        )
     }
     items(
         items = completed,
@@ -309,14 +361,76 @@ private fun reorderableItemKey(
 ): String = flat.item.id?.let { "$prefix-$it" } ?: "$prefix-${flat.apiPath}-${flat.item.text}"
 
 @Composable
-private fun ChecklistSectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-    )
+private fun ChecklistSectionHeader(
+    title: String,
+    actions: List<ChecklistBulkAction> = emptyList(),
+    onBulkAction: ((ChecklistBulkAction) -> Unit)? = null,
+    bulkInProgress: Boolean = false,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    var pendingConfirm by remember { mutableStateOf<ChecklistBulkAction?>(null) }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f).padding(vertical = 8.dp, horizontal = 4.dp),
+        )
+        if (onBulkAction != null && bulkInProgress) {
+            // Bulk ops use positional paths, so a second action must wait for the first to finish.
+            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            }
+        } else if (onBulkAction != null && actions.isNotEmpty()) {
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.checklist_section_actions))
+                }
+                DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                    actions.forEach { action ->
+                        DropdownMenuItem(
+                            text = { Text(stringResource(action.labelRes())) },
+                            onClick = {
+                                menuExpanded = false
+                                if (action.isDestructive) pendingConfirm = action else onBulkAction(action)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+    pendingConfirm?.let { action ->
+        AlertDialog(
+            onDismissRequest = { pendingConfirm = null },
+            title = { Text(stringResource(action.labelRes())) },
+            text = { Text(stringResource(action.confirmRes())) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingConfirm = null
+                    onBulkAction?.invoke(action)
+                }) { Text(stringResource(R.string.delete)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingConfirm = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
 }
+
+private fun ChecklistBulkAction.labelRes(): Int =
+    when (this) {
+        ChecklistBulkAction.CheckAll -> R.string.checklist_check_all
+        ChecklistBulkAction.ClearToDo -> R.string.checklist_clear_all
+        ChecklistBulkAction.UncheckAll -> R.string.checklist_uncheck_all
+        ChecklistBulkAction.ClearCompleted -> R.string.checklist_clear_all
+    }
+
+private fun ChecklistBulkAction.confirmRes(): Int =
+    when (this) {
+        ChecklistBulkAction.ClearCompleted -> R.string.checklist_clear_completed_confirm
+        else -> R.string.checklist_clear_todo_confirm
+    }
 
 private enum class ChecklistSection {
     ToDo,

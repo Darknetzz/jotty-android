@@ -84,6 +84,7 @@ import com.jotty.android.util.recurrencePatch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import com.jotty.android.util.checklistBulkOps
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -704,6 +705,7 @@ private fun OfflineChecklistDetailContent(
     var changeCategoryLoading by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
     var showSortDialog by remember { mutableStateOf(false) }
+    var bulkInProgress by remember { mutableStateOf(false) }
     var showManageStatusesDialog by remember { mutableStateOf(false) }
     var showDiscardPendingSyncDialog by remember { mutableStateOf(false) }
     val sortNotSupportedMsg = stringResource(R.string.sort_items_not_supported)
@@ -1226,6 +1228,25 @@ private fun OfflineChecklistDetailContent(
                         handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
                     }
                 },
+                onBulkAction =
+                    if (isProject) {
+                        null
+                    } else {
+                        { action ->
+                            val ops = checklistBulkOps(items, action)
+                            if (ops.isNotEmpty() && !bulkInProgress) {
+                                bulkInProgress = true
+                                scope.launch {
+                                    try {
+                                        handleResult(offlineRepository.applyBulkItemOps(liveChecklist.id, ops))
+                                    } finally {
+                                        bulkInProgress = false
+                                    }
+                                }
+                            }
+                        }
+                    },
+                bulkInProgress = bulkInProgress,
         ) { flat, reorderableScope, _, onDragStarted, onDragStopped ->
             ChecklistDetailItemRow(
                 flat = flat,

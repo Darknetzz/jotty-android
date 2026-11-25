@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Documentation
+
+- **Docs refresh** — README brought up to date (feature list, downloads, release flow, build requirements, offline behaviour). New [feature reference](docs/FEATURES.md) and a single [local storage & sync](docs/OFFLINE_SYNC.md) guide that replaces the old offline, conflict and UI notes and explains the checklist change queue. Outdated `docs/TODO.md` moved to an issue ([#122](https://github.com/Darknetzz/jotty-android/issues/122), [#123](https://github.com/Darknetzz/jotty-android/issues/123), [#124](https://github.com/Darknetzz/jotty-android/issues/124)).
+
 ---
 
 ## [1.11.2] - 2026-11-25

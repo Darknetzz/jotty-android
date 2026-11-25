@@ -18,7 +18,9 @@ app/src/main/java/com/jotty/android/
 │   ├── encryption/   # NoteEncryption (parse frontmatter), XChaCha20Decryptor, XChaCha20Encryptor,
 │   │                 # NoteDecryptionSession (thread-safe in-memory decrypted content per note for session)
 │   ├── local/        # Offline Room DB, sync workers, sync backups, pending ops
-│   └── preferences/  # SettingsRepository, JottyInstance (multi-instance, default, theme, colorHex, customHeaders)
+│   ├── preferences/  # SettingsRepository, JottyInstance (multi-instance, default, theme, colorHex, customHeaders)
+│   ├── repository/   # NotesListDataSource / ChecklistsListDataSource (online API or Room behind one list UI)
+│   └── updates/      # In-app update check (GitHub releases API), bundled changelog
 ├── ui/
 │   ├── checklists/  # ChecklistsScreen (lists, progress, swipe-to-delete, items, to-do/completed, edit/delete tasks)
 │   ├── common/      # Shared composables: LoadingState, ErrorState, EmptyState, ListScreenContent, SwipeToDeleteContainer
@@ -30,6 +32,7 @@ app/src/main/java/com/jotty/android/
 │   ├── sync/        # Pending sync manager (dirty items, diffs, force push/pull, on-device sync backups)
 │   └── theme/       # Theme, Type
 ├── util/            # AppLog, ApiErrorHelper, CustomHttpHeaders, JottyCloneHelper, …
+├── widget/          # QuickAddNoteWidget (Glance home-screen widget)
 ├── JottyApp.kt      # Application class (SettingsRepository singleton)
 ├── ui/JottyApp.kt   # JottyAppContent composable — root UI (migration, default instance, setup↔main nav)
 └── MainActivity.kt  # Activity, theme, deep link intent (jotty-android://open/note/{id})
@@ -61,16 +64,20 @@ app/src/main/java/com/jotty/android/
 - **Requirements:** JDK 17+, Android SDK 36. Min SDK 26.
 - **Commands:** `./gradlew assembleDebug` or `./gradlew assembleRelease`. On Windows use `gradlew.bat` or the `build.ps1` script (handles wrapper and Java check).
 - **BuildConfig:** Must be enabled in `app/build.gradle.kts` (`buildFeatures { buildConfig = true }`) for `BuildConfig.VERSION_NAME` / `VERSION_CODE` (e.g. About screen).
-- **Tests:** `./gradlew test` runs JVM unit tests in `app/src/test/`.
+- **Verify before pushing:** `scripts/ci-local.ps1` / `scripts/ci-local.sh` runs what CI runs (unit tests, Android lint, ktlint). Quick loop: `./gradlew testDebugUnitTest lintDebug ktlintCheck`. Unit tests live in `app/src/test/` (JVM, Robolectric where Android classes are needed).
 
 ## Feature notes
 
-- **Checklists:** Task projects use type `"task"` and `apiPath` for hierarchy. Progress "X / Y done" on list cards and Kanban cards (nested items). Simple checklist detail flattens nested children (indent + full progress). Checkbox = complete/uncomplete; tap task text = inline edit (PATCH); drag handle and up/down reorder among siblings when the server exposes item ids (drag handle optional via Settings → Behavior); Kanban board supports inline title edit, in-column drag reorder (Behavior), and dynamic column height. Item rename (including parents/nested paths) is an in-place `PATCH /api/checklists/{id}/items/{index}` via `updateChecklistItemText`; offline renames queue as `UPDATE` ops. Section header ⋮ bulk actions on simple lists (To Do: check all / clear all; Completed: uncheck all / clear all) via `util/ChecklistBulkActions.kt` → per-item ops (no bulk REST endpoint; clears delete top-level items highest index first) and `OfflineChecklistsRepository.applyBulkItemOps`. Swipe row left to delete checklist (disabled by default; enable in Settings). Pull-to-refresh (swipe down), empty/error states, **Archived** category filter chip. Detail/list ⋮ menus: share (`/api/shares` on Jotty 1.29+, else text export), **Sort items** (simple lists, 1.29+), archive/unarchive (category `Archive`), rename, **Change category**, **Clone** (category picker), delete. Default category for new checklists in Settings → Behavior. Offline mode supports local checklist edits with sync on reconnect; sync aborts pull if push/replay fails (local data kept). See [docs/CHECKLIST_REORDER.md](docs/CHECKLIST_REORDER.md).
-- **Notes:** List: search, category filter chips (including **Archived**), pull-to-refresh (swipe down), empty/error states. **+ / widget / share** creates an Untitled note (default category) and opens it in the editor immediately. List overflow **New from template** (online, Jotty 1.29+) uses `GET /api/templates` + `templateId`. Swipe-to-delete disabled by default; enable in Settings. Note detail/list ⋮ menus → copy, **Change category**, server share (`/api/shares` when available), archive/unarchive, **Clone** (category picker; encrypted bodies copied as stored), delete (confirm). View mode: selectable text (`SelectionContainer`); top-bar export share. **Rich editor (optional):** Settings → Behavior → rich note editor uses bundled WebView WYSIWYG (`WysiwygNoteEditor.kt`); markdown source editor remains default. Plain notes show Markdown in view mode; export/share (title + content). Encrypted notes: lock icon, "Decrypt" for XChaCha20; decrypted content cached in session via `NoteDecryptionSession`; "Encrypt" action and `EncryptNoteDialog` (passphrase, min 12 chars) using `XChaCha20Encryptor` and frontmatter-wrapped body. **Biometric unlock (per note):** after password decrypt, optional "Remember with biometric" stores the passphrase in `BiometricPassphraseStore` (Keystore + strong biometric); reopening can auto-prompt or use fingerprint in the decrypt dialog (`BiometricNoteUnlock.kt`). Settings → Security controls auto-prompt, save offer, and clear all. **Encrypt and decrypt run on a background thread** (`Dispatchers.Default`) so the UI stays responsive; dialogs show a loading state during the operation. If encrypt returns null, the dialog shows an error. Swipe row left to delete note. HTML/table save hint when editing web-origin content (`NoteSaveBehavior.kt`). PGP is not supported in-app. **Drafts:** edits to unencrypted notes autosave to `NoteDraftStore` (files in `noBackupFilesDir`, not the note or Room) until saved or discarded; opening a note with a draft offers restore. Never store encrypted-note plaintext there.
-- **Instances:** Stored in `SettingsRepository`; optional `colorHex` and **custom HTTP headers** per instance (e.g. reverse-proxy auth; encrypted with the instance when Keystore is available). Headers are sent on API requests and same-host note images (including WYSIWYG) and redacted from debug HTTP logs. Default instance: `defaultInstanceId` used when opening app with no current instance; star in Setup and Settings to set default. Add/edit/delete instances from Settings → "Manage instances" without disconnecting; "Disconnect" clears current instance only. **Test connection** in the add/edit form (and Save) runs `ConnectionDiagnostics` (`api/health` then authenticated `api/summary`) and shows `ConnectionTestResultCard`: success (user, version, latency) or a titled failure with likely causes and hints.
-- **Settings:** Health check (api.health()), manage instances (default instance via star), **Manage categories** (browse-only notes/checklists from `GET api/categories`; also from list overflow), Appearance/Behavior sections (**rich note editor**, checklist/Kanban drag reorder, default note/checklist categories, etc.), **local storage & sync** toggle, **pending sync manager** (Manage pending / Settings → Behavior when offline mode is on — dirty notes/checklists, diffs, overwrite either way, restore sync backups), **Security** (biometric unlock status, auto-prompt on open, remember-passphrase offer, clear all stored passphrases), dashboard from `api/summary` under Overview, **export debug logs** near About (Troubleshooting; shares `AppLog` ring buffer), About.
-- **Deep links:** `jotty-android://open/note/{noteId}` opens the app and the note (MainActivity intent-filter, singleTask; `deepLinkNoteId` state updated in both `onCreate` and `onNewIntent`; JottyAppContent/MainScreen/NotesScreen pass through and clear after open).
-- **Technical:** `AppLog` for tagged logging with an in-memory ring buffer (`util/AppLog.kt`, export via `util/DebugLogExporter.kt`); `d` mirrors to logcat in debug builds. HTTP logging only in debug builds. ProGuard keep rules for Gson, Bouncy Castle, and all data model classes. `NoteDecryptionSession` uses `ConcurrentHashMap` for thread safety. Background sync via `OfflineSyncWorker` (WorkManager). **Online state** (`NetworkConnectivityMonitor.isOnline`) means the device has a network *and* the Jotty server answered: when a request gets no answer (`Throwable.isServerUnreachable()` in `util/NetworkFailure.kt`, i.e. `IOException`, not `HttpException`) offline repositories keep the change locally, call `reportServerUnreachable`, and the app behaves as offline until a backoff probe of `api/health` succeeds (re-probed at once on network change, app foreground, or a sync request). New offline write paths must fall back the same way instead of failing the save.
+Full behaviour and code pointers per feature: [docs/FEATURES.md](docs/FEATURES.md). Offline storage, the sync queue and conflicts: [docs/OFFLINE_SYNC.md](docs/OFFLINE_SYNC.md). Update those pages when you change a feature.
+
+Rules that are easy to break:
+
+- **Offline first:** with local storage on, every write goes through an `Offline*Repository`. When the server gives no answer (`Throwable.isServerUnreachable()`, an `IOException`, not an `HttpException`), keep the change locally and call `reportServerUnreachable`; never fail the save. "Online" means the server answered, not just that there is a network.
+- **Checklist item ops are positional** (`PendingItemOp.path`). Keep the queue in order and never deduplicate it (#120). Anything that sends several ops (bulk actions, reorder) must stop a second run from starting on stale positions.
+- **No bulk REST endpoints:** bulk checklist actions are per-item ops built in `util/ChecklistBulkActions.kt`; clears delete top-level items highest index first.
+- **Encrypted notes:** never write plaintext to Room, drafts (`NoteDraftStore`) or logs; the session cache is `NoteDecryptionSession`.
+- **Same-host media** (note images, WYSIWYG) must send `x-api-key` and the instance's custom headers (`util/NoteImageLoader.kt`); custom headers are redacted from debug logs.
+- **Server features newer than 1.25** (shares, templates, sort items, Kanban item fields: Jotty 1.29+) must degrade on older servers: probe first (`util/JottySharingProbe.kt`, `util/KanbanItemFieldsProbe.kt`) or treat 404/405 as "not supported" with a message (templates, sort items). Never add fallbacks for servers older than 1.25.
 
 ## Encryption (Jotty)
 
@@ -80,14 +87,6 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 - **PGP** — RSA-4096, key pairs; for PGP compatibility. **Not supported in the app:** encrypted PGP notes show a message directing users to decrypt in the Jotty web app.
 
 **Limitations (same as Jotty):** Encrypted note content is not searchable (titles/metadata are). Encrypted notes are only decryptable by the key owner; shared encrypted notes stay encrypted for others. No passphrase recovery — lost passphrase means permanent loss of access; users should keep secure backups.
-
-## Images in notes
-
-- Note body supports Markdown images: `![alt](url)`. Rendered via compose-markdown with Coil. **Tables:** GFM pipe tables render natively; Jotty’s default HTML `<table>` blocks are converted to GFM in `util/MarkdownHtmlTables.kt` before `MarkdownText` (Markwon does not layout HTML tables).
-- **Paths:** Jotty 1.29+ uses `/api/attachment/{noteUuid}/{name}` (API-key OK). Legacy `/api/image|file|video/{user}/{file}` still appears in unmigrated/encrypted notes and needs a browser session (or pre-migration `SERVE_PUBLIC_*`). `NoteImageUrls.isJottyMediaPath` covers both shapes for host rewrite.
-- **Same-host auth:** Image URLs on the same host as the Jotty server get the `x-api-key` header (and any per-instance custom headers) so server-hosted images load. See `util/NoteImageLoader.kt` — `createNoteImageLoader(context, baseUrl, apiKey, customHeaders)`; loaders are cached per (baseUrl, apiKey, headers).
-- **Links:** Markdown links are clickable and open in the browser (`onLinkClicked` → `LocalUriHandler.openUri`).
-- **Where to change:** `util/NoteImageLoader.kt` / `NoteImageUrls.kt` for auth/cache/paths; `ui/notes/NoteView.kt` for Markdown/link behaviour; `MainScreen.kt` creates and passes the image loader to `NotesScreen`.
 
 ## Where to change what
 
@@ -114,6 +113,9 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 | Online / server reachability | `data/local/NetworkConnectivityMonitor.kt`, `OfflineRepositoryRuntime.kt`, `util/NetworkFailure.kt` |
 | Server version checks       | `util/JottyServerVersion.kt` (minimum 1.25.0, compat ceiling) |
 | Deep link handling         | `MainActivity.kt`, `ui/JottyApp.kt`, `MainScreen.kt`, `NotesScreen.kt` |
+| Share target / widget       | `MainActivity.kt` (`ACTION_SEND`, `EXTRA_QUICK_ADD_NOTE`), `widget/QuickAddNoteWidget.kt` |
+| In-app update check         | `data/updates/UpdateChecker.kt`, `BundledChangelog.kt`, `util/ApkInstallHelper.kt`, Settings → About |
+| Note images / tables        | `util/NoteImageLoader.kt`, `NoteImageUrls.kt`, `MarkdownHtmlTables.kt`, `ui/notes/NoteView.kt` |
 | Shared list composables     | `ui/common/ListScreenComponents.kt`   |
 | API/network error messages | `util/ApiErrorHelper.kt`              |
 | Logging / debug log export | `util/AppLog.kt`, `util/DebugLogExporter.kt`; Settings → Troubleshooting, `SettingsScreen.kt` |
@@ -124,11 +126,13 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 | GitLab CI/CD                | `.gitlab-ci.yml`, `scripts/ci/*.sh`, `scripts/lib/release-notes.sh` — [docs/LOCAL_CI.md](docs/LOCAL_CI.md#gitlab-cicd) |
 | Local CI / dev APK publish  | `scripts/ci-local.*`, `scripts/build-dev-apk.*`, `scripts/publish-dev-latest.*`, `scripts/push-dev.*`, `scripts/lib/wait-and-publish-dev.sh`, `.githooks/pre-push`, `scripts/setup-repo-git.*` — [docs/LOCAL_CI.md](docs/LOCAL_CI.md) |
 | Stable release publish      | `release.ps1` / `release.sh`, `scripts/publish-release.*`, `scripts/build-release-apk.*` |
+| Feature behaviour (docs)    | [docs/FEATURES.md](docs/FEATURES.md), [docs/OFFLINE_SYNC.md](docs/OFFLINE_SYNC.md) |
 | Project documentation       | `docs/` — see [docs/README.md](docs/README.md) |
 
 ## Tips for agents
 
 - **Update `CHANGELOG.md`** whenever you ship meaningful app changes (see **Changelog** under Version and releases); do not leave this for the user to ask.
+- **Keep the docs true:** when behaviour changes, update `docs/FEATURES.md` or `docs/OFFLINE_SYNC.md` in the same commit, and `README.md` if the feature list or setup changes.
 - **Publishing** runs in GitLab CI, which calls the same bash scripts as the local fallbacks (`publish-dev-latest.sh`, `build-*-apk.sh`). Keep the `.sh` and `.ps1` variants and `.gitlab-ci.yml` in sync; document new CI variables, skip flags, or config keys in `docs/LOCAL_CI.md` and here.
 - Prefer suggesting better approaches instead of only following instructions literally.
 - Keep code DRY: extract reusable composables into `ui/common/` and helpers, reuse API and encryption logic.

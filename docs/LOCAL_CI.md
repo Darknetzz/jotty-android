@@ -93,3 +93,31 @@ Options: `-SkipRelease` / `--skip-release` (skip `assembleRelease`), `-SkipLint`
 
 - Full publish without GitLab: `.\scripts\publish-release.ps1 -LocalBuild` (creates the GitHub release and uploads the APK from this machine).
 - Build only: `.\scripts\build-release-apk.ps1`, then `gh release upload vX.Y.Z jotty-android-X.Y.Z.apk --clobber`.
+
+## `dev-latest` tag conflicts on pull
+
+The rolling **`dev-latest`** tag moves on every push to `dev`. Without setup, `git pull --tags` may report `would clobber existing tag` for `dev-latest` (the branch still updates; only the tag is skipped).
+
+**One-time per clone** (fixes `git pull --tags` permanently for this repo):
+
+```powershell
+.\scripts\setup-repo-git.ps1
+```
+
+```bash
+./scripts/setup-repo-git.sh
+```
+
+That adds a `+refs/tags/dev-latest` fetch refspec so Git force-updates the local tag instead of refusing.
+
+**Day to day:**
+
+```powershell
+.\scripts\pull-dev.ps1
+```
+
+```bash
+./scripts/pull-dev.sh
+```
+
+Or, after setup: `git pull --tags origin dev`. To refresh only the tag: `.\scripts\sync-dev-latest-tag.ps1` / `./scripts/sync-dev-latest-tag.sh`.

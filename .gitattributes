@@ -1,0 +1,10 @@
+# Store text as LF and check it out as LF on every platform, so editors on Windows
+# do not flip whole files between CRLF and LF.
+* text=auto eol=lf
+
+# cmd.exe needs CRLF.
+*.bat text eol=crlf
+
+*.png binary
+*.jpg binary
+*.jar binary

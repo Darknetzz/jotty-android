@@ -1007,7 +1007,7 @@ class OfflineChecklistsRepository(
         val remaining = mutableListOf<PendingItemOp>()
         var serverItems = fetchServerItems(entity.id) ?: entity.items()
 
-        for (op in entity.pendingOps().distinct()) {
+        for (op in entity.pendingOps()) {
             if (isPendingOpSatisfied(serverItems, op)) {
                 AppLog.d(TAG, "Pending op ${op.type} already on server — skipping")
                 continue
@@ -1118,7 +1118,8 @@ class OfflineChecklistsRepository(
             checklistDao.update(mirrored)
             return mirrored.toChecklist()
         }
-        val newOps = (entity.pendingOps() + op).distinct()
+        // Keep every op in order: positional ops (CHECK 0, DELETE 0, …) repeat legitimately (#120).
+        val newOps = entity.pendingOps() + op
         val updated =
             entity.withFirstDirtyBaseline(
                 entity.copy(

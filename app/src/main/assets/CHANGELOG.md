@@ -10,6 +10,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 - **Bulk actions on checklist sections** — The ⋮ menu on the **To Do** header offers **Check all** and **Clear all**, and the one on **Completed** offers **Uncheck all** and **Clear all**, as in the Jotty web app. Handy for reusing a list such as groceries. Clearing asks for confirmation first. Works offline too: the changes are saved on the device and synced later ([#118](https://github.com/Darknetzz/jotty-android/issues/118)).
 
+### Fixed
+
+- **Offline checklist changes lost on sync** — With local storage & sync on, repeating the same change while offline (checking an item again after unchecking it, deleting the new first item after deleting the first one, adding the same text twice) only synced it once, so after reconnecting items came back, flipped back to unchecked, or went missing. Every change is now synced in the order it was made ([#120](https://github.com/Darknetzz/jotty-android/issues/120)).
+
 ---
 
 ## [1.11.1] - 2026-11-25

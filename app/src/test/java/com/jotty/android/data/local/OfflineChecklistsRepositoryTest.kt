@@ -1289,6 +1289,127 @@ class OfflineChecklistsRepositoryTest {
             assertEquals(1, fetches)
             assertEquals(false, database.checklistDao().getById("list-1")?.isDirty)
         }
+
+    @Test
+    fun repeatedOfflineOps_areAllQueued() =
+        runTest {
+            database.checklistDao().insert(
+                bulkListEntity(
+                    listOf(
+                        ChecklistItem(index = 0, text = "A"),
+                        ChecklistItem(index = 1, text = "B"),
+                        ChecklistItem(index = 2, text = "C"),
+                    ),
+                ),
+            )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            repo.checkItem("list-1", "2")
+            repo.uncheckItem("list-1", "2")
+            repo.checkItem("list-1", "2")
+            repo.deleteItem("list-1", "0")
+            val result = repo.deleteItem("list-1", "0")
+
+            assertEquals(listOf("C"), result.getOrNull()?.items?.map { it.text })
+            assertEquals(true, result.getOrNull()?.items?.single()?.completed)
+            assertEquals(
+                listOf("CHECK 2", "UNCHECK 2", "CHECK 2", "DELETE 0", "DELETE 0"),
+                database.checklistDao().getById("list-1")?.pendingOps()?.map { "${it.type} ${it.path}" },
+            )
+        }
+
+    @Test
+    fun syncChecklists_replaysRepeatedOpsInOrder() =
+        runTest {
+            val initial =
+                listOf(
+                    ChecklistItem(index = 0, text = "A"),
+                    ChecklistItem(index = 1, text = "B"),
+                    ChecklistItem(index = 2, text = "C"),
+                )
+            database.checklistDao().insert(
+                bulkListEntity(listOf(ChecklistItem(index = 0, text = "C", completed = true))).copy(
+                    pendingOpsJson =
+                        Gson().toJson(
+                            listOf(
+                                PendingItemOp(type = "CHECK", path = "2"),
+                                PendingItemOp(type = "UNCHECK", path = "2"),
+                                PendingItemOp(type = "CHECK", path = "2"),
+                                PendingItemOp(type = "DELETE", path = "0"),
+                                PendingItemOp(type = "DELETE", path = "0"),
+                            ),
+                        ),
+                    isDirty = true,
+                ),
+            )
+            val remote =
+                mutableListOf(
+                    Checklist(
+                        id = "list-1",
+                        title = "Groceries",
+                        category = API_CATEGORY_UNCATEGORIZED,
+                        type = "simple",
+                        items = initial,
+                        createdAt = "c",
+                        updatedAt = "u",
+                    ),
+                )
+            val calls = mutableListOf<String>()
+
+            fun mutate(transform: (List<ChecklistItem>) -> List<ChecklistItem>): SuccessResponse {
+                remote[0] = remote[0].copy(items = transform(remote[0].items))
+                return SuccessResponse(true)
+            }
+
+            fun setCompleted(
+                path: String,
+                done: Boolean,
+            ) = mutate { items ->
+                items.mapIndexed { i, item -> if ("$i" == path) item.copy(completed = done) else item }
+            }
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    onCheckItem = { _, path ->
+                        calls += "CHECK $path"
+                        setCompleted(path, true)
+                    },
+                    onUncheckItem = { _, path ->
+                        calls += "UNCHECK $path"
+                        setCompleted(path, false)
+                    },
+                    onDeleteItem = { _, path ->
+                        calls += "DELETE $path"
+                        mutate { items -> items.filterIndexed { i, _ -> "$i" != path } }
+                    },
+                )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            assertEquals(listOf("CHECK 2", "UNCHECK 2", "CHECK 2", "DELETE 0", "DELETE 0"), calls)
+            assertEquals(listOf("C"), remote[0].items.map { it.text })
+            assertEquals(true, remote[0].items.single().completed)
+            val entity = database.checklistDao().getById("list-1")
+            assertEquals(false, entity?.isDirty)
+            assertEquals(true, entity?.items()?.single()?.completed)
+        }
 }
 
 private class FakeChecklistApi(
@@ -1299,6 +1420,7 @@ private class FakeChecklistApi(
     },
     private val onDeleteItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
     private val onCheckItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
+    private val onUncheckItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
     private val onDeleteChecklist: suspend (String) -> Unit = {},
     private val onReorderItems: suspend (String) -> Unit = {},
     private val onUpdateItem: suspend (String, String, com.jotty.android.data.api.UpdateItemRequest) -> SuccessResponse =
@@ -1364,7 +1486,7 @@ private class FakeChecklistApi(
     override suspend fun uncheckItem(
         listId: String,
         itemIndex: String,
-    ): SuccessResponse = SuccessResponse(true)
+    ): SuccessResponse = onUncheckItem(listId, itemIndex)
 
     override suspend fun deleteItem(
         listId: String,

@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+---
+
+## [1.11.2] - 2026-11-25
+
 ### Added
 
 - **Bulk actions on checklist sections** — The ⋮ menu on the **To Do** header offers **Check all** and **Clear all**, and the one on **Completed** offers **Uncheck all** and **Clear all**, as in the Jotty web app. Handy for reusing a list such as groceries. Clearing asks for confirmation first, and the menus show a progress indicator until the action has finished. Works offline too: the changes are saved on the device and synced later ([#118](https://github.com/Darknetzz/jotty-android/issues/118)).
@@ -13,6 +17,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 ### Fixed
 
 - **Offline checklist changes lost on sync** — With local storage & sync on, repeating the same change while offline (checking an item again after unchecking it, deleting the new first item after deleting the first one, adding the same text twice) only synced it once, so after reconnecting items came back, flipped back to unchecked, or went missing. Every change is now synced in the order it was made ([#120](https://github.com/Darknetzz/jotty-android/issues/120)).
+
 
 ---
 
@@ -1171,6 +1176,7 @@ Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes 
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.11.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.2
 [1.11.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.1
 [1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.10.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.10.0

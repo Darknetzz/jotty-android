@@ -71,7 +71,8 @@ while ($true) {
 
 Write-Host "Resetting dev-latest release..."
 gh release delete dev-latest --cleanup-tag --yes 2>$null
-gh api -X DELETE "repos/$repo/git/refs/tags/dev-latest" 2>$null
+# The tag is usually gone already (--cleanup-tag); gh prints the 422 body on stdout, so silence both.
+gh api -X DELETE "repos/$repo/git/refs/tags/dev-latest" *> $null
 
 Write-Host "Publishing dev-latest..."
 $notesFile = [System.IO.Path]::GetTempFileName()

@@ -66,7 +66,8 @@ fi
 bash "$SCRIPT_DIR/ci/wait-for-github-ref.sh" dev "$SHA" 600 || [[ $? -eq 3 ]]
 
 gh release delete dev-latest --cleanup-tag --yes 2>/dev/null || true
-gh api -X DELETE "repos/${REPO}/git/refs/tags/dev-latest" 2>/dev/null || true
+# The tag is usually gone already (--cleanup-tag); gh prints the 422 body on stdout, so silence both.
+gh api -X DELETE "repos/${REPO}/git/refs/tags/dev-latest" >/dev/null 2>&1 || true
 
 notes_file="$(mktemp)"
 trap 'rm -f "$notes_file"' EXIT

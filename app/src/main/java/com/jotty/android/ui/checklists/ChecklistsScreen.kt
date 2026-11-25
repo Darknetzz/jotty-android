@@ -53,6 +53,7 @@ import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListFilterHeader
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.PersistedCategoryFilterEffect
 import com.jotty.android.ui.common.ListSortOption
 import com.jotty.android.ui.common.SortMenuButton
 import com.jotty.android.ui.common.sortedBy
@@ -189,15 +190,12 @@ fun ChecklistsScreen(
         }
     }
 
-    // Restore the persisted category filter once, then persist subsequent changes.
-    var filterRestored by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        settingsRepository.checklistsCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
-        filterRestored = true
-    }
-    LaunchedEffect(selectedCategory, filterRestored) {
-        if (filterRestored) settingsRepository.setChecklistsCategoryFilter(selectedCategory)
-    }
+    PersistedCategoryFilterEffect(
+        selectedCategory = selectedCategory,
+        load = { settingsRepository.checklistsCategoryFilter.first() },
+        save = settingsRepository::setChecklistsCategoryFilter,
+        onRestore = vm::setSelectedCategory,
+    )
 
     val inChecklistDetail = selectedList != null
     RegisterMainTabTopBar(

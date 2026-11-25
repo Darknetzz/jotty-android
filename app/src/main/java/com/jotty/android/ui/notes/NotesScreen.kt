@@ -40,6 +40,7 @@ import com.jotty.android.ui.common.ListFilterHeader
 import com.jotty.android.ui.common.CloneCategoryDialog
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.PersistedCategoryFilterEffect
 import com.jotty.android.ui.common.ListSortOption
 import com.jotty.android.ui.common.SortMenuButton
 import com.jotty.android.ui.common.sortedBy
@@ -207,15 +208,12 @@ fun NotesScreen(
         }
     }
 
-    // Restore the persisted category filter once, then persist subsequent changes.
-    var filterRestored by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        settingsRepository.notesCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
-        filterRestored = true
-    }
-    LaunchedEffect(selectedCategory, filterRestored) {
-        if (filterRestored) settingsRepository.setNotesCategoryFilter(selectedCategory)
-    }
+    PersistedCategoryFilterEffect(
+        selectedCategory = selectedCategory,
+        load = { settingsRepository.notesCategoryFilter.first() },
+        save = settingsRepository::setNotesCategoryFilter,
+        onRestore = vm::setSelectedCategory,
+    )
 
     BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
     RestoreOpenNoteEffect(

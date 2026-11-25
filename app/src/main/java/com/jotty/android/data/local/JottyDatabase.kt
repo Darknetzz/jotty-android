@@ -180,7 +180,7 @@ abstract class JottyDatabase : RoomDatabase() {
                         db.execSQL(
                             """
                             UPDATE $table SET isConflictCopy = 1
-                            WHERE title LIKE '%$LEGACY_LOCAL_COPY_SUFFIX'
+                            WHERE title LIKE '%$LOCAL_COPY_SUFFIX'
                               AND isDirty = 0 AND isDeleted = 0 AND isLocalOnly = 0
                             """.trimIndent(),
                         )
@@ -190,7 +190,7 @@ abstract class JottyDatabase : RoomDatabase() {
                                 SELECT o.id FROM $table o
                                 WHERE o.instanceId = $table.instanceId
                                   AND o.isConflictCopy = 0
-                                  AND o.title || '$LEGACY_LOCAL_COPY_SUFFIX' = $table.title
+                                  AND o.title || '$LOCAL_COPY_SUFFIX' = $table.title
                                 LIMIT 1
                             )
                             WHERE isConflictCopy = 1
@@ -199,8 +199,6 @@ abstract class JottyDatabase : RoomDatabase() {
                     }
                 }
             }
-
-        private const val LEGACY_LOCAL_COPY_SUFFIX = " (Local copy)"
 
         fun getDatabase(context: Context): JottyDatabase {
             return INSTANCE ?: synchronized(this) {

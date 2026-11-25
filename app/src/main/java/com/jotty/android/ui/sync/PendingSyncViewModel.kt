@@ -21,6 +21,7 @@ import com.jotty.android.data.local.SyncBackup
 import com.jotty.android.data.local.SyncBackupKind
 import com.jotty.android.data.local.SyncPayloadCodec
 import com.jotty.android.data.local.toSyncPayload
+import com.jotty.android.data.local.withoutLocalCopySuffix
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -211,7 +212,7 @@ class PendingSyncViewModel(
                         SyncBackupKind.NOTE -> notesRepo.getConflict(copyId)?.let { noteConflictDetail(it.copy, it.original) }
                         SyncBackupKind.CHECKLIST ->
                             checklistsRepo.getConflict(copyId)?.let { conflict ->
-                                val mine = conflict.copy.toSyncPayload().copy(title = conflict.copy.title.withoutCopySuffix())
+                                val mine = conflict.copy.toSyncPayload().copy(title = conflict.copy.title.withoutLocalCopySuffix())
                                 ConflictDetail(
                                     kind = kind,
                                     copyId = copyId,
@@ -233,7 +234,7 @@ class PendingSyncViewModel(
         copy: NoteEntity,
         original: NoteEntity?,
     ): ConflictDetail {
-        val mine = copy.copy(title = copy.title.withoutCopySuffix())
+        val mine = copy.copy(title = copy.title.withoutLocalCopySuffix())
         val encrypted = isEncrypted(mine) || (original != null && isEncrypted(original))
         return ConflictDetail(
             kind = SyncBackupKind.NOTE,
@@ -284,7 +285,7 @@ class PendingSyncViewModel(
                                 } else {
                                     notesRepo.resolveConflictKeepMine(
                                         copyId = copyId,
-                                        title = conflict.copy.title.withoutCopySuffix(),
+                                        title = conflict.copy.title.withoutLocalCopySuffix(),
                                         content = conflict.copy.content,
                                         category = conflict.copy.category,
                                     )
@@ -399,5 +400,3 @@ sealed interface ConflictResolution {
         val version: NoteVersion,
     ) : ConflictResolution
 }
-
-private fun String.withoutCopySuffix(): String = removeSuffix(OfflineNotesRepository.LOCAL_COPY_SUFFIX)

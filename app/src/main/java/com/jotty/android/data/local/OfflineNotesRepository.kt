@@ -38,7 +38,7 @@ class OfflineNotesRepository(
     initialOnlineOverride: Boolean? = null,
     /** Set false in tests to avoid registering a network callback. */
     private val useSharedConnectivity: Boolean = true,
-) {
+) : OfflineListSyncSource {
     private val appContext = context.applicationContext
     private val noteDao = database.noteDao()
     private val syncBackups = SyncBackupRepository(database, instanceId)
@@ -58,12 +58,12 @@ class OfflineNotesRepository(
         )
 
     val isOnline: StateFlow<Boolean> = runtime.syncStatus.isOnline
-    val isSyncing: StateFlow<Boolean> = runtime.syncStatus.isSyncing
-    val conflictsDetected: StateFlow<Int> = runtime.syncStatus.conflictsDetected
-    val lastSyncAttemptEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncAttemptEpochMs
+    override val isSyncing: StateFlow<Boolean> = runtime.syncStatus.isSyncing
+    override val conflictsDetected: StateFlow<Int> = runtime.syncStatus.conflictsDetected
+    override val lastSyncAttemptEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncAttemptEpochMs
     val lastSyncSuccessEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncSuccessEpochMs
-    val lastSyncDurationText: StateFlow<String?> = runtime.syncStatus.lastSyncDurationText
-    val lastSyncError: StateFlow<String?> = runtime.syncStatus.lastSyncError
+    override val lastSyncDurationText: StateFlow<String?> = runtime.syncStatus.lastSyncDurationText
+    override val lastSyncError: StateFlow<String?> = runtime.syncStatus.lastSyncError
 
     /**
      * Releases resources held by this repository: unregisters the network callback and
@@ -614,21 +614,17 @@ class OfflineNotesRepository(
                 // 2. Fetch all notes from server
                 val response = api.getNotes()
                 val serverNotes = response.notes.map { it.normalizedForClient().toEntity(instanceId, isDirty = false) }
-                val conflictCopies = mutableListOf<NoteEntity>()
 
-                // 3. Detect conflicts: notes that were modified both locally and on server
-                for (serverNote in serverNotes) {
-                    val localNote = localNotesMap[serverNote.id]
-                    if (localNote != null && localNote.isDirty && !localNote.isDeleted) {
-                        // Check if server note has different content than what we just pushed
-                        if (hasConflict(localNote, serverNote)) {
-                            // Create a copy of the local version to preserve data
-                            val localCopy = localNote.toConflictCopy()
-                            conflictCopies.add(localCopy)
-                            AppLog.d("OfflineNotesRepository", "Conflict detected for '${localNote.title}', creating local copy")
-                        }
-                    }
-                }
+                // 3. Notes changed both here and on the server keep the local version as a copy.
+                val conflictCopies =
+                    conflictCopiesAfterSync(
+                        serverRows = serverNotes,
+                        serverId = { it.id },
+                        localBefore = localNotesMap,
+                        hadLocalEdits = { it.isDirty && !it.isDeleted },
+                        hasConflict = ::noteHasConflict,
+                        toCopy = { it.toConflictCopy() },
+                    )
 
                 // 4. Update database: replace with server notes + add conflict copies (atomic)
                 database.withTransaction {
@@ -638,11 +634,9 @@ class OfflineNotesRepository(
                         noteDao.insertNotes(conflictCopies)
                     }
                 }
+                runtime.syncStatus.setConflictsDetected(conflictCopies.size)
                 if (conflictCopies.isNotEmpty()) {
-                    runtime.syncStatus.setConflictsDetected(conflictCopies.size)
-                    AppLog.d("OfflineNotesRepository", "Created ${conflictCopies.size} local copies due to conflicts")
-                } else {
-                    runtime.syncStatus.setConflictsDetected(0)
+                    AppLog.d(TAG, "Created ${conflictCopies.size} local copies due to conflicts")
                 }
 
                 AppLog.d("OfflineNotesRepository", "Synced ${serverNotes.size} notes from server")
@@ -662,20 +656,6 @@ class OfflineNotesRepository(
                 Result.failure(Exception(msg, e))
             }
         }
-
-    /**
-     * Check if there's a conflict between local and server versions.
-     * A conflict exists if the content or title differs significantly.
-     */
-    private fun hasConflict(
-        localNote: NoteEntity,
-        serverNote: NoteEntity,
-    ): Boolean {
-        // If content or title is different, there might be a conflict
-        return localNote.title != serverNote.title ||
-            localNote.content != serverNote.content ||
-            localNote.category != serverNote.category
-    }
 
     /**
      * Sync a single note to the server.
@@ -779,7 +759,13 @@ class OfflineNotesRepository(
     /**
      * Clear the conflict notification count.
      */
-    fun clearConflictNotification() {
+    override fun pendingSyncIdsFlow(): Flow<Set<String>> = getDirtyNoteIdsFlow()
+
+    override fun conflictCopyCountFlow(): Flow<Int> = getConflictCopiesFlow().map { it.size }
+
+    override suspend fun syncNow(): Result<Unit> = syncNotes()
+
+    override fun clearConflictNotification() {
         runtime.syncStatus.setConflictsDetected(0)
     }
 
@@ -800,21 +786,6 @@ class OfflineNotesRepository(
             AppLog.d("OfflineNotesRepository", "All notes cleared for instance: $instanceId")
         }
 
-    /** A "(Local copy)" of [this] (a dirty note the server changed too), kept until resolved. */
-    private fun NoteEntity.toConflictCopy(): NoteEntity =
-        copy(
-            id = UUID.randomUUID().toString(),
-            title = "$title$LOCAL_COPY_SUFFIX",
-            isDirty = false,
-            isDeleted = false,
-            isLocalOnly = false,
-            originalCategory = null,
-            syncBaselineJson = null,
-            dirtySinceEpochMs = null,
-            isConflictCopy = true,
-            conflictOfId = id,
-        )
-
     private suspend fun resolveNoteId(noteId: String): String {
         if (noteDao.getNoteById(noteId) != null) return noteId
         val remapped = localToServerIdRemap[noteId] ?: return noteId
@@ -823,7 +794,7 @@ class OfflineNotesRepository(
 
     companion object {
         private const val TAG = "OfflineNotesRepository"
-        const val LOCAL_COPY_SUFFIX = " (Local copy)"
+        const val LOCAL_COPY_SUFFIX = com.jotty.android.data.local.LOCAL_COPY_SUFFIX
 
         suspend fun clearLocalNotes(
             context: Context,

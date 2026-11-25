@@ -41,6 +41,10 @@ import com.jotty.android.ui.common.ListFilterHeader
 import com.jotty.android.data.local.NoteDraftStore
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.CategoryFilterEmptySnackbarEffect
+import com.jotty.android.ui.common.OfflineListHeader
+import com.jotty.android.ui.common.PersistedCategoryFilterEffect
+import com.jotty.android.ui.common.rememberOfflineListSync
 import com.jotty.android.ui.common.rememberStaleListWhileRefresh
 import com.jotty.android.ui.common.ListSortOption
 import com.jotty.android.ui.common.SortMenuButton
@@ -116,14 +120,6 @@ fun OfflineEnabledNotesScreen(
 
     // Observe notes from local database
     val notes by offlineRepository.getNotesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
-    val conflictCopies by offlineRepository.getConflictCopiesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
-    val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
-    val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
-    val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
-    val dirtyNoteIds by offlineRepository.getDirtyNoteIdsFlow().collectAsStateWithLifecycle(initialValue = emptySet())
-    val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsStateWithLifecycle()
-    val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsStateWithLifecycle()
-    val lastSyncError by offlineRepository.lastSyncError.collectAsStateWithLifecycle()
 
     val selectedNote by vm.selectedNote.collectAsStateWithLifecycle()
     val openSelectedInEditMode by vm.openSelectedInEditMode.collectAsStateWithLifecycle()
@@ -135,8 +131,25 @@ fun OfflineEnabledNotesScreen(
     val sortKey by settingsRepository.listSortOption.collectAsStateWithLifecycle(initialValue = "updated")
     val sortOption = ListSortOption.fromKey(sortKey)
     val sortedNotes = remember(filteredNotes, sortOption) { filteredNotes.sortedBy(sortOption) }
-    var pullRefreshing by remember { mutableStateOf(false) }
-    val listRefreshing = screenState.loading || isSyncing
+    val snackbarHostState = remember { SnackbarHostState() }
+    val sync =
+        rememberOfflineListSync(
+            source = offlineRepository,
+            snackbarHostState = snackbarHostState,
+            screenState = screenState,
+            isDisplayedListEmpty = { sortedNotes.isEmpty() },
+            hasNoLocalItems = { notes.isEmpty() },
+            onOpenPendingSync = onOpenPendingSync,
+        )
+    val isOnline = sync.isOnline
+    val dirtyNoteIds = sync.pendingIds
+
+    fun requestSync(
+        showLoading: Boolean = true,
+        fromPull: Boolean = false,
+    ) = sync.requestSync(showLoading, fromPull)
+
+    val listRefreshing = screenState.loading || sync.isSyncing
     val noteListDisplay = rememberStaleListWhileRefresh(sortedNotes, listRefreshing)
     val sessionRevision by NoteDecryptionSession.revision.collectAsStateWithLifecycle()
     val unlockedNoteIds =
@@ -152,8 +165,6 @@ fun OfflineEnabledNotesScreen(
 
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val resources = LocalResources.current
-    val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val noteNotFoundMsg = stringResource(R.string.note_not_found)
@@ -161,8 +172,6 @@ fun OfflineEnabledNotesScreen(
     val savedLocallyMsg = stringResource(R.string.saved_locally)
     val noteDeletedMsg = stringResource(R.string.note_deleted)
     val undoActionLabel = stringResource(R.string.undo)
-    val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
-    val conflictActionLabel = stringResource(R.string.view_conflicts)
 
     var pendingArchiveNote by remember { mutableStateOf<Note?>(null) }
     var pendingChangeCategoryNote by remember { mutableStateOf<Note?>(null) }
@@ -173,60 +182,7 @@ fun OfflineEnabledNotesScreen(
     val noteClonedMsg = stringResource(R.string.note_cloned)
     val cloneFailedMsg = stringResource(R.string.clone_failed)
 
-    fun requestSync(
-        showLoading: Boolean = true,
-        fromPull: Boolean = false,
-    ) {
-        scope.launch {
-            if (fromPull) pullRefreshing = true
-            val showSkeleton = showLoading && sortedNotes.isEmpty()
-            try {
-                if (!isOnline) return@launch
-                if (showSkeleton) screenState.loading = true
-                screenState.errorMessage = null
-                val result = offlineRepository.syncNotes()
-                if (result.isFailure) {
-                    val msg =
-                        offlineRepository.lastSyncError.value?.takeIf { it.isNotBlank() }
-                            ?: ApiErrorHelper.userMessage(
-                                context,
-                                result.exceptionOrNull() ?: Exception("Sync failed"),
-                            )
-                    if (notes.isEmpty()) {
-                        screenState.errorMessage = msg
-                    } else {
-                        snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Long)
-                    }
-                }
-            } finally {
-                if (showSkeleton) screenState.loading = false
-                pullRefreshing = false
-            }
-        }
-    }
-
-    LaunchedEffect(conflictsDetected) {
-        if (conflictsDetected > 0) {
-            scope.launch {
-                val result =
-                    snackbarHostState.showSnackbar(
-                        message = conflictMsg,
-                        actionLabel = conflictActionLabel,
-                        duration = SnackbarDuration.Long,
-                    )
-                if (result == SnackbarResult.ActionPerformed) onOpenPendingSync()
-                offlineRepository.clearConflictNotification()
-            }
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        vm.categoryFilterEmptyEvents.collect { category ->
-            snackbarHostState.showSnackbar(
-                message = resources.getString(R.string.offline_category_filter_empty, category),
-            )
-        }
-    }
+    CategoryFilterEmptySnackbarEffect(vm.categoryFilterEmptyEvents, snackbarHostState)
 
     // Load categories
     LaunchedEffect(isOnline, notes) {
@@ -356,19 +312,14 @@ fun OfflineEnabledNotesScreen(
         }
     }
 
-    // Restore the persisted category filter once, then persist subsequent changes.
-    var filterRestored by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        settingsRepository.notesCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
-        filterRestored = true
-    }
-    LaunchedEffect(selectedCategory, filterRestored, notes) {
-        if (filterRestored) {
-            settingsRepository.setNotesCategoryFilter(selectedCategory)
-            if (!isOnline) {
-                vm.notifyCategoryFilterEmptyIfNeeded(selectedCategory, notes)
-            }
-        }
+    PersistedCategoryFilterEffect(
+        selectedCategory = selectedCategory,
+        load = { settingsRepository.notesCategoryFilter.first() },
+        save = settingsRepository::setNotesCategoryFilter,
+        onRestore = vm::setSelectedCategory,
+    )
+    LaunchedEffect(selectedCategory, notes) {
+        if (!isOnline) vm.notifyCategoryFilterEmptyIfNeeded(selectedCategory, notes)
     }
 
     BackHandler(enabled = selectedNote != null) { vm.setSelectedNote(null) }
@@ -387,23 +338,16 @@ fun OfflineEnabledNotesScreen(
     RegisterMainTabTopBar(
         state =
             if (!inNoteDetail) {
-                MainTabTopBarState(
-                    isOnline = isOnline,
-                    isSyncing = isSyncing,
-                    lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
-                    lastSyncDurationText = lastSyncDurationText,
-                    lastSyncError = lastSyncError,
-                    pendingSyncCount = dirtyNoteIds.size,
+                sync.topBarState(
                     onManagePendingSync = onOpenPendingSync,
                     onManageCategories = onManageCategories,
+                    onAdd = { createAndOpenNote() },
                     onNewFromTemplate =
                         if (isOnline) {
                             { showTemplateDialog = true }
                         } else {
                             null
                         },
-                    onRefresh = { requestSync(showLoading = false) },
-                    onAdd = { createAndOpenNote() },
                 )
             } else {
                 null
@@ -431,14 +375,8 @@ fun OfflineEnabledNotesScreen(
             ) { note ->
                 if (note == null) {
                     Column(Modifier.fillMaxSize()) {
-                    OfflineConnectivityBanner(
-                        isOnline = isOnline,
-                        onRetrySync = { requestSync(showLoading = true) },
-                        modifier = Modifier.padding(bottom = 8.dp),
-                    )
-
-                    // Search bar + sort + category filters
-                    ListFilterHeader(
+                    OfflineListHeader(
+                        sync = sync,
                         searchQuery = searchQuery,
                         onSearchQueryChange = { vm.setSearchQuery(it) },
                         searchPlaceholderRes = R.string.search_notes,
@@ -448,23 +386,14 @@ fun OfflineEnabledNotesScreen(
                         selectedCategory = selectedCategory,
                         onClearCategoryFilter = { vm.setSelectedCategory(null) },
                         onCategoryToggle = { vm.toggleCategoryChip(it, notes) },
-                        categoryChipPadding = PaddingValues(vertical = 4.dp),
+                        onOpenPendingSync = onOpenPendingSync,
                     )
-
-                    if (conflictCopies.isNotEmpty()) {
-                        ConflictCopiesBanner(
-                            conflictCopyCount = conflictCopies.size,
-                            onViewCopies = onOpenPendingSync,
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
 
                     // Notes list
                     ListScreenContent(
                         modifier = Modifier.weight(1f).fillMaxWidth(),
                         showSkeleton = screenState.loading && noteListDisplay.showEmpty,
-                        isRefreshing = pullRefreshing,
+                        isRefreshing = sync.pullRefreshing,
                         error = screenState.errorMessage,
                         isEmpty = noteListDisplay.showEmpty,
                         onRetry = {

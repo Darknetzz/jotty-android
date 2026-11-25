@@ -61,7 +61,7 @@ class OfflineChecklistsRepository(
     private val api: JottyApi,
     initialOnlineOverride: Boolean? = null,
     private val useSharedConnectivity: Boolean = true,
-) {
+) : OfflineListSyncSource {
     private val appContext = context.applicationContext
     private val checklistDao = database.checklistDao()
     private val syncBackups = SyncBackupRepository(database, instanceId)
@@ -92,12 +92,12 @@ class OfflineChecklistsRepository(
         )
 
     val isOnline: StateFlow<Boolean> = runtime.syncStatus.isOnline
-    val isSyncing: StateFlow<Boolean> = runtime.syncStatus.isSyncing
-    val conflictsDetected: StateFlow<Int> = runtime.syncStatus.conflictsDetected
-    val lastSyncAttemptEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncAttemptEpochMs
+    override val isSyncing: StateFlow<Boolean> = runtime.syncStatus.isSyncing
+    override val conflictsDetected: StateFlow<Int> = runtime.syncStatus.conflictsDetected
+    override val lastSyncAttemptEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncAttemptEpochMs
     val lastSyncSuccessEpochMs: StateFlow<Long?> = runtime.syncStatus.lastSyncSuccessEpochMs
-    val lastSyncDurationText: StateFlow<String?> = runtime.syncStatus.lastSyncDurationText
-    val lastSyncError: StateFlow<String?> = runtime.syncStatus.lastSyncError
+    override val lastSyncDurationText: StateFlow<String?> = runtime.syncStatus.lastSyncDurationText
+    override val lastSyncError: StateFlow<String?> = runtime.syncStatus.lastSyncError
     private val _replayFailuresDetected = MutableStateFlow(0)
     val replayFailuresDetected: StateFlow<Int> = _replayFailuresDetected.asStateFlow()
 
@@ -156,7 +156,7 @@ class OfflineChecklistsRepository(
                         val updated =
                             original.withFirstDirtyBaseline(
                                 original.copy(
-                                    title = copy.title.removeSuffix(LOCAL_COPY_SUFFIX),
+                                    title = copy.title.withoutLocalCopySuffix(),
                                     category = copy.category,
                                     itemsJson = gson.toJson(newItems),
                                     // Keep every queued op in order after the ones already waiting (#120).
@@ -260,7 +260,13 @@ class OfflineChecklistsRepository(
             local?.syncBaselineJson?.let { SyncPayloadCodec.decodeChecklist(it) }
         }
 
-    fun clearConflictNotification() {
+    override fun pendingSyncIdsFlow(): Flow<Set<String>> = getDirtyChecklistIdsFlow()
+
+    override fun conflictCopyCountFlow(): Flow<Int> = getConflictCopiesFlow().map { it.size }
+
+    override suspend fun syncNow(): Result<Unit> = syncChecklists(force = true)
+
+    override fun clearConflictNotification() {
         runtime.syncStatus.setConflictsDetected(0)
     }
 
@@ -934,16 +940,19 @@ class OfflineChecklistsRepository(
 
                 val serverResponse = api.getChecklists()
                 val serverChecklists = serverResponse.checklists
-                val conflictCopies = mutableListOf<ChecklistEntity>()
-
-                for (serverList in serverChecklists) {
-                    val local = localBefore[serverList.id]
-                    if (local != null && local.isDirty && !local.isDeleted) {
-                        if (hasConflict(local, serverList, lostEdits = local.id in checklistsWithLostEdits)) {
-                            conflictCopies.add(local.toConflictCopy())
-                            AppLog.d(TAG, "Conflict detected for '${local.title}', local copy created")
-                        }
-                    }
+                val conflictCopies =
+                    conflictCopiesAfterSync(
+                        serverRows = serverChecklists,
+                        serverId = { it.id },
+                        localBefore = localBefore,
+                        hadLocalEdits = { it.isDirty && !it.isDeleted },
+                        hasConflict = { local, server ->
+                            checklistHasConflict(local, server, lostEdits = local.id in checklistsWithLostEdits)
+                        },
+                        toCopy = { it.toConflictCopy() },
+                    )
+                if (conflictCopies.isNotEmpty()) {
+                    AppLog.d(TAG, "Created ${conflictCopies.size} local copies due to conflicts")
                 }
 
                 // Atomic replace: observers see either the old list or the new list, never empty.
@@ -952,7 +961,7 @@ class OfflineChecklistsRepository(
                     checklistDao.insertAll(serverChecklists.map { it.toEntity(instanceId) })
                     if (conflictCopies.isNotEmpty()) checklistDao.insertAll(conflictCopies)
                 }
-                runtime.syncStatus.setConflictsDetected(if (conflictCopies.isNotEmpty()) conflictCopies.size else 0)
+                runtime.syncStatus.setConflictsDetected(conflictCopies.size)
                 runtime.syncStatus.markSyncCompleted(success = true)
                 runtime.reportServerReachable()
                 lastSyncCompletedAtMs = System.currentTimeMillis()
@@ -972,40 +981,6 @@ class OfflineChecklistsRepository(
         }
 
     // ─── Private helpers ─────────────────────────────────────────────────────
-
-    /**
-     * [local] is the row as it was before the push; [server] is the server copy after it.
-     *
-     * Queued item ops were replayed onto the server's current items, so the server copy already holds
-     * them merged with any remote edits: differing items are not a conflict then. A conflict is a title
-     * or category that did not stick, an op the server could not take ([lostEdits]), or, for a row
-     * without queued ops, items that differ.
-     */
-    private fun hasConflict(
-        local: ChecklistEntity,
-        server: Checklist,
-        lostEdits: Boolean,
-    ): Boolean {
-        if (lostEdits) return true
-        if (local.title != server.title || local.category != server.category) return true
-        if (local.pendingOps().isNotEmpty()) return false
-        return gson.toJson(local.items()) != gson.toJson(server.items)
-    }
-
-    /** A "(Local copy)" of [this] (a dirty list the server changed too), kept until resolved. */
-    private fun ChecklistEntity.toConflictCopy(): ChecklistEntity =
-        copy(
-            id = UUID.randomUUID().toString(),
-            title = "$title$LOCAL_COPY_SUFFIX",
-            isDirty = false,
-            isDeleted = false,
-            isLocalOnly = false,
-            pendingOpsJson = "[]",
-            syncBaselineJson = null,
-            dirtySinceEpochMs = null,
-            isConflictCopy = true,
-            conflictOfId = id,
-        )
 
     private suspend fun syncChecklistLocked(entity: ChecklistEntity) {
         // Re-read under the shared lock so concurrent repos do not create twice.
@@ -1275,7 +1250,7 @@ class OfflineChecklistsRepository(
 
     companion object {
         private const val TAG = "OfflineChecklistsRepo"
-        const val LOCAL_COPY_SUFFIX = " (Local copy)"
+        const val LOCAL_COPY_SUFFIX = com.jotty.android.data.local.LOCAL_COPY_SUFFIX
         private const val SYNC_DEBOUNCE_MS = 3_000L
     }
 }

@@ -53,6 +53,10 @@ import com.jotty.android.ui.common.EditDropdownMenuItem
 import com.jotty.android.ui.common.ListFilterHeader
 import com.jotty.android.ui.common.ListDetailContainer
 import com.jotty.android.ui.common.ListScreenContent
+import com.jotty.android.ui.common.CategoryFilterEmptySnackbarEffect
+import com.jotty.android.ui.common.OfflineListHeader
+import com.jotty.android.ui.common.PersistedCategoryFilterEffect
+import com.jotty.android.ui.common.rememberOfflineListSync
 import com.jotty.android.ui.common.rememberStaleListWhileRefresh
 import com.jotty.android.ui.common.ListSortOption
 import com.jotty.android.ui.common.SortMenuButton
@@ -114,15 +118,7 @@ fun OfflineEnabledChecklistsScreen(
         }
 
     val checklists by offlineRepository.getChecklistsFlow().collectAsStateWithLifecycle(initialValue = emptyList())
-    val conflictCopies by offlineRepository.getConflictCopiesFlow().collectAsStateWithLifecycle(initialValue = emptyList())
-    val isOnline by NetworkConnectivityMonitor.isOnline.collectAsStateWithLifecycle()
-    val isSyncing by offlineRepository.isSyncing.collectAsStateWithLifecycle()
-    val conflictsDetected by offlineRepository.conflictsDetected.collectAsStateWithLifecycle()
     val replayFailuresDetected by offlineRepository.replayFailuresDetected.collectAsStateWithLifecycle()
-    val dirtyChecklistIds by offlineRepository.getDirtyChecklistIdsFlow().collectAsStateWithLifecycle(initialValue = emptySet())
-    val lastSyncAttemptEpochMs by offlineRepository.lastSyncAttemptEpochMs.collectAsStateWithLifecycle()
-    val lastSyncDurationText by offlineRepository.lastSyncDurationText.collectAsStateWithLifecycle()
-    val lastSyncError by offlineRepository.lastSyncError.collectAsStateWithLifecycle()
 
     val selectedList by vm.selectedList.collectAsStateWithLifecycle()
     val showCreateDialog by vm.showCreateDialog.collectAsStateWithLifecycle()
@@ -135,19 +131,32 @@ fun OfflineEnabledChecklistsScreen(
     val sortedChecklists = remember(filteredChecklists, sortOption) { filteredChecklists.sortedBy(sortOption) }
 
     val screenState = rememberListScreenState()
-    var pullRefreshing by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val sync =
+        rememberOfflineListSync(
+            source = offlineRepository,
+            snackbarHostState = snackbarHostState,
+            screenState = screenState,
+            isDisplayedListEmpty = { sortedChecklists.isEmpty() },
+            hasNoLocalItems = { checklists.isEmpty() },
+            onOpenPendingSync = onOpenPendingSync,
+        )
+    val isOnline = sync.isOnline
+    val dirtyChecklistIds = sync.pendingIds
+
+    fun requestSync(
+        showLoading: Boolean = true,
+        fromPull: Boolean = false,
+    ) = sync.requestSync(showLoading, fromPull)
+
     val listRefreshing = screenState.loading
     val checklistListDisplay = rememberStaleListWhileRefresh(sortedChecklists, listRefreshing)
 
     val context = LocalContext.current
-    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
     val saveFailedMsg = stringResource(R.string.save_failed)
     val deleteFailedMsg = stringResource(R.string.delete_failed)
     val savedLocallyMsg = stringResource(R.string.saved_locally)
-    val conflictMsg = stringResource(R.string.sync_conflicts_detected, conflictsDetected)
-    val conflictActionLabel = stringResource(R.string.view_conflicts)
     val replayFailedMsg = stringResource(R.string.sync_replay_ops_failed, replayFailuresDetected)
     val checklistDeletedMsg = stringResource(R.string.checklist_deleted)
     val undoActionLabel = stringResource(R.string.undo)
@@ -220,53 +229,6 @@ fun OfflineEnabledChecklistsScreen(
         }
     }
 
-    fun requestSync(
-        showLoading: Boolean = true,
-        fromPull: Boolean = false,
-    ) {
-        scope.launch {
-            if (fromPull) pullRefreshing = true
-            val showSkeleton = showLoading && sortedChecklists.isEmpty()
-            try {
-                if (!isOnline) return@launch
-                if (showSkeleton) screenState.loading = true
-                screenState.errorMessage = null
-                val result = offlineRepository.syncChecklists(force = true)
-                if (result.isFailure) {
-                    val msg =
-                        offlineRepository.lastSyncError.value?.takeIf { it.isNotBlank() }
-                            ?: ApiErrorHelper.userMessage(
-                                context,
-                                result.exceptionOrNull() ?: Exception("Sync failed"),
-                            )
-                    if (checklists.isEmpty()) {
-                        screenState.errorMessage = msg
-                    } else {
-                        snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Long)
-                    }
-                }
-            } finally {
-                if (showSkeleton) screenState.loading = false
-                pullRefreshing = false
-            }
-        }
-    }
-
-    LaunchedEffect(conflictsDetected) {
-        if (conflictsDetected > 0) {
-            scope.launch {
-                val result =
-                    snackbarHostState.showSnackbar(
-                        message = conflictMsg,
-                        actionLabel = conflictActionLabel,
-                        duration = SnackbarDuration.Long,
-                    )
-                if (result == SnackbarResult.ActionPerformed) onOpenPendingSync()
-                offlineRepository.clearConflictNotification()
-            }
-        }
-    }
-
     LaunchedEffect(replayFailuresDetected) {
         if (replayFailuresDetected > 0) {
             scope.launch {
@@ -279,13 +241,7 @@ fun OfflineEnabledChecklistsScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
-        vm.categoryFilterEmptyEvents.collect { category ->
-            snackbarHostState.showSnackbar(
-                message = resources.getString(R.string.offline_category_filter_empty, category),
-            )
-        }
-    }
+    CategoryFilterEmptySnackbarEffect(vm.categoryFilterEmptyEvents, snackbarHostState)
 
     LaunchedEffect(isOnline, checklists) {
         vm.loadCategories(isOnline, checklists)
@@ -298,35 +254,23 @@ fun OfflineEnabledChecklistsScreen(
         }
     }
 
-    // Restore the persisted category filter once, then persist subsequent changes.
-    var filterRestored by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) {
-        settingsRepository.checklistsCategoryFilter.first()?.let { vm.setSelectedCategory(it) }
-        filterRestored = true
-    }
-    LaunchedEffect(selectedCategory, filterRestored, checklists) {
-        if (filterRestored) {
-            settingsRepository.setChecklistsCategoryFilter(selectedCategory)
-            if (!isOnline) {
-                vm.notifyCategoryFilterEmptyIfNeeded(selectedCategory, checklists)
-            }
-        }
+    PersistedCategoryFilterEffect(
+        selectedCategory = selectedCategory,
+        load = { settingsRepository.checklistsCategoryFilter.first() },
+        save = settingsRepository::setChecklistsCategoryFilter,
+        onRestore = vm::setSelectedCategory,
+    )
+    LaunchedEffect(selectedCategory, checklists) {
+        if (!isOnline) vm.notifyCategoryFilterEmptyIfNeeded(selectedCategory, checklists)
     }
 
     val inChecklistDetail = selectedList != null
     RegisterMainTabTopBar(
         state =
             if (!inChecklistDetail) {
-                MainTabTopBarState(
-                    isOnline = isOnline,
-                    isSyncing = isSyncing,
-                    lastSyncAttemptEpochMs = lastSyncAttemptEpochMs,
-                    lastSyncDurationText = lastSyncDurationText,
-                    lastSyncError = lastSyncError,
-                    pendingSyncCount = dirtyChecklistIds.size,
+                sync.topBarState(
                     onManagePendingSync = onOpenPendingSync,
                     onManageCategories = onManageCategories,
-                    onRefresh = { requestSync(showLoading = false) },
                     onAdd = { vm.setShowCreateDialog(true) },
                 )
             } else {
@@ -397,14 +341,8 @@ fun OfflineEnabledChecklistsScreen(
                 )
                 } else {
                     Column(Modifier.fillMaxSize()) {
-                OfflineConnectivityBanner(
-                    isOnline = isOnline,
-                    onRetrySync = { requestSync(showLoading = true) },
-                    modifier = Modifier.padding(bottom = 8.dp),
-                )
-
-                // Search bar + sort + category filters
-                ListFilterHeader(
+                OfflineListHeader(
+                    sync = sync,
                     searchQuery = searchQuery,
                     onSearchQueryChange = { vm.setSearchQuery(it) },
                     searchPlaceholderRes = R.string.search_checklists,
@@ -414,20 +352,13 @@ fun OfflineEnabledChecklistsScreen(
                     selectedCategory = selectedCategory,
                     onClearCategoryFilter = { vm.setSelectedCategory(null) },
                     onCategoryToggle = { vm.toggleCategoryChip(it, checklists) },
-                    categoryChipPadding = PaddingValues(vertical = 4.dp),
+                    onOpenPendingSync = onOpenPendingSync,
                 )
-
-                ConflictCopiesBanner(
-                    conflictCopyCount = conflictCopies.size,
-                    onViewCopies = onOpenPendingSync,
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
 
                 ListScreenContent(
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                     showSkeleton = screenState.loading && checklistListDisplay.showEmpty,
-                    isRefreshing = pullRefreshing,
+                    isRefreshing = sync.pullRefreshing,
                     error = screenState.errorMessage,
                     isEmpty = checklistListDisplay.showEmpty,
                     onRetry = { requestSync(showLoading = checklistListDisplay.showEmpty) },

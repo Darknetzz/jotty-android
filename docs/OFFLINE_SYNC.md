@@ -66,9 +66,13 @@ Paths are positional (`0`, `2.1`, …), so the order of the queue matters:
 - **If any checklist still has unsent changes after the push, the pull is skipped**, so the server snapshot never overwrites edits that have not been sent. The sync message says how many checklists were kept local.
 - Online with an empty queue, item changes go straight to the server. If a checklist already has queued ops, new changes are queued behind them so the order is kept. If the server becomes unreachable part-way through a bulk action, the ops it already applied are mirrored locally and the rest are queued.
 
-**Conflicts:** when a changed checklist differs from the server after the push, the server version is kept and your version is saved as a `… (Local copy)` checklist, as for notes.
+**Conflicts:** queued item ops are applied on top of the server's current items, so remote edits and yours are merged and differing items alone are not a conflict. The server version is kept and your pre-sync version is saved as a `… (Local copy)` checklist (as for notes) only when:
 
-> **Known issue:** a checklist that had queued item changes currently gets a `(Local copy)` even when every change was sent successfully, because any queued op counts as a conflict (`hasConflict` in `OfflineChecklistsRepository`). Present since v1.3.3.
+- your title or category change is not on the server after the push;
+- a queued rename or field edit (`UPDATE`) could not be applied because the item was deleted on the server (a check or delete of a vanished item loses nothing and is just dropped);
+- the checklist had no queued item ops and its items differ from the server's.
+
+From v1.3.3 to v1.11.2, any queued op counted as a conflict, so most offline item edits produced a spurious copy ([#126](https://github.com/Darknetzz/jotty-android/issues/126)).
 
 ## Pending sync manager
 

@@ -69,6 +69,13 @@ class OfflineChecklistsRepository(
     /** Local UUID → server id after [syncChecklist] pushes a local-only checklist. */
     private val localToServerIdRemap = ConcurrentHashMap<String, String>()
 
+    /**
+     * Checklists whose replay dropped a local edit the server could no longer take (rename or field
+     * edit of an item deleted on the server). Reset at the start of each sync; a "(Local copy)" keeps
+     * those edits.
+     */
+    private val checklistsWithLostEdits = ConcurrentHashMap.newKeySet<String>()
+
     @Volatile private var lastSyncCompletedAtMs: Long? = null
     /** Shared across UI + [OfflineSyncWorker] repos for this [instanceId]. */
     private val syncMutex = OfflineSyncLocks.forChecklists(instanceId)
@@ -777,6 +784,7 @@ class OfflineChecklistsRepository(
             runtime.syncStatus.setSyncing(true)
             runtime.syncStatus.markSyncStarted()
             _replayFailuresDetected.value = 0
+            checklistsWithLostEdits.clear()
             AppLog.d(TAG, "Starting sync…")
             try {
                 val localBefore = checklistDao.getAllChecklists(instanceId).associateBy { it.id }
@@ -830,7 +838,7 @@ class OfflineChecklistsRepository(
                 for (serverList in serverChecklists) {
                     val local = localBefore[serverList.id]
                     if (local != null && local.isDirty && !local.isDeleted) {
-                        if (hasConflict(local, serverList)) {
+                        if (hasConflict(local, serverList, lostEdits = local.id in checklistsWithLostEdits)) {
                             conflictCopies.add(
                                 local.copy(
                                     id = UUID.randomUUID().toString(),
@@ -872,12 +880,22 @@ class OfflineChecklistsRepository(
 
     // ─── Private helpers ─────────────────────────────────────────────────────
 
+    /**
+     * [local] is the row as it was before the push; [server] is the server copy after it.
+     *
+     * Queued item ops were replayed onto the server's current items, so the server copy already holds
+     * them merged with any remote edits: differing items are not a conflict then. A conflict is a title
+     * or category that did not stick, an op the server could not take ([lostEdits]), or, for a row
+     * without queued ops, items that differ.
+     */
     private fun hasConflict(
         local: ChecklistEntity,
         server: Checklist,
+        lostEdits: Boolean,
     ): Boolean {
-        if (local.pendingOps().isNotEmpty()) return true
+        if (lostEdits) return true
         if (local.title != server.title || local.category != server.category) return true
+        if (local.pendingOps().isNotEmpty()) return false
         return gson.toJson(local.items()) != gson.toJson(server.items)
     }
 
@@ -1024,6 +1042,8 @@ class OfflineChecklistsRepository(
                     AppLog.d(TAG, "Pending op ${op.type} treated as satisfied (${result.exceptionOrNull()?.message})")
                 isStalePendingOpPath(serverItems, op) -> {
                     AppLog.d(TAG, "Dropping stale pending op ${op.type}@${op.path} (path missing on server)")
+                    // A check or delete of a vanished item loses nothing; a rename or field edit does.
+                    if (op.type == "UPDATE") checklistsWithLostEdits.add(entity.id)
                 }
                 else -> {
                     failedOps += 1

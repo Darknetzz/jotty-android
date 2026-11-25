@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Extra "(Local copy)" checklists after syncing** — With local storage & sync on, a checklist whose item changes were made offline (or while the server was unreachable) got a duplicate "… (Local copy)" checklist and a conflict message after syncing, even though every change had reached the server. A copy is now only made when one of your changes really could not be applied, such as renaming an item that was deleted on the server in the meantime ([#126](https://github.com/Darknetzz/jotty-android/issues/126)).
+
 ### Documentation
 
 - **Docs refresh** — README brought up to date (feature list, downloads, release flow, build requirements, offline behaviour). New [feature reference](docs/FEATURES.md) and a single [local storage & sync](docs/OFFLINE_SYNC.md) guide that replaces the old offline, conflict and UI notes and explains the checklist change queue. Outdated `docs/TODO.md` moved to an issue ([#122](https://github.com/Darknetzz/jotty-android/issues/122), [#123](https://github.com/Darknetzz/jotty-android/issues/123), [#124](https://github.com/Darknetzz/jotty-android/issues/124)).

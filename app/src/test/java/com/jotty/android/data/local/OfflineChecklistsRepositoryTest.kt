@@ -300,6 +300,9 @@ class OfflineChecklistsRepositoryTest {
             val entity = database.checklistDao().getById("list-1")
             assertEquals(false, entity?.isDirty)
             assertTrue(entity?.pendingOps().orEmpty().isEmpty())
+            // A fully replayed queue is not a conflict: no "(Local copy)" checklist.
+            assertEquals(listOf("list-1"), database.checklistDao().getAllChecklists(instanceId).map { it.id })
+            assertEquals(0, repo.conflictsDetected.value)
         }
 
     @Test
@@ -1409,6 +1412,123 @@ class OfflineChecklistsRepositoryTest {
             val entity = database.checklistDao().getById("list-1")
             assertEquals(false, entity?.isDirty)
             assertEquals(true, entity?.items()?.single()?.completed)
+        }
+
+    @Test
+    fun syncChecklists_whenQueuedOpsApplyOnTopOfRemoteEdits_createsNoLocalCopy() =
+        runTest {
+            database.checklistDao().insert(
+                bulkListEntity(
+                    listOf(
+                        ChecklistItem(index = 0, text = "A"),
+                        ChecklistItem(index = 1, text = "B", completed = true),
+                    ),
+                ).copy(
+                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "CHECK", path = "1"))),
+                    isDirty = true,
+                ),
+            )
+            // Meanwhile the web app added "C".
+            val remote =
+                mutableListOf(
+                    Checklist(
+                        id = "list-1",
+                        title = "Groceries",
+                        category = API_CATEGORY_UNCATEGORIZED,
+                        type = "simple",
+                        items =
+                            listOf(
+                                ChecklistItem(index = 0, text = "A"),
+                                ChecklistItem(index = 1, text = "B"),
+                                ChecklistItem(index = 2, text = "C"),
+                            ),
+                        createdAt = "c",
+                        updatedAt = "u",
+                    ),
+                )
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    onCheckItem = { _, path ->
+                        remote[0] =
+                            remote[0].copy(
+                                items = remote[0].items.mapIndexed { i, item -> if ("$i" == path) item.copy(completed = true) else item },
+                            )
+                        SuccessResponse(true)
+                    },
+                )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            assertEquals(listOf("list-1"), database.checklistDao().getAllChecklists(instanceId).map { it.id })
+            assertEquals(0, repo.conflictsDetected.value)
+            val items = database.checklistDao().getById("list-1")?.items().orEmpty()
+            assertEquals(listOf("A", "B", "C"), items.map { it.text })
+            assertEquals(listOf(false, true, false), items.map { it.completed })
+        }
+
+    @Test
+    fun syncChecklists_whenQueuedRenameTargetsItemDeletedOnServer_keepsLocalCopy() =
+        runTest {
+            database.checklistDao().insert(
+                bulkListEntity(
+                    listOf(
+                        ChecklistItem(index = 0, text = "A"),
+                        ChecklistItem(index = 1, text = "Oat milk"),
+                    ),
+                ).copy(
+                    pendingOpsJson = Gson().toJson(listOf(PendingItemOp(type = "UPDATE", path = "1", text = "Oat milk"))),
+                    isDirty = true,
+                ),
+            )
+            // Meanwhile the web app deleted that item, so the rename cannot be applied.
+            val remote =
+                mutableListOf(
+                    Checklist(
+                        id = "list-1",
+                        title = "Groceries",
+                        category = API_CATEGORY_UNCATEGORIZED,
+                        type = "simple",
+                        items = listOf(ChecklistItem(index = 0, text = "A")),
+                        createdAt = "c",
+                        updatedAt = "u",
+                    ),
+                )
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    onUpdateItem = { _, _, _ ->
+                        val body = "".toResponseBody("application/json".toMediaTypeOrNull())
+                        throw HttpException(Response.error<Any>(404, body))
+                    },
+                )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            val stored = database.checklistDao().getAllChecklists(instanceId)
+            assertEquals(2, stored.size)
+            val copy = stored.single { it.id != "list-1" }
+            assertEquals("Groceries${OfflineChecklistsRepository.LOCAL_COPY_SUFFIX}", copy.title)
+            assertEquals(listOf("A", "Oat milk"), copy.items().map { it.text })
+            assertEquals(1, repo.conflictsDetected.value)
         }
 }
 

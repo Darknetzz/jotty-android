@@ -537,6 +537,7 @@ private fun ChecklistDetailScreen(
     var showChangeCategory by remember { mutableStateOf(false) }
     var changeCategoryLoading by remember { mutableStateOf(false) }
     var showSortDialog by remember { mutableStateOf(false) }
+    var bulkInProgress by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val sortNotSupportedMsg = stringResource(R.string.sort_items_not_supported)
@@ -973,18 +974,27 @@ private fun ChecklistDetailScreen(
                     } else {
                         { action ->
                             val ops = checklistBulkOps(items, action)
-                            if (ops.isNotEmpty()) {
+                            if (ops.isNotEmpty() && !bulkInProgress) {
+                                bulkInProgress = true
                                 scope.launch {
                                     try {
                                         ops.forEach { api.sendBulkOp(checklist.id, it) }
                                     } catch (_: Exception) {
                                         if (action.isDestructive) onDeleteFailed() else onSaveFailed()
                                     }
-                                    refresh()
+                                    // Keep the menus locked until the list shows the server's result.
+                                    try {
+                                        detailVm.refreshItemsFromServer()?.let(onUpdate)
+                                    } catch (_: Exception) {
+                                        onSaveFailed()
+                                    } finally {
+                                        bulkInProgress = false
+                                    }
                                 }
                             }
                         }
                     },
+                bulkInProgress = bulkInProgress,
         ) { flat, reorderableScope, _, onDragStarted, onDragStopped ->
             ChecklistDetailItemRow(
                 flat = flat,

@@ -705,6 +705,7 @@ private fun OfflineChecklistDetailContent(
     var changeCategoryLoading by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
     var showSortDialog by remember { mutableStateOf(false) }
+    var bulkInProgress by remember { mutableStateOf(false) }
     var showManageStatusesDialog by remember { mutableStateOf(false) }
     var showDiscardPendingSyncDialog by remember { mutableStateOf(false) }
     val sortNotSupportedMsg = stringResource(R.string.sort_items_not_supported)
@@ -1233,13 +1234,19 @@ private fun OfflineChecklistDetailContent(
                     } else {
                         { action ->
                             val ops = checklistBulkOps(items, action)
-                            if (ops.isNotEmpty()) {
+                            if (ops.isNotEmpty() && !bulkInProgress) {
+                                bulkInProgress = true
                                 scope.launch {
-                                    handleResult(offlineRepository.applyBulkItemOps(liveChecklist.id, ops))
+                                    try {
+                                        handleResult(offlineRepository.applyBulkItemOps(liveChecklist.id, ops))
+                                    } finally {
+                                        bulkInProgress = false
+                                    }
                                 }
                             }
                         }
                     },
+                bulkInProgress = bulkInProgress,
         ) { flat, reorderableScope, _, onDragStarted, onDragStopped ->
             ChecklistDetailItemRow(
                 flat = flat,

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -63,6 +65,8 @@ fun ChecklistDetailItemsList(
     onReorder: (ReorderItemsRequest) -> Unit,
     /** Section-header bulk actions; null hides the menus (e.g. Kanban list view). */
     onBulkAction: ((ChecklistBulkAction) -> Unit)? = null,
+    /** A bulk action is running: the section menus are replaced by a progress indicator. */
+    bulkInProgress: Boolean = false,
     itemRow: @Composable (
         flat: ChecklistFlatItem,
         reorderableScope: ReorderableCollectionItemScope?,
@@ -88,6 +92,7 @@ fun ChecklistDetailItemsList(
             modifier = modifier,
             onReorder = onReorder,
             onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
             itemRow = itemRow,
         )
     } else {
@@ -96,6 +101,7 @@ fun ChecklistDetailItemsList(
             completed = completed,
             modifier = modifier,
             onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
             itemRow = itemRow,
         )
     }
@@ -107,6 +113,7 @@ private fun ChecklistDetailItemsListStatic(
     completed: List<ChecklistFlatItem>,
     modifier: Modifier,
     onBulkAction: ((ChecklistBulkAction) -> Unit)?,
+    bulkInProgress: Boolean,
     itemRow: @Composable (ChecklistFlatItem, ReorderableCollectionItemScope?, Boolean, (() -> Unit)?, (() -> Unit)?) -> Unit,
 ) {
     LazyColumn(
@@ -118,6 +125,7 @@ private fun ChecklistDetailItemsListStatic(
             completed = completed,
             dragReorderEnabled = false,
             onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
             itemRow = itemRow,
         )
     }
@@ -131,6 +139,7 @@ private fun ChecklistDetailItemsListReorderable(
     modifier: Modifier,
     onReorder: (ReorderItemsRequest) -> Unit,
     onBulkAction: ((ChecklistBulkAction) -> Unit)?,
+    bulkInProgress: Boolean,
     itemRow: @Composable (ChecklistFlatItem, ReorderableCollectionItemScope?, Boolean, (() -> Unit)?, (() -> Unit)?) -> Unit,
 ) {
     var localToDo by remember { mutableStateOf(toDo) }
@@ -251,6 +260,7 @@ private fun ChecklistDetailItemsListReorderable(
             dragReorderEnabled = true,
             reorderableState = reorderableState,
             onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
             itemRow = itemRow,
             onItemDragStarted = ::startDrag,
             onItemDragStopped = ::finishDrag,
@@ -264,6 +274,7 @@ private fun LazyListScope.checklistDetailItemRows(
     dragReorderEnabled: Boolean,
     reorderableState: ReorderableLazyListState? = null,
     onBulkAction: ((ChecklistBulkAction) -> Unit)? = null,
+    bulkInProgress: Boolean = false,
     itemRow: @Composable (ChecklistFlatItem, ReorderableCollectionItemScope?, Boolean, (() -> Unit)?, (() -> Unit)?) -> Unit,
     onItemDragStarted: ((ChecklistSection, ChecklistFlatItem) -> Unit)? = null,
     onItemDragStopped: (() -> Unit)? = null,
@@ -278,6 +289,7 @@ private fun LazyListScope.checklistDetailItemRows(
                     listOf(ChecklistBulkAction.CheckAll, ChecklistBulkAction.ClearToDo)
                 },
             onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
         )
     }
     items(
@@ -314,6 +326,7 @@ private fun LazyListScope.checklistDetailItemRows(
                     listOf(ChecklistBulkAction.UncheckAll, ChecklistBulkAction.ClearCompleted)
                 },
             onBulkAction = onBulkAction,
+            bulkInProgress = bulkInProgress,
         )
     }
     items(
@@ -352,6 +365,7 @@ private fun ChecklistSectionHeader(
     title: String,
     actions: List<ChecklistBulkAction> = emptyList(),
     onBulkAction: ((ChecklistBulkAction) -> Unit)? = null,
+    bulkInProgress: Boolean = false,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var pendingConfirm by remember { mutableStateOf<ChecklistBulkAction?>(null) }
@@ -362,7 +376,12 @@ private fun ChecklistSectionHeader(
             color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.weight(1f).padding(vertical = 8.dp, horizontal = 4.dp),
         )
-        if (onBulkAction != null && actions.isNotEmpty()) {
+        if (onBulkAction != null && bulkInProgress) {
+            // Bulk ops use positional paths, so a second action must wait for the first to finish.
+            Box(modifier = Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            }
+        } else if (onBulkAction != null && actions.isNotEmpty()) {
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
                     Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.checklist_section_actions))

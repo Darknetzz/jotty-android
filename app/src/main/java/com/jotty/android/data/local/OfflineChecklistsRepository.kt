@@ -17,6 +17,7 @@ import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
 import com.jotty.android.util.isServerUnreachable
+import com.jotty.android.util.sendBulkOp
 import com.jotty.android.util.updateChecklistItemDescription
 import com.jotty.android.util.updateChecklistItemRichFields
 import com.jotty.android.util.updateChecklistItemText
@@ -582,6 +583,68 @@ class OfflineChecklistsRepository(
                 }
             }
         }
+
+    /**
+     * Applies a batch of CHECK / UNCHECK / DELETE ops (see [com.jotty.android.util.checklistBulkOps])
+     * with one refresh at the end instead of one per item.
+     *
+     * Offline or with pending changes, all ops are applied and queued locally. Online, they are
+     * sent one by one; if the server becomes unreachable part-way, the ops it already applied are
+     * mirrored locally and the rest are queued for the next sync (#115).
+     */
+    suspend fun applyBulkItemOps(
+        checklistId: String,
+        ops: List<PendingItemOp>,
+    ): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val resolvedId = resolveChecklistId(checklistId)
+                withItemMutation {
+                    if (!isOnline.value || needsLocalItemMutations(resolvedId)) {
+                        return@withItemMutation applyOpsLocally(resolvedId, ops)
+                    }
+                    var sent = 0
+                    try {
+                        for (op in ops) {
+                            api.sendBulkOp(resolvedId, op)
+                            sent++
+                        }
+                    } catch (e: Exception) {
+                        if (!e.isServerUnreachable()) {
+                            // Show what the server did apply before reporting the failure.
+                            runCatching { refreshFromServer(resolvedId) }
+                            throw e
+                        }
+                        AppLog.d(TAG, "Server unreachable after $sent/${ops.size} bulk ops — rest saved locally")
+                        runtime.reportServerUnreachable()
+                        applyOpsLocally(resolvedId, ops.take(sent), queueForReplay = false, trySync = false)
+                        return@withItemMutation applyOpsLocally(resolvedId, ops.drop(sent), trySync = false)
+                    }
+                    try {
+                        refreshFromServer(resolvedId)
+                    } catch (e: Exception) {
+                        if (!e.isServerUnreachable()) throw e
+                        runtime.reportServerUnreachable()
+                        applyOpsLocally(resolvedId, ops, queueForReplay = false, trySync = false)
+                    }
+                }
+            }
+        }
+
+    private suspend fun applyOpsLocally(
+        checklistId: String,
+        ops: List<PendingItemOp>,
+        queueForReplay: Boolean = true,
+        trySync: Boolean = true,
+    ): Checklist {
+        var result: Checklist? = null
+        ops.forEachIndexed { i, op ->
+            result = applyOpLocally(checklistId, op, queueForReplay, trySync = trySync && i == ops.lastIndex)
+        }
+        return result
+            ?: checklistDao.getById(checklistId)?.toChecklist()
+            ?: throw Exception("Checklist not found: $checklistId")
+    }
 
     suspend fun updateItemText(
         checklistId: String,

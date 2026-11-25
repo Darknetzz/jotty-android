@@ -84,6 +84,8 @@ import com.jotty.android.util.recurrencePatch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import com.jotty.android.util.checklistBulkOps
+import com.jotty.android.util.sendBulkOp
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -965,6 +967,24 @@ private fun ChecklistDetailScreen(
                 total = total,
                 dragReorderEnabled = dragReorderEnabled,
                 onReorder = ::applyDragReorder,
+                onBulkAction =
+                    if (isProject) {
+                        null
+                    } else {
+                        { action ->
+                            val ops = checklistBulkOps(items, action)
+                            if (ops.isNotEmpty()) {
+                                scope.launch {
+                                    try {
+                                        ops.forEach { api.sendBulkOp(checklist.id, it) }
+                                    } catch (_: Exception) {
+                                        if (action.isDestructive) onDeleteFailed() else onSaveFailed()
+                                    }
+                                    refresh()
+                                }
+                            }
+                        }
+                    },
         ) { flat, reorderableScope, _, onDragStarted, onDragStopped ->
             ChecklistDetailItemRow(
                 flat = flat,

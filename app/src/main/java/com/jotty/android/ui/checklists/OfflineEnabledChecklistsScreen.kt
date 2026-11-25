@@ -84,6 +84,7 @@ import com.jotty.android.util.recurrencePatch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
+import com.jotty.android.util.checklistBulkOps
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -1226,6 +1227,19 @@ private fun OfflineChecklistDetailContent(
                         handleResult(offlineRepository.reorderItems(liveChecklist.id, request))
                     }
                 },
+                onBulkAction =
+                    if (isProject) {
+                        null
+                    } else {
+                        { action ->
+                            val ops = checklistBulkOps(items, action)
+                            if (ops.isNotEmpty()) {
+                                scope.launch {
+                                    handleResult(offlineRepository.applyBulkItemOps(liveChecklist.id, ops))
+                                }
+                            }
+                        }
+                    },
         ) { flat, reorderableScope, _, onDragStarted, onDragStopped ->
             ChecklistDetailItemRow(
                 flat = flat,

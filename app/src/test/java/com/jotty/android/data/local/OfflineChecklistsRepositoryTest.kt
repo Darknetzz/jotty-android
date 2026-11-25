@@ -1153,6 +1153,142 @@ class OfflineChecklistsRepositoryTest {
             assertEquals(1, remote.size)
             repo.close()
         }
+
+    private fun bulkListEntity(items: List<ChecklistItem>) =
+        ChecklistEntity(
+            id = "list-1",
+            title = "Groceries",
+            category = API_CATEGORY_UNCATEGORIZED,
+            type = "simple",
+            itemsJson = Gson().toJson(items),
+            createdAt = "c",
+            updatedAt = "u",
+            isDirty = false,
+            isDeleted = false,
+            instanceId = instanceId,
+            isLocalOnly = false,
+        )
+
+    private val bulkItems =
+        listOf(
+            ChecklistItem(index = 0, text = "Milk", completed = true),
+            ChecklistItem(index = 1, text = "Bread"),
+            ChecklistItem(index = 2, text = "Eggs", completed = true),
+        )
+
+    @Test
+    fun applyBulkItemOps_whenOffline_appliesAndQueuesAllOps() =
+        runTest {
+            database.checklistDao().insert(bulkListEntity(bulkItems))
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+            val ops = com.jotty.android.util.checklistBulkOps(bulkItems, com.jotty.android.util.ChecklistBulkAction.ClearCompleted)
+
+            val result = repo.applyBulkItemOps("list-1", ops)
+
+            assertTrue(result.isSuccess)
+            assertEquals(listOf("Bread"), result.getOrNull()?.items?.map { it.text })
+            val entity = database.checklistDao().getById("list-1")
+            assertEquals(true, entity?.isDirty)
+            assertEquals(listOf("2", "0"), entity?.pendingOps()?.map { it.path })
+        }
+
+    @Test
+    fun applyBulkItemOps_whenServerUnreachableMidway_queuesOnlyUnsentOps() =
+        runTest {
+            database.checklistDao().insert(bulkListEntity(bulkItems))
+            val deleted = mutableListOf<String>()
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists =
+                        mutableListOf(
+                            Checklist(
+                                id = "list-1",
+                                title = "Groceries",
+                                category = API_CATEGORY_UNCATEGORIZED,
+                                type = "simple",
+                                items = bulkItems,
+                                createdAt = "c",
+                                updatedAt = "u",
+                            ),
+                        ),
+                    onDeleteItem = { _, path ->
+                        if (deleted.isNotEmpty()) throw UnknownHostException("gone")
+                        deleted += path
+                        SuccessResponse(true)
+                    },
+                )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+            val ops = com.jotty.android.util.checklistBulkOps(bulkItems, com.jotty.android.util.ChecklistBulkAction.ClearCompleted)
+
+            val result = repo.applyBulkItemOps("list-1", ops)
+
+            assertTrue(result.isSuccess)
+            assertEquals(listOf("2"), deleted)
+            assertEquals(listOf("Bread"), result.getOrNull()?.items?.map { it.text })
+            assertEquals(listOf("0"), database.checklistDao().getById("list-1")?.pendingOps()?.map { it.path })
+        }
+
+    @Test
+    fun applyBulkItemOps_whenOnline_sendsAllOpsThenRefreshesOnce() =
+        runTest {
+            database.checklistDao().insert(bulkListEntity(bulkItems))
+            val checked = mutableListOf<String>()
+            var fetches = 0
+            val remote =
+                mutableListOf(
+                    Checklist(
+                        id = "list-1",
+                        title = "Groceries",
+                        category = API_CATEGORY_UNCATEGORIZED,
+                        type = "simple",
+                        items = bulkItems,
+                        createdAt = "c",
+                        updatedAt = "u",
+                    ),
+                )
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    beforeGetChecklists = { fetches++ },
+                    onCheckItem = { _, path ->
+                        checked += path
+                        SuccessResponse(true)
+                    },
+                )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+            val ops = com.jotty.android.util.checklistBulkOps(bulkItems, com.jotty.android.util.ChecklistBulkAction.CheckAll)
+
+            val result = repo.applyBulkItemOps("list-1", ops)
+
+            assertTrue(result.isSuccess)
+            assertEquals(listOf("1"), checked)
+            assertEquals(1, fetches)
+            assertEquals(false, database.checklistDao().getById("list-1")?.isDirty)
+        }
 }
 
 private class FakeChecklistApi(

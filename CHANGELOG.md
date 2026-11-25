@@ -6,6 +6,10 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Bulk actions on checklist sections** — The ⋮ menu on the **To Do** header offers **Check all** and **Clear all**, and the one on **Completed** offers **Uncheck all** and **Clear all**, as in the Jotty web app. Handy for reusing a list such as groceries. Clearing asks for confirmation first. Works offline too: the changes are saved on the device and synced later ([#118](https://github.com/Darknetzz/jotty-android/issues/118)).
+
 ---
 
 ## [1.11.1] - 2026-11-25

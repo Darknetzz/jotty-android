@@ -129,7 +129,8 @@ function Update-Changelog {
     if ($updated -notmatch "(?m)^\[$([regex]::Escape($VersionName))\]:\s+") {
         $linkPattern = '(?m)^\[\d+\.\d+(?:\.\d+)*(?:-[^\]]+)?\]:\s+https://github\.com/Darknetzz/jotty-android/releases/tag/v[^\r\n]+$'
         if ($updated -match $linkPattern) {
-            $updated = [regex]::Replace($updated, $linkPattern, "$linkLine$lineEnding`$0", 1)
+            # Instance Replace: the static overload's 4th argument is RegexOptions, not a count.
+            $updated = ([regex]$linkPattern).Replace($updated, "$linkLine$lineEnding`$0", 1)
         } else {
             $updated = $updated.TrimEnd() + $lineEnding + $lineEnding + $linkLine + $lineEnding
         }

@@ -62,3 +62,15 @@ fun ChecklistEntity.toSyncPayload(): ChecklistSyncPayload =
         updatedAt = updatedAt,
         pendingOpsJson = pendingOpsJson,
     )
+
+/** An unresolved note conflict copy and the note it was split from (null when that note is gone). */
+data class NoteConflict(
+    val copy: NoteEntity,
+    val original: NoteEntity?,
+)
+
+/** An unresolved checklist conflict copy and the checklist it was split from (null when gone). */
+data class ChecklistConflict(
+    val copy: ChecklistEntity,
+    val original: ChecklistEntity?,
+)

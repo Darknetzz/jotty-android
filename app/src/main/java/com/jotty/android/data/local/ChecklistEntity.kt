@@ -74,6 +74,15 @@ data class ChecklistEntity(
     /** Epoch ms when local edits first made this row dirty (null when clean). */
     @ColumnInfo(defaultValue = "NULL")
     val dirtySinceEpochMs: Long? = null,
+    /**
+     * A "(Local copy)" kept after a sync conflict. Never pushed and kept across syncs until it is
+     * resolved in the merge screen (keep server, keep mine, keep both).
+     */
+    @ColumnInfo(defaultValue = "0")
+    val isConflictCopy: Boolean = false,
+    /** Id of the row this conflict copy was split from; null when unknown (copies made before v9). */
+    @ColumnInfo(defaultValue = "NULL")
+    val conflictOfId: String? = null,
 )
 
 // ─── Type tokens ────────────────────────────────────────────────────────────

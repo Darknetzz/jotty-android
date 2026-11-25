@@ -937,6 +937,8 @@ class OfflineChecklistsRepositoryTest {
                     createdAt = "c",
                     updatedAt = "u",
                     instanceId = instanceId,
+                    isConflictCopy = true,
+                    conflictOfId = "regular",
                 ),
             )
 
@@ -1529,6 +1531,206 @@ class OfflineChecklistsRepositoryTest {
             assertEquals("Groceries${OfflineChecklistsRepository.LOCAL_COPY_SUFFIX}", copy.title)
             assertEquals(listOf("A", "Oat milk"), copy.items().map { it.text })
             assertEquals(1, repo.conflictsDetected.value)
+        }
+
+    // ─── Conflict merge (#125) ───────────────────────────────────────────────
+
+    private suspend fun insertChecklistConflict() {
+        database.checklistDao().insert(bulkListEntity(listOf(ChecklistItem(index = 0, text = "Server item"))))
+        database.checklistDao().insert(
+            bulkListEntity(
+                listOf(
+                    ChecklistItem(index = 0, text = "Milk", completed = true),
+                    ChecklistItem(
+                        index = 1,
+                        text = "Bake",
+                        description = "for Sunday",
+                        children = listOf(ChecklistItem(index = 0, text = "Flour")),
+                    ),
+                ),
+            ).copy(
+                id = "copy-1",
+                title = "Groceries${OfflineChecklistsRepository.LOCAL_COPY_SUFFIX}",
+                isConflictCopy = true,
+                conflictOfId = "list-1",
+            ),
+        )
+    }
+
+    @Test
+    fun syncChecklists_keepsConflictCopiesAcrossSyncs() =
+        runTest {
+            insertChecklistConflict()
+            val remote = mutableListOf(serverList("Server item"))
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(remoteChecklists = remote),
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            val stored = database.checklistDao().getAllChecklists(instanceId)
+            assertEquals(setOf("list-1", "copy-1"), stored.map { it.id }.toSet())
+            assertEquals(0, repo.conflictsDetected.value)
+        }
+
+    @Test
+    fun resolveConflictKeepMine_offline_queuesReplaceOpsAndDropsCopy() =
+        runTest {
+            insertChecklistConflict()
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.resolveConflictKeepMine("copy-1").isSuccess)
+
+            assertNull(database.checklistDao().getById("copy-1"))
+            val original = requireNotNull(database.checklistDao().getById("list-1"))
+            assertTrue(original.isDirty)
+            assertEquals("Groceries", original.title)
+            assertEquals(listOf("Milk", "Bake"), original.items().map { it.text })
+            assertTrue(original.items()[0].completed)
+            assertEquals("for Sunday", original.items()[1].description)
+            assertEquals(listOf("Flour"), original.items()[1].children.orEmpty().map { it.text })
+            assertEquals(
+                listOf("DELETE@0", "ADD", "CHECK@0", "ADD", "UPDATE@1", "ADD@1"),
+                original.pendingOps().map { op ->
+                    when {
+                        op.type == "ADD" && op.parentIndex != null -> "ADD@${op.parentIndex}"
+                        op.path != null -> "${op.type}@${op.path}"
+                        else -> op.type
+                    }
+                },
+            )
+        }
+
+    @Test
+    fun resolveConflictKeepMine_online_replaysOpsOnServer() =
+        runTest {
+            insertChecklistConflict()
+            val calls = mutableListOf<String>()
+            val remote = mutableListOf(serverList("Server item"))
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    onDeleteItem = { _, path ->
+                        calls += "DELETE $path"
+                        SuccessResponse(true)
+                    },
+                    onAddChecklistItem = { _, body ->
+                        calls += "ADD ${body.text}${body.parentIndex?.let { " under $it" }.orEmpty()}"
+                        SuccessResponse(true)
+                    },
+                    onCheckItem = { _, path ->
+                        calls += "CHECK $path"
+                        SuccessResponse(true)
+                    },
+                )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+            assertTrue(repo.resolveConflictKeepMine("copy-1").isSuccess)
+            val online =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(online.syncChecklists(force = true).isSuccess)
+
+            assertEquals(
+                listOf("DELETE 0", "ADD Milk", "CHECK 0", "ADD Bake", "ADD Flour under 1"),
+                calls,
+            )
+        }
+
+    @Test
+    fun resolveConflictKeepBoth_turnsCopyIntoLocalOnlyChecklist() =
+        runTest {
+            insertChecklistConflict()
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.resolveConflictKeepBoth("copy-1").isSuccess)
+
+            val promoted = requireNotNull(database.checklistDao().getById("copy-1"))
+            assertFalse(promoted.isConflictCopy)
+            assertTrue(promoted.isLocalOnly)
+            assertTrue(promoted.isDirty)
+            assertTrue(repo.getConflictCopiesFlow().first().isEmpty())
+        }
+
+    @Test
+    fun resolveConflictKeepServer_dropsCopy() =
+        runTest {
+            insertChecklistConflict()
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = FakeChecklistApi(),
+                    initialOnlineOverride = false,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.resolveConflictKeepServer("copy-1").isSuccess)
+
+            assertEquals(listOf("list-1"), database.checklistDao().getAllChecklists(instanceId).map { it.id })
+        }
+
+    @Test
+    fun checkingItemOnConflictCopy_staysLocalAndIsNotQueued() =
+        runTest {
+            insertChecklistConflict()
+            val api =
+                FakeChecklistApi(
+                    onCheckItem = { _, _ -> error("a conflict copy must never be pushed") },
+                )
+            val repo =
+                OfflineChecklistsRepository(
+                    context = context,
+                    database = database,
+                    instanceId = instanceId,
+                    api = api,
+                    initialOnlineOverride = true,
+                    useSharedConnectivity = false,
+                )
+
+            assertTrue(repo.checkItem("copy-1", "1").isSuccess)
+
+            val copy = requireNotNull(database.checklistDao().getById("copy-1"))
+            assertTrue(copy.items()[1].completed)
+            assertFalse(copy.isDirty)
+            assertTrue(copy.pendingOps().isEmpty())
         }
 }
 

@@ -38,7 +38,7 @@ UI-triggered and background syncs share one per-instance lock (`OfflineSyncLocks
 
 1. **Push:** each changed note (`NoteEntity.isDirty`) is created, updated or deleted on the server. A note created offline has a temporary local id that is replaced by the server id.
 2. **Pull:** the full note list is fetched and replaces the local copy.
-3. **Conflicts:** if a note was changed locally and its title, content or category differs from the server after the push, the server version is kept and your version is saved as a separate note titled `… (Local copy)`. A snackbar reports the number of conflicts and offers **View copies**.
+3. **Conflicts:** if a note was changed locally and its title, content or category differs from the server after the push, the server version is kept and your version is saved as a separate note titled `… (Local copy)`. A snackbar reports the number of conflicts and offers **Resolve**, which opens the [conflict list](#resolving-conflicts).
 
 Related on-device safety nets:
 
@@ -74,6 +74,19 @@ Paths are positional (`0`, `2.1`, …), so the order of the queue matters:
 
 From v1.3.3 to v1.11.2, any queued op counted as a conflict, so most offline item edits produced a spurious copy ([#126](https://github.com/Darknetzz/jotty-android/issues/126)).
 
+## Resolving conflicts
+
+A `… (Local copy)` is a row with `isConflictCopy = true` and `conflictOfId` set to the note or checklist it was split from. It is never pushed, and the full pull keeps it (`deleteSyncedNotes` / `deleteSynced` clear everything else), so it stays until you resolve it. Editing or deleting a copy only touches the device. Up to v1.11.2 copies were ordinary clean rows, so the next sync deleted them; the v8 → v9 database migration flags clean rows whose title ends in ` (Local copy)` and links each to the row whose title it extends, where there is one ([#125](https://github.com/Darknetzz/jotty-android/issues/125)).
+
+**Pending sync** lists unresolved copies under **Conflicts**; the conflict banner in the notes and checklists lists and the conflict snackbar open it. Each conflict (`ui/sync/ConflictMergeScreen.kt`) shows the original as stored on the device against your copy, as a diff, with these actions:
+
+- **Keep my version:** notes go through `updateNote` on the original, so the change syncs like any edit (queued when offline). Checklists have no endpoint that replaces their items, so the original's queue gets ops that delete its items (highest index first) and re-add yours depth-first with their fields, recurrence and completion (`util/ChecklistReplaceOps.kt`). Item history and authors on the server are reset.
+- **Keep server version:** deletes the copy.
+- **Keep both:** the copy becomes a normal local-only note or checklist that is created on the server on the next sync, keeping its `(Local copy)` title.
+- **Edit a merged version** (unencrypted notes): edit the title and text, starting from either side, then save it like **Keep my version**.
+
+When the original is gone (deleted on the server, or an old copy that could not be linked) only **Keep both** and **Discard my copy** are offered. Encrypted notes show their bodies only if unlocked this session and cannot be merged in place.
+
 ## Pending sync manager
 
 With local storage on, **Manage pending** (from Sync details, or Settings → Behavior) lists every note and checklist with unsent changes. For each one you can:
@@ -84,7 +97,7 @@ With local storage on, **Manage pending** (from Sync details, or Settings → Be
 
 ## Limitations
 
-- Conflicts keep both versions; there is no side-by-side merge.
+- Merging is per note or checklist: there is no per-item merge for checklists, only keeping one side or both.
 - Categories created offline do not appear in the category filter until synced.
 - Turning local storage off does not send pending changes first, and there is no warning. They stay on the device until local storage is turned back on and a sync runs, so sync (or use Manage pending) before turning it off.
 - Clearing the app's data in Android settings deletes pending changes.
@@ -95,7 +108,7 @@ With local storage on, **Manage pending** (from Sync details, or Settings → Be
 2. Make more changes offline. Each shows **Saved locally**, and list cards show **Pending sync**.
 3. Turn airplane mode off. The icon shows syncing, then the check. Confirm the changes in the Jotty web app.
 4. Unreachable server: use a server address that only resolves on your home network and leave it (or block the host). The app should go offline after one failed request and recover within seconds of the server answering again.
-5. Conflict: edit a note offline, edit the same note in the web app, reconnect. A `(Local copy)` note and the conflict snackbar appear.
+5. Conflict: edit a note offline, edit the same note in the web app, reconnect. A `(Local copy)` note and the conflict snackbar appear. Pull to refresh: the copy stays. Tap **Resolve**, open the conflict, try each action.
 
 ## Code map
 
@@ -107,4 +120,5 @@ With local storage on, **Manage pending** (from Sync details, or Settings → Be
 | Background sync, locks | `data/local/OfflineSyncWorker.kt`, `OfflineSyncLocks.kt`, `OfflineInitialSync.kt` |
 | Drafts and backups | `data/local/NoteDraftStore.kt`, `NoteSnapshotRepository.kt`, `SyncBackupRepository.kt` |
 | Database | `data/local/JottyDatabase.kt` |
+| Conflict copies and merge | `OfflineNotesRepository` / `OfflineChecklistsRepository` (`resolveConflict*`), `util/ChecklistReplaceOps.kt`, `ui/sync/ConflictMergeScreen.kt` |
 | UI | `ui/common/MainTabTopBar.kt` (status icon), `ui/notes/Offline*`, `ui/checklists/OfflineEnabledChecklistsScreen.kt`, `ui/sync/` (pending sync manager) |

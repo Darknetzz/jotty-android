@@ -22,11 +22,15 @@ interface ChecklistDao {
     @Query("SELECT * FROM checklists WHERE id = :id")
     suspend fun getByIdIncludingDeleted(id: String): ChecklistEntity?
 
-    @Query("SELECT * FROM checklists WHERE instanceId = :instanceId AND (isDirty = 1 OR isDeleted = 1)")
+    @Query("SELECT * FROM checklists WHERE instanceId = :instanceId AND isConflictCopy = 0 AND (isDirty = 1 OR isDeleted = 1)")
     suspend fun getDirty(instanceId: String): List<ChecklistEntity>
 
-    @Query("SELECT id FROM checklists WHERE instanceId = :instanceId AND (isDirty = 1 OR isDeleted = 1)")
+    @Query("SELECT id FROM checklists WHERE instanceId = :instanceId AND isConflictCopy = 0 AND (isDirty = 1 OR isDeleted = 1)")
     fun getDirtyChecklistIdsFlow(instanceId: String): Flow<List<String>>
+
+    /** Unresolved "(Local copy)" rows kept after sync conflicts. */
+    @Query("SELECT * FROM checklists WHERE instanceId = :instanceId AND isConflictCopy = 1 AND isDeleted = 0 ORDER BY updatedAt DESC")
+    fun getConflictCopiesFlow(instanceId: String): Flow<List<ChecklistEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: ChecklistEntity)
@@ -45,4 +49,8 @@ interface ChecklistDao {
 
     @Query("DELETE FROM checklists WHERE instanceId = :instanceId")
     suspend fun deleteAll(instanceId: String)
+
+    /** Clears the server mirror before a full sync replace; unresolved conflict copies stay. */
+    @Query("DELETE FROM checklists WHERE instanceId = :instanceId AND isConflictCopy = 0")
+    suspend fun deleteSynced(instanceId: String)
 }

@@ -15,6 +15,7 @@ import com.jotty.android.data.api.ReorderItemsRequest
 import com.jotty.android.data.api.UpdateChecklistRequest
 import com.jotty.android.data.api.UpdateItemRequest
 import com.jotty.android.util.ApiErrorHelper
+import com.jotty.android.util.buildReplaceItemsOps
 import com.jotty.android.util.AppLog
 import com.jotty.android.util.isServerUnreachable
 import com.jotty.android.util.sendBulkOp
@@ -115,13 +116,93 @@ class OfflineChecklistsRepository(
      * Local conflict copies are kept until users review and delete or merge them.
      */
     fun getConflictCopiesFlow(): Flow<List<Checklist>> =
-        checklistDao.getAllChecklistsFlow(instanceId)
-            .map { entities ->
-                entities
-                    .filter { it.title.endsWith(LOCAL_COPY_SUFFIX) }
-                    .map { it.toChecklist() }
-            }
+        checklistDao.getConflictCopiesFlow(instanceId)
+            .map { entities -> entities.map { it.toChecklist() } }
             .flowOn(Dispatchers.IO)
+
+    /** The conflict copy [copyId] with the checklist it was split from (null when that list is gone). */
+    suspend fun getConflict(copyId: String): ChecklistConflict? =
+        withContext(Dispatchers.IO) {
+            val copy = checklistDao.getById(copyId)?.takeIf { it.isConflictCopy } ?: return@withContext null
+            ChecklistConflict(copy = copy, original = copy.conflictOfId?.let { checklistDao.getById(it) })
+        }
+
+    /** Keep the server version: drops the local copy. */
+    suspend fun resolveConflictKeepServer(copyId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                requireConflictCopy(copyId)
+                checklistDao.delete(copyId)
+                AppLog.d(TAG, "Conflict copy discarded: $copyId")
+            }
+        }
+
+    /**
+     * Keep mine: queues item ops on the original that delete its items and re-add the copy's
+     * ([buildReplaceItemsOps]), takes the copy's title and category, and drops the copy. The ops go
+     * through the normal positional queue, so this works offline and replays in order on sync.
+     */
+    suspend fun resolveConflictKeepMine(copyId: String): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val result =
+                    withItemMutation {
+                        val copy = requireConflictCopy(copyId)
+                        val original =
+                            copy.conflictOfId?.let { checklistDao.getById(it) }
+                                ?: throw IllegalStateException(appContext.getString(R.string.conflict_original_missing))
+                        val ops = buildReplaceItemsOps(original.items(), copy.items())
+                        val newItems = ops.fold(original.items()) { items, op -> applyOpToItems(items, op) }
+                        val updated =
+                            original.withFirstDirtyBaseline(
+                                original.copy(
+                                    title = copy.title.removeSuffix(LOCAL_COPY_SUFFIX),
+                                    category = copy.category,
+                                    itemsJson = gson.toJson(newItems),
+                                    // Keep every queued op in order after the ones already waiting (#120).
+                                    pendingOpsJson = gson.toJson(original.pendingOps() + ops),
+                                    isDirty = true,
+                                    updatedAt = Instant.now().toString(),
+                                ),
+                            )
+                        database.withTransaction {
+                            checklistDao.update(updated)
+                            checklistDao.delete(copyId)
+                        }
+                        AppLog.d(TAG, "Conflict resolved with local version: $copyId -> ${original.id} (${ops.size} ops)")
+                        updated.toChecklist()
+                    }
+                if (isOnline.value) runtime.coroutineScope.launch { syncChecklists(force = true) }
+                result
+            }
+        }
+
+    /** Keep both: the copy becomes a normal local-only checklist that is created on the server on sync. */
+    suspend fun resolveConflictKeepBoth(copyId: String): Result<Checklist> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val copy = requireConflictCopy(copyId)
+                val promoted =
+                    copy.copy(
+                        isConflictCopy = false,
+                        conflictOfId = null,
+                        isLocalOnly = true,
+                        isDirty = true,
+                        pendingOpsJson = "[]",
+                        updatedAt = Instant.now().toString(),
+                        dirtySinceEpochMs = System.currentTimeMillis(),
+                    )
+                checklistDao.insert(promoted)
+                AppLog.d(TAG, "Conflict copy kept as a separate checklist: $copyId")
+                // Same as createChecklist: no inline push, since the push swaps the local id.
+                if (isOnline.value) runtime.coroutineScope.launch { syncChecklists(force = true) }
+                promoted.toChecklist()
+            }
+        }
+
+    private suspend fun requireConflictCopy(copyId: String): ChecklistEntity =
+        checklistDao.getById(copyId)?.takeIf { it.isConflictCopy }
+            ?: throw IllegalStateException(appContext.getString(R.string.conflict_gone))
 
     fun getDirtyChecklistIdsFlow(): Flow<Set<String>> =
         checklistDao.getDirtyChecklistIdsFlow(instanceId)
@@ -403,7 +484,7 @@ class OfflineChecklistsRepository(
         withContext(Dispatchers.IO) {
             runCatching {
                 val entity = checklistDao.getById(id)
-                if (entity != null && entity.isLocalOnly) {
+                if (entity != null && (entity.isLocalOnly || entity.isConflictCopy)) {
                     checklistDao.delete(id)
                     AppLog.d(TAG, "Local-only checklist hard-deleted: $id")
                 } else if (entity != null) {
@@ -432,6 +513,17 @@ class OfflineChecklistsRepository(
                 val existing =
                     checklistDao.getById(id)
                         ?: throw Exception("Checklist not found")
+                if (existing.isConflictCopy) {
+                    // A conflict copy has no server row: edit it in place and never push it.
+                    val edited =
+                        existing.copy(
+                            title = title,
+                            category = category ?: existing.category,
+                            updatedAt = Instant.now().toString(),
+                        )
+                    checklistDao.update(edited)
+                    return@runCatching edited.toChecklist()
+                }
                 val updated =
                     existing.withFirstDirtyBaseline(
                         existing.copy(
@@ -469,6 +561,9 @@ class OfflineChecklistsRepository(
         return entity.isDirty || entity.pendingOps().isNotEmpty()
     }
 
+    /** Conflict copies have no server row: their item edits stay local and are never queued. */
+    private suspend fun isConflictCopy(checklistId: String): Boolean = checklistDao.getById(checklistId)?.isConflictCopy == true
+
     private suspend fun resolveChecklistId(checklistId: String): String {
         if (checklistDao.getById(checklistId) != null) return checklistId
         val remapped = localToServerIdRemap[checklistId] ?: return checklistId
@@ -488,6 +583,9 @@ class OfflineChecklistsRepository(
         op: PendingItemOp,
         remote: suspend () -> Unit,
     ): Checklist {
+        if (isConflictCopy(resolvedId)) {
+            return applyOpLocally(resolvedId, op, queueForReplay = false, trySync = false)
+        }
         if (!isOnline.value || needsLocalItemMutations(resolvedId)) {
             return applyOpLocally(resolvedId, op)
         }
@@ -607,6 +705,9 @@ class OfflineChecklistsRepository(
             runCatching {
                 val resolvedId = resolveChecklistId(checklistId)
                 withItemMutation {
+                    if (isConflictCopy(resolvedId)) {
+                        return@withItemMutation applyOpsLocally(resolvedId, ops, queueForReplay = false, trySync = false)
+                    }
                     if (!isOnline.value || needsLocalItemMutations(resolvedId)) {
                         return@withItemMutation applyOpsLocally(resolvedId, ops)
                     }
@@ -839,15 +940,7 @@ class OfflineChecklistsRepository(
                     val local = localBefore[serverList.id]
                     if (local != null && local.isDirty && !local.isDeleted) {
                         if (hasConflict(local, serverList, lostEdits = local.id in checklistsWithLostEdits)) {
-                            conflictCopies.add(
-                                local.copy(
-                                    id = UUID.randomUUID().toString(),
-                                    title = "${local.title}$LOCAL_COPY_SUFFIX",
-                                    isDirty = false,
-                                    isDeleted = false,
-                                    pendingOpsJson = "[]",
-                                ),
-                            )
+                            conflictCopies.add(local.toConflictCopy())
                             AppLog.d(TAG, "Conflict detected for '${local.title}', local copy created")
                         }
                     }
@@ -855,7 +948,7 @@ class OfflineChecklistsRepository(
 
                 // Atomic replace: observers see either the old list or the new list, never empty.
                 database.withTransaction {
-                    checklistDao.deleteAll(instanceId)
+                    checklistDao.deleteSynced(instanceId)
                     checklistDao.insertAll(serverChecklists.map { it.toEntity(instanceId) })
                     if (conflictCopies.isNotEmpty()) checklistDao.insertAll(conflictCopies)
                 }
@@ -899,9 +992,25 @@ class OfflineChecklistsRepository(
         return gson.toJson(local.items()) != gson.toJson(server.items)
     }
 
+    /** A "(Local copy)" of [this] (a dirty list the server changed too), kept until resolved. */
+    private fun ChecklistEntity.toConflictCopy(): ChecklistEntity =
+        copy(
+            id = UUID.randomUUID().toString(),
+            title = "$title$LOCAL_COPY_SUFFIX",
+            isDirty = false,
+            isDeleted = false,
+            isLocalOnly = false,
+            pendingOpsJson = "[]",
+            syncBaselineJson = null,
+            dirtySinceEpochMs = null,
+            isConflictCopy = true,
+            conflictOfId = id,
+        )
+
     private suspend fun syncChecklistLocked(entity: ChecklistEntity) {
         // Re-read under the shared lock so concurrent repos do not create twice.
         val current = checklistDao.getById(entity.id) ?: return
+        if (current.isConflictCopy) return
         if (!current.isDirty && !current.isLocalOnly && current.pendingOps().isEmpty()) return
         if (current.isLocalOnly) {
             val localId = current.id

@@ -47,6 +47,7 @@ import com.jotty.android.ui.settings.BehaviorSettingsScreen
 import com.jotty.android.ui.settings.DashboardOverviewScreen
 import com.jotty.android.ui.settings.SettingsScreen
 import com.jotty.android.ui.setup.SetupScreen
+import com.jotty.android.ui.sync.ConflictMergeScreen
 import com.jotty.android.ui.sync.PendingSyncDetailScreen
 import com.jotty.android.ui.sync.PendingSyncScreen
 import com.jotty.android.util.createNoteImageLoader
@@ -60,6 +61,7 @@ private const val ROUTE_DASHBOARD = "dashboard"
 private const val ROUTE_BEHAVIOR = "behavior"
 private const val ROUTE_PENDING_SYNC = "pending_sync"
 private const val ROUTE_PENDING_SYNC_DETAIL = "pending_sync/{kind}/{id}"
+private const val ROUTE_CONFLICT_MERGE = "pending_sync/conflict/{kind}/{id}"
 
 /** Routes that only use [SettingsRepository], not a live [JottyApi] / current instance. */
 private val ROUTES_WITHOUT_API =
@@ -409,6 +411,9 @@ fun MainScreen(
                                 onOpenItem = { kind, id ->
                                     navController.navigate("pending_sync/${kind.name}/$id")
                                 },
+                                onOpenConflict = { kind, id ->
+                                    navController.navigate("pending_sync/conflict/${kind.name}/$id")
+                                },
                             )
                         } else {
                             LoadingState(modifier = Modifier.fillMaxSize(), message = stringResource(R.string.loading))
@@ -434,6 +439,31 @@ fun MainScreen(
                                 instanceId = pendingInstanceId,
                                 kind = kind,
                                 itemId = itemId,
+                                onBack = { navController.popBackStack() },
+                            )
+                        } else {
+                            LoadingState(modifier = Modifier.fillMaxSize(), message = stringResource(R.string.loading))
+                        }
+                    }
+                    composable(
+                        route = ROUTE_CONFLICT_MERGE,
+                        arguments =
+                            listOf(
+                                navArgument("kind") { type = NavType.StringType },
+                                navArgument("id") { type = NavType.StringType },
+                            ),
+                    ) { entry ->
+                        val conflictApi = currentApi
+                        val conflictInstanceId = currentInstance?.id
+                        val kind =
+                            runCatching { SyncBackupKind.valueOf(entry.arguments?.getString("kind").orEmpty()) }.getOrNull()
+                        val copyId = entry.arguments?.getString("id").orEmpty()
+                        if (conflictApi != null && conflictInstanceId != null && kind != null && copyId.isNotBlank()) {
+                            ConflictMergeScreen(
+                                api = conflictApi,
+                                instanceId = conflictInstanceId,
+                                kind = kind,
+                                copyId = copyId,
                                 onBack = { navController.popBackStack() },
                             )
                         } else {

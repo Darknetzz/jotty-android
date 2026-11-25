@@ -261,7 +261,7 @@ fun OfflineEnabledChecklistsScreen(
                         actionLabel = conflictActionLabel,
                         duration = SnackbarDuration.Long,
                     )
-                if (result == SnackbarResult.ActionPerformed) vm.applyConflictSearchFilter()
+                if (result == SnackbarResult.ActionPerformed) onOpenPendingSync()
                 offlineRepository.clearConflictNotification()
             }
         }
@@ -419,7 +419,7 @@ fun OfflineEnabledChecklistsScreen(
 
                 ConflictCopiesBanner(
                     conflictCopyCount = conflictCopies.size,
-                    onViewCopies = { vm.applyConflictSearchFilter() },
+                    onViewCopies = onOpenPendingSync,
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))

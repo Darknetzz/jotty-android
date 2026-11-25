@@ -78,10 +78,6 @@ class OfflineEnabledChecklistsViewModel(
         }
     }
 
-    fun applyConflictSearchFilter() {
-        _searchQuery.value = "(Local copy)"
-    }
-
     fun loadCategories(
         isOnline: Boolean,
         localLists: List<Checklist>,

@@ -75,6 +75,7 @@ Rules that are easy to break:
 - **Offline first:** with local storage on, every write goes through an `Offline*Repository`. When the server gives no answer (`Throwable.isServerUnreachable()`, an `IOException`, not an `HttpException`), keep the change locally and call `reportServerUnreachable`; never fail the save. "Online" means the server answered, not just that there is a network.
 - **Checklist item ops are positional** (`PendingItemOp.path`). Keep the queue in order and never deduplicate it (#120). Anything that sends several ops (bulk actions, reorder) must stop a second run from starting on stale positions.
 - **No bulk REST endpoints:** bulk checklist actions are per-item ops built in `util/ChecklistBulkActions.kt`; clears delete top-level items highest index first.
+- **Conflict copies** (`isConflictCopy`) are device-only until resolved: never push them, and keep them out of the sync's table replace and the dirty queries.
 - **Encrypted notes:** never write plaintext to Room, drafts (`NoteDraftStore`) or logs; the session cache is `NoteDecryptionSession`.
 - **Same-host media** (note images, WYSIWYG) must send `x-api-key` and the instance's custom headers (`util/NoteImageLoader.kt`); custom headers are redacted from debug logs.
 - **Server features newer than 1.25** (shares, templates, sort items, Kanban item fields: Jotty 1.29+) must degrade on older servers: probe first (`util/JottySharingProbe.kt`, `util/KanbanItemFieldsProbe.kt`) or treat 404/405 as "not supported" with a message (templates, sort items). Never add fallbacks for servers older than 1.25.
@@ -108,6 +109,7 @@ Jotty supports two encryption methods; users choose in the web app under **Profi
 | Clone notes / checklists    | `util/JottyCloneHelper.kt`, list/detail ⋮ menus, `CloneComponents.kt` |
 | Change / manage categories  | `ui/common/CategoryComponents.kt`, `ui/categories/ManageCategoriesScreen.kt`, list/detail menus, Settings |
 | Pending sync manager        | `ui/sync/PendingSyncScreen.kt`, `PendingSyncDetailScreen.kt`, `PendingSyncViewModel.kt`, `data/local/Offline*Repository.kt`, `SyncBackup*` |
+| Sync conflict merge         | `ui/sync/ConflictMergeScreen.kt`, `Offline*Repository.resolveConflict*`, `util/ChecklistReplaceOps.kt` |
 | Setup / instance CRUD       | `ui/setup/SetupScreen.kt`             |
 | Connection test / diagnostics | `util/ConnectionDiagnostics.kt`, `ui/setup/ConnectionTestResultCard.kt` |
 | Online / server reachability | `data/local/NetworkConnectivityMonitor.kt`, `OfflineRepositoryRuntime.kt`, `util/NetworkFailure.kt` |

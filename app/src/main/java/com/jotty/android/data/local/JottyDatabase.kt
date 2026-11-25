@@ -9,7 +9,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 
 /**
  * Room database for offline storage.
- * Database version: 8
+ * Database version: 9
  *
  * v1 → v2: add isLocalOnly column to notes.
  * v2 → v3: add checklists table for offline checklist support.
@@ -18,6 +18,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * v5 → v6: encrypted_note_snapshots table for local note backups before save.
  * v6 → v7: rename encrypted_note_snapshots → note_snapshots (all note types).
  * v7 → v8: sync baselines on notes/checklists + sync_backups table for pending-sync resolve.
+ * v8 → v9: isConflictCopy / conflictOfId on notes and checklists (conflict copies survive sync).
  */
 @Database(
     entities = [
@@ -26,7 +27,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NoteSnapshotEntity::class,
         SyncBackupEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = false,
 )
 abstract class JottyDatabase : RoomDatabase() {
@@ -165,6 +166,42 @@ abstract class JottyDatabase : RoomDatabase() {
                 }
             }
 
+        /**
+         * Flags existing "(Local copy)" rows as conflict copies and links each to the row whose title
+         * it extends, when there is one. Only clean rows: a dirty row with that title may be a real
+         * server note with unsynced edits.
+         */
+        internal val MIGRATION_8_9 =
+            object : Migration(8, 9) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    for (table in listOf("notes", "checklists")) {
+                        db.execSQL("ALTER TABLE $table ADD COLUMN isConflictCopy INTEGER NOT NULL DEFAULT 0")
+                        db.execSQL("ALTER TABLE $table ADD COLUMN conflictOfId TEXT DEFAULT NULL")
+                        db.execSQL(
+                            """
+                            UPDATE $table SET isConflictCopy = 1
+                            WHERE title LIKE '%$LEGACY_LOCAL_COPY_SUFFIX'
+                              AND isDirty = 0 AND isDeleted = 0 AND isLocalOnly = 0
+                            """.trimIndent(),
+                        )
+                        db.execSQL(
+                            """
+                            UPDATE $table SET conflictOfId = (
+                                SELECT o.id FROM $table o
+                                WHERE o.instanceId = $table.instanceId
+                                  AND o.isConflictCopy = 0
+                                  AND o.title || '$LEGACY_LOCAL_COPY_SUFFIX' = $table.title
+                                LIMIT 1
+                            )
+                            WHERE isConflictCopy = 1
+                            """.trimIndent(),
+                        )
+                    }
+                }
+            }
+
+        private const val LEGACY_LOCAL_COPY_SUFFIX = " (Local copy)"
+
         fun getDatabase(context: Context): JottyDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance =
@@ -181,6 +218,7 @@ abstract class JottyDatabase : RoomDatabase() {
                             MIGRATION_5_6,
                             MIGRATION_6_7,
                             MIGRATION_7_8,
+                            MIGRATION_8_9,
                         )
                         .build()
                 INSTANCE = instance

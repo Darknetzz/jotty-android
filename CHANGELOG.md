@@ -6,7 +6,13 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Added
+
+- **Resolve sync conflicts side by side** — When a sync conflict saves your version as a "… (Local copy)", **Pending sync** now lists it under **Conflicts**, and the conflict banner and message open it directly. Each conflict shows the server version and yours as a diff, and you choose: **Keep my version** (replaces the server version), **Keep server version** (discards your copy) or **Keep both** (your copy becomes a separate note or checklist). For notes you can also edit a merged version, starting from either side. Works offline: your choice syncs later ([#125](https://github.com/Darknetzz/jotty-android/issues/125)).
+
 ### Fixed
+
+- **"(Local copy)" disappearing on the next sync** — A local copy made after a sync conflict was deleted by the next sync, often within minutes, so your version of the conflicting note or checklist was lost unless you had already noticed it. Local copies now stay on the device until you resolve them. Editing a local copy also no longer makes every later sync fail ([#125](https://github.com/Darknetzz/jotty-android/issues/125)).
 
 - **Extra "(Local copy)" checklists after syncing** — With local storage & sync on, a checklist whose item changes were made offline (or while the server was unreachable) got a duplicate "… (Local copy)" checklist and a conflict message after syncing, even though every change had reached the server. A copy is now only made when one of your changes really could not be applied, such as renaming an item that was deleted on the server in the meantime ([#126](https://github.com/Darknetzz/jotty-android/issues/126)).
 

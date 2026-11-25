@@ -61,26 +61,6 @@ class OfflineEnabledChecklistsViewModelTest {
     }
 
     @Test
-    fun applyConflictSearchFilter_setsLocalCopyQuery() =
-        runTest {
-            val repo =
-                OfflineChecklistsRepository(
-                    context = context,
-                    database = database,
-                    instanceId = instanceId,
-                    api = MinimalChecklistApi(),
-                    initialOnlineOverride = true,
-                    useSharedConnectivity = false,
-                )
-            val vm = OfflineEnabledChecklistsViewModel(repo, MinimalChecklistApi())
-
-            vm.applyConflictSearchFilter()
-
-            assertEquals("(Local copy)", vm.searchQuery.value)
-            repo.close()
-        }
-
-    @Test
     fun setSearchQuery_updatesSearchQuery() =
         runTest {
             val repo =

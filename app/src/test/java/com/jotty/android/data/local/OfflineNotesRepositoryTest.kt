@@ -15,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -142,6 +143,16 @@ class OfflineNotesRepositoryTest {
             assertEquals(2, stored.size)
             assertTrue(stored.any { it.title == "LocalTitle (Local copy)" && it.content == "local-body" })
             assertTrue(stored.any { it.title == "ServerTitle" && it.content == "server-body" })
+            val copy = stored.single { it.id != "n1" }
+            assertTrue(copy.isConflictCopy)
+            assertEquals("n1", copy.conflictOfId)
+            assertFalse(copy.isDirty)
+
+            // The copy is kept by the next sync until it is resolved, and is never pushed.
+            assertTrue(repo.syncNotes().isSuccess)
+            val afterSecondSync = database.noteDao().getAllNotes(instanceId)
+            assertEquals(setOf("n1", copy.id), afterSecondSync.map { it.id }.toSet())
+            assertEquals(1, repo.getConflictCopiesFlow().first().size)
         }
 
     @Test
@@ -177,6 +188,8 @@ class OfflineNotesRepositoryTest {
                         updatedAt = "u",
                         encrypted = null,
                         instanceId = instanceId,
+                        isConflictCopy = true,
+                        conflictOfId = "regular",
                     ),
                 ),
             )
@@ -828,5 +841,149 @@ class OfflineNotesRepositoryTest {
             assertEquals("server-pizza-1", stored.single().id)
             assertFalse(stored.single().isLocalOnly)
             assertFalse(stored.single().isDirty)
+        }
+
+    // ─── Conflict merge (#125) ───────────────────────────────────────────────
+
+    private suspend fun insertNoteConflict() {
+        database.noteDao().insertNotes(
+            listOf(
+                NoteEntity(
+                    id = "n1",
+                    title = "Shopping",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "server body",
+                    createdAt = "c",
+                    updatedAt = "u",
+                    encrypted = null,
+                    instanceId = instanceId,
+                ),
+                NoteEntity(
+                    id = "copy-1",
+                    title = "Shopping${OfflineNotesRepository.LOCAL_COPY_SUFFIX}",
+                    category = API_CATEGORY_UNCATEGORIZED,
+                    content = "my body",
+                    createdAt = "c",
+                    updatedAt = "u2",
+                    encrypted = null,
+                    instanceId = instanceId,
+                    isConflictCopy = true,
+                    conflictOfId = "n1",
+                ),
+            ),
+        )
+    }
+
+    private fun conflictRepo(api: FakeJottyApi) =
+        OfflineNotesRepository(
+            context = context,
+            database = database,
+            instanceId = instanceId,
+            api = api,
+            initialOnlineOverride = true,
+            useSharedConnectivity = false,
+        )
+
+    @Test
+    fun resolveConflictKeepServer_dropsCopyOnly() =
+        runTest {
+            insertNoteConflict()
+            val repo = conflictRepo(FakeJottyApi())
+
+            assertTrue(repo.resolveConflictKeepServer("copy-1").isSuccess)
+
+            val stored = database.noteDao().getAllNotes(instanceId)
+            assertEquals(listOf("n1"), stored.map { it.id })
+            assertEquals("server body", stored.single().content)
+        }
+
+    @Test
+    fun resolveConflictKeepMine_pushesCopyOverOriginalAndDropsCopy() =
+        runTest {
+            insertNoteConflict()
+            val pushed = mutableListOf<Pair<String, String?>>()
+            val api =
+                FakeJottyApi(
+                    updateNoteHandler = { noteId, body ->
+                        pushed += noteId to body.content
+                        ApiResponse(
+                            true,
+                            Note(noteId, body.title.orEmpty(), API_CATEGORY_UNCATEGORIZED, body.content.orEmpty(), "c", "u3"),
+                        )
+                    },
+                )
+            val repo = conflictRepo(api)
+
+            val result = repo.resolveConflictKeepMine("copy-1", "Shopping", "merged body", API_CATEGORY_UNCATEGORIZED)
+
+            assertTrue(result.isSuccess)
+            assertEquals(listOf("n1" to "merged body"), pushed)
+            val stored = database.noteDao().getAllNotes(instanceId)
+            assertEquals(listOf("n1"), stored.map { it.id })
+            assertEquals("merged body", stored.single().content)
+            assertEquals("Shopping", stored.single().title)
+        }
+
+    @Test
+    fun resolveConflictKeepMine_whenOriginalGone_failsAndKeepsCopy() =
+        runTest {
+            insertNoteConflict()
+            database.noteDao().deleteNote("n1")
+            val repo = conflictRepo(FakeJottyApi())
+
+            assertTrue(repo.resolveConflictKeepMine("copy-1", "Shopping", "my body", API_CATEGORY_UNCATEGORIZED).isFailure)
+            assertNotNull(database.noteDao().getNoteById("copy-1"))
+        }
+
+    @Test
+    fun resolveConflictKeepBoth_createsCopyOnServerAsSeparateNote() =
+        runTest {
+            insertNoteConflict()
+            val created = mutableListOf<String>()
+            val api =
+                FakeJottyApi(
+                    createNoteResponse = { req ->
+                        created += req.title
+                        ApiResponse(true, Note("server-2", req.title, API_CATEGORY_UNCATEGORIZED, req.content.orEmpty(), "c", "u"))
+                    },
+                )
+            val repo = conflictRepo(api)
+
+            assertTrue(repo.resolveConflictKeepBoth("copy-1").isSuccess)
+
+            assertEquals(listOf("Shopping${OfflineNotesRepository.LOCAL_COPY_SUFFIX}"), created)
+            val stored = database.noteDao().getAllNotes(instanceId)
+            assertEquals(setOf("n1", "server-2"), stored.map { it.id }.toSet())
+            assertTrue(stored.none { it.isConflictCopy })
+        }
+
+    @Test
+    fun editingConflictCopy_staysLocalAndIsNotQueued() =
+        runTest {
+            insertNoteConflict()
+            val api =
+                FakeJottyApi(
+                    updateNoteHandler = { _, _ -> error("a conflict copy must never be pushed") },
+                )
+            val repo = conflictRepo(api)
+
+            assertTrue(repo.updateNote("copy-1", "Shopping (Local copy)", "edited", API_CATEGORY_UNCATEGORIZED).isSuccess)
+
+            val copy = database.noteDao().getNoteById("copy-1")
+            assertEquals("edited", copy?.content)
+            assertEquals(false, copy?.isDirty)
+            assertTrue(database.noteDao().getDirtyNotes(instanceId).isEmpty())
+        }
+
+    @Test
+    fun deletingConflictCopy_removesItWithoutServerCall() =
+        runTest {
+            insertNoteConflict()
+            val api = FakeJottyApi(deleteNoteResult = { error("a conflict copy must never be deleted on the server") })
+            val repo = conflictRepo(api)
+
+            assertTrue(repo.deleteNote("copy-1").isSuccess)
+
+            assertNull(database.noteDao().getNoteByIdIncludingDeleted("copy-1"))
         }
 }

@@ -33,6 +33,7 @@ import com.jotty.android.data.local.PendingSyncItem
 import com.jotty.android.data.local.SyncBackupKind
 import com.jotty.android.ui.common.EmptyState
 import com.jotty.android.ui.common.mainScreenTabContentPadding
+import com.jotty.android.util.formatNoteDate
 import kotlinx.coroutines.delay
 import java.text.DateFormat
 import java.util.Date
@@ -42,6 +43,7 @@ fun PendingSyncScreen(
     api: JottyApi,
     instanceId: String,
     onOpenItem: (SyncBackupKind, String) -> Unit,
+    onOpenConflict: (SyncBackupKind, String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val application = LocalContext.current.applicationContext as Application
@@ -51,6 +53,7 @@ fun PendingSyncScreen(
             factory = PendingSyncViewModel.Factory(application, instanceId, api),
         )
     val items by vm.pendingItems.collectAsStateWithLifecycle()
+    val conflicts by vm.conflictCopies.collectAsStateWithLifecycle()
     val notes = items.filter { it.kind == SyncBackupKind.NOTE }
     val checklists = items.filter { it.kind == SyncBackupKind.CHECKLIST }
 
@@ -70,7 +73,7 @@ fun PendingSyncScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
         )
-        if (items.isEmpty()) {
+        if (items.isEmpty() && conflicts.isEmpty()) {
             EmptyState(
                 icon = Icons.Default.CloudQueue,
                 title = stringResource(R.string.pending_sync_empty),
@@ -81,6 +84,27 @@ fun PendingSyncScreen(
                 contentPadding = PaddingValues(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                if (conflicts.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = stringResource(R.string.pending_sync_conflicts_heading),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(vertical = 4.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.pending_sync_conflicts_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    items(conflicts, key = { "conflict-${it.kind}-${it.id}" }) { conflict ->
+                        ConflictCopyRow(item = conflict, onClick = { onOpenConflict(conflict.kind, conflict.id) })
+                    }
+                    if (items.isNotEmpty()) {
+                        item { Spacer(modifier = Modifier.height(8.dp)) }
+                    }
+                }
                 if (notes.isNotEmpty()) {
                     item {
                         Text(
@@ -109,6 +133,38 @@ fun PendingSyncScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ConflictCopyRow(
+    item: ConflictCopyItem,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                text =
+                    when (item.kind) {
+                        SyncBackupKind.NOTE -> stringResource(R.string.nav_notes)
+                        SyncBackupKind.CHECKLIST -> stringResource(R.string.nav_checklists)
+                    } + " · " + stringResource(R.string.conflict_copy_saved_at, formatNoteDate(item.updatedAt)),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
     }
 }

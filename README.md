@@ -221,7 +221,7 @@ With **Settings → Behavior → Local storage & sync** on (the default), notes 
 - Create, edit and delete notes and checklist items without a connection; changes sync in the order you made them.
 - Sync status icon, per-item **Pending sync** labels, and a pending-sync manager to compare and resolve unsent changes.
 - Background sync every few hours.
-- Conflicts never lose data: the server version is kept and your version is saved as a separate "(Local copy)".
+- Conflicts never lose data: the server version is kept and your version is saved as a separate "(Local copy)" until you compare the two and keep one, both, or a merged note.
 
 Details: [docs/OFFLINE_SYNC.md](docs/OFFLINE_SYNC.md).
 

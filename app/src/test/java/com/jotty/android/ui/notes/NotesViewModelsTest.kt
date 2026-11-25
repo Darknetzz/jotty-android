@@ -61,26 +61,6 @@ class OfflineEnabledNotesViewModelTest {
     }
 
     @Test
-    fun applyConflictSearchFilter_setsLocalCopyQuery() =
-        runTest {
-            val repo =
-                OfflineNotesRepository(
-                    context = context,
-                    database = database,
-                    instanceId = instanceId,
-                    api = FakeJottyApi(),
-                    initialOnlineOverride = true,
-                    useSharedConnectivity = false,
-                )
-            val vm = OfflineEnabledNotesViewModel(repo, FakeJottyApi())
-
-            vm.applyConflictSearchFilter()
-
-            assertEquals("(Local copy)", vm.searchQuery.value)
-            repo.close()
-        }
-
-    @Test
     fun setSearchQuery_updatesSearchQuery() =
         runTest {
             val repo =

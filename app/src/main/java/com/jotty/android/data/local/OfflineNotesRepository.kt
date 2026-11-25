@@ -89,14 +89,78 @@ class OfflineNotesRepository(
      * Local conflict copies are kept until users review and delete or merge them.
      */
     fun getConflictCopiesFlow(): Flow<List<Note>> {
-        return noteDao.getAllNotesFlow(instanceId)
-            .map { entities ->
-                entities
-                    .filter { it.title.endsWith(LOCAL_COPY_SUFFIX) }
-                    .map { it.toNote() }
-            }
+        return noteDao.getConflictCopiesFlow(instanceId)
+            .map { entities -> entities.map { it.toNote() } }
             .flowOn(Dispatchers.IO)
     }
+
+    /** The conflict copy [copyId] with the note it was split from (null when that note is gone). */
+    suspend fun getConflict(copyId: String): NoteConflict? =
+        withContext(Dispatchers.IO) {
+            val copy = noteDao.getNoteById(copyId)?.takeIf { it.isConflictCopy } ?: return@withContext null
+            NoteConflict(copy = copy, original = copy.conflictOfId?.let { noteDao.getNoteById(it) })
+        }
+
+    /** Keep the server version: drops the local copy. */
+    suspend fun resolveConflictKeepServer(copyId: String): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                requireConflictCopy(copyId)
+                noteDao.deleteNote(copyId)
+                AppLog.d(TAG, "Conflict copy discarded: $copyId")
+            }
+        }
+
+    /**
+     * Keep mine (or a merged version): writes [title] / [content] / [category] over the original
+     * through [updateNote], so it syncs like any edit (queued when offline), then drops the copy.
+     */
+    suspend fun resolveConflictKeepMine(
+        copyId: String,
+        title: String,
+        content: String,
+        category: String,
+    ): Result<Note> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val copy = requireConflictCopy(copyId)
+                val originalId =
+                    copy.conflictOfId?.takeIf { noteDao.getNoteById(it) != null }
+                        ?: throw IllegalStateException(appContext.getString(R.string.conflict_original_missing))
+                val saved = updateNote(originalId, title, content, category).getOrThrow()
+                noteDao.deleteNote(copyId)
+                AppLog.d(TAG, "Conflict resolved with local version: $copyId -> $originalId")
+                saved
+            }
+        }
+
+    /** Keep both: the copy becomes a normal local-only note that is created on the server on sync. */
+    suspend fun resolveConflictKeepBoth(copyId: String): Result<Note> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val copy = requireConflictCopy(copyId)
+                val promoted =
+                    copy.copy(
+                        isConflictCopy = false,
+                        conflictOfId = null,
+                        isLocalOnly = true,
+                        isDirty = true,
+                        updatedAt = java.time.Instant.now().toString(),
+                        dirtySinceEpochMs = System.currentTimeMillis(),
+                    )
+                noteDao.insertNote(promoted)
+                AppLog.d(TAG, "Conflict copy kept as a separate note: $copyId")
+                if (isOnline.value) {
+                    syncMutex.withLock { noteDao.getNoteById(copyId)?.let { syncNoteLocked(it) } }
+                }
+                (noteDao.getNoteById(copyId) ?: localToServerIdRemap[copyId]?.let { noteDao.getNoteById(it) } ?: promoted)
+                    .toNote()
+            }
+        }
+
+    private suspend fun requireConflictCopy(copyId: String): NoteEntity =
+        noteDao.getNoteById(copyId)?.takeIf { it.isConflictCopy }
+            ?: throw IllegalStateException(appContext.getString(R.string.conflict_gone))
 
     fun getDirtyNoteIdsFlow(): Flow<Set<String>> =
         noteDao.getDirtyNoteIdsFlow(instanceId)
@@ -390,6 +454,19 @@ class OfflineNotesRepository(
                         IllegalStateException("Cannot save plaintext over encrypted note content"),
                     )
                 }
+                if (existing.isConflictCopy) {
+                    // A conflict copy has no server row: edit it in place and never push it.
+                    val edited =
+                        existing.copy(
+                            title = title,
+                            content = content,
+                            category = category,
+                            encrypted = isEncryptedContent || existing.encrypted == true,
+                            updatedAt = java.time.Instant.now().toString(),
+                        )
+                    noteDao.updateNote(edited)
+                    return@withContext Result.success(edited.toNote())
+                }
                 val updated =
                     existing.withFirstDirtyBaseline(
                         existing.copy(
@@ -459,7 +536,7 @@ class OfflineNotesRepository(
             try {
                 val resolvedId = resolveNoteId(noteId)
                 val note = noteDao.getNoteById(resolvedId)
-                if (note != null && note.isLocalOnly) {
+                if (note != null && (note.isLocalOnly || note.isConflictCopy)) {
                     noteDao.deleteNote(resolvedId)
                     AppLog.d("OfflineNotesRepository", "Local-only note hard-deleted: $noteId")
                 } else if (note != null) {
@@ -546,13 +623,7 @@ class OfflineNotesRepository(
                         // Check if server note has different content than what we just pushed
                         if (hasConflict(localNote, serverNote)) {
                             // Create a copy of the local version to preserve data
-                            val localCopy =
-                                localNote.copy(
-                                    id = UUID.randomUUID().toString(),
-                                    title = "${localNote.title}$LOCAL_COPY_SUFFIX",
-                                    isDirty = false,
-                                    isDeleted = false,
-                                )
+                            val localCopy = localNote.toConflictCopy()
                             conflictCopies.add(localCopy)
                             AppLog.d("OfflineNotesRepository", "Conflict detected for '${localNote.title}', creating local copy")
                         }
@@ -561,7 +632,7 @@ class OfflineNotesRepository(
 
                 // 4. Update database: replace with server notes + add conflict copies (atomic)
                 database.withTransaction {
-                    noteDao.deleteAllNotes(instanceId)
+                    noteDao.deleteSyncedNotes(instanceId)
                     noteDao.insertNotes(serverNotes)
                     if (conflictCopies.isNotEmpty()) {
                         noteDao.insertNotes(conflictCopies)
@@ -635,7 +706,7 @@ class OfflineNotesRepository(
      */
     private suspend fun pushNoteLocked(note: NoteEntity): NoteEntity? {
         val current = noteDao.getNoteById(note.id) ?: return null
-        if (!current.isDirty && !current.isLocalOnly) {
+        if (current.isConflictCopy || (!current.isDirty && !current.isLocalOnly)) {
             return current
         }
         run {
@@ -728,6 +799,21 @@ class OfflineNotesRepository(
             noteDao.deleteAllNotes(instanceId)
             AppLog.d("OfflineNotesRepository", "All notes cleared for instance: $instanceId")
         }
+
+    /** A "(Local copy)" of [this] (a dirty note the server changed too), kept until resolved. */
+    private fun NoteEntity.toConflictCopy(): NoteEntity =
+        copy(
+            id = UUID.randomUUID().toString(),
+            title = "$title$LOCAL_COPY_SUFFIX",
+            isDirty = false,
+            isDeleted = false,
+            isLocalOnly = false,
+            originalCategory = null,
+            syncBaselineJson = null,
+            dirtySinceEpochMs = null,
+            isConflictCopy = true,
+            conflictOfId = id,
+        )
 
     private suspend fun resolveNoteId(noteId: String): String {
         if (noteDao.getNoteById(noteId) != null) return noteId

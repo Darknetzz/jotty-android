@@ -69,10 +69,6 @@ class OfflineEnabledNotesViewModel(
         }
     }
 
-    fun applyConflictSearchFilter() {
-        _searchQuery.value = "(Local copy)"
-    }
-
     val filteredNotes: StateFlow<List<Note>> =
         combine(
             offlineRepository.getNotesFlow(),

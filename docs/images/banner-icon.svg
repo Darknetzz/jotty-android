@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" role="img" aria-label="Jotty Android">
+  <title>Jotty Android</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A76BFA"/>
+      <stop offset="1" stop-color="#8747EE"/>
+    </linearGradient>
+    <clipPath id="frame"><rect width="1280" height="640"/></clipPath>
+  </defs>
+  <rect width="1280" height="640" fill="url(#bg)"/>
+
+  <g clip-path="url(#frame)">
+    <!-- soft background shapes -->
+    <circle cx="1180" cy="60" r="260" fill="#FFFFFF" opacity="0.06"/>
+    <circle cx="80" cy="640" r="220" fill="#FFFFFF" opacity="0.05"/>
+
+    <!-- checklist card -->
+    <g transform="translate(1050 150) rotate(8)">
+      <rect width="300" height="380" rx="36" fill="#FFFFFF" opacity="0.14"/>
+      <rect x="40" y="44" width="140" height="18" rx="9" fill="#FFFFFF" opacity="0.55"/>
+      <g fill="none" stroke="#E4D4FF" stroke-width="9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M44,128l14,14l24,-30"/>
+        <path d="M44,198l14,14l24,-30"/>
+      </g>
+      <circle cx="62" cy="268" r="19" fill="none" stroke="#FFFFFF" stroke-width="7" opacity="0.5"/>
+      <circle cx="62" cy="330" r="19" fill="none" stroke="#FFFFFF" stroke-width="7" opacity="0.5"/>
+      <g fill="#FFFFFF">
+        <rect x="108" y="118" width="150" height="16" rx="8" opacity="0.4"/>
+        <rect x="108" y="188" width="110" height="16" rx="8" opacity="0.4"/>
+        <rect x="108" y="260" width="160" height="16" rx="8" opacity="0.7"/>
+        <rect x="108" y="322" width="120" height="16" rx="8" opacity="0.7"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- App icon mark (Jotty J + check mark) -->
+  <g transform="translate(18 54.2) scale(0.6)">
+    <path fill="#FFFFFF" d="M601.62,120.7v417.41q0,94.1 -66.78,160.89 -66.79,66.78 -160.89,66.78l-37.95,-151.78h37.95q31.11,0 53.12,-22.01 22.77,-22.77 22.77,-53.88v-265.62h-166.96v-151.79z"/>
+    <path d="M170,445L262,537L410,352" fill="none" stroke="#E4D4FF" stroke-width="64" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <text x="446" y="312" font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="700" font-size="84" letter-spacing="-1" fill="#FFFFFF">Jotty Android</text>
+  <text x="450" y="368" font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="400" font-size="28" fill="#F1E8FF">Checklists and notes from your Jotty server</text>
+
+  <g font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="600" font-size="20" fill="#FFFFFF" text-anchor="middle">
+    <rect x="448" y="410" width="128" height="42" rx="21" fill="#FFFFFF" opacity="0.18"/>
+    <text x="512" y="438">Checklists</text>
+    <rect x="590" y="410" width="88" height="42" rx="21" fill="#FFFFFF" opacity="0.18"/>
+    <text x="634" y="438">Notes</text>
+    <rect x="692" y="410" width="100" height="42" rx="21" fill="#FFFFFF" opacity="0.18"/>
+    <text x="742" y="438">Offline</text>
+    <rect x="806" y="410" width="134" height="42" rx="21" fill="#FFFFFF" opacity="0.18"/>
+    <text x="873" y="438">Encrypted</text>
+  </g>
+</svg>

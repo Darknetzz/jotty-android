@@ -307,20 +307,65 @@ fun convertHtmlStructuralElementsToMarkdown(content: String): String {
 
 /**
  * CommonMark/Markwon treat any run of blank lines like a single paragraph break.
- * Turn extra newlines into `<br>` so 1 vs 5 blank lines stay visibly different in [NoteView].
+ * Add one `&nbsp;` paragraph per blank line beyond the first so 1 vs 5 blank lines stay visibly
+ * different in [NoteView].
+ *
+ * The first blank line of a run is always kept as a real blank line: it is the block separator,
+ * and replacing it (e.g. with `<br>`) makes a tag-only line open a CommonMark HTML block that
+ * swallows the rest of the note as raw text (GitHub #116). Fenced code blocks are left untouched.
  */
 fun preserveExtraBlankLinesForDisplay(content: String): String {
     if (!content.contains('\n')) {
         return content
     }
-    return content.replace(Regex("\n{2,}")) { match ->
-        val count = match.value.length
-        buildString(count * 5) {
-            repeat(count) {
-                append("<br>\n")
+    val out = ArrayList<String>()
+    val pendingBlank = ArrayList<String>()
+    var openFence: String? = null
+    var seenContent = false
+
+    fun flushBlank(pad: Boolean) {
+        pendingBlank.forEachIndexed { index, blank ->
+            if (pad && index > 0) {
+                out.add(EXTRA_BLANK_LINE_PARAGRAPH)
             }
+            out.add(blank)
         }
+        pendingBlank.clear()
     }
+
+    for (line in content.split('\n')) {
+        val fence = openFence
+        if (fence != null) {
+            out.add(line)
+            if (closesCodeFence(line, fence)) {
+                openFence = null
+            }
+            continue
+        }
+        if (line.isBlank()) {
+            pendingBlank.add(line)
+            continue
+        }
+        flushBlank(pad = seenContent)
+        seenContent = true
+        out.add(line)
+        openFence = codeFenceOpenPattern.find(line)?.groupValues?.get(1)
+    }
+    flushBlank(pad = false)
+    return out.joinToString("\n")
+}
+
+private const val EXTRA_BLANK_LINE_PARAGRAPH = "&nbsp;"
+
+/** Opening code fence: up to 3 spaces of indent, then 3+ backticks or tildes. */
+private val codeFenceOpenPattern = Regex("""^ {0,3}(`{3,}|~{3,})""")
+
+private fun closesCodeFence(
+    line: String,
+    openFence: String,
+): Boolean {
+    val trimmed = line.trim()
+    return trimmed.length >= openFence.length && trimmed.all { it == openFence[0] }
 }
 
 /** Prevents `# heading| col |` from being parsed as one giant heading in Markwon. */

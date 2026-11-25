@@ -1,14 +1,19 @@
-# GitLab CI for jotty-android (gitlab.roste.org). GitHub stays the public home: commits reach both
-# remotes via dual push on `origin`, and the publish jobs create GitHub tags/releases with gh.
+# GitLab CI for jotty-android (gitlab.roste.org, the only remote). GitHub stays the public home: a
+# GitLab push mirror copies every branch and tag there, and the publish jobs create the GitHub
+# releases with gh.
 #   - every push / MR: unit tests, lint, ktlint (release variant only on main and tags)
-#   - push to dev:     rolling dev-latest pre-release on GitHub
+#   - push to dev:     rolling dev-latest pre-release on GitHub with the dev APK; the dev-latest tag
+#                      is moved to the new commit on both GitHub and GitLab
 #   - tag vX.Y.Z:      stable GitHub release with release-signed APK + CHANGELOG notes
-# Setup (CI variables, dual push): docs/LOCAL_CI.md#gitlab-cicd
+# Setup (CI variables, job token push, mirror): docs/LOCAL_CI.md#gitlab-cicd
 
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    # The dev-latest job moves this tag itself; that push must not start another pipeline.
+    - if: $CI_COMMIT_TAG == "dev-latest"
       when: never
     - if: $CI_COMMIT_BRANCH
     - if: $CI_COMMIT_TAG

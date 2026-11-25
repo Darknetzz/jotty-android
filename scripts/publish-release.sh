@@ -2,6 +2,8 @@
 # After release.sh: push dev, open dev→main PR, merge, push tag vX.Y.Z (GitLab CI publishes the
 # GitHub release + APK). Use --local-build to create the release and upload the APK from this machine.
 set -euo pipefail
+# origin is GitLab, so gh can't infer the GitHub repo from the remotes.
+export GH_REPO="${GH_REPO:-Darknetzz/jotty-android}"
 
 VERSION=""
 DRY_RUN=0
@@ -85,6 +87,8 @@ fi
 if [[ "$SKIP_PUSH" -eq 0 ]]; then
   git push origin dev
 fi
+# GitHub is a GitLab push mirror: the GitHub PR below needs GitHub dev to have the new commits.
+GH_REPO=Darknetzz/jotty-android bash "$SCRIPT_DIR/ci/wait-for-github-ref.sh" dev "$(git rev-parse dev)" 600
 
 PR_NUMBER=""
 if [[ "$SKIP_PR" -eq 0 ]]; then
@@ -116,6 +120,9 @@ if [[ "$SKIP_MERGE" -eq 0 && -n "$PR_NUMBER" ]]; then
     echo "Skipping PR check wait (--local-build). Run ./scripts/ci-local.sh before publish if needed."
   fi
   gh pr merge "$PR_NUMBER" --merge --delete-branch=false
+  # The merge commit exists only on GitHub: copy it to GitLab (origin) so the mirror keeps it.
+  git fetch git@github.com:Darknetzz/jotty-android.git main
+  git push origin FETCH_HEAD:refs/heads/main
   git fetch origin main
 fi
 

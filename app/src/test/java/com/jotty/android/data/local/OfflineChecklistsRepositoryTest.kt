@@ -37,6 +37,8 @@ import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.yield
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -47,6 +49,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import retrofit2.HttpException
+import retrofit2.Response
+import java.net.UnknownHostException
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
@@ -937,6 +942,217 @@ class OfflineChecklistsRepositoryTest {
             assertEquals(1, conflictCopies.size)
             assertEquals("copy", conflictCopies.single().id)
         }
+
+    // ─── Server unreachable while the device reports a network (#115) ────────
+
+    private fun serverList(vararg items: String) =
+        Checklist(
+            id = "list-1",
+            title = "Groceries",
+            category = API_CATEGORY_UNCATEGORIZED,
+            type = "simple",
+            items = items.mapIndexed { index, text -> ChecklistItem(index = index, text = text) },
+            createdAt = "c",
+            updatedAt = "u",
+        )
+
+    private fun onlineRepo(api: JottyApi) =
+        OfflineChecklistsRepository(
+            context = context,
+            database = database,
+            instanceId = instanceId,
+            api = api,
+            initialOnlineOverride = true,
+            useSharedConnectivity = false,
+        )
+
+    private fun unknownHost() = UnknownHostException("jotty.internal")
+
+    @Test
+    fun addItem_whenServerUnreachable_savesLocallyAndReplaysOnce() =
+        runTest {
+            var unreachable = false
+            val remote = mutableListOf(serverList("A"))
+            val added = mutableListOf<String>()
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    beforeGetChecklists = { if (unreachable) throw unknownHost() },
+                    onAddChecklistItem = { _, body ->
+                        if (unreachable) throw unknownHost()
+                        added += body.text
+                        remote.replaceAll {
+                            it.copy(items = it.items + ChecklistItem(index = it.items.size, text = body.text))
+                        }
+                        SuccessResponse(true)
+                    },
+                )
+            val repo = onlineRepo(api)
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            unreachable = true
+            val result = repo.addItem("list-1", "B")
+
+            assertTrue("an unreachable server must not fail the save", result.isSuccess)
+            assertEquals(listOf("A", "B"), result.getOrThrow().items.map { it.text })
+            val queued = requireNotNull(database.checklistDao().getById("list-1"))
+            assertTrue(queued.isDirty)
+            assertEquals(listOf("ADD"), queued.pendingOps().map { it.type })
+            assertTrue(added.isEmpty())
+
+            unreachable = false
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            assertEquals(listOf("B"), added)
+            val synced = requireNotNull(database.checklistDao().getById("list-1"))
+            assertFalse(synced.isDirty)
+            assertEquals(listOf("A", "B"), synced.items().map { it.text })
+            repo.close()
+        }
+
+    @Test
+    fun addItem_whenServerAcceptsButRefreshFails_doesNotQueueDuplicate() =
+        runTest {
+            var unreachable = false
+            val remote = mutableListOf(serverList("A"))
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    beforeGetChecklists = { if (unreachable) throw unknownHost() },
+                    onAddChecklistItem = { _, body ->
+                        remote.replaceAll {
+                            it.copy(items = it.items + ChecklistItem(index = it.items.size, text = body.text))
+                        }
+                        // The connection drops right after the server stored the item.
+                        unreachable = true
+                        SuccessResponse(true)
+                    },
+                )
+            val repo = onlineRepo(api)
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            val result = repo.addItem("list-1", "B")
+
+            assertTrue(result.isSuccess)
+            assertEquals(listOf("A", "B"), result.getOrThrow().items.map { it.text })
+            val stored = requireNotNull(database.checklistDao().getById("list-1"))
+            assertTrue("already on the server: nothing to replay", stored.pendingOps().isEmpty())
+            assertFalse(stored.isDirty)
+            repo.close()
+        }
+
+    @Test
+    fun addItem_whenServerAnswersWithError_failsWithoutLocalWrite() =
+        runTest {
+            val remote = mutableListOf(serverList("A"))
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    onAddChecklistItem = { _, _ ->
+                        val body = "".toResponseBody("application/json".toMediaTypeOrNull())
+                        throw HttpException(Response.error<Any>(500, body))
+                    },
+                )
+            val repo = onlineRepo(api)
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            val result = repo.addItem("list-1", "B")
+
+            assertTrue(result.isFailure)
+            val stored = requireNotNull(database.checklistDao().getById("list-1"))
+            assertFalse(stored.isDirty)
+            assertEquals(listOf("A"), stored.items().map { it.text })
+            repo.close()
+        }
+
+    @Test
+    fun itemEdits_whenServerUnreachable_areQueuedLocally() =
+        runTest {
+            var unreachable = false
+            val remote = mutableListOf(serverList("A", "B", "C"))
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    beforeGetChecklists = { if (unreachable) throw unknownHost() },
+                    onCheckItem = { _, _ -> throw unknownHost() },
+                    onUpdateItem = { _, _, _ -> throw unknownHost() },
+                    onDeleteItem = { _, _ -> throw unknownHost() },
+                )
+            val repo = onlineRepo(api)
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+            unreachable = true
+
+            // First edit discovers the outage; later ones go local because the list is dirty.
+            val checked = repo.checkItem("list-1", "0")
+            assertTrue(checked.isSuccess)
+            assertTrue(checked.getOrThrow().items[0].completed)
+
+            val renamed = repo.updateItemText("list-1", "1", "B2")
+            assertTrue(renamed.isSuccess)
+            assertEquals("B2", renamed.getOrThrow().items[1].text)
+
+            val deleted = repo.deleteItem("list-1", "2")
+            assertTrue(deleted.isSuccess)
+            assertEquals(listOf("A", "B2"), deleted.getOrThrow().items.map { it.text })
+
+            val stored = requireNotNull(database.checklistDao().getById("list-1"))
+            assertTrue(stored.isDirty)
+            assertEquals(listOf("CHECK", "UPDATE", "DELETE"), stored.pendingOps().map { it.type })
+            repo.close()
+        }
+
+    @Test
+    fun eachItemOp_whenServerUnreachableOnCleanList_fallsBackLocally() =
+        runTest {
+            val remote = mutableListOf(serverList("A", "B"))
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    onUpdateItem = { _, _, _ -> throw unknownHost() },
+                    onDeleteItem = { _, _ -> throw unknownHost() },
+                    onReorderItems = { throw unknownHost() },
+                )
+            val repo = onlineRepo(api)
+
+            suspend fun resetToCleanServerCopy() {
+                database.checklistDao().insert(remote.single().toEntity(instanceId))
+            }
+
+            resetToCleanServerCopy()
+            assertTrue(repo.updateItemText("list-1", "0", "A2").isSuccess)
+            assertEquals(listOf("UPDATE"), database.checklistDao().getById("list-1")?.pendingOps()?.map { it.type })
+
+            resetToCleanServerCopy()
+            assertTrue(repo.updateItemDescription("list-1", "0", "note").isSuccess)
+            assertEquals(listOf("UPDATE"), database.checklistDao().getById("list-1")?.pendingOps()?.map { it.type })
+
+            resetToCleanServerCopy()
+            assertTrue(repo.deleteItem("list-1", "1").isSuccess)
+            assertEquals(listOf("DELETE"), database.checklistDao().getById("list-1")?.pendingOps()?.map { it.type })
+            repo.close()
+        }
+
+    @Test
+    fun deleteChecklist_whenServerUnreachable_staysQueued() =
+        runTest {
+            val remote = mutableListOf(serverList("A"))
+            val api =
+                FakeChecklistApi(
+                    remoteChecklists = remote,
+                    onDeleteChecklist = { throw unknownHost() },
+                )
+            val repo = onlineRepo(api)
+            assertTrue(repo.syncChecklists(force = true).isSuccess)
+
+            val result = repo.deleteChecklist("list-1")
+
+            assertTrue("the delete is queued, not failed", result.isSuccess)
+            val marked = requireNotNull(database.checklistDao().getByIdIncludingDeleted("list-1"))
+            assertTrue(marked.isDeleted)
+            assertTrue(marked.isDirty)
+            assertEquals(1, remote.size)
+            repo.close()
+        }
 }
 
 private class FakeChecklistApi(
@@ -947,6 +1163,8 @@ private class FakeChecklistApi(
     },
     private val onDeleteItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
     private val onCheckItem: suspend (String, String) -> SuccessResponse = { _, _ -> SuccessResponse(true) },
+    private val onDeleteChecklist: suspend (String) -> Unit = {},
+    private val onReorderItems: suspend (String) -> Unit = {},
     private val onUpdateItem: suspend (String, String, com.jotty.android.data.api.UpdateItemRequest) -> SuccessResponse =
         { _, _, _ -> SuccessResponse(true) },
     private val onUpdateChecklist: suspend (String, UpdateChecklistRequest) -> ApiResponse<Checklist> = { listId, body ->
@@ -992,6 +1210,7 @@ private class FakeChecklistApi(
     ): ApiResponse<Checklist> = onUpdateChecklist(listId, body)
 
     override suspend fun deleteChecklist(listId: String): SuccessResponse {
+        onDeleteChecklist(listId)
         remoteChecklists.removeAll { it.id == listId }
         return SuccessResponse(true)
     }
@@ -1031,7 +1250,10 @@ private class FakeChecklistApi(
     override suspend fun reorderItems(
         listId: String,
         body: com.jotty.android.data.api.ReorderItemsRequest,
-    ): SuccessResponse = SuccessResponse(true)
+    ): SuccessResponse {
+        onReorderItems(listId)
+        return SuccessResponse(true)
+    }
 
     override suspend fun sortChecklistItems(
         listId: String,

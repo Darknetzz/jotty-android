@@ -8,6 +8,8 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# origin is GitLab, so gh can't infer the GitHub repo from the remotes.
+if (-not $env:GH_REPO) { $env:GH_REPO = "Darknetzz/jotty-android" }
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Set-Location $repoRoot
 . (Join-Path $PSScriptRoot "lib/gradle-env.ps1")
@@ -41,7 +43,7 @@ if ($SkipPublish) {
     exit 0
 }
 
-$repo = gh repo view --json nameWithOwner -q .nameWithOwner
+$repo = $env:GH_REPO
 
 $body = @"
 Rolling pre-release build from ``dev`` (built locally).
@@ -56,6 +58,16 @@ VersionCode: $devCode
 | Version code | $devCode |
 | Changelog | [CHANGELOG.md](https://github.com/$repo/blob/dev/CHANGELOG.md) |
 "@
+
+# The release targets $sha on GitHub, which gets commits from the GitLab push mirror.
+$deadline = (Get-Date).AddMinutes(10)
+while ($true) {
+    gh api "repos/$repo/commits/$sha" 2>$null | Out-Null
+    if ($LASTEXITCODE -eq 0) { break }
+    if ((Get-Date) -ge $deadline) { throw "Commit $sha is not on GitHub yet: push dev to origin and check the GitLab push mirror." }
+    Write-Host "Waiting for the GitLab push mirror to copy $shortSha to GitHub..."
+    Start-Sleep -Seconds 10
+}
 
 Write-Host "Resetting dev-latest release..."
 gh release delete dev-latest --cleanup-tag --yes 2>$null
@@ -77,5 +89,11 @@ try {
 } finally {
     Remove-Item -LiteralPath $notesFile -Force -ErrorAction SilentlyContinue
 }
+
+# GitLab (origin) is the source of truth: move its dev-latest tag to the same commit, after GitHub,
+# so the push mirror finds both tags equal.
+git push --quiet --force origin "${sha}:refs/tags/dev-latest"
+if ($LASTEXITCODE -ne 0) { throw "Could not move the GitLab dev-latest tag" }
+Write-Host "GitLab tag dev-latest -> $shortSha"
 
 Write-Host "Done: https://github.com/$repo/releases/tag/dev-latest"

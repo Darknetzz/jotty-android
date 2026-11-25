@@ -12,6 +12,7 @@ import com.jotty.android.data.encryption.ParsedNoteContent
 import com.jotty.android.data.api.normalizedForClient
 import com.jotty.android.util.ApiErrorHelper
 import com.jotty.android.util.AppLog
+import com.jotty.android.util.isServerUnreachable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -52,6 +53,7 @@ class OfflineNotesRepository(
             useSharedConnectivity = useSharedConnectivity,
             logTag = TAG,
             instanceId = instanceId,
+            probeServer = { api.isReachable() },
             onNetworkAvailable = { syncNotes() },
         )
 
@@ -414,19 +416,34 @@ class OfflineNotesRepository(
                 // Try to sync if online — return the server copy when sync succeeds so callers
                 // (e.g. encrypted-note server verify) validate what was actually stored.
                 if (isOnline.value) {
-                    val synced =
+                    val push =
                         syncMutex.withLock {
-                            noteDao.getNoteById(resolvedId)?.let { syncNoteLocked(it) }
+                            noteDao.getNoteById(resolvedId)?.let { runCatching { pushNoteLocked(it) } }
                         }
-                    return@withContext if (synced != null) {
-                        Result.success(synced.toNote())
-                    } else {
-                        Result.failure(Exception("Failed to sync note to server"))
+                    val error = push?.exceptionOrNull()
+                    if (error is CancellationException) throw error
+                    val synced = push?.getOrNull()
+                    return@withContext when {
+                        synced != null -> Result.success(synced.toNote())
+                        error != null && error.isServerUnreachable() -> {
+                            // Saved in Room and still dirty: same outcome as editing offline (#115).
+                            AppLog.d(
+                                "OfflineNotesRepository",
+                                "Server unreachable — note $resolvedId kept for later sync: ${error.message}",
+                            )
+                            runtime.reportServerUnreachable()
+                            Result.success(updated.toNote())
+                        }
+                        else -> {
+                            AppLog.d("OfflineNotesRepository", "Failed to sync note $resolvedId: ${error?.message}")
+                            Result.failure(Exception("Failed to sync note to server", error))
+                        }
                     }
                 }
 
                 Result.success(updated.toNote())
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 AppLog.d("OfflineNotesRepository", "Failed to update note: ${e.message}")
                 Result.failure(e)
             }
@@ -483,6 +500,7 @@ class OfflineNotesRepository(
         withContext(Dispatchers.IO) {
             if (!isOnline.value) {
                 AppLog.d("OfflineNotesRepository", "Cannot sync - offline")
+                runtime.requestReachabilityProbe()
                 return@withContext Result.failure(Exception("Offline"))
             }
 
@@ -560,10 +578,12 @@ class OfflineNotesRepository(
 
                 runtime.syncStatus.markSyncCompleted(success = true)
                 runtime.syncStatus.setSyncing(false)
+                runtime.reportServerReachable()
                 AppLog.d("OfflineNotesRepository", "Sync complete")
                 Result.success(Unit)
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
+                if (e.isServerUnreachable()) runtime.reportServerUnreachable()
                 val msg = ApiErrorHelper.userMessage(appContext, e)
                 runtime.syncStatus.markSyncCompleted(success = false, errorMessage = msg)
                 runtime.syncStatus.setSyncing(false)
@@ -594,12 +614,31 @@ class OfflineNotesRepository(
      * Must be called while holding [syncMutex]. Re-reads Room before create so concurrent
      * syncs (UI + WorkManager) do not POST the same local-only note twice.
      */
-    private suspend fun syncNoteLocked(note: NoteEntity): NoteEntity? {
+    private suspend fun syncNoteLocked(note: NoteEntity): NoteEntity? =
+        try {
+            pushNoteLocked(note)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (e.isServerUnreachable()) runtime.reportServerUnreachable()
+            AppLog.d("OfflineNotesRepository", "Failed to sync note ${note.id}: ${e.message}")
+            // Keep note marked as dirty for next sync attempt.
+            null
+        }
+
+    /**
+     * Pushes one dirty note (create or update). Returns the stored server copy, the note itself
+     * when it is already clean, or null when it no longer exists locally.
+     *
+     * Throws when the push fails so callers can tell an unreachable server
+     * ([isServerUnreachable]) from one that rejected the note. Must hold [syncMutex].
+     */
+    private suspend fun pushNoteLocked(note: NoteEntity): NoteEntity? {
         val current = noteDao.getNoteById(note.id) ?: return null
         if (!current.isDirty && !current.isLocalOnly) {
             return current
         }
-        try {
+        run {
             if (current.isLocalOnly) {
                 val request =
                     CreateNoteRequest(
@@ -635,11 +674,8 @@ class OfflineNotesRepository(
                     return entity
                 }
             }
-        } catch (e: Exception) {
-            AppLog.d("OfflineNotesRepository", "Failed to sync note ${current.id}: ${e.message}")
-            // Keep note marked as dirty for next sync attempt.
         }
-        return null
+        throw IllegalStateException("Server did not accept note ${current.id}")
     }
 
     /**
@@ -654,6 +690,8 @@ class OfflineNotesRepository(
             noteDao.deleteNote(noteId)
             AppLog.d("OfflineNotesRepository", "Note deleted on server: $noteId")
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            if (e.isServerUnreachable()) runtime.reportServerUnreachable()
             AppLog.d("OfflineNotesRepository", "Failed to delete note on server $noteId: ${e.message}")
             // Keep note marked as deleted for next sync attempt
         }

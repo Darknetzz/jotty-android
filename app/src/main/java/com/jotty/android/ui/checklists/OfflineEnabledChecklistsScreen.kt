@@ -766,6 +766,8 @@ private fun OfflineChecklistDetailContent(
     fun handleResult(result: Result<Checklist>) {
         result.onSuccess { updated ->
             onUpdate(updated)
+            // This call found the server unreachable and kept the change locally (#115).
+            if (isOnline && !NetworkConnectivityMonitor.isOnline.value) onSavedLocally()
         }.onFailure {
             if (!isOnline) onSavedLocally() else onSaveFailed()
         }

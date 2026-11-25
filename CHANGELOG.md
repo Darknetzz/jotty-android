@@ -8,6 +8,24 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ---
 
+## [1.11.1] - 2026-11-25
+
+### Fixed
+
+- **Offline sync when the server is unreachable** — With local storage & sync on, edits made while the phone has a connection but cannot reach your Jotty server (for example a home-network-only address while you are out) are now saved on the device and synced once the server answers again. Adding, checking, editing, reordering or deleting checklist items no longer fails with "Couldn't save", and saving a note no longer reports a failed save that had in fact been kept. The app shows itself as offline while the server is unreachable and reconnects on its own, usually within seconds of rejoining the network ([#115](https://github.com/Darknetzz/jotty-android/issues/115)).
+- **Raw markdown in some notes** — Notes with a blank line after a heading (or after a code block or table) showed everything below it as raw text: `##`, `**` and list dashes appeared literally and lines ran together. Blank lines inside code blocks also showed up as literal `<br>`. Both now render correctly; extra blank lines are still kept as spacing ([#116](https://github.com/Darknetzz/jotty-android/issues/116)).
+
+### Changed
+
+- **Dependencies** — Bouncy Castle 1.87 (upstream security fixes) and updated build tooling (AGP 9.5, KSP 2.3.14, Gradle 9.9).
+
+### Documentation
+
+- **Repository artwork** — New README banner and logo in the style of the app icon (Jotty purple, J with check mark).
+
+
+---
+
 ## [1.11.0] - 2026-11-20
 
 ### Added
@@ -1145,6 +1163,7 @@ Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes 
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.11.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.1
 [1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.3.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.3
 [1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0

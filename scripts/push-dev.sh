@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Push to origin/dev (GitHub + GitLab via dual push); GitLab CI publishes dev-latest.
+# Push to origin/dev (GitLab; its push mirror copies it to GitHub); GitLab CI publishes dev-latest.
 # With git config jotty.autoPublishDev true, the pre-push hook also publishes locally (--skip-publish skips it).
 set -euo pipefail
 

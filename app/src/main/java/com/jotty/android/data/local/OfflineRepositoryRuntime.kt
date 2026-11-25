@@ -1,7 +1,10 @@
 package com.jotty.android.data.local
 
 import android.content.Context
+import com.jotty.android.data.api.JottyApi
 import com.jotty.android.util.AppLog
+import com.jotty.android.util.isServerUnreachable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -89,6 +92,8 @@ class OfflineRepositoryLifecycle(
     private val useSharedConnectivity: Boolean,
     private val logTag: String,
     private val instanceId: String,
+    /** Cheap request that returns true when the server answers (e.g. `api.health()`). */
+    private val probeServer: suspend () -> Boolean,
     private val onNetworkAvailable: suspend () -> Unit,
 ) {
     private val scopeExceptionHandler =
@@ -118,6 +123,7 @@ class OfflineRepositoryLifecycle(
     init {
         if (useSharedConnectivity) {
             NetworkConnectivityMonitor.ensureStarted(appContext)
+            NetworkConnectivityMonitor.onInstanceActive(instanceId)
             var wasOnline = syncStatus.isOnline.value
             connectivityJob =
                 coroutineScope.launch {
@@ -137,6 +143,25 @@ class OfflineRepositoryLifecycle(
         }
     }
 
+    /**
+     * A request failed without an answer from the server. With shared connectivity the whole
+     * app switches to offline behaviour until a probe succeeds; repositories pinned to a fixed
+     * online state (tests) are left alone and fall back per operation.
+     */
+    fun reportServerUnreachable() {
+        if (closed || !useSharedConnectivity) return
+        NetworkConnectivityMonitor.reportServerUnreachable(instanceId, probeServer)
+    }
+
+    fun reportServerReachable() {
+        if (useSharedConnectivity) NetworkConnectivityMonitor.reportServerReachable(instanceId)
+    }
+
+    /** Ask for an immediate reachability probe (e.g. the user asked to sync while "offline"). */
+    fun requestReachabilityProbe() {
+        if (useSharedConnectivity) NetworkConnectivityMonitor.requestProbe()
+    }
+
     fun close() {
         if (closed) return
         closed = true
@@ -146,3 +171,17 @@ class OfflineRepositoryLifecycle(
         AppLog.d(logTag, "Closed (instance: $instanceId)")
     }
 }
+
+/**
+ * Reachability probe for [OfflineRepositoryLifecycle]: true when the server answers at all,
+ * including with an HTTP error (that is a server problem, not an unreachable one).
+ */
+suspend fun JottyApi.isReachable(): Boolean =
+    try {
+        health()
+        true
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        !e.isServerUnreachable()
+    }

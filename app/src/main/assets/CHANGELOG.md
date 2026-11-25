@@ -6,6 +6,23 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 
 ## [dev-latest](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
 
+### Fixed
+
+- **Offline sync when the server is unreachable** — With local storage & sync on, edits made while the phone has a connection but cannot reach your Jotty server (for example a home-network-only address while you are out) are now saved on the device and synced once the server answers again. Adding, checking, editing, reordering or deleting checklist items no longer fails with "Couldn't save", and saving a note no longer reports a failed save that had in fact been kept. The app shows itself as offline while the server is unreachable and reconnects on its own, usually within seconds of rejoining the network ([#115](https://github.com/Darknetzz/jotty-android/issues/115)).
+- **Raw markdown in some notes** — Notes with a blank line after a heading (or after a code block or table) showed everything below it as raw text: `##`, `**` and list dashes appeared literally and lines ran together. Blank lines inside code blocks also showed up as literal `<br>`. Both now render correctly; extra blank lines are still kept as spacing ([#116](https://github.com/Darknetzz/jotty-android/issues/116)).
+
+### Changed
+
+- **Dependencies** — Bouncy Castle 1.87 (upstream security fixes) and updated build tooling (AGP 9.5, KSP 2.3.14, Gradle 9.9).
+
+### Documentation
+
+- **Repository artwork** — New README banner and logo in the style of the app icon (Jotty purple, J with check mark).
+
+---
+
+## [1.11.0] - 2026-11-20
+
 ### Added
 
 - **Repeating items** (Jotty 1.30+) — Set an item to repeat daily, weekly (on chosen weekdays), monthly or yearly, every N periods, with a start and optional end date: **Repeat…** in a top-level checklist item's ⋮ menu, or the **Repeat** row in a Kanban card's details. Repeating items and cards show the rule and next due date. Works offline and syncs later.
@@ -22,6 +39,7 @@ The top section tracks the rolling [`dev-latest`](https://github.com/Darknetzz/j
 - **Clearer pending sync diffs** — The Local vs server diff splits HTML notes (web-editor `<div>`/`<p>`/`<br>` blocks) into separate lines, so only the changed blocks show up instead of the whole note. Edited lines get word-level highlighting, and additions now show in green instead of the accent color.
 - **New app icon** — Jotty-purple launcher icon with the Jotty “J” and a check mark (also used for the themed/monochrome icon).
 - **Jotty purple accent** — The default theme and default custom accent now use Jotty purple (`#9E5DF8`) instead of indigo; indigo stays available as a custom accent preset.
+
 
 ---
 
@@ -1140,63 +1158,106 @@ Sorry for the encrypted-note regressions in v1.7.1–v1.7.3. This release fixes 
 - Connect to a self-hosted Jotty instance (server URL + API key).
 - Jetpack Compose UI, Retrofit API client, DataStore preferences, Navigation Compose.
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.3.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.3
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.3.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.2
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.3.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.1
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.3.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.0
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.9]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.9
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.8]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.8
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.7]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.7
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.6]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.6
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.5
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.4
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.3
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.2
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.1
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.2.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.2.0
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.1.7]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.7
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.1.6]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.6
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.1.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.5
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.1.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.4
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.1.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.3
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.1.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.2
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.1.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.1
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.1.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.1.0
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.0.2-1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2-1
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.0.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.2
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.0.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.1
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.0.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.0.0
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.3.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.4
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.3.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.5
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.3.6]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.3.6
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.4.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.4.0
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.5.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.0
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.5.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.1
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.5.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.5.2
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.6.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.6.0
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.7.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.0
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.7.1]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.1
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.7.2]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.2
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.7.3]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.3
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.7.4]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.4
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.7.5]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.7.5
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.8.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.8.0
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.9.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.9.0
 
+[1.11.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.11.0
 [1.10.0]: https://github.com/Darknetzz/jotty-android/releases/tag/v1.10.0

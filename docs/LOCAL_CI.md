@@ -1,6 +1,6 @@
 # CI/CD and local builds
 
-Day-to-day CI/CD runs on **GitLab CI** ([`.gitlab-ci.yml`](../.gitlab-ci.yml), `gitlab.roste.org`). GitHub stays the public home: commits reach both remotes through a dual push URL on `origin`, and the GitLab publish jobs create the GitHub tags and releases with `gh`.
+Day-to-day CI/CD runs on **GitLab CI** ([`.gitlab-ci.yml`](../.gitlab-ci.yml), `gitlab.roste.org`). GitHub stays the public home: `origin` is GitLab only, a GitLab push mirror copies every branch and tag to GitHub, and the GitLab publish jobs create the GitHub releases with `gh` once the mirror has delivered the ref.
 
 GitHub Actions workflows in `.github/workflows/` are **manual-only** (`workflow_dispatch`) fallbacks. The local scripts below still work when GitLab is unavailable.
 
@@ -18,7 +18,7 @@ GitHub Actions workflows in `.github/workflows/` are **manual-only** (`workflow_
 ### Pipeline
 
 - **`test`** — `scripts/ci-local.sh --skip-release` (unit tests, lint, ktlint). On `main` and release tags it checks debug and release variants; on `dev`, other branches and MRs it adds `--debug-only` (debug unit tests + `lintDebug`), roughly halving the time. JUnit results and lint reports are attached to the pipeline.
-- **`dev-latest`** — on push to `dev`: waits until GitHub `dev` is at the same commit (skips if a newer commit superseded it), builds the release-signed dev APK (`build-dev-apk.sh`), then recreates the `dev-latest` tag and pre-release on GitHub (`publish-dev-latest.sh`). Serialized with `resource_group`.
+- **`dev-latest`** — on push to `dev`: waits until GitHub `dev` is at the same commit (skips if a newer commit superseded it), builds the release-signed dev APK (`build-dev-apk.sh`), then recreates the `dev-latest` pre-release on GitHub with the APK attached and moves the `dev-latest` tag to that commit on both GitHub and GitLab (`publish-dev-latest.sh`; GitHub first, so the push mirror finds the tags equal). The tag push to GitLab uses the job token and does not start a pipeline (workflow rule). Serialized with `resource_group`.
 - **`github-release`** — on tag `vX.Y.Z`: checks the tag matches `VERSION_NAME`, builds `jotty-android-X.Y.Z.apk`, creates (or updates) the GitHub release with notes from `CHANGELOG.md`, and uploads the APK. Safe to re-run.
 
 Publish jobs refuse to run without the release keystore: debug-signed APKs break in-place updates (issue #9). Image: `ghcr.io/cirruslabs/android-sdk:36` (Docker runner); `gh` version is pinned by `GH_CLI_VERSION`.
@@ -26,7 +26,8 @@ Publish jobs refuse to run without the release keystore: debug-signed APKs break
 ### One-time setup
 
 1. **GitLab project:** create `kriss/jotty-android` on `gitlab.roste.org` (blank, no README).
-2. **Protect** branches `dev` and `main` and tags `v*` (Settings → Repository → Protected branches / tags), so protected variables reach the publish jobs.
+2. **Protect** branches `dev` and `main` and tags `v*` (Settings → Repository → Protected branches / tags), so protected variables reach the publish jobs. Leave `dev-latest` unprotected: CI force-moves it.
+2a. **Job token push:** Settings → CI/CD → Job token permissions → *Allow Git push requests to the repository* on, so the `dev-latest` job can move the GitLab tag.
 3. **CI/CD variables** (Settings → CI/CD → Variables, *Protected* + *Masked*):
 
    | Variable | Value |
@@ -37,12 +38,11 @@ Publish jobs refuse to run without the release keystore: debug-signed APKs break
    | `ANDROID_KEY_ALIAS` | key alias |
    | `ANDROID_KEY_PASSWORD` | key password |
 
-4. **Dual push** (per clone): one `git push origin …` updates GitHub first, then GitLab. Fetches still come from GitHub.
+4. **Remote** (per clone): `origin` is GitLab only. GitHub gets everything from the GitLab push mirror (Settings > Repository > Mirroring repositories, id 14), so never add GitHub as a remote or push URL. Until 2026-11-24 `origin` fetched from GitHub and had a dual push URL.
 
    ```bash
-   git remote set-url --add --push origin git@github.com:Darknetzz/jotty-android.git
-   git remote set-url --add --push origin git@gitlab.roste.org:kriss/jotty-android.git
-   git push origin main dev
+   git remote set-url origin git@gitlab.roste.org:kriss/jotty-android.git
+   git config --unset-all remote.origin.pushurl
    ```
 
 5. Run `.\scripts\setup-repo-git.ps1` / `./scripts/setup-repo-git.sh` once per clone (force-fetch for the moving `dev-latest` tag, `.githooks`).
@@ -64,7 +64,7 @@ git commit -m "Release vX.Y.Z"
 .\scripts\publish-release.ps1
 ```
 
-`publish-release` pushes `dev`, opens and merges the `dev` → `main` PR on GitHub, tags the merged `main` as `vX.Y.Z`, pushes `main` + the tag to both remotes, and syncs `dev` with `main`. The GitLab `github-release` job then publishes the GitHub release and APK. On Unix, `./release.sh` and `./scripts/publish-release.sh` are equivalent; both release scripts validate changelog promotion with `--dry-run` / `-DryRun`.
+`publish-release` pushes `dev`, opens and merges the `dev` → `main` PR on GitHub, tags the merged `main` as `vX.Y.Z`, copies the merged `main` from GitHub to GitLab, pushes the tag to GitLab (the mirror carries it to GitHub), and syncs `dev` with `main`. The GitLab `github-release` job then publishes the GitHub release and APK. On Unix, `./release.sh` and `./scripts/publish-release.sh` are equivalent; both release scripts validate changelog promotion with `--dry-run` / `-DryRun`.
 
 ## Local fallbacks
 

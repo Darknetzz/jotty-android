@@ -2,6 +2,8 @@
 
 <p align="center"><img src="docs/images/banner-icon.png" alt="Jotty Android" width="720"></p>
 
+> **Source:** [gitlab.roste.org/kriss/jotty-android](https://gitlab.roste.org/kriss/jotty-android) on GitLab (issues, merge requests, CI). [github.com/Darknetzz/jotty-android](https://github.com/Darknetzz/jotty-android) is a read-only push mirror.
+
 
 [![Stable APK](https://img.shields.io/badge/Stable%20APK-latest-2ea043)](https://github.com/Darknetzz/jotty-android/releases/latest)
 [![Dev latest](https://img.shields.io/badge/dev--latest-pre--release-f97316)](https://github.com/Darknetzz/jotty-android/releases/tag/dev-latest)
